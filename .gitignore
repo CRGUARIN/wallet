@@ -1,0 +1,61 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+.idea/
+.vscode/
+
+# Ignore Gradle GUI config
+gradle-app.setting
+
+# Ignore Gradle cache
+.gradle/
+
+# Ignore Gradle Wrapper directory
+# But do not ignore the wrapper files needed to run Gradle
+!gradle/wrapper/gradle-wrapper.jar
+!gradle/wrapper/gradle-wrapper.properties
+
+# Ignore MacOS specific files
+.DS_Store
+
+# Ignore Android build directories
+build/
+app/build/
+
+# NDK
+obj/
+
+# IntelliJ IDEA project files
+*.iml
+.idea/
+.idea/workspace.xml
+.idea/tasks.xml
+.idea/gradle.xml
+.idea/assetWizardSettings.xml
+.idea/dictionaries
+.idea/libraries
+.idea/caches
+
+# VSCode
+.vscode/
+
+# OS specific files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db

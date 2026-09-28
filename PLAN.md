@@ -640,7 +640,7 @@ Comandos que **deben pasar** antes de cada PR:
 ---
 
 ## 15. Checklist de progreso
-- [ ] Tarea 0 — Entorno y AGENTS.md
+- [x] Tarea 0 — Entorno y AGENTS.md
 - [ ] Tarea 1 — Esqueleto del proyecto + CI
 - [ ] Tarea 2 — Núcleo de dinero
 - [ ] Tarea 3 — Base de datos
