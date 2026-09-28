@@ -1,6 +1,72 @@
 <resources>
     <string name="app_name" translatable="false">Wallet</string>
-    <string name="welcome_placeholder">Bienvenido a Wallet</string>
+
+    <!-- Navegación -->
+    <string name="nav_home">Inicio</string>
+    <string name="nav_transactions">Movimientos</string>
+    <string name="nav_accounts">Cuentas</string>
+    <string name="nav_settings">Ajustes</string>
+
+    <!-- Títulos de pantallas -->
+    <string name="onboarding_title">Bienvenida</string>
+    <string name="home_title">Inicio</string>
+    <string name="transactions_title">Movimientos</string>
+    <string name="transaction_edit_title">Movimiento</string>
+    <string name="accounts_title">Cuentas</string>
+    <string name="account_detail_title">Detalle de cuenta</string>
+    <string name="account_edit_title">Editar cuenta</string>
+    <string name="categories_title">Categorías</string>
+    <string name="category_edit_title">Editar categoría</string>
+    <string name="category_picker_title">Seleccionar categoría</string>
+    <string name="settings_title">Ajustes</string>
+
+    <!-- Acciones comunes -->
+    <string name="action_save">Guardar</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_archive">Archivar</string>
+    <string name="action_confirm">Confirmar</string>
+    <string name="action_add">Agregar</string>
+    <string name="action_select">Seleccionar</string>
+    <string name="action_new_category">Nueva categoría</string>
+    <string name="action_new_transaction">Nuevo movimiento</string>
+    <string name="action_expand">Expandir</string>
+    <string name="action_collapse">Colapsar</string>
+
+    <!-- Componentes comunes -->
+    <string name="account_picker_title">Seleccionar cuenta</string>
+    <string name="empty_state_default_title">Sin elementos</string>
+    <string name="empty_state_default_message">No hay información para mostrar</string>
+    <string name="amount_text_field_label">Monto</string>
+
+    <!-- Descripciones de contenido (accesibilidad) -->
+    <string name="cd_selected">Seleccionado</string>
+    <string name="cd_account_icon">Ícono de cuenta</string>
+    <string name="cd_category_icon">Ícono de categoría</string>
+    <string name="cd_color">Color</string>
+    <string name="cd_icon">Ícono</string>
+
+    <!-- Errores de dominio -->
+    <string name="error_name_empty">El nombre no puede estar vacío</string>
+    <string name="error_name_too_long">El nombre es demasiado largo</string>
+    <string name="error_name_duplicated">Ya existe un elemento con este nombre</string>
+    <string name="error_amount_invalid">El monto ingresado no es válido</string>
+    <string name="error_same_account_transfer">La cuenta origen y destino deben ser diferentes</string>
+    <string name="error_category_required">Se requiere seleccionar una categoría</string>
+    <string name="error_category_type_mismatch">El tipo de categoría no coincide</string>
+    <string name="error_max_depth_exceeded">Se excedió el nivel máximo de subcategorías</string>
+    <string name="error_account_has_transactions">No se puede eliminar una cuenta con movimientos</string>
+    <string name="error_category_has_children">No se puede eliminar una categoría con subcategorías</string>
+    <string name="error_category_has_transactions">No se puede eliminar una categoría con movimientos asociados</string>
+    <string name="error_not_found">Elemento no encontrado</string>
+    <string name="error_note_too_long">La nota es demasiado larga</string>
+    <string name="error_date_out_of_range">La fecha está fuera del rango permitido</string>
+    <string name="error_account_archived">La cuenta está archivada</string>
+    <string name="error_category_archived">La categoría está archivada</string>
+    <string name="error_same_category_reassignment">No se puede reasignar a la misma categoría</string>
+    <string name="error_invalid_transaction">Transacción inválida</string>
+    <string name="error_backup_invalid">El archivo de copia de seguridad no es válido</string>
+    <string name="error_backup_version_unsupported">Versión de copia de seguridad no soportada</string>
 
     <!-- Categorías del sistema - Gastos -->
     <string name="category_food">Alimentación</string>

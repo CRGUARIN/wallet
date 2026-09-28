@@ -1,5 +1,70 @@
 <resources>
-    <string name="welcome_placeholder">Welcome to Wallet</string>
+    <!-- Navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_transactions">Transactions</string>
+    <string name="nav_accounts">Accounts</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Screen titles -->
+    <string name="onboarding_title">Welcome</string>
+    <string name="home_title">Home</string>
+    <string name="transactions_title">Transactions</string>
+    <string name="transaction_edit_title">Transaction</string>
+    <string name="accounts_title">Accounts</string>
+    <string name="account_detail_title">Account details</string>
+    <string name="account_edit_title">Edit account</string>
+    <string name="categories_title">Categories</string>
+    <string name="category_edit_title">Edit category</string>
+    <string name="category_picker_title">Select category</string>
+    <string name="settings_title">Settings</string>
+
+    <!-- Common actions -->
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_archive">Archive</string>
+    <string name="action_confirm">Confirm</string>
+    <string name="action_add">Add</string>
+    <string name="action_select">Select</string>
+    <string name="action_new_category">New category</string>
+    <string name="action_new_transaction">New transaction</string>
+    <string name="action_expand">Expand</string>
+    <string name="action_collapse">Collapse</string>
+
+    <!-- Common components -->
+    <string name="account_picker_title">Select account</string>
+    <string name="empty_state_default_title">No items</string>
+    <string name="empty_state_default_message">There is no information to display</string>
+    <string name="amount_text_field_label">Amount</string>
+
+    <!-- Content descriptions (accessibility) -->
+    <string name="cd_selected">Selected</string>
+    <string name="cd_account_icon">Account icon</string>
+    <string name="cd_category_icon">Category icon</string>
+    <string name="cd_color">Color</string>
+    <string name="cd_icon">Icon</string>
+
+    <!-- Domain errors -->
+    <string name="error_name_empty">Name cannot be empty</string>
+    <string name="error_name_too_long">Name is too long</string>
+    <string name="error_name_duplicated">An item with this name already exists</string>
+    <string name="error_amount_invalid">The entered amount is invalid</string>
+    <string name="error_same_account_transfer">Source and destination accounts must be different</string>
+    <string name="error_category_required">A category is required</string>
+    <string name="error_category_type_mismatch">Category type does not match</string>
+    <string name="error_max_depth_exceeded">Maximum subcategory depth exceeded</string>
+    <string name="error_account_has_transactions">Cannot delete an account with transactions</string>
+    <string name="error_category_has_children">Cannot delete a category with subcategories</string>
+    <string name="error_category_has_transactions">Cannot delete a category with associated transactions</string>
+    <string name="error_not_found">Item not found</string>
+    <string name="error_note_too_long">Note is too long</string>
+    <string name="error_date_out_of_range">Date is out of allowed range</string>
+    <string name="error_account_archived">The account is archived</string>
+    <string name="error_category_archived">The category is archived</string>
+    <string name="error_same_category_reassignment">Cannot reassign to the same category</string>
+    <string name="error_invalid_transaction">Invalid transaction</string>
+    <string name="error_backup_invalid">The backup file is invalid</string>
+    <string name="error_backup_version_unsupported">Unsupported backup version</string>
 
     <!-- System Categories - Expense -->
     <string name="category_food">Food</string>

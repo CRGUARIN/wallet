@@ -8,20 +8,55 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme =
     darkColorScheme(
-        primary = Purple80,
-        secondary = PurpleGrey80,
-        tertiary = Pink80,
+        primary = GreenPrimaryDark,
+        onPrimary = GreenOnPrimaryDark,
+        primaryContainer = GreenPrimaryContainerDark,
+        onPrimaryContainer = GreenOnPrimaryContainerDark,
+        secondary = GreenSecondaryDark,
+        onSecondary = GreenOnSecondaryDark,
+        secondaryContainer = GreenSecondaryContainerDark,
+        onSecondaryContainer = GreenOnSecondaryContainerDark,
+        tertiary = GreenTertiaryDark,
+        onTertiary = GreenOnTertiaryDark,
+        tertiaryContainer = GreenTertiaryContainerDark,
+        onTertiaryContainer = GreenOnTertiaryContainerDark,
+        background = BackgroundDark,
+        onBackground = OnBackgroundDark,
+        surface = SurfaceDark,
+        onSurface = OnSurfaceDark,
+        surfaceVariant = SurfaceVariantDark,
+        onSurfaceVariant = OnSurfaceVariantDark,
+        outline = OutlineDark,
+        outlineVariant = OutlineVariantDark,
     )
 
 private val LightColorScheme =
     lightColorScheme(
-        primary = Purple40,
-        secondary = PurpleGrey40,
-        tertiary = Pink40,
+        primary = GreenPrimaryLight,
+        onPrimary = GreenOnPrimaryLight,
+        primaryContainer = GreenPrimaryContainerLight,
+        onPrimaryContainer = GreenOnPrimaryContainerLight,
+        secondary = GreenSecondaryLight,
+        onSecondary = GreenOnSecondaryLight,
+        secondaryContainer = GreenSecondaryContainerLight,
+        onSecondaryContainer = GreenOnSecondaryContainerLight,
+        tertiary = GreenTertiaryLight,
+        onTertiary = GreenOnTertiaryLight,
+        tertiaryContainer = GreenTertiaryContainerLight,
+        onTertiaryContainer = GreenOnTertiaryContainerLight,
+        background = BackgroundLight,
+        onBackground = OnBackgroundLight,
+        surface = SurfaceLight,
+        onSurface = OnSurfaceLight,
+        surfaceVariant = SurfaceVariantLight,
+        onSurfaceVariant = OnSurfaceVariantLight,
+        outline = OutlineLight,
+        outlineVariant = OutlineVariantLight,
     )
 
 @Composable
@@ -41,9 +76,16 @@ fun WalletTheme(
             darkTheme -> DarkColorScheme
             else -> LightColorScheme
         }
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content,
-    )
+
+    val semanticColors = if (darkTheme) DarkWalletSemanticColors else LightWalletSemanticColors
+
+    CompositionLocalProvider(
+        LocalWalletSemanticColors provides semanticColors,
+    ) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content,
+        )
+    }
 }

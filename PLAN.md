@@ -681,7 +681,7 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 - [x] Tarea 2 — Núcleo de dinero
 - [x] Tarea 3 — Base de datos
 - [x] Tarea 4 — Dominio y repositorios
-- [ ] Tarea 5 — Navegación, i18n y componentes
+- [x] Tarea 5 — Navegación, i18n y componentes
 - [ ] Tarea 6 — Onboarding y cuentas
 - [ ] Tarea 7 — Categorías y subcategorías
 - [ ] Tarea 8 — Ingresos y gastos
