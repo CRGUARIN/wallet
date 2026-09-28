@@ -28,6 +28,7 @@ import com.crguarin.wallet.ui.navigation.WalletNavHost
 fun WalletAppContent(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
+    startDestination: Any = Home,
 ) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
@@ -69,6 +70,7 @@ fun WalletAppContent(
     ) { innerPadding ->
         WalletNavHost(
             navController = navController,
+            startDestination = startDestination,
             modifier = Modifier.padding(innerPadding),
         )
     }

@@ -6,14 +6,14 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.toRoute
-import com.crguarin.wallet.ui.accounts.AccountDetailScreen
-import com.crguarin.wallet.ui.accounts.AccountEditScreen
-import com.crguarin.wallet.ui.accounts.AccountsScreen
+import com.crguarin.wallet.ui.accounts.AccountDetailRoute
+import com.crguarin.wallet.ui.accounts.AccountEditRoute
+import com.crguarin.wallet.ui.accounts.AccountsRoute
 import com.crguarin.wallet.ui.categories.CategoriesScreen
 import com.crguarin.wallet.ui.categories.CategoryEditScreen
 import com.crguarin.wallet.ui.categories.CategoryPickerScreen
 import com.crguarin.wallet.ui.home.HomeScreen
-import com.crguarin.wallet.ui.onboarding.OnboardingScreen
+import com.crguarin.wallet.ui.onboarding.OnboardingRoute
 import com.crguarin.wallet.ui.settings.SettingsScreen
 import com.crguarin.wallet.ui.transactions.TransactionEditScreen
 import com.crguarin.wallet.ui.transactions.TransactionsScreen
@@ -22,14 +22,21 @@ import com.crguarin.wallet.ui.transactions.TransactionsScreen
 fun WalletNavHost(
     navController: NavHostController,
     modifier: Modifier = Modifier,
+    startDestination: Any = Home,
 ) {
     NavHost(
         navController = navController,
-        startDestination = Home,
+        startDestination = startDestination,
         modifier = modifier,
     ) {
         composable<Onboarding> {
-            OnboardingScreen()
+            OnboardingRoute(
+                onNavigateToHome = {
+                    navController.navigate(Home) {
+                        popUpTo(Onboarding) { inclusive = true }
+                    }
+                },
+            )
         }
         composable<Home> {
             HomeScreen()
@@ -50,18 +57,34 @@ fun WalletNavHost(
             )
         }
         composable<Accounts> {
-            AccountsScreen()
-        }
-        composable<AccountDetail> { backStackEntry ->
-            val route = backStackEntry.toRoute<AccountDetail>()
-            AccountDetailScreen(
-                accountId = route.accountId,
+            AccountsRoute(
+                onAccountClick = { accountId ->
+                    navController.navigate(AccountDetail(accountId = accountId))
+                },
+                onNewAccountClick = {
+                    navController.navigate(AccountEdit())
+                },
             )
         }
-        composable<AccountEdit> { backStackEntry ->
-            val route = backStackEntry.toRoute<AccountEdit>()
-            AccountEditScreen(
-                accountId = route.accountId,
+        composable<AccountDetail> {
+            AccountDetailRoute(
+                onNavigateBack = { navController.popBackStack() },
+                onEditClick = { accountId ->
+                    navController.navigate(AccountEdit(accountId = accountId))
+                },
+                onTransferClick = { accountId ->
+                    navController.navigate(
+                        TransactionEdit(
+                            initialType = com.crguarin.wallet.domain.model.TransactionType.TRANSFER,
+                            accountId = accountId,
+                        ),
+                    )
+                },
+            )
+        }
+        composable<AccountEdit> {
+            AccountEditRoute(
+                onNavigateBack = { navController.popBackStack() },
             )
         }
         composable<Categories> { backStackEntry ->

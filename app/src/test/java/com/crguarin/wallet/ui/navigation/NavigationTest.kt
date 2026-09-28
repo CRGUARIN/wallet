@@ -25,13 +25,30 @@ class NavigationTest {
 
     private lateinit var navController: NavHostController
 
-    private fun setAppContent() {
+    private fun setAppContent(startDestination: Any = Home) {
         composeRule.setContent {
             navController = rememberNavController()
             WalletTheme {
-                WalletAppContent(navController = navController)
+                WalletAppContent(
+                    navController = navController,
+                    startDestination = startDestination,
+                )
             }
         }
+    }
+
+    @Test
+    @Config(qualifiers = "es")
+    fun `starts at Onboarding destination when startDestination is Onboarding`() {
+        setAppContent(startDestination = Onboarding)
+
+        // Welcome screen content is displayed
+        composeRule.onNodeWithText("Bienvenido a Wallet").assertIsDisplayed()
+        // Bottom bar is hidden on Onboarding
+        composeRule.onNodeWithText("Inicio").assertDoesNotExist()
+        composeRule.onNodeWithText("Ajustes").assertDoesNotExist()
+        // FAB is hidden on Onboarding
+        composeRule.onNodeWithContentDescription("Nuevo movimiento").assertDoesNotExist()
     }
 
     @Test
@@ -102,7 +119,6 @@ class NavigationTest {
 
         // Detail screen content is displayed
         composeRule.onNodeWithText("Detalle de cuenta").assertIsDisplayed()
-        composeRule.onNodeWithText("accountId=42").assertIsDisplayed()
 
         // Bottom bar is hidden
         composeRule.onNodeWithText("Ajustes").assertDoesNotExist()
