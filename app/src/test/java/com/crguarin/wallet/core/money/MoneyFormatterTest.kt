@@ -66,49 +66,49 @@ class MoneyFormatterTest {
     fun `format COP in English without cents displays zero decimals and comma for thousands`() {
         val money = Money(1_500_000L)
         val formatted = MoneyFormatter.format(money, locale = enLocale).normalizeSpaces()
-        assertThat(formatted).isEqualTo("COP15,000")
+        assertThat(formatted).isEqualTo("$15,000")
     }
 
     @Test
     fun `format COP in English with cents displays two decimals and dot for decimal separator`() {
         val money = Money(1_500_050L)
         val formatted = MoneyFormatter.format(money, locale = enLocale).normalizeSpaces()
-        assertThat(formatted).isEqualTo("COP15,000.50")
+        assertThat(formatted).isEqualTo("$15,000.50")
     }
 
     @Test
     fun `format COP in English with single cent displays two decimals`() {
         val money = Money(1L)
         val formatted = MoneyFormatter.format(money, locale = enLocale).normalizeSpaces()
-        assertThat(formatted).isEqualTo("COP0.01")
+        assertThat(formatted).isEqualTo("$0.01")
     }
 
     @Test
     fun `format COP in English with zero displays zero decimals`() {
         val money = Money.ZERO
         val formatted = MoneyFormatter.format(money, locale = enLocale).normalizeSpaces()
-        assertThat(formatted).isEqualTo("COP0")
+        assertThat(formatted).isEqualTo("$0")
     }
 
     @Test
     fun `format COP in English with negative amount without cents`() {
         val money = Money(-1_500_000L)
         val formatted = MoneyFormatter.format(money, locale = enLocale).normalizeSpaces()
-        assertThat(formatted).isEqualTo("-COP15,000")
+        assertThat(formatted).isEqualTo("-$15,000")
     }
 
     @Test
     fun `format COP in English with negative amount with cents`() {
         val money = Money(-1_500_050L)
         val formatted = MoneyFormatter.format(money, locale = enLocale).normalizeSpaces()
-        assertThat(formatted).isEqualTo("-COP15,000.50")
+        assertThat(formatted).isEqualTo("-$15,000.50")
     }
 
     @Test
     fun `format COP in English with max limit amount`() {
         val money = Money.MAX
         val formatted = MoneyFormatter.format(money, locale = enLocale).normalizeSpaces()
-        assertThat(formatted).isEqualTo("COP999,999,999,999.99")
+        assertThat(formatted).isEqualTo("$999,999,999,999.99")
     }
 
     @Test
@@ -116,5 +116,16 @@ class MoneyFormatterTest {
         val money = Money(1_500_000L)
         val formatted = money.format(locale = esLocale).normalizeSpaces()
         assertThat(formatted).isEqualTo("$ 15.000")
+    }
+
+    @Test
+    fun `format COP with language-only locales uses dollar symbol`() {
+        val money = Money(1_500_000L)
+        val es = MoneyFormatter.format(money, locale = Locale.forLanguageTag("es")).normalizeSpaces()
+        val en = MoneyFormatter.format(money, locale = Locale.forLanguageTag("en")).normalizeSpaces()
+        assertThat(es).doesNotContain("COP")
+        assertThat(es).contains("$")
+        assertThat(es).contains("15.000")
+        assertThat(en).isEqualTo("$15,000")
     }
 }

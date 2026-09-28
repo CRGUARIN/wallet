@@ -1,6 +1,7 @@
 package com.crguarin.wallet.core.money
 
 import java.math.BigDecimal
+import java.text.DecimalFormat
 import java.text.NumberFormat
 import java.util.Currency
 import java.util.Locale
@@ -10,8 +11,11 @@ import java.util.Locale
  *
  * For COP (default currency), displays 0 decimals by default (e.g. "$ 15.000"),
  * and 2 decimals only when non-zero cents are present (e.g. "$ 15.000,50").
+ * COP always uses the "$" symbol, even in locales that would show "COP" (e.g. en-US).
  */
 object MoneyFormatter {
+    private const val COP_SYMBOL = "$"
+
     fun format(
         money: Money,
         locale: Locale = Locale.getDefault(),
@@ -21,6 +25,10 @@ object MoneyFormatter {
         val format =
             NumberFormat.getCurrencyInstance(locale).apply {
                 this.currency = currency
+                if (currencyCode == APP_CURRENCY && this is DecimalFormat) {
+                    decimalFormatSymbols =
+                        decimalFormatSymbols.apply { currencySymbol = COP_SYMBOL }
+                }
                 val hasFractions = (money.minorUnits % 100L) != 0L
                 if (currencyCode == APP_CURRENCY) {
                     if (hasFractions) {
