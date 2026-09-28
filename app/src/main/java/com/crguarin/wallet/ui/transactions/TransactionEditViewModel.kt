@@ -418,8 +418,9 @@ class TransactionEditViewModel
                 it.copy(
                     accountId = origin,
                     toAccountId = destination,
-                    archivedAccount = null,
-                    archivedToAccount = null,
+                    // Archived accounts are not in the active list, so their names travel with them.
+                    archivedAccount = it.archivedToAccount,
+                    archivedToAccount = it.archivedAccount,
                     generalErrorRes = null,
                 )
             }

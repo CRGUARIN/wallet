@@ -550,6 +550,23 @@ class TransactionEditViewModelTest {
         }
 
     @Test
+    fun `swapping keeps the archived account name on its new side`() =
+        runTest(testDispatcher) {
+            transactionRepository.setInitialData(
+                listOf(existingTransfer().copy(toAccountId = 3L)),
+            )
+            val viewModel = createViewModel(editHandle(10L))
+
+            viewModel.swapAccounts()
+
+            val state = viewModel.uiState.value
+            assertThat(state.accountId).isEqualTo(3L)
+            assertThat(state.archivedAccount?.id).isEqualTo(3L)
+            assertThat(state.toAccountId).isEqualTo(1L)
+            assertThat(state.archivedToAccount).isNull()
+        }
+
+    @Test
     fun `editing a transfer shows the negative balance warning on the origin account`() =
         runTest(testDispatcher) {
             transactionRepository.setInitialData(listOf(existingTransfer(amount = Money(150_000L))))
