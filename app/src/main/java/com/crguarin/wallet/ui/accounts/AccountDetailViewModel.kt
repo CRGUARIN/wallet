@@ -39,6 +39,8 @@ data class AccountDetailUiState(
     val monthSummary: MonthSummary = MonthSummary(Money.ZERO, Money.ZERO),
     val showDeleteConfirmDialog: Boolean = false,
     val showOfferArchiveDialog: Boolean = false,
+    /** True when there is another active account to transfer to. */
+    val canTransfer: Boolean = false,
     val errorMessageRes: Int? = null,
 )
 
@@ -87,13 +89,15 @@ class AccountDetailViewModel
                 accountRepository.observeAccountWithBalance(accountId),
                 observeMonthSummaryUseCase(currentYearMonth, accountId),
                 dialogStateFlow,
-            ) { account, monthSummary, dialogState ->
+                accountRepository.observeAccountsWithBalance(includeArchived = false),
+            ) { account, monthSummary, dialogState, activeAccounts ->
                 AccountDetailUiState(
                     isLoading = false,
                     accountWithBalance = account,
                     monthSummary = monthSummary,
                     showDeleteConfirmDialog = dialogState.showDelete,
                     showOfferArchiveDialog = dialogState.showOfferArchive,
+                    canTransfer = activeAccounts.any { it.account.id != accountId },
                 )
             }.stateIn(
                 scope = viewModelScope,

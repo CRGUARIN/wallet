@@ -177,13 +177,15 @@ fun AccountDetailScreen(
                                 },
                             )
                             if (!account.isArchived) {
-                                DropdownMenuItem(
-                                    text = { Text(stringResource(R.string.account_detail_menu_transfer)) },
-                                    onClick = {
-                                        menuExpanded = false
-                                        onTransferClick()
-                                    },
-                                )
+                                if (uiState.canTransfer) {
+                                    DropdownMenuItem(
+                                        text = { Text(stringResource(R.string.account_detail_menu_transfer)) },
+                                        onClick = {
+                                            menuExpanded = false
+                                            onTransferClick()
+                                        },
+                                    )
+                                }
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.account_detail_menu_archive)) },
                                     onClick = {
