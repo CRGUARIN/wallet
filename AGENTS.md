@@ -44,3 +44,11 @@ Antes de cada PR, **deben pasar** los siguientes comandos:
 - Commits en formato **Conventional Commits** (`feat:`, `fix:`, `test:`, `chore:`, `docs:`).
 - No agregar dependencias fuera de la sección 2 del PLAN.md sin justificarlo.
 - Nada de secretos, keystores ni `local.properties` en git.
+
+## Notas de build (leer antes de tocar Gradle)
+- **AGP 9** trae Kotlin integrado: **no** aplicar `org.jetbrains.kotlin.android` en `app/build.gradle.kts` (solo se declara con `apply false` en la raíz para fijar la versión de Kotlin). Usar `kotlin { compilerOptions { ... } }`, no `kotlinOptions`.
+- Todas las versiones viven en `gradle/libs.versions.toml`; los plugins se aplican siempre con `alias(libs.plugins.xxx)`, nunca con `buildscript { classpath(...) }`.
+- `compileSdk`/`targetSdk = 37` (paquete del SDK: `platforms;android-37.0`). **No bajarlo** para esquivar errores; si algo falla, reportarlo.
+- Tests de Robolectric: anotar con `@Config(sdk = [35])` hasta que Robolectric soporte la API 37.
+- Entorno: `source ./setup_sdk.sh` instala el SDK y genera `local.properties`.
+- El repositorio espejo de Google (`maven-central.storage-download.googleapis.com`) está primero en `settings.gradle.kts` para evitar errores 429 de Maven Central; no quitarlo.
