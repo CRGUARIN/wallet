@@ -11,11 +11,10 @@ import com.crguarin.wallet.ui.accounts.AccountEditRoute
 import com.crguarin.wallet.ui.accounts.AccountsRoute
 import com.crguarin.wallet.ui.categories.CategoriesRoute
 import com.crguarin.wallet.ui.categories.CategoryEditRoute
-import com.crguarin.wallet.ui.categories.CategoryPickerScreen
 import com.crguarin.wallet.ui.home.HomeScreen
 import com.crguarin.wallet.ui.onboarding.OnboardingRoute
 import com.crguarin.wallet.ui.settings.SettingsScreen
-import com.crguarin.wallet.ui.transactions.TransactionEditScreen
+import com.crguarin.wallet.ui.transactions.TransactionEditRoute
 import com.crguarin.wallet.ui.transactions.TransactionsScreen
 
 @Composable
@@ -48,12 +47,15 @@ fun WalletNavHost(
                 categoryId = route.categoryId,
             )
         }
-        composable<TransactionEdit> { backStackEntry ->
-            val route = backStackEntry.toRoute<TransactionEdit>()
-            TransactionEditScreen(
-                transactionId = route.transactionId,
-                initialType = route.initialType,
-                accountId = route.accountId,
+        composable<TransactionEdit> {
+            TransactionEditRoute(
+                onNavigateBack = { navController.popBackStack() },
+                onNavigateToCategoryEdit = { type ->
+                    navController.navigate(CategoryEdit(type = type))
+                },
+                onNavigateToAccountEdit = {
+                    navController.navigate(AccountEdit())
+                },
             )
         }
         composable<Accounts> {
@@ -104,12 +106,12 @@ fun WalletNavHost(
         composable<CategoryEdit> {
             CategoryEditRoute(
                 onNavigateBack = { navController.popBackStack() },
-            )
-        }
-        composable<CategoryPicker> { backStackEntry ->
-            val route = backStackEntry.toRoute<CategoryPicker>()
-            CategoryPickerScreen(
-                type = route.type,
+                onCategorySaved = { savedCategoryId ->
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set(NEW_CATEGORY_RESULT_KEY, savedCategoryId)
+                    navController.popBackStack()
+                },
             )
         }
         composable<Settings> {

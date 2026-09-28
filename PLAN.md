@@ -417,7 +417,6 @@ AccountDetail(accountId: Long)
 AccountEdit(accountId: Long? = null)
 Categories(type: CategoryType = EXPENSE)
 CategoryEdit(categoryId: Long? = null, parentId: Long? = null, type: CategoryType)
-CategoryPicker(type: CategoryType)       // bottom sheet o pantalla
 Settings
 ```
 
@@ -684,7 +683,7 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 - [x] Tarea 5 — Navegación, i18n y componentes
 - [x] Tarea 6 — Onboarding y cuentas
 - [x] Tarea 7 — Categorías y subcategorías
-- [ ] Tarea 8 — Ingresos y gastos
+- [x] Tarea 8 — Ingresos y gastos
 - [ ] Tarea 9 — Transferencias
 - [ ] Tarea 10 — Movimientos, detalle y Home
 - [ ] Tarea 11 — Ajustes y backup

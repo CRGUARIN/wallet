@@ -71,6 +71,7 @@ fun CategoryEditRoute(
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: CategoryEditViewModel? = safeHiltViewModel(),
+    onCategorySaved: ((Long) -> Unit)? = null,
 ) {
     if (viewModel == null) {
         CategoryEditScreen(
@@ -101,7 +102,14 @@ fun CategoryEditRoute(
     LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
             when (event) {
-                is CategoryEditEvent.NavigateBack -> onNavigateBack()
+                is CategoryEditEvent.NavigateBack -> {
+                    val savedId = event.savedCategoryId
+                    if (savedId != null && onCategorySaved != null) {
+                        onCategorySaved(savedId)
+                    } else {
+                        onNavigateBack()
+                    }
+                }
                 is CategoryEditEvent.ShowSnackbar -> {
                     @Suppress("LocalContextGetResourceValueCall")
                     snackbarHostState.showSnackbar(context.getString(event.messageRes))

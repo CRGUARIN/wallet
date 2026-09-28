@@ -11,6 +11,24 @@
     <string name="home_title">Inicio</string>
     <string name="transactions_title">Movimientos</string>
     <string name="transaction_edit_title">Movimiento</string>
+    <string name="transaction_edit_new_title">Nuevo movimiento</string>
+    <string name="transaction_edit_account_label">Cuenta</string>
+    <string name="transaction_edit_category_label">Categoría</string>
+    <string name="transaction_edit_account_placeholder">Seleccionar cuenta</string>
+    <string name="transaction_edit_category_placeholder">Seleccionar categoría</string>
+    <string name="transaction_edit_date_label">Fecha</string>
+    <string name="transaction_edit_today">Hoy</string>
+    <string name="transaction_edit_yesterday">Ayer</string>
+    <string name="transaction_edit_note_label">Nota (opcional)</string>
+    <string name="transaction_edit_note_counter">%1$d/%2$d</string>
+    <string name="transaction_edit_negative_balance_title">La cuenta quedará en negativo</string>
+    <string name="transaction_edit_negative_balance_message">La cuenta quedará en negativo. ¿Guardar de todas formas?</string>
+    <string name="transaction_edit_no_accounts_title">Sin cuentas activas</string>
+    <string name="transaction_edit_no_accounts_message">Crea una cuenta para registrar tu primer movimiento.</string>
+    <string name="transaction_edit_transfer_not_supported_title">Transferencia</string>
+    <string name="transaction_edit_transfer_not_supported_message">La edición de transferencias aún no está disponible.</string>
+    <string name="transaction_edit_delete_title">¿Eliminar movimiento?</string>
+    <string name="transaction_edit_delete_message">¿Estás seguro de que deseas eliminar este movimiento?</string>
     <string name="accounts_title">Cuentas</string>
     <string name="account_detail_title">Detalle de cuenta</string>
     <string name="account_edit_title">Editar cuenta</string>
@@ -26,6 +44,7 @@
     <string name="category_type_label">Tipo</string>
     <string name="category_parent_label">Categoría principal</string>
     <string name="category_parent_none">Ninguna (Categoría principal)</string>
+    <string name="category_breadcrumb">%1$s › %2$s</string>
     <string name="category_color_label">Color</string>
     <string name="category_icon_label">Ícono</string>
     <string name="type_expense">Gasto</string>
@@ -65,8 +84,8 @@
     <string name="action_archive">Archivar</string>
     <string name="action_confirm">Confirmar</string>
     <string name="action_add">Agregar</string>
-    <string name="action_select">Seleccionar</string>
     <string name="action_new_category">Nueva categoría</string>
+    <string name="action_new_account">Crear cuenta</string>
     <string name="action_new_transaction">Nuevo movimiento</string>
     <string name="action_expand">Expandir</string>
     <string name="action_collapse">Colapsar</string>
@@ -151,6 +170,7 @@
     <string name="cd_category_icon">Ícono de categoría</string>
     <string name="cd_color">Color</string>
     <string name="cd_icon">Ícono</string>
+    <string name="cd_delete_transaction">Eliminar movimiento</string>
 
     <!-- Errores de dominio -->
     <string name="error_name_empty">El nombre no puede estar vacío</string>

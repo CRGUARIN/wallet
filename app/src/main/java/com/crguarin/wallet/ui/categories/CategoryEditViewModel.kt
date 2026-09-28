@@ -74,7 +74,9 @@ data class CategoryEditUiState(
 }
 
 sealed interface CategoryEditEvent {
-    data object NavigateBack : CategoryEditEvent
+    data class NavigateBack(
+        val savedCategoryId: Long? = null,
+    ) : CategoryEditEvent
 
     data class ShowSnackbar(
         @StringRes val messageRes: Int,
@@ -315,7 +317,7 @@ class CategoryEditViewModel
                 when (val result = saveCategoryUseCase(category)) {
                     is DomainResult.Success -> {
                         _uiState.update { it.copy(isSaving = false) }
-                        _events.send(CategoryEditEvent.NavigateBack)
+                        _events.send(CategoryEditEvent.NavigateBack(savedCategoryId = result.value))
                     }
                     is DomainResult.Failure -> {
                         _uiState.update {
@@ -336,7 +338,7 @@ class CategoryEditViewModel
                     is DomainResult.Success -> {
                         _uiState.update { it.copy(deleteDialogState = DeleteDialogState.None) }
                         _events.send(CategoryEditEvent.ShowSnackbar(R.string.category_archived_success))
-                        _events.send(CategoryEditEvent.NavigateBack)
+                        _events.send(CategoryEditEvent.NavigateBack())
                     }
                     is DomainResult.Failure -> {
                         _uiState.update { it.copy(generalErrorRes = result.error.asStringRes()) }
@@ -372,7 +374,7 @@ class CategoryEditViewModel
                 when (val result = deleteCategoryUseCase(categoryId)) {
                     is DomainResult.Success -> {
                         _uiState.update { it.copy(deleteDialogState = DeleteDialogState.None) }
-                        _events.send(CategoryEditEvent.NavigateBack)
+                        _events.send(CategoryEditEvent.NavigateBack())
                     }
                     is DomainResult.Failure -> {
                         when (val err = result.error) {
@@ -439,7 +441,7 @@ class CategoryEditViewModel
                         )
                 ) {
                     is DomainResult.Success -> {
-                        _events.send(CategoryEditEvent.NavigateBack)
+                        _events.send(CategoryEditEvent.NavigateBack())
                     }
                     is DomainResult.Failure -> {
                         _uiState.update { it.copy(generalErrorRes = result.error.asStringRes()) }

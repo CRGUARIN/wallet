@@ -1,6 +1,7 @@
 package com.crguarin.wallet.ui.components
 
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -8,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import com.crguarin.wallet.R
@@ -23,6 +25,7 @@ fun AmountTextField(
     errorMessage: String? = null,
     enabled: Boolean = true,
     readOnly: Boolean = false,
+    textStyle: TextStyle? = null,
     locale: Locale = LocalConfiguration.current.locales[0],
 ) {
     OutlinedTextField(
@@ -36,6 +39,7 @@ fun AmountTextField(
         modifier = modifier,
         enabled = enabled,
         readOnly = readOnly,
+        textStyle = textStyle ?: LocalTextStyle.current,
         label = label?.let { { Text(text = it) } },
         isError = errorMessage != null,
         supportingText = errorMessage?.let { { Text(text = it) } },

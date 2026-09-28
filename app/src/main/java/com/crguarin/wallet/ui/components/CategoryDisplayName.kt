@@ -2,6 +2,7 @@ package com.crguarin.wallet.ui.components
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
+import com.crguarin.wallet.R
 import com.crguarin.wallet.core.resources.SystemCategoryStrings
 import com.crguarin.wallet.domain.model.Category
 
@@ -21,3 +22,18 @@ fun categoryDisplayName(
 
 @Composable
 fun Category.displayName(): String = categoryDisplayName(name, systemKey)
+
+/**
+ * Builds the user-visible label for a category, prefixing its parent when it is a
+ * subcategory ("Parent › Child").
+ */
+@Composable
+fun categoryFullDisplayName(
+    parent: Category?,
+    category: Category?,
+): String =
+    when {
+        category == null -> ""
+        parent == null -> category.displayName()
+        else -> stringResource(R.string.category_breadcrumb, parent.displayName(), category.displayName())
+    }

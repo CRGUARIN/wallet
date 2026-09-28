@@ -49,9 +49,11 @@ data class CategoryEdit(
 )
 
 @Serializable
-data class CategoryPicker(
-    val type: CategoryType,
-)
-
-@Serializable
 data object Settings
+
+/**
+ * Key used to return the id of a category created from the transaction editor.
+ * `CategoryEditScreen` sets it on the previous back stack entry's [androidx.lifecycle.SavedStateHandle]
+ * and [com.crguarin.wallet.ui.transactions.TransactionEditViewModel] reads it to select the new category.
+ */
+const val NEW_CATEGORY_RESULT_KEY = "new_category_result_key"
