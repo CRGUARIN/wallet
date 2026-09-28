@@ -36,6 +36,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -45,15 +46,15 @@ import java.util.Locale
 import javax.inject.Inject
 
 /**
- * Transaction types offered in the creation tabs. Transfers arrive in Task 9:
- * adding [TransactionType.TRANSFER] here is enough to show the third segment.
+ * Transaction types offered in the creation tabs: Gasto | Ingreso | Transferencia.
  */
 val TRANSACTION_CREATION_TYPES: List<TransactionType> =
-    listOf(TransactionType.EXPENSE, TransactionType.INCOME)
+    listOf(TransactionType.EXPENSE, TransactionType.INCOME, TransactionType.TRANSFER)
 
 private const val KEY_AMOUNT = "tx_form_amount"
 private const val KEY_TYPE = "tx_form_type"
 private const val KEY_ACCOUNT = "tx_form_account"
+private const val KEY_TO_ACCOUNT = "tx_form_to_account"
 private const val KEY_CATEGORY = "tx_form_category"
 private const val KEY_DATE = "tx_form_date"
 private const val KEY_NOTE = "tx_form_note"
@@ -64,13 +65,14 @@ data class TransactionEditUiState(
     val isLoading: Boolean = true,
     val isEditMode: Boolean = false,
     val editingTransactionId: Long? = null,
-    val isTransferEdit: Boolean = false,
     val selectedType: TransactionType = TransactionType.EXPENSE,
     val amountText: String = "",
     val amountErrorRes: Int? = null,
     val accountId: Long? = null,
     val accounts: List<AccountWithBalance> = emptyList(),
     val archivedAccount: Account? = null,
+    val toAccountId: Long? = null,
+    val archivedToAccount: Account? = null,
     val categoryId: Long? = null,
     val categoryNodes: List<CategoryNode> = emptyList(),
     val selectedCategory: Category? = null,
@@ -85,29 +87,50 @@ data class TransactionEditUiState(
     val showNegativeBalanceDialog: Boolean = false,
     val showDeleteDialog: Boolean = false,
     val showAccountSheet: Boolean = false,
+    val showToAccountSheet: Boolean = false,
     val showCategorySheet: Boolean = false,
     val showDatePicker: Boolean = false,
 ) {
+    /** Active accounts; transfers need at least two of them. */
+    val activeAccountCount: Int
+        get() = accounts.size
+
     val showNoAccounts: Boolean
         get() =
             !isLoading &&
                 !isEditMode &&
-                !isTransferEdit &&
+                selectedType != TransactionType.TRANSFER &&
                 accounts.isEmpty() &&
                 generalErrorRes == null
 
-    val isSaveEnabled: Boolean
+    /** A transfer needs a second active account; otherwise the transfer tab offers to create one. */
+    val showTransferNeedsAccounts: Boolean
         get() =
             !isLoading &&
+                !isEditMode &&
+                selectedType == TransactionType.TRANSFER &&
+                accounts.size < 2 &&
+                generalErrorRes == null
+
+    val isSaveEnabled: Boolean
+        get() {
+            val destinationValid =
+                if (selectedType == TransactionType.TRANSFER) {
+                    toAccountId != null && toAccountId != accountId
+                } else {
+                    categoryId != null
+                }
+            return !isLoading &&
                 !isSaving &&
-                !isTransferEdit &&
                 !showNoAccounts &&
+                !showTransferNeedsAccounts &&
                 MoneyParser.parse(amountText) != null &&
                 accountId != null &&
-                categoryId != null &&
+                destinationValid &&
                 noteErrorRes == null &&
                 date != null &&
                 dateErrorRes == null
+        }
 }
 
 sealed interface TransactionEditEvent {
@@ -154,18 +177,14 @@ class TransactionEditViewModel
             val today = timeProvider.today()
             val restoredType =
                 savedStateHandle.get<String>(KEY_TYPE)?.let { runCatching { TransactionType.valueOf(it) }.getOrNull() }
-            val defaultType =
-                restoredType ?: if (initialTypeArg == TransactionType.TRANSFER) {
-                    TransactionType.EXPENSE
-                } else {
-                    initialTypeArg
-                }
+            val defaultType = restoredType ?: initialTypeArg
             selectedTypeFlow = MutableStateFlow(defaultType)
             _uiState.value =
                 TransactionEditUiState(
                     selectedType = defaultType,
                     amountText = savedStateHandle.get<String>(KEY_AMOUNT).orEmpty(),
                     accountId = savedStateHandle.get<Long>(KEY_ACCOUNT),
+                    toAccountId = savedStateHandle.get<Long>(KEY_TO_ACCOUNT),
                     categoryId = savedStateHandle.get<Long>(KEY_CATEGORY),
                     date = savedStateHandle.get<Long>(KEY_DATE)?.let { LocalDate.ofEpochDay(it) } ?: today,
                     note = savedStateHandle.get<String>(KEY_NOTE).orEmpty(),
@@ -181,8 +200,13 @@ class TransactionEditViewModel
             }
             viewModelScope.launch {
                 selectedTypeFlow
-                    .flatMapLatest { type -> observeCategoryTreeUseCase(type.toCategoryType()) }
-                    .collect { nodes ->
+                    .flatMapLatest { type ->
+                        if (type == TransactionType.TRANSFER) {
+                            flowOf(emptyList())
+                        } else {
+                            observeCategoryTreeUseCase(type.toCategoryType())
+                        }
+                    }.collect { nodes ->
                         _uiState.update { it.copy(categoryNodes = nodes) }
                     }
             }
@@ -206,32 +230,22 @@ class TransactionEditViewModel
                     }
                     return
                 }
-                if (existing.type == TransactionType.TRANSFER) {
-                    _uiState.update {
-                        it.copy(
-                            isLoading = false,
-                            isEditMode = true,
-                            editingTransactionId = editingId,
-                            isTransferEdit = true,
-                        )
-                    }
-                    return
-                }
                 // After process death the form already holds the user's unsaved edits; only
                 // the first load copies the stored transaction into it.
                 val isRestoredForm = savedStateHandle.contains(KEY_TYPE)
                 if (isRestoredForm) {
+                    selectedTypeFlow.value = _uiState.value.selectedType
                     _uiState.update { it.copy(isEditMode = true, editingTransactionId = editingId) }
                 } else {
                     selectedTypeFlow.value = existing.type
                     _uiState.update {
                         it.copy(
-                            isLoading = true,
                             isEditMode = true,
                             editingTransactionId = editingId,
                             selectedType = existing.type,
                             amountText = formatAmountForInput(existing.amount),
                             accountId = existing.accountId,
+                            toAccountId = existing.toAccountId,
                             categoryId = existing.categoryId,
                             date = existing.date,
                             note = existing.note.orEmpty(),
@@ -239,12 +253,8 @@ class TransactionEditViewModel
                     }
                     persistForm()
                 }
-                val formState = _uiState.value
-                val account = formState.accountId?.let { accountRepository.getAccount(it) }
-                if (account != null && account.isArchived) {
-                    _uiState.update { it.copy(archivedAccount = account) }
-                }
-                formState.categoryId?.let { resolveSelectedCategory(it) }
+                resolveArchivedAccounts()
+                _uiState.value.categoryId?.let { resolveSelectedCategory(it) }
                 _uiState.update { it.copy(isLoading = false) }
             } else {
                 val activeAccounts = accountRepository.getAllAccounts().filter { !it.isArchived }
@@ -259,6 +269,7 @@ class TransactionEditViewModel
                     _uiState.update { it.copy(accountId = defaultAccountId) }
                     savedStateHandle[KEY_ACCOUNT] = defaultAccountId
                 }
+                clearDestinationIfSameAsOrigin()
                 val currentCategoryId = _uiState.value.categoryId
                 if (currentCategoryId != null) {
                     resolveSelectedCategory(currentCategoryId)
@@ -278,6 +289,26 @@ class TransactionEditViewModel
             val lastUsed = lastUsedId?.let { id -> activeAccounts.firstOrNull { it.id == id } }
             if (lastUsed != null) return lastUsed.id
             return activeAccounts.minByOrNull { it.sortOrder }?.id ?: activeAccounts.first().id
+        }
+
+        private suspend fun resolveArchivedAccounts() {
+            val state = _uiState.value
+            val account = state.accountId?.let { accountRepository.getAccount(it) }
+            val toAccount = state.toAccountId?.let { accountRepository.getAccount(it) }
+            _uiState.update {
+                it.copy(
+                    archivedAccount = account?.takeIf { account -> account.isArchived },
+                    archivedToAccount = toAccount?.takeIf { account -> account.isArchived },
+                )
+            }
+        }
+
+        private fun clearDestinationIfSameAsOrigin() {
+            val state = _uiState.value
+            if (state.toAccountId != null && state.toAccountId == state.accountId) {
+                savedStateHandle.remove<Long>(KEY_TO_ACCOUNT)
+                _uiState.update { it.copy(toAccountId = null, archivedToAccount = null) }
+            }
         }
 
         private suspend fun resolveSelectedCategory(categoryId: Long) {
@@ -314,9 +345,13 @@ class TransactionEditViewModel
 
         fun setType(type: TransactionType) {
             if (type == _uiState.value.selectedType) return
+            val leavingTransfer = _uiState.value.selectedType == TransactionType.TRANSFER
             selectedTypeFlow.value = type
             savedStateHandle[KEY_TYPE] = type.name
             savedStateHandle.remove<Long>(KEY_CATEGORY)
+            if (leavingTransfer) {
+                savedStateHandle.remove<Long>(KEY_TO_ACCOUNT)
+            }
             _uiState.update {
                 it.copy(
                     selectedType = type,
@@ -324,6 +359,8 @@ class TransactionEditViewModel
                     selectedCategory = null,
                     selectedParentCategory = null,
                     categoryErrorRes = null,
+                    toAccountId = if (leavingTransfer) null else it.toAccountId,
+                    archivedToAccount = if (leavingTransfer) null else it.archivedToAccount,
                     generalErrorRes = null,
                 )
             }
@@ -342,8 +379,49 @@ class TransactionEditViewModel
 
         fun setAccountId(accountId: Long) {
             savedStateHandle[KEY_ACCOUNT] = accountId
+            val clearsDestination = _uiState.value.toAccountId == accountId
+            if (clearsDestination) {
+                savedStateHandle.remove<Long>(KEY_TO_ACCOUNT)
+            }
             _uiState.update {
-                it.copy(accountId = accountId, archivedAccount = null, showAccountSheet = false, generalErrorRes = null)
+                it.copy(
+                    accountId = accountId,
+                    archivedAccount = null,
+                    toAccountId = if (clearsDestination) null else it.toAccountId,
+                    archivedToAccount = if (clearsDestination) null else it.archivedToAccount,
+                    showAccountSheet = false,
+                    generalErrorRes = null,
+                )
+            }
+        }
+
+        fun setToAccountId(toAccountId: Long) {
+            if (toAccountId == _uiState.value.accountId) return
+            savedStateHandle[KEY_TO_ACCOUNT] = toAccountId
+            _uiState.update {
+                it.copy(
+                    toAccountId = toAccountId,
+                    archivedToAccount = null,
+                    showToAccountSheet = false,
+                    generalErrorRes = null,
+                )
+            }
+        }
+
+        fun swapAccounts() {
+            val state = _uiState.value
+            val origin = state.toAccountId ?: return
+            val destination = state.accountId ?: return
+            savedStateHandle[KEY_ACCOUNT] = origin
+            savedStateHandle[KEY_TO_ACCOUNT] = destination
+            _uiState.update {
+                it.copy(
+                    accountId = origin,
+                    toAccountId = destination,
+                    archivedAccount = null,
+                    archivedToAccount = null,
+                    generalErrorRes = null,
+                )
             }
         }
 
@@ -390,6 +468,14 @@ class TransactionEditViewModel
             _uiState.update { it.copy(showAccountSheet = false) }
         }
 
+        fun openToAccountSheet() {
+            _uiState.update { it.copy(showToAccountSheet = true) }
+        }
+
+        fun dismissToAccountSheet() {
+            _uiState.update { it.copy(showToAccountSheet = false) }
+        }
+
         fun openCategorySheet() {
             _uiState.update { it.copy(showCategorySheet = true) }
         }
@@ -423,9 +509,7 @@ class TransactionEditViewModel
             val transaction = buildTransaction(showErrors = true) ?: return
             viewModelScope.launch {
                 _uiState.update { it.copy(isSaving = true, generalErrorRes = null) }
-                if (transaction.type == TransactionType.EXPENSE &&
-                    checkNegativeBalanceUseCase(transaction)
-                ) {
+                if (checkNegativeBalanceUseCase(transaction)) {
                     _uiState.update { it.copy(isSaving = false, showNegativeBalanceDialog = true) }
                     return@launch
                 }
@@ -490,13 +574,35 @@ class TransactionEditViewModel
                 return null
             }
             val accountId = state.accountId ?: return null
-            val categoryId = state.categoryId
-            if (categoryId == null) {
-                if (showErrors) {
-                    _uiState.update { it.copy(categoryErrorRes = DomainError.CategoryRequired.asStringRes()) }
+
+            val categoryId: Long?
+            val toAccountId: Long?
+            if (state.selectedType == TransactionType.TRANSFER) {
+                categoryId = null
+                toAccountId = state.toAccountId
+                if (toAccountId == null) {
+                    if (showErrors) {
+                        _uiState.update { it.copy(generalErrorRes = DomainError.InvalidTransaction.asStringRes()) }
+                    }
+                    return null
                 }
-                return null
+                if (toAccountId == accountId) {
+                    if (showErrors) {
+                        _uiState.update { it.copy(generalErrorRes = DomainError.SameAccountTransfer.asStringRes()) }
+                    }
+                    return null
+                }
+            } else {
+                toAccountId = null
+                categoryId = state.categoryId
+                if (categoryId == null) {
+                    if (showErrors) {
+                        _uiState.update { it.copy(categoryErrorRes = DomainError.CategoryRequired.asStringRes()) }
+                    }
+                    return null
+                }
             }
+
             if (state.note.length > NOTE_MAX_LENGTH) {
                 if (showErrors) {
                     _uiState.update { it.copy(noteErrorRes = DomainError.NoteTooLong.asStringRes()) }
@@ -516,6 +622,7 @@ class TransactionEditViewModel
                 type = state.selectedType,
                 amount = parsedAmount,
                 accountId = accountId,
+                toAccountId = toAccountId,
                 categoryId = categoryId,
                 date = date,
                 note = state.note.ifBlank { null },
@@ -538,6 +645,7 @@ class TransactionEditViewModel
             savedStateHandle[KEY_AMOUNT] = state.amountText
             savedStateHandle[KEY_TYPE] = state.selectedType.name
             state.accountId?.let { savedStateHandle[KEY_ACCOUNT] = it }
+            state.toAccountId?.let { savedStateHandle[KEY_TO_ACCOUNT] = it }
             state.categoryId?.let { savedStateHandle[KEY_CATEGORY] = it }
             state.date?.let { savedStateHandle[KEY_DATE] = it.toEpochDay() }
             savedStateHandle[KEY_NOTE] = state.note

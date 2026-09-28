@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
@@ -63,7 +64,6 @@ import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.AccountWithBalance
-import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.ui.components.AccountPickerSheet
@@ -96,6 +96,10 @@ fun TransactionEditRoute(
             onOpenAccountSheet = {},
             onDismissAccountSheet = {},
             onAccountSelected = {},
+            onOpenToAccountSheet = {},
+            onDismissToAccountSheet = {},
+            onToAccountSelected = {},
+            onSwapAccounts = {},
             onOpenCategorySheet = {},
             onDismissCategorySheet = {},
             onCategorySelected = {},
@@ -140,6 +144,10 @@ fun TransactionEditRoute(
         onOpenAccountSheet = viewModel::openAccountSheet,
         onDismissAccountSheet = viewModel::dismissAccountSheet,
         onAccountSelected = viewModel::setAccountId,
+        onOpenToAccountSheet = viewModel::openToAccountSheet,
+        onDismissToAccountSheet = viewModel::dismissToAccountSheet,
+        onToAccountSelected = viewModel::setToAccountId,
+        onSwapAccounts = viewModel::swapAccounts,
         onOpenCategorySheet = viewModel::openCategorySheet,
         onDismissCategorySheet = viewModel::dismissCategorySheet,
         onCategorySelected = viewModel::setCategoryId,
@@ -185,6 +193,20 @@ private fun inspectionUiState(): TransactionEditUiState =
                         ),
                     balance = Money.ZERO,
                 ),
+                AccountWithBalance(
+                    account =
+                        Account(
+                            id = 2L,
+                            name = "Ahorros",
+                            type = AccountType.SAVINGS,
+                            initialBalance = Money.ZERO,
+                            color = 0xFF66BB6A.toInt(),
+                            icon = "savings",
+                            sortOrder = 1,
+                            createdAt = Instant.EPOCH,
+                        ),
+                    balance = Money.ZERO,
+                ),
             ),
     )
 
@@ -198,6 +220,10 @@ fun TransactionEditScreen(
     onOpenAccountSheet: () -> Unit,
     onDismissAccountSheet: () -> Unit,
     onAccountSelected: (Long) -> Unit,
+    onOpenToAccountSheet: () -> Unit,
+    onDismissToAccountSheet: () -> Unit,
+    onToAccountSelected: (Long) -> Unit,
+    onSwapAccounts: () -> Unit,
     onOpenCategorySheet: () -> Unit,
     onDismissCategorySheet: () -> Unit,
     onCategorySelected: (Long) -> Unit,
@@ -242,7 +268,7 @@ fun TransactionEditScreen(
                     }
                 },
                 actions = {
-                    if (uiState.isEditMode && !uiState.isTransferEdit) {
+                    if (uiState.isEditMode) {
                         IconButton(onClick = onDeleteClick) {
                             Icon(
                                 imageVector = Icons.Default.Delete,
@@ -267,11 +293,13 @@ fun TransactionEditScreen(
                     CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
                 }
 
-                uiState.isTransferEdit -> {
+                uiState.showTransferNeedsAccounts -> {
                     EmptyState(
                         icon = Icons.Default.SwapHoriz,
-                        title = stringResource(R.string.transaction_edit_transfer_not_supported_title),
-                        message = stringResource(R.string.transaction_edit_transfer_not_supported_message),
+                        title = stringResource(R.string.transaction_edit_transfer_needs_accounts_title),
+                        message = stringResource(R.string.transaction_edit_transfer_needs_accounts_message),
+                        actionLabel = stringResource(R.string.action_new_account),
+                        onActionClick = onNewAccountClick,
                         modifier = Modifier.align(Alignment.Center),
                     )
                 }
@@ -293,6 +321,8 @@ fun TransactionEditScreen(
                         onTypeSelected = onTypeSelected,
                         onAmountChanged = onAmountChanged,
                         onOpenAccountSheet = onOpenAccountSheet,
+                        onOpenToAccountSheet = onOpenToAccountSheet,
+                        onSwapAccounts = onSwapAccounts,
                         onOpenCategorySheet = onOpenCategorySheet,
                         onOpenDatePicker = onOpenDatePicker,
                         onTodayClick = onTodayClick,
@@ -307,10 +337,19 @@ fun TransactionEditScreen(
 
     if (uiState.showAccountSheet) {
         AccountPickerSheet(
-            accounts = uiState.accounts,
+            accounts = uiState.accounts.filter { it.account.id != uiState.toAccountId },
             selectedAccountId = uiState.accountId,
             onAccountSelected = { onAccountSelected(it.account.id) },
             onDismissRequest = onDismissAccountSheet,
+        )
+    }
+
+    if (uiState.showToAccountSheet) {
+        AccountPickerSheet(
+            accounts = uiState.accounts.filter { it.account.id != uiState.accountId },
+            selectedAccountId = uiState.toAccountId,
+            onAccountSelected = { onToAccountSelected(it.account.id) },
+            onDismissRequest = onDismissToAccountSheet,
         )
     }
 
@@ -359,6 +398,8 @@ private fun TransactionEditForm(
     onTypeSelected: (TransactionType) -> Unit,
     onAmountChanged: (String) -> Unit,
     onOpenAccountSheet: () -> Unit,
+    onOpenToAccountSheet: () -> Unit,
+    onSwapAccounts: () -> Unit,
     onOpenCategorySheet: () -> Unit,
     onOpenDatePicker: () -> Unit,
     onTodayClick: () -> Unit,
@@ -379,11 +420,15 @@ private fun TransactionEditForm(
     val selectedAccount =
         uiState.accounts.firstOrNull { it.account.id == uiState.accountId }?.account
             ?: uiState.archivedAccount
+    val selectedToAccount =
+        uiState.accounts.firstOrNull { it.account.id == uiState.toAccountId }?.account
+            ?: uiState.archivedToAccount
     val selectedCategoryText =
         categoryFullDisplayName(
             parent = uiState.selectedParentCategory,
             category = uiState.selectedCategory,
         )
+    val isTransfer = uiState.selectedType == TransactionType.TRANSFER
 
     Column(
         modifier =
@@ -415,31 +460,62 @@ private fun TransactionEditForm(
                     .focusRequester(focusRequester),
         )
 
-        SelectorField(
-            label = stringResource(R.string.transaction_edit_account_label),
-            value = selectedAccount?.name ?: stringResource(R.string.transaction_edit_account_placeholder),
-            icon = Icons.Default.AccountBalanceWallet,
-            onClick = onOpenAccountSheet,
-        )
-
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        if (isTransfer) {
             SelectorField(
-                label = stringResource(R.string.transaction_edit_category_label),
-                value =
-                    selectedCategoryText.ifBlank {
-                        stringResource(R.string.transaction_edit_category_placeholder)
-                    },
-                icon = Icons.Default.Category,
-                isError = uiState.categoryErrorRes != null,
-                onClick = onOpenCategorySheet,
+                label = stringResource(R.string.transaction_edit_from_label),
+                value = selectedAccount?.name ?: stringResource(R.string.transaction_edit_account_placeholder),
+                icon = Icons.Default.AccountBalanceWallet,
+                onClick = onOpenAccountSheet,
             )
-            if (uiState.categoryErrorRes != null) {
-                Text(
-                    text = stringResource(uiState.categoryErrorRes),
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(start = 16.dp),
+
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center,
+            ) {
+                IconButton(
+                    onClick = onSwapAccounts,
+                    enabled = uiState.accountId != null && uiState.toAccountId != null,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.SwapVert,
+                        contentDescription = stringResource(R.string.transaction_edit_swap_accounts),
+                    )
+                }
+            }
+
+            SelectorField(
+                label = stringResource(R.string.transaction_edit_to_label),
+                value = selectedToAccount?.name ?: stringResource(R.string.transaction_edit_to_placeholder),
+                icon = Icons.Default.AccountBalanceWallet,
+                onClick = onOpenToAccountSheet,
+            )
+        } else {
+            SelectorField(
+                label = stringResource(R.string.transaction_edit_account_label),
+                value = selectedAccount?.name ?: stringResource(R.string.transaction_edit_account_placeholder),
+                icon = Icons.Default.AccountBalanceWallet,
+                onClick = onOpenAccountSheet,
+            )
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                SelectorField(
+                    label = stringResource(R.string.transaction_edit_category_label),
+                    value =
+                        selectedCategoryText.ifBlank {
+                            stringResource(R.string.transaction_edit_category_placeholder)
+                        },
+                    icon = Icons.Default.Category,
+                    isError = uiState.categoryErrorRes != null,
+                    onClick = onOpenCategorySheet,
                 )
+                if (uiState.categoryErrorRes != null) {
+                    Text(
+                        text = stringResource(uiState.categoryErrorRes),
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(start = 16.dp),
+                    )
+                }
             }
         }
 
@@ -627,7 +703,8 @@ private fun TransactionDatePickerDialog(
 private fun TransactionType.labelRes(): Int =
     when (this) {
         TransactionType.INCOME -> R.string.type_income
-        TransactionType.EXPENSE, TransactionType.TRANSFER -> R.string.type_expense
+        TransactionType.EXPENSE -> R.string.type_expense
+        TransactionType.TRANSFER -> R.string.type_transfer
     }
 
 @Preview(name = "New expense Light", showBackground = true)
@@ -642,6 +719,10 @@ private fun TransactionEditScreenPreviewLight() {
             onOpenAccountSheet = {},
             onDismissAccountSheet = {},
             onAccountSelected = {},
+            onOpenToAccountSheet = {},
+            onDismissToAccountSheet = {},
+            onToAccountSelected = {},
+            onSwapAccounts = {},
             onOpenCategorySheet = {},
             onDismissCategorySheet = {},
             onCategorySelected = {},
@@ -663,18 +744,17 @@ private fun TransactionEditScreenPreviewLight() {
     }
 }
 
-@Preview(name = "Edit expense Dark", showBackground = true)
+@Preview(name = "New transfer Dark", showBackground = true)
 @Composable
 private fun TransactionEditScreenPreviewDark() {
     WalletTheme(darkTheme = true) {
         TransactionEditScreen(
             uiState =
                 inspectionUiState().copy(
-                    isEditMode = true,
-                    editingTransactionId = 10L,
-                    selectedType = TransactionType.EXPENSE,
+                    selectedType = TransactionType.TRANSFER,
                     amountText = "125000",
-                    selectedCategory = sampleCategory(),
+                    accountId = 1L,
+                    toAccountId = 2L,
                 ),
             onNavigateBack = {},
             onTypeSelected = {},
@@ -682,6 +762,10 @@ private fun TransactionEditScreenPreviewDark() {
             onOpenAccountSheet = {},
             onDismissAccountSheet = {},
             onAccountSelected = {},
+            onOpenToAccountSheet = {},
+            onDismissToAccountSheet = {},
+            onToAccountSelected = {},
+            onSwapAccounts = {},
             onOpenCategorySheet = {},
             onDismissCategorySheet = {},
             onCategorySelected = {},
@@ -702,12 +786,3 @@ private fun TransactionEditScreenPreviewDark() {
         )
     }
 }
-
-private fun sampleCategory(): Category =
-    Category(
-        id = 1L,
-        systemKey = "food",
-        type = CategoryType.EXPENSE,
-        color = 0xFFEF5350.toInt(),
-        icon = "restaurant",
-    )
