@@ -103,8 +103,10 @@ class NavigationTest {
         // Click FAB
         composeRule.onNodeWithContentDescription("Nuevo movimiento").performClick()
 
-        // Destination is now TransactionEdit
-        composeRule.onAllNodesWithText("Movimiento").onFirst().assertIsDisplayed()
+        // Destination is now the new transaction editor
+        composeRule.onNodeWithText("Nuevo movimiento").assertIsDisplayed()
+        composeRule.onNodeWithText("Gasto").assertIsDisplayed()
+        composeRule.onNodeWithText("Ingreso").assertIsDisplayed()
 
         // Bottom bar destinations should be hidden
         composeRule.onNodeWithText("Ajustes").assertDoesNotExist()

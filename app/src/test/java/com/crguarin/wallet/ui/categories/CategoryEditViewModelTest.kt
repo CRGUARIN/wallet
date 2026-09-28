@@ -157,7 +157,7 @@ class CategoryEditViewModelTest {
             viewModel.events.test {
                 viewModel.saveCategory()
                 val event = awaitItem()
-                assertThat(event).isEqualTo(CategoryEditEvent.NavigateBack)
+                assertThat(event).isEqualTo(CategoryEditEvent.NavigateBack(savedCategoryId = 10L))
             }
 
             val saved = categoryRepository.getCategory(10L)
@@ -182,7 +182,7 @@ class CategoryEditViewModelTest {
             viewModel.events.test {
                 viewModel.saveCategory()
                 val event = awaitItem()
-                assertThat(event).isEqualTo(CategoryEditEvent.NavigateBack)
+                assertThat(event).isEqualTo(CategoryEditEvent.NavigateBack(savedCategoryId = 10L))
             }
 
             val saved = categoryRepository.getCategory(10L)
@@ -257,7 +257,7 @@ class CategoryEditViewModelTest {
             viewModel.events.test {
                 viewModel.confirmSimpleDelete()
                 val event = awaitItem()
-                assertThat(event).isEqualTo(CategoryEditEvent.NavigateBack)
+                assertThat(event).isEqualTo(CategoryEditEvent.NavigateBack(savedCategoryId = null))
             }
 
             assertThat(categoryRepository.getCategory(20L)).isNull()
@@ -297,7 +297,7 @@ class CategoryEditViewModelTest {
                 val snackbarEvent = awaitItem()
                 val navEvent = awaitItem()
                 assertThat(snackbarEvent).isInstanceOf(CategoryEditEvent.ShowSnackbar::class.java)
-                assertThat(navEvent).isEqualTo(CategoryEditEvent.NavigateBack)
+                assertThat(navEvent).isEqualTo(CategoryEditEvent.NavigateBack(savedCategoryId = null))
             }
             assertThat(categoryRepository.getCategory(20L)?.isArchived).isTrue()
             assertThat(categoryRepository.getCategory(21L)?.isArchived).isTrue()
@@ -338,11 +338,35 @@ class CategoryEditViewModelTest {
             viewModel.events.test {
                 viewModel.onReassignAndConfirm(10L)
                 val event = awaitItem()
-                assertThat(event).isEqualTo(CategoryEditEvent.NavigateBack)
+                assertThat(event).isEqualTo(CategoryEditEvent.NavigateBack(savedCategoryId = null))
             }
 
             assertThat(categoryRepository.getCategory(20L)).isNull()
             assertThat(categoryRepository.countTransactions(10L)).isEqualTo(8)
+        }
+
+    @Test
+    fun `saving a new category emits NavigateBack with the new id`() =
+        runTest(testDispatcher) {
+            val savedStateHandle =
+                SavedStateHandle(
+                    mapOf(
+                        "categoryId" to null,
+                        "parentId" to null,
+                        "type" to CategoryType.EXPENSE,
+                    ),
+                )
+            val viewModel = createViewModel(savedStateHandle)
+
+            viewModel.setName("Alquiler de autos")
+            viewModel.events.test {
+                viewModel.saveCategory()
+                val event = awaitItem()
+                val navigateBack = event as CategoryEditEvent.NavigateBack
+                assertThat(navigateBack.savedCategoryId).isNotNull()
+                val saved = categoryRepository.getCategory(navigateBack.savedCategoryId!!)
+                assertThat(saved?.name).isEqualTo("Alquiler de autos")
+            }
         }
 
     private fun createViewModel(savedStateHandle: SavedStateHandle): CategoryEditViewModel =
