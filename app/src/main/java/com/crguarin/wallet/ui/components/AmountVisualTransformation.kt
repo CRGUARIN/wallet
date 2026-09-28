@@ -74,6 +74,19 @@ class AmountVisualTransformation(
 
     companion object {
         /**
+         * The raw text never contains grouping separators (they are only visual), so both '.' and ','
+         * typed by the user are treated as the locale decimal separator. Some decimal keypads only
+         * offer one of them regardless of the app language.
+         */
+        fun normalizeDecimalSeparator(
+            input: String,
+            locale: Locale = Locale.getDefault(),
+        ): String {
+            val decSep = DecimalFormatSymbols.getInstance(locale).decimalSeparator
+            return input.replace('.', decSep).replace(',', decSep)
+        }
+
+        /**
          * Validates if [input] contains only digits and at most one decimal separator (matching [locale]),
          * with at most 2 decimal places.
          */

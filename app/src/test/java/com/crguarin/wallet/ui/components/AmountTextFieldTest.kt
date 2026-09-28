@@ -173,4 +173,14 @@ class AmountTextFieldTest {
         assertThat(mapping.transformedToOriginal(-10)).isEqualTo(0)
         assertThat(mapping.transformedToOriginal(100)).isEqualTo(4)
     }
+
+    @Test
+    fun `normalizeDecimalSeparator maps dot and comma to the locale separator`() {
+        val es = Locale.forLanguageTag("es-CO")
+        val en = Locale.forLanguageTag("en-US")
+        assertThat(AmountVisualTransformation.normalizeDecimalSeparator("15000.5", es)).isEqualTo("15000,5")
+        assertThat(AmountVisualTransformation.normalizeDecimalSeparator("15000,5", es)).isEqualTo("15000,5")
+        assertThat(AmountVisualTransformation.normalizeDecimalSeparator("15000,5", en)).isEqualTo("15000.5")
+        assertThat(AmountVisualTransformation.normalizeDecimalSeparator("15000.5", en)).isEqualTo("15000.5")
+    }
 }

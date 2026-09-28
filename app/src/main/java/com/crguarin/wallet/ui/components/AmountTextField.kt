@@ -4,6 +4,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
@@ -27,8 +28,9 @@ fun AmountTextField(
     OutlinedTextField(
         value = value,
         onValueChange = { input ->
-            if (AmountVisualTransformation.isValidInput(input, locale)) {
-                onValueChange(input)
+            val normalized = AmountVisualTransformation.normalizeDecimalSeparator(input, locale)
+            if (AmountVisualTransformation.isValidInput(normalized, locale)) {
+                onValueChange(normalized)
             }
         },
         modifier = modifier,
@@ -39,7 +41,7 @@ fun AmountTextField(
         supportingText = errorMessage?.let { { Text(text = it) } },
         singleLine = true,
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-        visualTransformation = AmountVisualTransformation(locale),
+        visualTransformation = remember(locale) { AmountVisualTransformation(locale) },
     )
 }
 
