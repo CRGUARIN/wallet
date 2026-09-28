@@ -6,4 +6,4 @@ curl -sSLo tools.zip https://dl.google.com/android/repository/commandlinetools-l
 unzip -q tools.zip && mv cmdline-tools latest && rm tools.zip
 export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
 yes | sdkmanager --licenses
-sdkmanager "platform-tools" "platforms;android-37.0" "build-tools;37.0.0"
+sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
