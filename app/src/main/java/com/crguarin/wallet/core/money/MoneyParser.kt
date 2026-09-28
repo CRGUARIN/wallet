@@ -20,8 +20,9 @@ object MoneyParser {
     fun parse(
         text: String,
         locale: Locale = Locale.getDefault(),
+        allowZero: Boolean = false,
     ): Money? {
-        val minorUnits = parseToMinorUnits(text, locale) ?: return null
+        val minorUnits = parseToMinorUnits(text, locale, allowZero = allowZero) ?: return null
         return Money(minorUnits)
     }
 
@@ -31,9 +32,12 @@ object MoneyParser {
     fun parseToMinorUnits(
         text: String,
         locale: Locale = Locale.getDefault(),
+        allowZero: Boolean = false,
     ): Long? {
         val trimmed = text.trim()
-        if (trimmed.isEmpty()) return null
+        if (trimmed.isEmpty()) {
+            return if (allowZero) 0L else null
+        }
 
         val decimalSeparator = DecimalFormatSymbols.getInstance(locale).decimalSeparator
 
@@ -81,11 +85,23 @@ object MoneyParser {
 
         val minorUnits = majorUnits * 100L + fractionUnits
 
-        if (minorUnits <= 0L || minorUnits > Money.MAX_MINOR_UNITS) {
+        val minAllowed = if (allowZero) 0L else 1L
+        if (minorUnits < minAllowed || minorUnits > Money.MAX_MINOR_UNITS) {
             return null
         }
 
         return minorUnits
+    }
+
+    /**
+     * Parses [text] for non-negative amounts where empty or "0" is accepted as [Money.ZERO].
+     */
+    fun parseNonNegative(
+        text: String,
+        locale: Locale = Locale.getDefault(),
+    ): Money? {
+        val minorUnits = parseToMinorUnits(text, locale, allowZero = true) ?: return null
+        return Money(minorUnits)
     }
 
     /**
@@ -96,6 +112,21 @@ object MoneyParser {
         locale: Locale = Locale.getDefault(),
     ): DomainResult<Money> {
         val money = parse(text, locale)
+        return if (money != null) {
+            DomainResult.Success(money)
+        } else {
+            DomainResult.Failure(DomainError.AmountInvalid)
+        }
+    }
+
+    /**
+     * Parses [text] into [DomainResult] accepting zero, returning [DomainError.AmountInvalid] on failure.
+     */
+    fun parseNonNegativeResult(
+        text: String,
+        locale: Locale = Locale.getDefault(),
+    ): DomainResult<Money> {
+        val money = parseNonNegative(text, locale)
         return if (money != null) {
             DomainResult.Success(money)
         } else {

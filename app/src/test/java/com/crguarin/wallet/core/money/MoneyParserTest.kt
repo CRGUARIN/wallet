@@ -175,4 +175,57 @@ class MoneyParserTest {
         assertThat("15000,50".toMoneyOrNull(esLocale)).isEqualTo(Money(1_500_050L))
         assertThat("invalid".toMoneyOrNull(esLocale)).isNull()
     }
+
+    @Test
+    fun `parseNonNegative accepts empty and blank strings as zero`() {
+        assertThat(MoneyParser.parseNonNegative("", esLocale)).isEqualTo(Money.ZERO)
+        assertThat(MoneyParser.parseNonNegative("   ", esLocale)).isEqualTo(Money.ZERO)
+        assertThat(MoneyParser.parseNonNegative("", enLocale)).isEqualTo(Money.ZERO)
+    }
+
+    @Test
+    fun `parseNonNegative accepts zero representations`() {
+        assertThat(MoneyParser.parseNonNegative("0", esLocale)).isEqualTo(Money.ZERO)
+        assertThat(MoneyParser.parseNonNegative("0,0", esLocale)).isEqualTo(Money.ZERO)
+        assertThat(MoneyParser.parseNonNegative("0,00", esLocale)).isEqualTo(Money.ZERO)
+        assertThat(MoneyParser.parseNonNegative(",0", esLocale)).isEqualTo(Money.ZERO)
+        assertThat(MoneyParser.parseNonNegative(",00", esLocale)).isEqualTo(Money.ZERO)
+        assertThat(MoneyParser.parseNonNegative("0.00", enLocale)).isEqualTo(Money.ZERO)
+        assertThat(MoneyParser.parseNonNegative(".00", enLocale)).isEqualTo(Money.ZERO)
+    }
+
+    @Test
+    fun `parseNonNegative accepts valid positive amounts`() {
+        assertThat(MoneyParser.parseNonNegative("15000", esLocale)).isEqualTo(Money(1_500_000L))
+        assertThat(MoneyParser.parseNonNegative("15000,50", esLocale)).isEqualTo(Money(1_500_050L))
+        assertThat(MoneyParser.parseNonNegative("15000.50", enLocale)).isEqualTo(Money(1_500_050L))
+    }
+
+    @Test
+    fun `parseNonNegative rejects invalid, negative, or overflow values`() {
+        assertThat(MoneyParser.parseNonNegative("abc", esLocale)).isNull()
+        assertThat(MoneyParser.parseNonNegative("-5", esLocale)).isNull()
+        assertThat(MoneyParser.parseNonNegative("1,234", esLocale)).isNull()
+        assertThat(MoneyParser.parseNonNegative("1000000000000", esLocale)).isNull()
+    }
+
+    @Test
+    fun `parse with allowZero allows zero but rejects invalid inputs`() {
+        assertThat(MoneyParser.parse("0", esLocale, allowZero = true)).isEqualTo(Money.ZERO)
+        assertThat(MoneyParser.parse("", esLocale, allowZero = true)).isEqualTo(Money.ZERO)
+        assertThat(MoneyParser.parse("15000", esLocale, allowZero = true)).isEqualTo(Money(1_500_000L))
+        assertThat(MoneyParser.parse("invalid", esLocale, allowZero = true)).isNull()
+    }
+
+    @Test
+    fun `parseNonNegativeResult returns Success for zero and valid amounts, Failure for invalid`() {
+        assertThat(MoneyParser.parseNonNegativeResult("", esLocale))
+            .isEqualTo(DomainResult.Success(Money.ZERO))
+        assertThat(MoneyParser.parseNonNegativeResult("0", esLocale))
+            .isEqualTo(DomainResult.Success(Money.ZERO))
+        assertThat(MoneyParser.parseNonNegativeResult("500", esLocale))
+            .isEqualTo(DomainResult.Success(Money(50_000L)))
+        assertThat(MoneyParser.parseNonNegativeResult("invalid", esLocale))
+            .isEqualTo(DomainResult.Failure(DomainError.AmountInvalid))
+    }
 }
