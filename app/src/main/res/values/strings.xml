@@ -8,7 +8,6 @@
     <string name="nav_settings">Ajustes</string>
 
     <!-- Títulos de pantallas -->
-    <string name="onboarding_title">Bienvenida</string>
     <string name="home_title">Inicio</string>
     <string name="transactions_title">Movimientos</string>
     <string name="transaction_edit_title">Movimiento</string>
@@ -32,6 +31,74 @@
     <string name="action_new_transaction">Nuevo movimiento</string>
     <string name="action_expand">Expandir</string>
     <string name="action_collapse">Colapsar</string>
+    <string name="action_continue">Continuar</string>
+    <string name="action_start">Comenzar</string>
+    <string name="action_previous">Anterior</string>
+    <string name="action_back">Atrás</string>
+    <string name="action_more_options">Más opciones</string>
+
+    <!-- Idiomas -->
+    <string name="language_system">Predeterminado del sistema</string>
+    <string name="language_es">Español</string>
+    <string name="language_en">English</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_welcome_title">Bienvenido a Wallet</string>
+    <string name="onboarding_welcome_subtitle">Toma el control de tu dinero sin cuentas, sin internet y con total privacidad.</string>
+    <string name="onboarding_language_title">Selecciona tu idioma</string>
+    <string name="onboarding_first_account_title">Crea tu primera cuenta</string>
+    <string name="onboarding_first_account_subtitle">Para comenzar a registrar tus movimientos, ingresa los datos de tu cuenta principal.</string>
+    <string name="onboarding_step_indicator">Paso %1$d de %2$d</string>
+
+    <!-- Tipos de cuenta -->
+    <string name="account_type_cash">Efectivo</string>
+    <string name="account_type_savings">Cuenta de ahorros</string>
+    <string name="account_default_cash_name">Efectivo</string>
+
+    <!-- Pantalla Cuentas -->
+    <string name="accounts_total_balance">Saldo total</string>
+    <string name="accounts_active_header">Cuentas activas</string>
+    <string name="accounts_archived_count">Archivadas (%1$d)</string>
+    <string name="accounts_empty_title">Sin cuentas</string>
+    <string name="accounts_empty_message">Agrega tu primera cuenta para comenzar a registrar movimientos.</string>
+    <string name="accounts_reorder">Reordenar</string>
+    <string name="accounts_reorder_done">Listo</string>
+    <string name="accounts_move_up">Subir</string>
+    <string name="accounts_move_down">Bajar</string>
+    <string name="accounts_not_included_in_total">No incluida en saldo total</string>
+
+    <!-- Detalle de cuenta -->
+    <string name="account_detail_current_balance">Saldo actual</string>
+    <string name="account_detail_month_summary">Resumen del mes</string>
+    <string name="account_detail_income">Ingresos</string>
+    <string name="account_detail_expense">Gastos</string>
+    <string name="account_detail_net">Neto</string>
+    <string name="account_detail_transactions_title">Movimientos</string>
+    <string name="account_detail_transactions_empty_title">Sin movimientos</string>
+    <string name="account_detail_transactions_empty_message">Los movimientos de esta cuenta aparecerán aquí.</string>
+    <string name="account_detail_menu_edit">Editar</string>
+    <string name="account_detail_menu_archive">Archivar</string>
+    <string name="account_detail_menu_unarchive">Desarchivar</string>
+    <string name="account_detail_menu_delete">Eliminar</string>
+    <string name="account_detail_menu_transfer">Transferir desde esta cuenta</string>
+    <string name="account_detail_delete_title">Eliminar cuenta</string>
+    <string name="account_detail_delete_message">¿Estás seguro de que deseas eliminar la cuenta \"%1$s\"?</string>
+    <string name="account_detail_cannot_delete_has_transactions_title">No se puede eliminar</string>
+    <string name="account_detail_cannot_delete_has_transactions_message">Esta cuenta tiene movimientos registrados y no se puede eliminar. ¿Deseas archivarla en su lugar?</string>
+    <string name="account_detail_archived_badge">Archivada</string>
+    <string name="account_detail_archived_success">Cuenta archivada</string>
+    <string name="account_detail_unarchived_success">Cuenta desarchivada</string>
+
+    <!-- Crear / Editar cuenta -->
+    <string name="account_edit_new_title">Nueva cuenta</string>
+    <string name="account_edit_name_label">Nombre de la cuenta</string>
+    <string name="account_edit_type_label">Tipo de cuenta</string>
+    <string name="account_edit_initial_balance_label">Saldo inicial</string>
+    <string name="account_edit_initial_balance_warning">Modificar el saldo inicial afectará el saldo actual de la cuenta.</string>
+    <string name="account_edit_color_label">Color</string>
+    <string name="account_edit_icon_label">Ícono</string>
+    <string name="account_edit_include_in_total_title">Incluir en saldo total</string>
+    <string name="account_edit_include_in_total_subtitle">Sumar el saldo de esta cuenta al total general</string>
 
     <!-- Componentes comunes -->
     <string name="account_picker_title">Seleccionar cuenta</string>

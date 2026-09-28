@@ -6,7 +6,6 @@
     <string name="nav_settings">Settings</string>
 
     <!-- Screen titles -->
-    <string name="onboarding_title">Welcome</string>
     <string name="home_title">Home</string>
     <string name="transactions_title">Transactions</string>
     <string name="transaction_edit_title">Transaction</string>
@@ -30,6 +29,74 @@
     <string name="action_new_transaction">New transaction</string>
     <string name="action_expand">Expand</string>
     <string name="action_collapse">Collapse</string>
+    <string name="action_continue">Continue</string>
+    <string name="action_start">Get started</string>
+    <string name="action_previous">Previous</string>
+    <string name="action_back">Back</string>
+    <string name="action_more_options">More options</string>
+
+    <!-- Languages -->
+    <string name="language_system">System default</string>
+    <string name="language_es">Español</string>
+    <string name="language_en">English</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_welcome_title">Welcome to Wallet</string>
+    <string name="onboarding_welcome_subtitle">Take control of your money with no accounts, no internet, and complete privacy.</string>
+    <string name="onboarding_language_title">Select your language</string>
+    <string name="onboarding_first_account_title">Create your first account</string>
+    <string name="onboarding_first_account_subtitle">To start tracking your money, enter your main account details.</string>
+    <string name="onboarding_step_indicator">Step %1$d of %2$d</string>
+
+    <!-- Account types -->
+    <string name="account_type_cash">Cash</string>
+    <string name="account_type_savings">Savings account</string>
+    <string name="account_default_cash_name">Cash</string>
+
+    <!-- Accounts screen -->
+    <string name="accounts_total_balance">Total balance</string>
+    <string name="accounts_active_header">Active accounts</string>
+    <string name="accounts_archived_count">Archived (%1$d)</string>
+    <string name="accounts_empty_title">No accounts</string>
+    <string name="accounts_empty_message">Add your first account to start tracking transactions.</string>
+    <string name="accounts_reorder">Reorder</string>
+    <string name="accounts_reorder_done">Done</string>
+    <string name="accounts_move_up">Move up</string>
+    <string name="accounts_move_down">Move down</string>
+    <string name="accounts_not_included_in_total">Excluded from total</string>
+
+    <!-- Account details -->
+    <string name="account_detail_current_balance">Current balance</string>
+    <string name="account_detail_month_summary">Month summary</string>
+    <string name="account_detail_income">Income</string>
+    <string name="account_detail_expense">Expenses</string>
+    <string name="account_detail_net">Net</string>
+    <string name="account_detail_transactions_title">Transactions</string>
+    <string name="account_detail_transactions_empty_title">No transactions</string>
+    <string name="account_detail_transactions_empty_message">Transactions for this account will appear here.</string>
+    <string name="account_detail_menu_edit">Edit</string>
+    <string name="account_detail_menu_archive">Archive</string>
+    <string name="account_detail_menu_unarchive">Unarchive</string>
+    <string name="account_detail_menu_delete">Delete</string>
+    <string name="account_detail_menu_transfer">Transfer from this account</string>
+    <string name="account_detail_delete_title">Delete account</string>
+    <string name="account_detail_delete_message">Are you sure you want to delete the account \"%1$s\"?</string>
+    <string name="account_detail_cannot_delete_has_transactions_title">Cannot delete account</string>
+    <string name="account_detail_cannot_delete_has_transactions_message">This account has recorded transactions and cannot be deleted. Would you like to archive it instead?</string>
+    <string name="account_detail_archived_badge">Archived</string>
+    <string name="account_detail_archived_success">Account archived</string>
+    <string name="account_detail_unarchived_success">Account unarchived</string>
+
+    <!-- Create / Edit account -->
+    <string name="account_edit_new_title">New account</string>
+    <string name="account_edit_name_label">Account name</string>
+    <string name="account_edit_type_label">Account type</string>
+    <string name="account_edit_initial_balance_label">Initial balance</string>
+    <string name="account_edit_initial_balance_warning">Changing the initial balance will affect the current account balance.</string>
+    <string name="account_edit_color_label">Color</string>
+    <string name="account_edit_icon_label">Icon</string>
+    <string name="account_edit_include_in_total_title">Include in total balance</string>
+    <string name="account_edit_include_in_total_subtitle">Add this account\'s balance to the overall total</string>
 
     <!-- Common components -->
     <string name="account_picker_title">Select account</string>
