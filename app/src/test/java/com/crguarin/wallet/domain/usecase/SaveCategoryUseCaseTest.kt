@@ -287,4 +287,56 @@ class SaveCategoryUseCaseTest {
             val result = saveCategoryUseCase(stored.copy(parentId = id))
             assertThat(result.errorOrNull()).isEqualTo(DomainError.MaxDepthExceeded)
         }
+
+    @Test
+    fun `new category is appended after its siblings`() =
+        runTest {
+            val first = Category(id = 1L, name = "A", type = CategoryType.EXPENSE, color = 1, icon = "home", sortOrder = 4)
+            categoryRepository.setInitialData(listOf(first))
+
+            val id =
+                saveCategoryUseCase(
+                    Category(name = "B", type = CategoryType.EXPENSE, color = 1, icon = "home", sortOrder = 0, isArchived = true),
+                ).getOrNull()!!
+
+            val saved = categoryRepository.getCategory(id)!!
+            assertThat(saved.sortOrder).isEqualTo(5)
+            assertThat(saved.isArchived).isFalse()
+        }
+
+    @Test
+    fun `editing keeps sortOrder and archived flag from storage`() =
+        runTest {
+            val stored =
+                Category(
+                    id = 1L,
+                    systemKey = "food",
+                    type = CategoryType.EXPENSE,
+                    color = 1,
+                    icon = "restaurant",
+                    sortOrder = 3,
+                    isArchived = true,
+                )
+            categoryRepository.setInitialData(listOf(stored))
+
+            val result = saveCategoryUseCase(stored.copy(color = 2, sortOrder = 0, isArchived = false))
+
+            assertThat(result.isSuccess).isTrue()
+            val updated = categoryRepository.getCategory(1L)!!
+            assertThat(updated.color).isEqualTo(2)
+            assertThat(updated.sortOrder).isEqualTo(3)
+            assertThat(updated.isArchived).isTrue()
+        }
+
+    @Test
+    fun `archived sibling does not block the name`() =
+        runTest {
+            val archived =
+                Category(id = 1L, name = "Mascotas", type = CategoryType.EXPENSE, color = 1, icon = "home", isArchived = true)
+            categoryRepository.setInitialData(listOf(archived))
+
+            val result = saveCategoryUseCase(Category(name = "mascotas", type = CategoryType.EXPENSE, color = 1, icon = "home"))
+
+            assertThat(result.isSuccess).isTrue()
+        }
 }

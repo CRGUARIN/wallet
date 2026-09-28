@@ -289,8 +289,12 @@ class CategoryEditViewModel
             viewModelScope.launch {
                 _uiState.update { it.copy(isSaving = true, generalErrorRes = null) }
                 val trimmed = state.name.trim()
+                // Leaving the translated name untouched (in any app language) keeps it translatable.
+                val isUntouchedSystemName =
+                    state.systemKey != null &&
+                        (trimmed == preloadedSystemName || trimmed in systemCategoryNames.namesFor(state.systemKey))
                 val nameToSave: String? =
-                    if (state.systemKey != null && trimmed == preloadedSystemName) {
+                    if (isUntouchedSystemName) {
                         null
                     } else {
                         trimmed

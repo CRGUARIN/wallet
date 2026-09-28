@@ -43,8 +43,9 @@ class SaveCategoryUseCase
                 }
             }
 
+            var existing: Category? = null
             if (category.id != 0L) {
-                val existing =
+                existing =
                     categoryRepository.getCategory(category.id)
                         ?: return DomainResult.Failure(DomainError.NotFound)
 
@@ -64,12 +65,14 @@ class SaveCategoryUseCase
                 }
             }
 
+            val allInType = categoryRepository.getAllCategories(category.type)
+            val siblings = allInType.filter { it.parentId == category.parentId && it.id != category.id }
+
             if (trimmedName != null) {
                 val candidateNormalized = trimmedName.lowercase(Locale.ROOT)
-                val allInType = categoryRepository.getAllCategories(category.type)
-                val siblings = allInType.filter { it.parentId == category.parentId && it.id != category.id }
 
-                for (sibling in siblings) {
+                // Archived siblings do not block a name, like archived accounts; unarchiving re-checks it.
+                for (sibling in siblings.filter { !it.isArchived }) {
                     if (sibling.name != null) {
                         if (sibling.name.trim().lowercase(Locale.ROOT) == candidateNormalized) {
                             return DomainResult.Failure(DomainError.NameDuplicated)
@@ -83,7 +86,24 @@ class SaveCategoryUseCase
                 }
             }
 
-            val categoryToSave = category.copy(name = trimmedName)
+            // Order and archived state are owned by storage: an edit keeps them (moving to another
+            // parent appends it there), and a new category goes after its siblings.
+            val appendedSortOrder = (siblings.maxOfOrNull { it.sortOrder } ?: -1) + 1
+            val categoryToSave =
+                if (existing != null) {
+                    category.copy(
+                        name = trimmedName,
+                        isArchived = existing.isArchived,
+                        sortOrder =
+                            if (existing.parentId == category.parentId && existing.type == category.type) {
+                                existing.sortOrder
+                            } else {
+                                appendedSortOrder
+                            },
+                    )
+                } else {
+                    category.copy(name = trimmedName, isArchived = false, sortOrder = appendedSortOrder)
+                }
             val id = categoryRepository.saveCategory(categoryToSave)
             return DomainResult.Success(id)
         }
