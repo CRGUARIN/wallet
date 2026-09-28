@@ -177,6 +177,21 @@ class TransactionEditViewModelTest {
         updatedAt = baseInstant,
     )
 
+    private fun existingTransfer(
+        id: Long = 10L,
+        amount: Money = Money(150_000L),
+    ) = Transaction(
+        id = id,
+        type = TransactionType.TRANSFER,
+        amount = amount,
+        accountId = 1L,
+        toAccountId = 2L,
+        date = baseDate,
+        note = "Almuerzo",
+        createdAt = baseInstant,
+        updatedAt = baseInstant,
+    )
+
     @Test
     fun `creation mode defaults to the route account and today's date`() =
         runTest(testDispatcher) {
@@ -208,14 +223,105 @@ class TransactionEditViewModelTest {
         }
 
     @Test
-    fun `transfer initial type opens as expense with the route account preselected`() =
+    fun `transfer initial type opens the transfer tab with the route account as origin`() =
         runTest(testDispatcher) {
             val viewModel = createViewModel(creationHandle(accountId = 2L, initialType = TransactionType.TRANSFER))
 
             val state = viewModel.uiState.value
-            assertThat(state.selectedType).isEqualTo(TransactionType.EXPENSE)
-            assertThat(state.isTransferEdit).isFalse()
+            assertThat(state.selectedType).isEqualTo(TransactionType.TRANSFER)
             assertThat(state.accountId).isEqualTo(2L)
+            assertThat(state.toAccountId).isNull()
+            assertThat(state.isSaveEnabled).isFalse()
+        }
+
+    @Test
+    fun `transfer save is enabled only with amount origin and a different destination`() =
+        runTest(testDispatcher) {
+            val viewModel = createViewModel(creationHandle(accountId = 1L, initialType = TransactionType.TRANSFER))
+
+            viewModel.setAmountText("50000")
+            assertThat(viewModel.uiState.value.isSaveEnabled).isFalse()
+
+            viewModel.setToAccountId(1L)
+            assertThat(viewModel.uiState.value.toAccountId).isNull()
+            assertThat(viewModel.uiState.value.isSaveEnabled).isFalse()
+
+            viewModel.setToAccountId(2L)
+            assertThat(viewModel.uiState.value.isSaveEnabled).isTrue()
+        }
+
+    @Test
+    fun `changing the origin clears a destination that becomes equal`() =
+        runTest(testDispatcher) {
+            val viewModel = createViewModel(creationHandle(accountId = 2L, initialType = TransactionType.TRANSFER))
+            viewModel.setAmountText("50000")
+            viewModel.setToAccountId(1L)
+
+            viewModel.setAccountId(1L)
+
+            assertThat(viewModel.uiState.value.accountId).isEqualTo(1L)
+            assertThat(viewModel.uiState.value.toAccountId).isNull()
+        }
+
+    @Test
+    fun `swapping origin and destination keeps both accounts`() =
+        runTest(testDispatcher) {
+            val viewModel = createViewModel(creationHandle(accountId = 2L, initialType = TransactionType.TRANSFER))
+            viewModel.setAmountText("50000")
+            viewModel.setToAccountId(1L)
+
+            viewModel.swapAccounts()
+
+            assertThat(viewModel.uiState.value.accountId).isEqualTo(1L)
+            assertThat(viewModel.uiState.value.toAccountId).isEqualTo(2L)
+        }
+
+    @Test
+    fun `changing type clears the category when entering and the destination when leaving transfer`() =
+        runTest(testDispatcher) {
+            val viewModel = createViewModel(creationHandle(accountId = 1L))
+            viewModel.setAmountText("50000")
+            viewModel.setCategoryId(10L)
+            viewModel.setDate(baseDate.minusDays(1))
+            viewModel.setNote("Nota")
+
+            viewModel.setType(TransactionType.TRANSFER)
+
+            val transferState = viewModel.uiState.value
+            assertThat(transferState.selectedType).isEqualTo(TransactionType.TRANSFER)
+            assertThat(transferState.categoryId).isNull()
+            assertThat(transferState.selectedCategory).isNull()
+            assertThat(transferState.amountText).isEqualTo("50000")
+            assertThat(transferState.accountId).isEqualTo(1L)
+            assertThat(transferState.date).isEqualTo(baseDate.minusDays(1))
+            assertThat(transferState.note).isEqualTo("Nota")
+
+            viewModel.setToAccountId(2L)
+            viewModel.setType(TransactionType.EXPENSE)
+
+            val expenseState = viewModel.uiState.value
+            assertThat(expenseState.selectedType).isEqualTo(TransactionType.EXPENSE)
+            assertThat(expenseState.toAccountId).isNull()
+            assertThat(expenseState.categoryId).isNull()
+            assertThat(expenseState.amountText).isEqualTo("50000")
+            assertThat(expenseState.accountId).isEqualTo(1L)
+        }
+
+    @Test
+    fun `transfer needs a second active account and other tabs keep working`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(listOf(cashAccount))
+            val viewModel = createViewModel(creationHandle(accountId = 1L, initialType = TransactionType.TRANSFER))
+
+            val transferState = viewModel.uiState.value
+            assertThat(transferState.activeAccountCount).isEqualTo(1)
+            assertThat(transferState.showTransferNeedsAccounts).isTrue()
+            assertThat(transferState.showNoAccounts).isFalse()
+
+            viewModel.setType(TransactionType.EXPENSE)
+
+            assertThat(viewModel.uiState.value.showTransferNeedsAccounts).isFalse()
+            assertThat(viewModel.uiState.value.showNoAccounts).isFalse()
         }
 
     @Test
@@ -411,20 +517,129 @@ class TransactionEditViewModelTest {
         }
 
     @Test
-    fun `editing a transfer is not supported`() =
+    fun `edit mode preloads a transfer with origin and destination`() =
+        runTest(testDispatcher) {
+            transactionRepository.setInitialData(listOf(existingTransfer()))
+            val viewModel = createViewModel(editHandle(10L))
+
+            val state = viewModel.uiState.value
+            assertThat(state.isEditMode).isTrue()
+            assertThat(state.selectedType).isEqualTo(TransactionType.TRANSFER)
+            assertThat(state.amountText).isEqualTo("1500")
+            assertThat(state.accountId).isEqualTo(1L)
+            assertThat(state.toAccountId).isEqualTo(2L)
+            assertThat(state.categoryId).isNull()
+            assertThat(state.date).isEqualTo(baseDate)
+            assertThat(state.note).isEqualTo("Almuerzo")
+            assertThat(state.isSaveEnabled).isTrue()
+        }
+
+    @Test
+    fun `editing a transfer with an archived destination keeps it and can still be saved`() =
         runTest(testDispatcher) {
             transactionRepository.setInitialData(
-                listOf(
-                    existingExpense().copy(
-                        type = TransactionType.TRANSFER,
-                        categoryId = null,
-                        toAccountId = 2L,
-                    ),
-                ),
+                listOf(existingTransfer().copy(toAccountId = 3L)),
             )
             val viewModel = createViewModel(editHandle(10L))
 
-            assertThat(viewModel.uiState.value.isTransferEdit).isTrue()
+            val state = viewModel.uiState.value
+            assertThat(state.toAccountId).isEqualTo(3L)
+            assertThat(state.archivedToAccount?.id).isEqualTo(3L)
+            assertThat(state.accounts.map { it.account.id }).containsExactly(1L, 2L)
+            assertThat(state.isSaveEnabled).isTrue()
+        }
+
+    @Test
+    fun `editing a transfer shows the negative balance warning on the origin account`() =
+        runTest(testDispatcher) {
+            transactionRepository.setInitialData(listOf(existingTransfer(amount = Money(150_000L))))
+            val viewModel = createViewModel(editHandle(10L))
+            viewModel.setAmountText("150000")
+
+            viewModel.onSaveClick()
+            assertThat(viewModel.uiState.value.showNegativeBalanceDialog).isTrue()
+        }
+
+    @Test
+    fun `changing an expense into a transfer saves with destination and no category`() =
+        runTest(testDispatcher) {
+            transactionRepository.setInitialData(listOf(existingExpense()))
+            val viewModel = createViewModel(editHandle(10L))
+
+            viewModel.setType(TransactionType.TRANSFER)
+            viewModel.setToAccountId(2L)
+
+            viewModel.events.test {
+                viewModel.onSaveClick()
+                assertThat(awaitItem()).isEqualTo(TransactionEditEvent.NavigateBack)
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            val saved = transactionRepository.getTransaction(10L)
+            assertThat(saved?.type).isEqualTo(TransactionType.TRANSFER)
+            assertThat(saved?.toAccountId).isEqualTo(2L)
+            assertThat(saved?.categoryId).isNull()
+            assertThat(preferencesRepository.getUserPreferences().lastUsedAccountId).isEqualTo(1L)
+        }
+
+    @Test
+    fun `changing a transfer into an expense saves with category and no destination`() =
+        runTest(testDispatcher) {
+            transactionRepository.setInitialData(listOf(existingTransfer()))
+            val viewModel = createViewModel(editHandle(10L))
+
+            viewModel.setType(TransactionType.EXPENSE)
+            viewModel.setCategoryId(10L)
+
+            viewModel.events.test {
+                viewModel.onSaveClick()
+                assertThat(awaitItem()).isEqualTo(TransactionEditEvent.NavigateBack)
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            val saved = transactionRepository.getTransaction(10L)
+            assertThat(saved?.type).isEqualTo(TransactionType.EXPENSE)
+            assertThat(saved?.categoryId).isEqualTo(10L)
+            assertThat(saved?.toAccountId).isNull()
+        }
+
+    @Test
+    fun `edit mode keeps the transfer destination after process death`() =
+        runTest(testDispatcher) {
+            transactionRepository.setInitialData(listOf(existingTransfer()))
+            val handle = editHandle(10L)
+            createViewModel(handle).setNote("Cena")
+
+            val restored = createViewModel(SavedStateHandle(handle.keys().associateWith { handle.get<Any?>(it) }))
+
+            val state = restored.uiState.value
+            assertThat(state.isEditMode).isTrue()
+            assertThat(state.selectedType).isEqualTo(TransactionType.TRANSFER)
+            assertThat(state.note).isEqualTo("Cena")
+            assertThat(state.amountText).isEqualTo("1500")
+            assertThat(state.accountId).isEqualTo(1L)
+            assertThat(state.toAccountId).isEqualTo(2L)
+        }
+
+    @Test
+    fun `creating a transfer persists it and remembers the origin account`() =
+        runTest(testDispatcher) {
+            val viewModel = createViewModel(creationHandle(accountId = 2L, initialType = TransactionType.TRANSFER))
+            viewModel.setAmountText("1000")
+            viewModel.setToAccountId(1L)
+
+            viewModel.events.test {
+                viewModel.onSaveClick()
+                assertThat(awaitItem()).isEqualTo(TransactionEditEvent.NavigateBack)
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            val saved = transactionRepository.getTransaction(1L)
+            assertThat(saved?.type).isEqualTo(TransactionType.TRANSFER)
+            assertThat(saved?.accountId).isEqualTo(2L)
+            assertThat(saved?.toAccountId).isEqualTo(1L)
+            assertThat(saved?.categoryId).isNull()
+            assertThat(preferencesRepository.getUserPreferences().lastUsedAccountId).isEqualTo(2L)
         }
 
     @Test

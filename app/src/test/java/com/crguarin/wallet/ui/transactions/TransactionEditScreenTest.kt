@@ -4,6 +4,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -45,6 +46,22 @@ class TransactionEditScreenTest {
             balance = Money(100_000L),
         )
 
+    private val savingsAccount =
+        AccountWithBalance(
+            account =
+                Account(
+                    id = 2L,
+                    name = "Ahorros",
+                    type = AccountType.SAVINGS,
+                    initialBalance = Money(500_000L),
+                    color = 2,
+                    icon = "savings",
+                    sortOrder = 1,
+                    createdAt = Instant.EPOCH,
+                ),
+            balance = Money(500_000L),
+        )
+
     private val foodCategory =
         Category(id = 10L, name = "Alimentación", type = CategoryType.EXPENSE, color = 1, icon = "restaurant")
 
@@ -63,11 +80,27 @@ class TransactionEditScreenTest {
         date = LocalDate.of(2026, 9, 28),
     )
 
+    private fun validTransferState(
+        amountText: String = "50000",
+        toAccountId: Long? = 2L,
+    ) = TransactionEditUiState(
+        isLoading = false,
+        isEditMode = false,
+        selectedType = TransactionType.TRANSFER,
+        amountText = amountText,
+        accountId = 1L,
+        toAccountId = toAccountId,
+        accounts = listOf(account, savingsAccount),
+        date = LocalDate.of(2026, 9, 28),
+    )
+
     private fun setScreen(
         uiState: TransactionEditUiState,
         onSaveClick: () -> Unit = {},
         onTypeSelected: (TransactionType) -> Unit = {},
         onConfirmNegativeBalance: () -> Unit = {},
+        onSwapAccounts: () -> Unit = {},
+        onNewAccountClick: () -> Unit = {},
     ) {
         composeRule.setContent {
             WalletTheme {
@@ -79,11 +112,15 @@ class TransactionEditScreenTest {
                     onOpenAccountSheet = {},
                     onDismissAccountSheet = {},
                     onAccountSelected = {},
+                    onOpenToAccountSheet = {},
+                    onDismissToAccountSheet = {},
+                    onToAccountSelected = {},
+                    onSwapAccounts = onSwapAccounts,
                     onOpenCategorySheet = {},
                     onDismissCategorySheet = {},
                     onCategorySelected = {},
                     onNewCategoryClick = {},
-                    onNewAccountClick = {},
+                    onNewAccountClick = onNewAccountClick,
                     onOpenDatePicker = {},
                     onDismissDatePicker = {},
                     onDateSelected = {},
@@ -134,6 +171,61 @@ class TransactionEditScreenTest {
         composeRule.onNodeWithText("Ingreso").performClick()
 
         assertThat(selectedType).isEqualTo(TransactionType.INCOME)
+    }
+
+    @Test
+    fun `transfer tab is available and shows origin and destination fields`() {
+        var selectedType: TransactionType? = null
+        setScreen(validTransferState(), onTypeSelected = { selectedType = it })
+
+        composeRule.onNodeWithText("Transferencia").assertIsDisplayed().performClick()
+
+        assertThat(selectedType).isEqualTo(TransactionType.TRANSFER)
+        composeRule.onNodeWithText("Desde").assertIsDisplayed()
+        composeRule.onNodeWithText("Hacia").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Intercambiar cuentas").assertIsDisplayed()
+    }
+
+    @Test
+    fun `transfer save is disabled without destination`() {
+        setScreen(validTransferState(toAccountId = null))
+
+        composeRule.onNodeWithText("Guardar").performScrollTo().assertIsNotEnabled()
+    }
+
+    @Test
+    fun `creating a transfer calls the save callback`() {
+        var saveClicked = false
+        setScreen(validTransferState(), onSaveClick = { saveClicked = true })
+
+        composeRule.onNodeWithText("Guardar").performScrollTo().assertIsEnabled()
+        composeRule.onNodeWithText("Guardar").performClick()
+
+        assertThat(saveClicked).isTrue()
+    }
+
+    @Test
+    fun `swap button notifies the callback`() {
+        var swapClicked = false
+        setScreen(validTransferState(), onSwapAccounts = { swapClicked = true })
+
+        composeRule.onNodeWithContentDescription("Intercambiar cuentas").performScrollTo().performClick()
+
+        assertThat(swapClicked).isTrue()
+    }
+
+    @Test
+    fun `transfer without a second account offers to create one`() {
+        var newAccountClicked = false
+        setScreen(
+            validTransferState(toAccountId = null).copy(accounts = listOf(account)),
+            onNewAccountClick = { newAccountClicked = true },
+        )
+
+        composeRule.onNodeWithText("Necesitas otra cuenta").assertIsDisplayed()
+        composeRule.onNodeWithText("Crear cuenta").performClick()
+
+        assertThat(newAccountClicked).isTrue()
     }
 
     @Test

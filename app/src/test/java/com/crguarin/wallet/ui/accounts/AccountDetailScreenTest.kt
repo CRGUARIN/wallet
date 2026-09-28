@@ -155,4 +155,55 @@ class AccountDetailScreenTest {
         composeRule.onNodeWithText("Editar").performClick()
         assertThat(editClicked).isTrue()
     }
+
+    @Test
+    fun `transfer option is shown and clickable when another active account exists`() {
+        var transferClicked = false
+
+        composeRule.setContent {
+            WalletTheme {
+                AccountDetailScreen(
+                    uiState = baseState.copy(canTransfer = true),
+                    onNavigateBack = {},
+                    onEditClick = {},
+                    onTransferClick = { transferClicked = true },
+                    onArchiveClick = {},
+                    onUnarchiveClick = {},
+                    onDeleteClick = {},
+                    onConfirmDelete = {},
+                    onConfirmArchiveInsteadOfDelete = {},
+                    onDismissDialogs = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription("Más opciones").performClick()
+        composeRule.onNodeWithText("Transferir desde esta cuenta").performClick()
+
+        assertThat(transferClicked).isTrue()
+    }
+
+    @Test
+    fun `transfer option is hidden when there is no other active account`() {
+        composeRule.setContent {
+            WalletTheme {
+                AccountDetailScreen(
+                    uiState = baseState,
+                    onNavigateBack = {},
+                    onEditClick = {},
+                    onTransferClick = {},
+                    onArchiveClick = {},
+                    onUnarchiveClick = {},
+                    onDeleteClick = {},
+                    onConfirmDelete = {},
+                    onConfirmArchiveInsteadOfDelete = {},
+                    onDismissDialogs = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription("Más opciones").performClick()
+
+        composeRule.onNodeWithText("Transferir desde esta cuenta").assertDoesNotExist()
+    }
 }

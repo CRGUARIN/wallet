@@ -107,6 +107,7 @@ class NavigationTest {
         composeRule.onNodeWithText("Nuevo movimiento").assertIsDisplayed()
         composeRule.onNodeWithText("Gasto").assertIsDisplayed()
         composeRule.onNodeWithText("Ingreso").assertIsDisplayed()
+        composeRule.onNodeWithText("Transferencia").assertIsDisplayed()
 
         // Bottom bar destinations should be hidden
         composeRule.onNodeWithText("Ajustes").assertDoesNotExist()

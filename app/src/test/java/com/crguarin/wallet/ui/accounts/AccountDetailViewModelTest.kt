@@ -197,4 +197,55 @@ class AccountDetailViewModelTest {
                 cancelAndIgnoreRemainingEvents()
             }
         }
+
+    @Test
+    fun `canTransfer is false when there is no other active account`() =
+        runTest(testDispatcher) {
+            viewModel.uiState.test {
+                assertThat(awaitItem().canTransfer).isFalse()
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `canTransfer is true when another active account exists`() =
+        runTest(testDispatcher) {
+            accountRepository.saveAccount(activeAccount(id = 7L, name = "Ahorros"))
+
+            viewModel.uiState.test {
+                assertThat(awaitItem().canTransfer).isTrue()
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `an archived second account does not enable transfers`() =
+        runTest(testDispatcher) {
+            accountRepository.saveAccount(activeAccount(id = 7L, name = "Ahorros").copy(isArchived = true))
+
+            viewModel.uiState.test {
+                assertThat(awaitItem().canTransfer).isFalse()
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    private fun activeAccount(
+        id: Long,
+        name: String,
+    ) = Account(
+        id = id,
+        name = name,
+        type = AccountType.SAVINGS,
+        currencyCode = "COP",
+        initialBalance = Money.ZERO,
+        color = -16711936,
+        icon = "savings",
+        includeInTotal = true,
+        isArchived = false,
+        sortOrder = 1,
+        createdAt = Instant.EPOCH,
+    )
 }

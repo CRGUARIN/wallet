@@ -9,9 +9,11 @@ import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryType
+import com.crguarin.wallet.domain.model.MonthSummary
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.usecase.ObserveAccountsUseCase
+import com.crguarin.wallet.domain.usecase.ObserveTotalBalanceUseCase
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -37,6 +39,7 @@ class TransactionBalanceIntegrationTest {
     private lateinit var transactionRepository: TransactionRepositoryImpl
     private lateinit var categoryRepository: CategoryRepositoryImpl
     private lateinit var observeAccountsUseCase: ObserveAccountsUseCase
+    private lateinit var observeTotalBalanceUseCase: ObserveTotalBalanceUseCase
 
     private val now = Instant.parse("2026-09-28T12:00:00Z")
     private val date = LocalDate.of(2026, 9, 28)
@@ -58,6 +61,7 @@ class TransactionBalanceIntegrationTest {
                 ioDispatcher = Dispatchers.Unconfined,
             )
         observeAccountsUseCase = ObserveAccountsUseCase(accountRepository)
+        observeTotalBalanceUseCase = ObserveTotalBalanceUseCase(accountRepository)
     }
 
     @After
@@ -71,17 +75,22 @@ class TransactionBalanceIntegrationTest {
             .first { it.account.id == accountId }
             .balance
 
-    private suspend fun createAccount(): Long =
+    private suspend fun createAccount(
+        name: String = "Efectivo",
+        initialBalance: Money = Money(100_000L),
+    ): Long =
         accountRepository.saveAccount(
             Account(
-                name = "Efectivo",
+                name = name,
                 type = AccountType.CASH,
-                initialBalance = Money(100_000L),
+                initialBalance = initialBalance,
                 color = 1,
                 icon = "wallet",
                 createdAt = now,
             ),
         )
+
+    private suspend fun totalBalance(): Money = observeTotalBalanceUseCase().first()
 
     private suspend fun createCategory(
         type: CategoryType,
@@ -165,5 +174,91 @@ class TransactionBalanceIntegrationTest {
 
             transactionRepository.deleteTransaction(incomeId)
             assertThat(balanceOf(accountId)).isEqualTo(Money(100_000L))
+        }
+
+    private fun transfer(
+        amount: Money,
+        accountId: Long,
+        toAccountId: Long,
+    ) = Transaction(
+        type = TransactionType.TRANSFER,
+        amount = amount,
+        accountId = accountId,
+        toAccountId = toAccountId,
+        date = date,
+        createdAt = now,
+        updatedAt = now,
+    )
+
+    private suspend fun monthSummary(): MonthSummary =
+        transactionRepository.getMonthSummary(
+            from = date.withDayOfMonth(1),
+            to = date.withDayOfMonth(date.lengthOfMonth()),
+            accountId = null,
+        )
+
+    @Test
+    fun `a transfer moves the balance without changing the total or the month summary`() =
+        runTest {
+            val originId = createAccount(name = "Efectivo", initialBalance = Money(100_000L))
+            val destinationId = createAccount(name = "Ahorros", initialBalance = Money(50_000L))
+            assertThat(totalBalance()).isEqualTo(Money(150_000L))
+
+            val transferId =
+                transactionRepository.saveTransaction(
+                    transfer(Money(30_000L), originId, destinationId),
+                )
+
+            assertThat(balanceOf(originId)).isEqualTo(Money(70_000L))
+            assertThat(balanceOf(destinationId)).isEqualTo(Money(80_000L))
+            assertThat(totalBalance()).isEqualTo(Money(150_000L))
+
+            val summary = monthSummary()
+            assertThat(summary.income).isEqualTo(Money.ZERO)
+            assertThat(summary.expense).isEqualTo(Money.ZERO)
+
+            assertThat(transactionRepository.getTransaction(transferId)?.categoryId).isNull()
+        }
+
+    @Test
+    fun `editing the transfer destination returns the amount and credits the new account`() =
+        runTest {
+            val originId = createAccount(name = "Efectivo", initialBalance = Money(100_000L))
+            val firstDestinationId = createAccount(name = "Ahorros", initialBalance = Money(50_000L))
+            val secondDestinationId = createAccount(name = "Inversión", initialBalance = Money.ZERO)
+
+            val transferId =
+                transactionRepository.saveTransaction(
+                    transfer(Money(30_000L), originId, firstDestinationId),
+                )
+            assertThat(balanceOf(firstDestinationId)).isEqualTo(Money(80_000L))
+
+            val saved = transactionRepository.getTransaction(transferId)!!
+            transactionRepository.saveTransaction(saved.copy(toAccountId = secondDestinationId))
+
+            assertThat(balanceOf(originId)).isEqualTo(Money(70_000L))
+            assertThat(balanceOf(firstDestinationId)).isEqualTo(Money(50_000L))
+            assertThat(balanceOf(secondDestinationId)).isEqualTo(Money(30_000L))
+            assertThat(totalBalance()).isEqualTo(Money(150_000L))
+        }
+
+    @Test
+    fun `deleting a transfer restores both balances`() =
+        runTest {
+            val originId = createAccount(name = "Efectivo", initialBalance = Money(100_000L))
+            val destinationId = createAccount(name = "Ahorros", initialBalance = Money(50_000L))
+
+            val transferId =
+                transactionRepository.saveTransaction(
+                    transfer(Money(30_000L), originId, destinationId),
+                )
+            assertThat(balanceOf(originId)).isEqualTo(Money(70_000L))
+            assertThat(balanceOf(destinationId)).isEqualTo(Money(80_000L))
+
+            transactionRepository.deleteTransaction(transferId)
+
+            assertThat(balanceOf(originId)).isEqualTo(Money(100_000L))
+            assertThat(balanceOf(destinationId)).isEqualTo(Money(50_000L))
+            assertThat(totalBalance()).isEqualTo(Money(150_000L))
         }
 }
