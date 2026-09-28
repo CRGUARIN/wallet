@@ -677,7 +677,7 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 ## 15. Checklist de progreso
 - [x] Tarea 0 — Entorno y AGENTS.md
 - [x] Tarea 1 — Esqueleto del proyecto + CI
-- [ ] Tarea 2 — Núcleo de dinero
+- [x] Tarea 2 — Núcleo de dinero
 - [ ] Tarea 3 — Base de datos
 - [ ] Tarea 4 — Dominio y repositorios
 - [ ] Tarea 5 — Navegación, i18n y componentes
