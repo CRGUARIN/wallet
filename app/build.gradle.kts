@@ -98,11 +98,13 @@ dependencies {
 
     // Testing
     testImplementation(libs.junit)
+    testImplementation(libs.androidx.test.core)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.truth)
     testImplementation(libs.turbine)
     testImplementation(libs.robolectric)
     testImplementation(libs.room.testing)
+    testImplementation(libs.androidx.paging.testing)
     testImplementation(platform(libs.androidx.compose.bom))
     testImplementation(libs.androidx.ui.test.junit4)
 
