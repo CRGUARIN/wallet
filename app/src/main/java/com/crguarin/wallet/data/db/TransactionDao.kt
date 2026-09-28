@@ -197,11 +197,13 @@ interface TransactionDao {
             COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) AS expense
         FROM transactions
         WHERE date >= :from AND date <= :to
+          AND (:accountId IS NULL OR account_id = :accountId)
         """,
     )
     fun observeMonthSummary(
         from: LocalDate,
         to: LocalDate,
+        accountId: Long? = null,
     ): Flow<MonthSummary>
 
     @Query(
@@ -211,10 +213,12 @@ interface TransactionDao {
             COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) AS expense
         FROM transactions
         WHERE date >= :from AND date <= :to
+          AND (:accountId IS NULL OR account_id = :accountId)
         """,
     )
     suspend fun getMonthSummary(
         from: LocalDate,
         to: LocalDate,
+        accountId: Long? = null,
     ): MonthSummary
 }

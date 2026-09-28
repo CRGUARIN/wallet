@@ -599,6 +599,7 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 - Todos los casos de uso de la sección 7.2 (excepto backup) con validaciones.
 - `DefaultCategoriesSeeder` + strings de categorías en ES/EN.
 - Tests unitarios de cada caso de uso con repos fake.
+- Unicidad de nombres: `LOWER()` de SQLite solo pasa a minúsculas ASCII (`"ÉXITO"` ≠ `"éxito"`) y las categorías del sistema tienen `name = null`. Por eso `existsActiveWithName` / `existsSiblingWithName` no bastan: los casos de uso deben comparar en Kotlin con `trim().lowercase(Locale.ROOT)` y, para categorías del sistema, contra su nombre traducido.
 - **Aceptación**: todas las reglas de 5.3–5.5 cubiertas por tests.
 
 ### Tarea 5 — Navegación, i18n base y componentes comunes

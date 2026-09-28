@@ -422,11 +422,42 @@ class TransactionDaoTest {
                         toAccountId = accountSavingsId,
                         date = LocalDate.of(2026, 9, 12),
                     )
-                    // Transfer might trigger invalidation, but summary values remain the same
-                    expectNoEvents()
+                    // Room may re-emit on invalidation; the values must not change
+                    assertThat(
+                        transactionDao.getMonthSummary(
+                            from = LocalDate.of(2026, 9, 1),
+                            to = LocalDate.of(2026, 9, 30),
+                        ),
+                    ).isEqualTo(afterExpense)
 
                     cancelAndIgnoreRemainingEvents()
                 }
+        }
+
+    @Test
+    fun getMonthSummary_filtersByAccount() =
+        runTest {
+            val from = LocalDate.of(2026, 9, 1)
+            val to = LocalDate.of(2026, 9, 30)
+            insertTx(type = TransactionType.INCOME, amount = 1_000L, categoryId = incomeCatSalaryId)
+            insertTx(type = TransactionType.EXPENSE, amount = 300L, categoryId = rootCatFoodId)
+            insertTx(
+                type = TransactionType.EXPENSE,
+                amount = 200L,
+                accountId = accountSavingsId,
+                categoryId = rootCatFoodId,
+            )
+
+            val cash = transactionDao.getMonthSummary(from, to, accountId = accountCashId)
+            assertThat(cash.income).isEqualTo(1_000L)
+            assertThat(cash.expense).isEqualTo(300L)
+
+            val savings = transactionDao.getMonthSummary(from, to, accountId = accountSavingsId)
+            assertThat(savings.income).isEqualTo(0L)
+            assertThat(savings.expense).isEqualTo(200L)
+
+            val all = transactionDao.getMonthSummary(from, to)
+            assertThat(all.expense).isEqualTo(500L)
         }
 
     @Test
