@@ -364,6 +364,22 @@ class TransactionEditViewModelTest {
         }
 
     @Test
+    fun `edit mode keeps unsaved edits restored after process death`() =
+        runTest(testDispatcher) {
+            transactionRepository.setInitialData(listOf(existingExpense(amount = Money(150_000L))))
+            val handle = editHandle(10L)
+            createViewModel(handle).setNote("Cena")
+
+            val restored = createViewModel(SavedStateHandle(handle.keys().associateWith { handle.get<Any?>(it) }))
+
+            val state = restored.uiState.value
+            assertThat(state.isEditMode).isTrue()
+            assertThat(state.note).isEqualTo("Cena")
+            assertThat(state.amountText).isEqualTo("1500")
+            assertThat(state.selectedCategory?.id).isEqualTo(10L)
+        }
+
+    @Test
     @Config(qualifiers = "es")
     fun `edit mode shows cents with the locale decimal separator`() =
         runTest(testDispatcher) {

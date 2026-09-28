@@ -217,28 +217,34 @@ class TransactionEditViewModel
                     }
                     return
                 }
-                selectedTypeFlow.value = existing.type
-                _uiState.update {
-                    it.copy(
-                        isLoading = true,
-                        isEditMode = true,
-                        editingTransactionId = editingId,
-                        selectedType = existing.type,
-                        amountText = formatAmountForInput(existing.amount),
-                        accountId = existing.accountId,
-                        categoryId = existing.categoryId,
-                        date = existing.date,
-                        note = existing.note.orEmpty(),
-                    )
+                // After process death the form already holds the user's unsaved edits; only
+                // the first load copies the stored transaction into it.
+                val isRestoredForm = savedStateHandle.contains(KEY_TYPE)
+                if (isRestoredForm) {
+                    _uiState.update { it.copy(isEditMode = true, editingTransactionId = editingId) }
+                } else {
+                    selectedTypeFlow.value = existing.type
+                    _uiState.update {
+                        it.copy(
+                            isLoading = true,
+                            isEditMode = true,
+                            editingTransactionId = editingId,
+                            selectedType = existing.type,
+                            amountText = formatAmountForInput(existing.amount),
+                            accountId = existing.accountId,
+                            categoryId = existing.categoryId,
+                            date = existing.date,
+                            note = existing.note.orEmpty(),
+                        )
+                    }
+                    persistForm()
                 }
-                persistForm()
-                val account = accountRepository.getAccount(existing.accountId)
+                val formState = _uiState.value
+                val account = formState.accountId?.let { accountRepository.getAccount(it) }
                 if (account != null && account.isArchived) {
                     _uiState.update { it.copy(archivedAccount = account) }
                 }
-                if (existing.categoryId != null) {
-                    resolveSelectedCategory(existing.categoryId)
-                }
+                formState.categoryId?.let { resolveSelectedCategory(it) }
                 _uiState.update { it.copy(isLoading = false) }
             } else {
                 val activeAccounts = accountRepository.getAllAccounts().filter { !it.isArchived }
