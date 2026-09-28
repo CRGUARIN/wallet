@@ -19,6 +19,45 @@
     <string name="category_picker_title">Seleccionar categoría</string>
     <string name="settings_title">Ajustes</string>
 
+    <!-- Categorías -->
+    <string name="category_new_title">Nueva categoría</string>
+    <string name="category_new_subcategory_title">Nueva subcategoría</string>
+    <string name="category_name_label">Nombre</string>
+    <string name="category_type_label">Tipo</string>
+    <string name="category_parent_label">Categoría principal</string>
+    <string name="category_parent_none">Ninguna (Categoría principal)</string>
+    <string name="category_color_label">Color</string>
+    <string name="category_icon_label">Ícono</string>
+    <string name="type_expense">Gasto</string>
+    <string name="type_income">Ingreso</string>
+    <string name="action_add_subcategory">+ Subcategoría</string>
+    <string name="action_unarchive">Desarchivar</string>
+    <string name="action_reassign_and_delete">Reasignar y eliminar</string>
+    <string name="category_delete_confirm_title">¿Eliminar categoría?</string>
+    <string name="category_delete_confirm_message">¿Estás seguro de que deseas eliminar esta categoría?</string>
+    <string name="category_delete_has_children_title">No se puede eliminar</string>
+    <string name="category_delete_has_children_message">Esta categoría tiene subcategorías. Para eliminarla, primero debes eliminar o mover sus subcategorías, o puedes archivarla.</string>
+    <string name="category_delete_has_transactions_title">Categoría con movimientos</string>
+    <string name="category_archived_success">Categoría archivada</string>
+    <string name="category_unarchived_success">Categoría desarchivada</string>
+    <string name="categories_empty_expense_title">Sin categorías de gastos</string>
+    <string name="categories_empty_expense_message">Crea una categoría para organizar tus gastos.</string>
+    <string name="categories_empty_income_title">Sin categorías de ingresos</string>
+    <string name="categories_empty_income_message">Crea una categoría para organizar tus ingresos.</string>
+    <string name="settings_item_categories">Categorías</string>
+    <string name="settings_item_categories_subtitle">Gestionar categorías y subcategorías</string>
+    <string name="cd_add_subcategory">Agregar subcategoría</string>
+    <string name="cd_parent_category">Categoría principal</string>
+
+    <plurals name="categories_archived_count">
+        <item quantity="one">Archivadas (%d)</item>
+        <item quantity="other">Archivadas (%d)</item>
+    </plurals>
+    <plurals name="category_delete_has_transactions_message">
+        <item quantity="one">Esta categoría tiene %d movimiento asociado. Puedes archivarla o reasignar sus movimientos a otra categoría para eliminarla.</item>
+        <item quantity="other">Esta categoría tiene %d movimientos asociados. Puedes archivarla o reasignar sus movimientos a otra categoría para eliminarla.</item>
+    </plurals>
+
     <!-- Acciones comunes -->
     <string name="action_save">Guardar</string>
     <string name="action_cancel">Cancelar</string>

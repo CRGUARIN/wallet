@@ -151,4 +151,20 @@ class NavigationTest {
         composeRule.onNodeWithText("Accounts").assertIsDisplayed()
         composeRule.onNodeWithText("Settings").assertIsDisplayed()
     }
+
+    @Test
+    @Config(qualifiers = "es")
+    fun `navigating from Settings to Categories opens Categories screen`() {
+        setAppContent()
+
+        // Click Ajustes tab
+        composeRule.onNodeWithText("Ajustes").performClick()
+        composeRule.onAllNodesWithText("Ajustes").onFirst().assertIsDisplayed()
+
+        // Click Categorías item in settings
+        composeRule.onNodeWithText("Categorías").performClick()
+
+        // Destination is now Categories screen
+        composeRule.onAllNodesWithText("Categorías").onFirst().assertIsDisplayed()
+    }
 }

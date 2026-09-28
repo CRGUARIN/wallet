@@ -17,6 +17,45 @@
     <string name="category_picker_title">Select category</string>
     <string name="settings_title">Settings</string>
 
+    <!-- Categories -->
+    <string name="category_new_title">New category</string>
+    <string name="category_new_subcategory_title">New subcategory</string>
+    <string name="category_name_label">Name</string>
+    <string name="category_type_label">Type</string>
+    <string name="category_parent_label">Parent category</string>
+    <string name="category_parent_none">None (Main category)</string>
+    <string name="category_color_label">Color</string>
+    <string name="category_icon_label">Icon</string>
+    <string name="type_expense">Expense</string>
+    <string name="type_income">Income</string>
+    <string name="action_add_subcategory">+ Subcategory</string>
+    <string name="action_unarchive">Unarchive</string>
+    <string name="action_reassign_and_delete">Reassign and delete</string>
+    <string name="category_delete_confirm_title">Delete category?</string>
+    <string name="category_delete_confirm_message">Are you sure you want to delete this category?</string>
+    <string name="category_delete_has_children_title">Cannot delete</string>
+    <string name="category_delete_has_children_message">This category has subcategories. To delete it, you must first delete or move its subcategories, or you can archive it.</string>
+    <string name="category_delete_has_transactions_title">Category with transactions</string>
+    <string name="category_archived_success">Category archived</string>
+    <string name="category_unarchived_success">Category unarchived</string>
+    <string name="categories_empty_expense_title">No expense categories</string>
+    <string name="categories_empty_expense_message">Create a category to organize your expenses.</string>
+    <string name="categories_empty_income_title">No income categories</string>
+    <string name="categories_empty_income_message">Create a category to organize your income.</string>
+    <string name="settings_item_categories">Categories</string>
+    <string name="settings_item_categories_subtitle">Manage categories and subcategories</string>
+    <string name="cd_add_subcategory">Add subcategory</string>
+    <string name="cd_parent_category">Parent category</string>
+
+    <plurals name="categories_archived_count">
+        <item quantity="one">Archived (%d)</item>
+        <item quantity="other">Archived (%d)</item>
+    </plurals>
+    <plurals name="category_delete_has_transactions_message">
+        <item quantity="one">This category has %d associated transaction. You can archive it or reassign its transactions to another category to delete it.</item>
+        <item quantity="other">This category has %d associated transactions. You can archive it or reassign its transactions to another category to delete it.</item>
+    </plurals>
+
     <!-- Common actions -->
     <string name="action_save">Save</string>
     <string name="action_cancel">Cancel</string>

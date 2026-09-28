@@ -99,4 +99,21 @@ class FakeCategoryRepository : CategoryRepository {
         }
         notifyChanged()
     }
+
+    override suspend fun unarchiveCategory(
+        categoryId: Long,
+        unarchiveParent: Boolean,
+    ) {
+        val target = categories[categoryId]
+        if (target != null) {
+            categories[categoryId] = target.copy(isArchived = false)
+            if (unarchiveParent && target.parentId != null) {
+                val parent = categories[target.parentId]
+                if (parent != null) {
+                    categories[target.parentId] = parent.copy(isArchived = false)
+                }
+            }
+        }
+        notifyChanged()
+    }
 }

@@ -32,4 +32,9 @@ interface CategoryRepository {
     )
 
     suspend fun archiveCategoryAndSubcategories(categoryId: Long)
+
+    suspend fun unarchiveCategory(
+        categoryId: Long,
+        unarchiveParent: Boolean = false,
+    )
 }

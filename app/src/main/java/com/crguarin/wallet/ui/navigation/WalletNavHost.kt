@@ -9,8 +9,8 @@ import androidx.navigation.toRoute
 import com.crguarin.wallet.ui.accounts.AccountDetailRoute
 import com.crguarin.wallet.ui.accounts.AccountEditRoute
 import com.crguarin.wallet.ui.accounts.AccountsRoute
-import com.crguarin.wallet.ui.categories.CategoriesScreen
-import com.crguarin.wallet.ui.categories.CategoryEditScreen
+import com.crguarin.wallet.ui.categories.CategoriesRoute
+import com.crguarin.wallet.ui.categories.CategoryEditRoute
 import com.crguarin.wallet.ui.categories.CategoryPickerScreen
 import com.crguarin.wallet.ui.home.HomeScreen
 import com.crguarin.wallet.ui.onboarding.OnboardingRoute
@@ -87,18 +87,23 @@ fun WalletNavHost(
                 onNavigateBack = { navController.popBackStack() },
             )
         }
-        composable<Categories> { backStackEntry ->
-            val route = backStackEntry.toRoute<Categories>()
-            CategoriesScreen(
-                type = route.type,
+        composable<Categories> {
+            CategoriesRoute(
+                onNavigateBack = { navController.popBackStack() },
+                onCategoryClick = { categoryId, type ->
+                    navController.navigate(CategoryEdit(categoryId = categoryId, type = type))
+                },
+                onNewCategoryClick = { type ->
+                    navController.navigate(CategoryEdit(type = type))
+                },
+                onNewSubcategoryClick = { parentId, type ->
+                    navController.navigate(CategoryEdit(parentId = parentId, type = type))
+                },
             )
         }
-        composable<CategoryEdit> { backStackEntry ->
-            val route = backStackEntry.toRoute<CategoryEdit>()
-            CategoryEditScreen(
-                categoryId = route.categoryId,
-                parentId = route.parentId,
-                type = route.type,
+        composable<CategoryEdit> {
+            CategoryEditRoute(
+                onNavigateBack = { navController.popBackStack() },
             )
         }
         composable<CategoryPicker> { backStackEntry ->
@@ -108,7 +113,11 @@ fun WalletNavHost(
             )
         }
         composable<Settings> {
-            SettingsScreen()
+            SettingsScreen(
+                onCategoriesClick = {
+                    navController.navigate(Categories())
+                },
+            )
         }
     }
 }

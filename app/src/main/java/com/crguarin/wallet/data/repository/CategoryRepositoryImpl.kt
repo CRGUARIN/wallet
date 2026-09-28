@@ -98,4 +98,21 @@ class CategoryRepositoryImpl
                 categoryDao.archiveCategoryAndSubcategories(categoryId)
             }
         }
+
+        override suspend fun unarchiveCategory(
+            categoryId: Long,
+            unarchiveParent: Boolean,
+        ) {
+            withContext(ioDispatcher) {
+                walletDatabase.withTransaction {
+                    categoryDao.unarchive(categoryId)
+                    if (unarchiveParent) {
+                        val cat = categoryDao.getById(categoryId)
+                        if (cat?.parentId != null) {
+                            categoryDao.unarchive(cat.parentId)
+                        }
+                    }
+                }
+            }
+        }
     }

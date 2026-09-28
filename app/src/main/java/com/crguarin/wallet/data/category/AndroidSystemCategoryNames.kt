@@ -27,6 +27,11 @@ class AndroidSystemCategoryNames
             return listOfNotNull(esName, enName).toSet()
         }
 
+        override fun currentNameFor(systemKey: String): String? {
+            val resId = SystemCategoryStrings.resIdFor(systemKey) ?: return null
+            return runCatching { context.getString(resId) }.getOrNull()
+        }
+
         private fun createLocalizedContext(locale: Locale): Context {
             val config = Configuration(context.resources.configuration)
             config.setLocale(locale)

@@ -153,4 +153,39 @@ class CategoryRepositoryImplTest {
             val reloadedTx = transactionRepository.getTransaction(txId)
             assertThat(reloadedTx?.categoryId).isEqualTo(targetId)
         }
+
+    @Test
+    fun `unarchiveCategory unarchives category and optionally parent`() =
+        runTest {
+            val parentId =
+                categoryRepository.saveCategory(
+                    Category(name = "Vivienda", type = CategoryType.EXPENSE, color = 1, icon = "home", isArchived = true),
+                )
+            val subId =
+                categoryRepository.saveCategory(
+                    Category(
+                        name = "Arriendo",
+                        type = CategoryType.EXPENSE,
+                        parentId = parentId,
+                        color = 1,
+                        icon = "home",
+                        isArchived = true,
+                    ),
+                )
+
+            // Test unarchiving only root
+            categoryRepository.unarchiveCategory(parentId, unarchiveParent = false)
+            assertThat(categoryRepository.getCategory(parentId)?.isArchived).isFalse()
+            assertThat(categoryRepository.getCategory(subId)?.isArchived).isTrue()
+
+            // Re-archive parent
+            categoryRepository.archiveCategoryAndSubcategories(parentId)
+            assertThat(categoryRepository.getCategory(parentId)?.isArchived).isTrue()
+            assertThat(categoryRepository.getCategory(subId)?.isArchived).isTrue()
+
+            // Test unarchiving subcategory with parent
+            categoryRepository.unarchiveCategory(subId, unarchiveParent = true)
+            assertThat(categoryRepository.getCategory(subId)?.isArchived).isFalse()
+            assertThat(categoryRepository.getCategory(parentId)?.isArchived).isFalse()
+        }
 }

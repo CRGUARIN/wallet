@@ -35,6 +35,9 @@ interface CategoryDao {
     @Query("UPDATE categories SET is_archived = 1 WHERE id = :id OR parent_id = :id")
     suspend fun archiveCategoryAndSubcategories(id: Long): Int
 
+    @Query("UPDATE categories SET is_archived = 0 WHERE id = :id")
+    suspend fun unarchive(id: Long): Int
+
     @Query("SELECT * FROM categories WHERE id = :id")
     fun observeById(id: Long): Flow<CategoryEntity?>
 

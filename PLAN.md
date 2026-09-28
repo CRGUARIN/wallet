@@ -683,7 +683,7 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 - [x] Tarea 4 — Dominio y repositorios
 - [x] Tarea 5 — Navegación, i18n y componentes
 - [x] Tarea 6 — Onboarding y cuentas
-- [ ] Tarea 7 — Categorías y subcategorías
+- [x] Tarea 7 — Categorías y subcategorías
 - [ ] Tarea 8 — Ingresos y gastos
 - [ ] Tarea 9 — Transferencias
 - [ ] Tarea 10 — Movimientos, detalle y Home
