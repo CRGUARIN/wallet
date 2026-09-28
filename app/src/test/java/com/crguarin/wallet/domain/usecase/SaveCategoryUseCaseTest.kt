@@ -1,0 +1,277 @@
+package com.crguarin.wallet.domain.usecase
+
+import com.crguarin.wallet.core.result.DomainError
+import com.crguarin.wallet.domain.fake.FakeCategoryRepository
+import com.crguarin.wallet.domain.fake.FakeSystemCategoryNames
+import com.crguarin.wallet.domain.model.Category
+import com.crguarin.wallet.domain.model.CategoryType
+import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.test.runTest
+import org.junit.Before
+import org.junit.Test
+
+class SaveCategoryUseCaseTest {
+    private lateinit var categoryRepository: FakeCategoryRepository
+    private lateinit var systemCategoryNames: FakeSystemCategoryNames
+    private lateinit var saveCategoryUseCase: SaveCategoryUseCase
+
+    @Before
+    fun setUp() {
+        categoryRepository = FakeCategoryRepository()
+        systemCategoryNames = FakeSystemCategoryNames()
+        saveCategoryUseCase = SaveCategoryUseCase(categoryRepository, systemCategoryNames)
+    }
+
+    @Test
+    fun `fails when name is empty`() =
+        runTest {
+            val category =
+                Category(
+                    name = "   ",
+                    type = CategoryType.EXPENSE,
+                    color = 1,
+                    icon = "restaurant",
+                )
+            val result = saveCategoryUseCase(category)
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.NameEmpty)
+        }
+
+    @Test
+    fun `fails when name is too long`() =
+        runTest {
+            val category =
+                Category(
+                    name = "C".repeat(41),
+                    type = CategoryType.EXPENSE,
+                    color = 1,
+                    icon = "restaurant",
+                )
+            val result = saveCategoryUseCase(category)
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.NameTooLong)
+        }
+
+    @Test
+    fun `fails when parent does not exist`() =
+        runTest {
+            val category =
+                Category(
+                    name = "Sub",
+                    type = CategoryType.EXPENSE,
+                    parentId = 999L,
+                    color = 1,
+                    icon = "restaurant",
+                )
+            val result = saveCategoryUseCase(category)
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.NotFound)
+        }
+
+    @Test
+    fun `fails when parent is already a subcategory`() =
+        runTest {
+            val root =
+                Category(
+                    id = 1L,
+                    name = "Alimentación",
+                    type = CategoryType.EXPENSE,
+                    parentId = null,
+                    color = 1,
+                    icon = "restaurant",
+                )
+            val sub =
+                Category(
+                    id = 2L,
+                    name = "Restaurantes",
+                    type = CategoryType.EXPENSE,
+                    parentId = 1L,
+                    color = 1,
+                    icon = "restaurant",
+                )
+            categoryRepository.setInitialData(listOf(root, sub))
+
+            val subSub =
+                Category(
+                    name = "Comida Rápida",
+                    type = CategoryType.EXPENSE,
+                    parentId = 2L,
+                    color = 1,
+                    icon = "restaurant",
+                )
+            val result = saveCategoryUseCase(subSub)
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.MaxDepthExceeded)
+        }
+
+    @Test
+    fun `fails when child type does not match parent type`() =
+        runTest {
+            val rootExpense =
+                Category(
+                    id = 1L,
+                    name = "Alimentación",
+                    type = CategoryType.EXPENSE,
+                    parentId = null,
+                    color = 1,
+                    icon = "restaurant",
+                )
+            categoryRepository.setInitialData(listOf(rootExpense))
+
+            val childIncome =
+                Category(
+                    name = "Devolución Comida",
+                    type = CategoryType.INCOME,
+                    parentId = 1L,
+                    color = 1,
+                    icon = "restaurant",
+                )
+            val result = saveCategoryUseCase(childIncome)
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.CategoryTypeMismatch)
+        }
+
+    @Test
+    fun `fails when converting a category with children into a subcategory`() =
+        runTest {
+            val root1 =
+                Category(
+                    id = 1L,
+                    name = "Padre 1",
+                    type = CategoryType.EXPENSE,
+                    parentId = null,
+                    color = 1,
+                    icon = "home",
+                )
+            val root2 =
+                Category(
+                    id = 2L,
+                    name = "Padre 2",
+                    type = CategoryType.EXPENSE,
+                    parentId = null,
+                    color = 1,
+                    icon = "home",
+                )
+            val childOf1 =
+                Category(
+                    id = 3L,
+                    name = "Hijo de 1",
+                    type = CategoryType.EXPENSE,
+                    parentId = 1L,
+                    color = 1,
+                    icon = "home",
+                )
+            categoryRepository.setInitialData(listOf(root1, root2, childOf1))
+
+            // Try to make root1 a child of root2
+            val updateRoot1 = root1.copy(parentId = 2L)
+            val result = saveCategoryUseCase(updateRoot1)
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.MaxDepthExceeded)
+        }
+
+    @Test
+    fun `fails when changing type of category with transactions`() =
+        runTest {
+            val category =
+                Category(
+                    id = 1L,
+                    name = "Compras",
+                    type = CategoryType.EXPENSE,
+                    parentId = null,
+                    color = 1,
+                    icon = "shopping_bag",
+                )
+            categoryRepository.setInitialData(listOf(category), txCounts = mapOf(1L to 5))
+
+            val changeType = category.copy(type = CategoryType.INCOME)
+            val result = saveCategoryUseCase(changeType)
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.CategoryHasTransactions(5))
+        }
+
+    @Test
+    fun `fails when duplicate name among siblings`() =
+        runTest {
+            val sibling1 =
+                Category(
+                    id = 1L,
+                    name = "Alimentación",
+                    type = CategoryType.EXPENSE,
+                    parentId = null,
+                    color = 1,
+                    icon = "restaurant",
+                )
+            categoryRepository.setInitialData(listOf(sibling1))
+
+            val candidate =
+                Category(
+                    name = "  alimentación  ",
+                    type = CategoryType.EXPENSE,
+                    parentId = null,
+                    color = 2,
+                    icon = "restaurant",
+                )
+            val result = saveCategoryUseCase(candidate)
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.NameDuplicated)
+        }
+
+    @Test
+    fun `fails when name matches system category translation in ES or EN`() =
+        runTest {
+            val systemCat =
+                Category(
+                    id = 1L,
+                    name = null,
+                    systemKey = "food",
+                    type = CategoryType.EXPENSE,
+                    parentId = null,
+                    color = 1,
+                    icon = "restaurant",
+                )
+            categoryRepository.setInitialData(listOf(systemCat))
+
+            // Sibling attempts to use "Food" (English translation of food)
+            val enDuplicate =
+                Category(
+                    name = "Food",
+                    type = CategoryType.EXPENSE,
+                    parentId = null,
+                    color = 2,
+                    icon = "restaurant",
+                )
+            val resultEn = saveCategoryUseCase(enDuplicate)
+            assertThat(resultEn.errorOrNull()).isEqualTo(DomainError.NameDuplicated)
+
+            // Sibling attempts to use "Alimentación" (Spanish translation of food)
+            val esDuplicate =
+                Category(
+                    name = "alimentación",
+                    type = CategoryType.EXPENSE,
+                    parentId = null,
+                    color = 2,
+                    icon = "restaurant",
+                )
+            val resultEs = saveCategoryUseCase(esDuplicate)
+            assertThat(resultEs.errorOrNull()).isEqualTo(DomainError.NameDuplicated)
+        }
+
+    @Test
+    fun `allows same name under different parent or different type`() =
+        runTest {
+            val expenseCat =
+                Category(
+                    id = 1L,
+                    name = "General",
+                    type = CategoryType.EXPENSE,
+                    parentId = null,
+                    color = 1,
+                    icon = "more_horiz",
+                )
+            categoryRepository.setInitialData(listOf(expenseCat))
+
+            val incomeCandidate =
+                Category(
+                    name = "General",
+                    type = CategoryType.INCOME,
+                    parentId = null,
+                    color = 1,
+                    icon = "more_horiz",
+                )
+            val result = saveCategoryUseCase(incomeCandidate)
+            assertThat(result.isSuccess).isTrue()
+        }
+}

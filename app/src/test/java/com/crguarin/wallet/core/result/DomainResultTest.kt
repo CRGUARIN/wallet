@@ -108,11 +108,17 @@ class DomainResultTest {
                 DomainError.CategoryHasChildren,
                 DomainError.CategoryHasTransactions(count = 5),
                 DomainError.NotFound,
+                DomainError.NoteTooLong,
+                DomainError.DateOutOfRange,
+                DomainError.AccountArchived,
+                DomainError.CategoryArchived,
+                DomainError.SameCategoryReassignment,
+                DomainError.InvalidTransaction,
                 DomainError.BackupInvalid(reason = "Corrupt JSON"),
                 DomainError.BackupVersionUnsupported,
             )
 
-        assertThat(errors).hasSize(14)
+        assertThat(errors).hasSize(20)
 
         for (err in errors) {
             val description =
@@ -129,6 +135,12 @@ class DomainResultTest {
                     DomainError.CategoryHasChildren -> "CategoryHasChildren"
                     is DomainError.CategoryHasTransactions -> "CategoryHasTransactions(${err.count})"
                     DomainError.NotFound -> "NotFound"
+                    DomainError.NoteTooLong -> "NoteTooLong"
+                    DomainError.DateOutOfRange -> "DateOutOfRange"
+                    DomainError.AccountArchived -> "AccountArchived"
+                    DomainError.CategoryArchived -> "CategoryArchived"
+                    DomainError.SameCategoryReassignment -> "SameCategoryReassignment"
+                    DomainError.InvalidTransaction -> "InvalidTransaction"
                     is DomainError.BackupInvalid -> "BackupInvalid(${err.reason})"
                     DomainError.BackupVersionUnsupported -> "BackupVersionUnsupported"
                 }

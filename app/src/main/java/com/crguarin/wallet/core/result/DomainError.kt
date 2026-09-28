@@ -30,6 +30,18 @@ sealed interface DomainError {
 
     data object NotFound : DomainError
 
+    data object NoteTooLong : DomainError
+
+    data object DateOutOfRange : DomainError
+
+    data object AccountArchived : DomainError
+
+    data object CategoryArchived : DomainError
+
+    data object SameCategoryReassignment : DomainError
+
+    data object InvalidTransaction : DomainError
+
     data class BackupInvalid(
         val reason: String,
     ) : DomainError

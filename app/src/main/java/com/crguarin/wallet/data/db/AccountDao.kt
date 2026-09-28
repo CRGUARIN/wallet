@@ -64,6 +64,9 @@ interface AccountDao {
     @Query("SELECT * FROM accounts ORDER BY is_archived, sort_order, name")
     fun observeAll(): Flow<List<AccountEntity>>
 
+    @Query("SELECT * FROM accounts ORDER BY is_archived, sort_order, name")
+    suspend fun getAll(): List<AccountEntity>
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(account: AccountEntity): Long
 

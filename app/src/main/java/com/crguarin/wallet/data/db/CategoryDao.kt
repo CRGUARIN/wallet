@@ -20,6 +20,21 @@ interface CategoryDao {
     )
     fun observeAll(type: CategoryType? = null): Flow<List<CategoryEntity>>
 
+    @Query(
+        """
+        SELECT * FROM categories
+        WHERE (:type IS NULL OR type = :type)
+        ORDER BY is_archived, sort_order, id
+        """,
+    )
+    suspend fun getAll(type: CategoryType? = null): List<CategoryEntity>
+
+    @Query("SELECT * FROM categories WHERE parent_id = :parentId ORDER BY sort_order, id")
+    suspend fun getChildren(parentId: Long): List<CategoryEntity>
+
+    @Query("UPDATE categories SET is_archived = 1 WHERE id = :id OR parent_id = :id")
+    suspend fun archiveCategoryAndSubcategories(id: Long): Int
+
     @Query("SELECT * FROM categories WHERE id = :id")
     fun observeById(id: Long): Flow<CategoryEntity?>
 

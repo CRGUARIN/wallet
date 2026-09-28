@@ -680,7 +680,7 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 - [x] Tarea 1 — Esqueleto del proyecto + CI
 - [x] Tarea 2 — Núcleo de dinero
 - [x] Tarea 3 — Base de datos
-- [ ] Tarea 4 — Dominio y repositorios
+- [x] Tarea 4 — Dominio y repositorios
 - [ ] Tarea 5 — Navegación, i18n y componentes
 - [ ] Tarea 6 — Onboarding y cuentas
 - [ ] Tarea 7 — Categorías y subcategorías

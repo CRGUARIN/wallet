@@ -1,4 +1,28 @@
 <resources>
     <string name="app_name" translatable="false">Wallet</string>
     <string name="welcome_placeholder">Bienvenido a Wallet</string>
+
+    <!-- Categorías del sistema - Gastos -->
+    <string name="category_food">Alimentación</string>
+    <string name="category_groceries">Mercado</string>
+    <string name="category_restaurants">Restaurantes</string>
+    <string name="category_transport">Transporte</string>
+    <string name="category_public_transport">Transporte público</string>
+    <string name="category_fuel">Gasolina</string>
+    <string name="category_taxi">Taxi</string>
+    <string name="category_housing">Vivienda</string>
+    <string name="category_rent">Arriendo</string>
+    <string name="category_utilities">Servicios públicos</string>
+    <string name="category_health">Salud</string>
+    <string name="category_education">Educación</string>
+    <string name="category_entertainment">Entretenimiento</string>
+    <string name="category_shopping">Compras</string>
+    <string name="category_other_expense">Otros gastos</string>
+
+    <!-- Categorías del sistema - Ingresos -->
+    <string name="category_salary">Salario</string>
+    <string name="category_freelance">Trabajo independiente</string>
+    <string name="category_gifts">Regalos</string>
+    <string name="category_interest">Intereses</string>
+    <string name="category_other_income">Otros ingresos</string>
 </resources>
