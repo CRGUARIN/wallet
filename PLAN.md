@@ -684,7 +684,7 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 - [x] Tarea 6 — Onboarding y cuentas
 - [x] Tarea 7 — Categorías y subcategorías
 - [x] Tarea 8 — Ingresos y gastos
-- [ ] Tarea 9 — Transferencias
+- [x] Tarea 9 — Transferencias
 - [ ] Tarea 10 — Movimientos, detalle y Home
 - [ ] Tarea 11 — Ajustes y backup
 - [ ] Tarea 12 — Pulido y release
