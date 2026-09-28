@@ -2,6 +2,7 @@
 .gradle/
 build/
 gradle-app.setting
+gradle/gradle-daemon-jvm.properties
 !gradle/wrapper/gradle-wrapper.jar
 
 # Android

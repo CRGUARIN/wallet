@@ -1,8 +1,10 @@
 # Wallet — Plan de desarrollo (Android)
 
-> Documento maestro para que **Jules** implemente la app paso a paso.
-> Cada tarea de la sección 12 está pensada para ser **un PR independiente**, con criterios de aceptación verificables.
+> Documento maestro para que un **agente de código** implemente la app paso a paso. Agente principal: **Antigravity (AGY)**, trabajando en local. Alternativa soportada: **Jules**, en la nube. La sección 16 explica el entorno y el flujo de cada uno.
+> Cada tarea de la sección 12 es **una rama independiente**, con criterios de aceptación verificables: en Jules se entrega como PR; en AGY, como rama local que revisa el dueño del repo.
 > Si algo en este documento es ambiguo, elegir la opción más simple que cumpla los criterios y dejarlo anotado en la descripción del PR.
+>
+> **Estado (28-sep-2026):** Tareas 0 y 1 completadas y verificadas (compila, lint limpio, tests verdes, la app abre en dispositivo). Siguiente: **Tarea 2**. Leer también la sección 16 (reglas de trabajo) antes de empezar.
 
 ---
 
@@ -34,7 +36,7 @@
 
 | Área | Elección | Notas |
 |---|---|---|
-| Lenguaje | **Kotlin 2.x** (última estable) | Compose compiler plugin de Kotlin (`org.jetbrains.kotlin.plugin.compose`). |
+| Lenguaje | **Kotlin 2.4.x** | Compose compiler plugin de Kotlin (`org.jetbrains.kotlin.plugin.compose`). Con AGP 9 el soporte de Kotlin viene integrado (ver 2.1). |
 | UI | **Jetpack Compose + Material 3** | Usar Compose BOM. Material Icons Extended. Soporte dynamic color (Android 12+) con fallback a paleta propia. |
 | Arquitectura | **MVVM + UDF** (Unidirectional Data Flow) con capas `data` / `domain` / `ui` | Un solo módulo `:app` organizado por paquetes (más simple para un agente). |
 | DI | **Hilt** | `hilt-navigation-compose` para `hiltViewModel()`. |
@@ -44,10 +46,10 @@
 | Navegación | **Navigation Compose** con rutas type-safe (`@Serializable`) | |
 | Serialización | **kotlinx.serialization** | Rutas de navegación y backup JSON. |
 | Fechas | **java.time** (`LocalDate`, `Instant`, `ZoneId`) | minSdk 26 lo soporta sin desugaring. |
-| Idiomas | `strings.xml` (ES por defecto, EN en `values-en`) + **per-app language** (`AppCompatDelegate.setApplicationLocales`, `locales_config.xml`) | |
-| Tests | JUnit4, **kotlinx-coroutines-test**, **Turbine**, **Truth**, **Robolectric** (DAO y UI sin emulador), Compose UI Test | |
-| Calidad | **ktlint** (plugin `org.jlleitschuh.gradle.ktlint`) + Android Lint | |
-| Build | Gradle Kotlin DSL + **Version Catalog** (`gradle/libs.versions.toml`) | AGP última estable, JDK 17. |
+| Idiomas | `strings.xml` (ES por defecto, EN en `values-en`) + **per-app language** (`AppCompatDelegate.setApplicationLocales`, `locales_config.xml`) | Requiere `androidx.appcompat` (se agrega en la Tarea 5). |
+| Tests | JUnit4, **kotlinx-coroutines-test**, **Turbine**, **Truth**, **Robolectric** (DAO y UI sin emulador), Compose UI Test | Usar `androidx.compose.ui.test.junit4.v2.createComposeRule` (la v1 está deprecada). |
+| Calidad | **ktlint** (plugin `org.jlleitschuh.gradle.ktlint`) + Android Lint | Estilo `ktlint_official` definido en `.editorconfig`. Excepciones de lint documentadas en `app/lint.xml`. |
+| Build | Gradle Kotlin DSL + **Version Catalog** (`gradle/libs.versions.toml`) | Ver versiones fijadas en 2.1. JDK 17+ (CI usa 17). |
 | CI | GitHub Actions | build + tests + lint en cada PR. |
 
 **Configuración Android**
@@ -56,6 +58,28 @@
 - `minSdk = 26`, `targetSdk = 37` y `compileSdk = 37` (**Android 17**, versión estable más reciente, lanzada el 16 de junio de 2026).
 - La UI debe funcionar bien en vertical (portrait); horizontal es "best effort".
 - Edge-to-edge activado (`enableEdgeToEdge()`).
+
+### 2.1 Versiones fijadas y configuración de build (establecidas en la Tarea 1)
+La fuente de verdad es `gradle/libs.versions.toml`. Versiones a 28-sep-2026:
+
+| Componente | Versión |
+|---|---|
+| Gradle (wrapper) | 9.8.0 (con `distributionSha256Sum`) |
+| Android Gradle Plugin | 9.4.1 |
+| Kotlin | 2.4.20 |
+| KSP | 2.3.12 |
+| Compose BOM | 2026.09.00 |
+| Hilt | 2.60.1 |
+| Room | 2.8.5 |
+| Navigation Compose | 2.10.2 |
+| Robolectric | 4.17 |
+| SDK | `platforms;android-37.0`, `build-tools;37.0.0` |
+
+Reglas:
+- **AGP 9 trae Kotlin integrado**: el plugin `org.jetbrains.kotlin.android` solo se declara en el `build.gradle.kts` raíz con `apply false` (para fijar la versión de Kotlin) y **no** se aplica en `:app`. Usar `kotlin { compilerOptions { ... } }`, no `kotlinOptions`.
+- Todos los plugins se aplican con `alias(libs.plugins.xxx)`; nada de `buildscript { classpath(...) }`.
+- `settings.gradle.kts` tiene primero el **espejo de Maven Central de Google** (`https://maven-central.storage-download.googleapis.com/maven2/`) para evitar errores 429 de Maven Central (pasa en la VM de Jules; también protege el CI). No quitarlo ni agregar otros repositorios de terceros.
+- Para subir versiones: hacerlo en un PR `chore:` separado, nunca mezclado con una tarea funcional.
 
 ---
 
@@ -66,12 +90,17 @@ Wallet/
 ├── AGENTS.md                      # Instrucciones para agentes (Tarea 0)
 ├── PLAN.md                        # Este documento
 ├── README.md
+├── .editorconfig                  # Estilo ktlint_official
 ├── .github/workflows/ci.yml
 ├── build.gradle.kts
 ├── settings.gradle.kts
+├── gradle.properties
+├── setup_sdk.sh                   # Instala el Android SDK y genera local.properties
 ├── gradle/libs.versions.toml
 └── app/
     ├── build.gradle.kts
+    ├── lint.xml                   # Excepciones de lint justificadas
+    ├── proguard-rules.pro
     ├── schemas/                   # Esquemas exportados de Room (versionados en git)
     └── src/
         ├── main/
@@ -518,29 +547,25 @@ Comandos que **deben pasar** antes de cada PR:
 ./gradlew ktlintCheck lintDebug testDebugUnitTest assembleDebug
 ```
 
+Notas de testing:
+- Tests con Robolectric: anotar la clase con `@Config(sdk = [35])` hasta que Robolectric soporte la API 37.
+- Robolectric usa **inglés** por defecto. Los tests que verifican textos deben fijar el idioma con `@Config(qualifiers = "es")` / `"en"`. Ejemplo de referencia: `app/src/test/java/com/crguarin/wallet/WelcomePlaceholderTest.kt`.
+
+Cómo preparar el entorno para compilar, según el agente: ver sección 16.
+
 ---
 
-## 12. Plan de implementación por tareas (para Jules)
+## 12. Plan de implementación por tareas
 
-> Una tarea = un PR. No empezar una tarea sin que la anterior compile y pase los tests. Cada PR debe actualizar el checklist de la sección 15.
+> Una tarea = una rama `feat/tarea-N-<tema>` (y un PR si se usa Jules). No empezar una tarea sin que la anterior esté en `main`, compile y pase los tests. Cada tarea debe actualizar el checklist de la sección 15.
 
 ### Tarea 0 — Preparación del entorno y AGENTS.md
 - Crear `AGENTS.md` en la raíz con: resumen del proyecto, stack, estructura de paquetes, comandos de build/test (sección 11), reglas de estilo (sección 13) y "leer PLAN.md antes de cada tarea".
-- Script de setup para la VM de Jules (configurar en "Environment setup" de Jules):
-  ```bash
-  # JDK 17 y Android SDK
-  export ANDROID_HOME=$HOME/android-sdk
-  mkdir -p $ANDROID_HOME/cmdline-tools
-  cd $ANDROID_HOME/cmdline-tools
-  curl -sSLo tools.zip https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip
-  unzip -q tools.zip && mv cmdline-tools latest && rm tools.zip
-  export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH
-  yes | sdkmanager --licenses
-  sdkmanager "platform-tools" "platforms;android-37" "build-tools;37.0.0"
-  ```
-  (Si `build-tools;37.0.0` no existe, usar la última `build-tools;37.x` que muestre `sdkmanager --list`. Usar una versión de AGP compatible con API 37. Generar `local.properties` con `sdk.dir` si hace falta; **no** commitear `local.properties`.)
+- Script de setup para entornos sin Android Studio (VM de Jules, máquinas nuevas): **`setup_sdk.sh`** en la raíz (idempotente). Instala `platform-tools`, `platforms;android-37.0` y `build-tools;37.0.0`, acepta licencias y genera `local.properties` (ignorado por git). Uso: ver sección 16.2.
+- `GEMINI.md` en la raíz para Antigravity: solo remite a `AGENTS.md` y `PLAN.md`.
 - `.gitignore` estándar de Android.
 - **Aceptación**: `AGENTS.md` existe; el script instala el SDK sin intervención.
+- ✅ **Completada.** (PR #1)
 
 ### Tarea 1 — Esqueleto del proyecto
 - Proyecto Gradle (Kotlin DSL + version catalog) con módulo `:app`, Compose, Material 3, Hilt, Room (KSP), Navigation, DataStore, kotlinx.serialization, Paging, ktlint, dependencias de test.
@@ -549,6 +574,14 @@ Comandos que **deben pasar** antes de cada PR:
 - Gradle wrapper commiteado.
 - Workflow `.github/workflows/ci.yml`: JDK 17, cache de Gradle, `./gradlew ktlintCheck lintDebug testDebugUnitTest assembleDebug`, sube el APK debug como artifact.
 - **Aceptación**: `./gradlew assembleDebug` y tests pasan localmente y en CI; la app abre.
+- ✅ **Completada.** (PR #2 + correcciones en `main`). Qué quedó:
+  - Versiones de la sección 2.1, `compileSdk`/`targetSdk = 37`.
+  - `MainActivity` (`@AndroidEntryPoint`, edge-to-edge) mostrando `WelcomePlaceholder` ("Bienvenido a Wallet" / "Welcome to Wallet").
+  - Tema con dynamic color; paleta aún es la de plantilla (púrpura) → se reemplaza en la Tarea 5.
+  - Ícono adaptativo **temporal** (billetera blanca sobre verde) en `mipmap-anydpi-v26` → se reemplaza en la Tarea 12.
+  - CI en `.github/workflows/ci.yml` (sube el APK debug como artifact).
+  - Test de humo `WelcomePlaceholderTest` (ES, EN y fallback a ES).
+  - Verificado: la app abre en dispositivo real.
 
 ### Tarea 2 — Núcleo de dinero y utilidades
 - `Money`, `MoneyFormatter`, `MoneyParser`, `TimeProvider`, `DomainResult`, `DomainError`.
@@ -569,8 +602,10 @@ Comandos que **deben pasar** antes de cada PR:
 - **Aceptación**: todas las reglas de 5.3–5.5 cubiertas por tests.
 
 ### Tarea 5 — Navegación, i18n base y componentes comunes
-- `WalletNavHost`, bottom bar, rutas type-safe, pantallas placeholder.
-- `locales_config.xml`, soporte per-app language, `strings.xml` ES/EN con strings comunes.
+- `WalletNavHost`, bottom bar, rutas type-safe, pantallas placeholder. **Eliminar** `WelcomePlaceholder` y su test (reemplazarlos por tests de navegación).
+- Per-app language: agregar `androidx.appcompat`, cambiar `MainActivity` a `AppCompatActivity`, tema XML con padre `Theme.AppCompat.DayNight.NoActionBar` (o `Theme.Material3.DayNight.NoActionBar`), y declarar `AppLocalesMetadataHolderService` con `autoStoreLocales=true` en el manifest (API < 33). `locales_config.xml` ya existe.
+- `strings.xml` ES/EN con strings comunes.
+- Reemplazar la paleta de plantilla (`Purple80`, etc.) por la paleta propia de Wallet (`WalletPalette`).
 - Componentes reutilizables: `MoneyText`, `AmountTextField`, `AccountPickerSheet`, `CategoryPickerSheet` (árbol), `ColorPicker`, `IconPicker`, `ConfirmDialog`, `EmptyState`, `IconCatalog`, `WalletPalette`.
 - **Aceptación**: se navega entre las 4 pestañas; cambiar idioma del sistema cambia los textos; previews de componentes.
 
@@ -605,7 +640,7 @@ Comandos que **deben pasar** antes de cada PR:
 
 ### Tarea 12 — Pulido y release
 - Estados vacíos, carga y error en todas las pantallas; revisión de accesibilidad (TalkBack básico, tamaños de fuente grandes).
-- Ícono de app (adaptive icon) y splash screen (`core-splashscreen`).
+- Ícono de app definitivo (reemplaza el temporal de `mipmap-anydpi-v26`; mantener capa `monochrome`) y splash screen (`core-splashscreen`).
 - R8/minify en release con reglas para kotlinx.serialization y Room.
 - `versionCode`/`versionName` = 1 / "1.0.0". Configuración de firma leída de variables de entorno (sin secretos en el repo).
 - Actualizar `README.md`: descripción, capturas, cómo compilar.
@@ -653,3 +688,45 @@ Comandos que **deben pasar** antes de cada PR:
 - [ ] Tarea 10 — Movimientos, detalle y Home
 - [ ] Tarea 11 — Ajustes y backup
 - [ ] Tarea 12 — Pulido y release
+
+---
+
+## 16. Agentes, entornos y flujo de trabajo
+
+El plan sirve para cualquier agente. Las reglas del proyecto viven en **`AGENTS.md`**; cada agente tiene su archivo de entrada:
+
+| Agente | Dónde corre | Archivo que lee | Entrega |
+|---|---|---|---|
+| **Antigravity (AGY)**, principal | Equipo local del dueño (Arch Linux) | `GEMINI.md` → `AGENTS.md` → `PLAN.md` | Rama local `feat/tarea-N-…` con commits; **sin push a `main`** |
+| **Jules**, alternativa | VM en la nube de Google | `AGENTS.md` → `PLAN.md` | Rama + PR en GitHub |
+
+### 16.1 Antigravity (local)
+- **Entorno ya instalado**: Android Studio en `/opt/android-studio` y SDK en `~/Android/Sdk` (`local.properties` apunta ahí; no se commitea). **No** ejecutar `setup_sdk.sh`.
+- Compilar por terminal usando el JDK de Android Studio:
+  ```bash
+  export JAVA_HOME=/opt/android-studio/jbr
+  ./gradlew ktlintCheck lintDebug testDebugUnitTest assembleDebug
+  ```
+- Flujo por tarea:
+  1. `git checkout main && git pull`, luego `git checkout -b feat/tarea-N-<tema>`.
+  2. Implementar y ejecutar el comando de verificación hasta que pase.
+  3. Opcional pero recomendado en tareas de UI: instalar en el emulador o teléfono (`./gradlew installDebug`) y comprobar la pantalla.
+  4. Commits con Conventional Commits. Al terminar, **detenerse y avisar**: el dueño (o Claude) revisa la rama y la integra a `main`. No hacer push a `main` ni merge por cuenta propia.
+- No commitear `gradle/gradle-daemon-jvm.properties` (lo genera Android Studio y forzaría JDK 25 en CI/Jules), `.idea/`, ni carpetas propias del agente.
+
+### 16.2 Jules (nube)
+- En "Environment setup" del repo en Jules configurar:
+  ```bash
+  source ./setup_sdk.sh
+  ```
+  Instala el SDK en `~/android-sdk` y genera `local.properties`. La VM trae JDK 17.
+- Flujo por tarea: rama desde `main` actualizado → PR a `main`. El CI de GitHub Actions debe quedar verde antes de que el dueño acepte el PR.
+- **Errores 429 / red**: no son del proyecto. Reintentar con `--refresh-dependencies`; si persisten, abrir el PR como **borrador** indicando que no se pudo verificar localmente.
+
+### 16.3 Reglas comunes (lecciones de las Tareas 0–1)
+1. **Partir siempre de `main` actualizado** y leer `AGENTS.md` y esta sección antes de empezar. Una rama por tarea.
+2. **No bajar `compileSdk`/`targetSdk` ni versiones** para esquivar un error. Si algo no compila por el entorno, detenerse y reportarlo.
+3. **No marcar una tarea como completada** en la sección 15 hasta que el comando de la sección 11 pase (y, en Jules, el CI esté verde).
+4. **El resumen de lo hecho debe coincidir con el diff**: no afirmar que se creó un archivo si no está en el commit.
+5. Toda excepción (lint suprimido, test ignorado, dependencia nueva) va justificada en el resumen y, si es permanente, en un comentario en el propio archivo.
+6. Revisar el propio diff antes de entregar: sin archivos generados (`build/`, `.kotlin/`, `local.properties`, `gradle-daemon-jvm.properties`).

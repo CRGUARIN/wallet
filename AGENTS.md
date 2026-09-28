@@ -1,6 +1,8 @@
 # Wallet — Instrucciones para Agentes (AGENTS.md)
 
-**LEER `PLAN.md` ANTES DE EMPEZAR CUALQUIER TAREA.**
+**LEER `PLAN.md` ANTES DE EMPEZAR CUALQUIER TAREA** (en especial la sección 16: entorno y flujo por agente).
+
+Este archivo aplica a cualquier agente (Antigravity, Jules u otro).
 
 ## Resumen del proyecto
 Wallet es una app Android de finanzas personales, offline y sin cuenta de usuario, que permite manejar varias cuentas de dinero, registrar ingresos, gastos y transferencias, organizar con categorías/subcategorías, ver el saldo, y exportar/importar un backup en JSON. La interfaz está en Español e Inglés.
@@ -50,5 +52,14 @@ Antes de cada PR, **deben pasar** los siguientes comandos:
 - Todas las versiones viven en `gradle/libs.versions.toml`; los plugins se aplican siempre con `alias(libs.plugins.xxx)`, nunca con `buildscript { classpath(...) }`.
 - `compileSdk`/`targetSdk = 37` (paquete del SDK: `platforms;android-37.0`). **No bajarlo** para esquivar errores; si algo falla, reportarlo.
 - Tests de Robolectric: anotar con `@Config(sdk = [35])` hasta que Robolectric soporte la API 37.
-- Entorno: `source ./setup_sdk.sh` instala el SDK y genera `local.properties`.
 - El repositorio espejo de Google (`maven-central.storage-download.googleapis.com`) está primero en `settings.gradle.kts` para evitar errores 429 de Maven Central; no quitarlo.
+
+## Entorno y flujo de trabajo (resumen de PLAN.md §16)
+- **Antigravity (local, agente principal)**: el SDK ya está en `~/Android/Sdk`. No ejecutar `setup_sdk.sh`. Compilar con el JDK de Android Studio:
+  ```bash
+  export JAVA_HOME=/opt/android-studio/jbr
+  ./gradlew ktlintCheck lintDebug testDebugUnitTest assembleDebug
+  ```
+  Trabajar en una rama `feat/tarea-N-<tema>` creada desde `main` actualizado. Al terminar, **detenerse y avisar**; no hacer push a `main` ni merge.
+- **Jules (nube)**: en "Environment setup" usar `source ./setup_sdk.sh`. Entregar como PR a `main`; el CI debe quedar verde.
+- Nunca commitear `local.properties`, `gradle/gradle-daemon-jvm.properties`, `.idea/`, `build/` ni `.kotlin/`.
