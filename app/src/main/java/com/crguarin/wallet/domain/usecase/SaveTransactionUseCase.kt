@@ -22,6 +22,7 @@ class SaveTransactionUseCase
         private val accountRepository: AccountRepository,
         private val categoryRepository: CategoryRepository,
         private val timeProvider: TimeProvider,
+        private val checkNegativeBalanceUseCase: CheckNegativeBalanceUseCase,
     ) {
         suspend operator fun invoke(transaction: Transaction): DomainResult<SaveTransactionResult> {
             if (transaction.amount <= Money.ZERO || transaction.amount > Money.MAX) {
@@ -117,37 +118,7 @@ class SaveTransactionUseCase
                 }
             }
 
-            val willBeNegative =
-                if (transaction.type == TransactionType.EXPENSE || transaction.type == TransactionType.TRANSFER) {
-                    val currentBalance =
-                        accountRepository.getAccountWithBalance(transaction.accountId)?.balance ?: Money.ZERO
-                    val baselineBalance =
-                        if (existing != null) {
-                            val oldEffect =
-                                when {
-                                    existing.type == TransactionType.INCOME &&
-                                        existing.accountId == transaction.accountId -> existing.amount
-
-                                    existing.type == TransactionType.EXPENSE &&
-                                        existing.accountId == transaction.accountId -> -existing.amount
-
-                                    existing.type == TransactionType.TRANSFER &&
-                                        existing.accountId == transaction.accountId -> -existing.amount
-
-                                    existing.type == TransactionType.TRANSFER &&
-                                        existing.toAccountId == transaction.accountId -> existing.amount
-
-                                    else -> Money.ZERO
-                                }
-                            currentBalance - oldEffect
-                        } else {
-                            currentBalance
-                        }
-                    val resultingBalance = baselineBalance - transaction.amount
-                    resultingBalance.isNegative
-                } else {
-                    false
-                }
+            val willBeNegative = checkNegativeBalanceUseCase(transaction)
 
             val now = timeProvider.now()
             val toSave =

@@ -76,12 +76,18 @@ class SaveTransactionUseCaseTest {
         accountRepository.setInitialData(listOf(cashAccount, savingsAccount))
         categoryRepository.setInitialData(listOf(foodCategory, salaryCategory))
 
+        val checkNegativeBalanceUseCase =
+            CheckNegativeBalanceUseCase(
+                accountRepository = accountRepository,
+                transactionRepository = transactionRepository,
+            )
         saveTransactionUseCase =
             SaveTransactionUseCase(
                 transactionRepository = transactionRepository,
                 accountRepository = accountRepository,
                 categoryRepository = categoryRepository,
                 timeProvider = timeProvider,
+                checkNegativeBalanceUseCase = checkNegativeBalanceUseCase,
             )
     }
 
