@@ -1,5 +1,4 @@
 <resources>
-    <string name="app_name">Wallet</string>
     <string name="welcome_placeholder">Welcome to Wallet</string>
 
     <!-- System Categories - Expense -->

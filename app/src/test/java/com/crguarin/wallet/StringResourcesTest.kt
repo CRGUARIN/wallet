@@ -46,9 +46,10 @@ class StringResourcesTest {
             parser.setInput(stream, "UTF-8")
             var eventType = parser.eventType
             while (eventType != XmlPullParser.END_DOCUMENT) {
-                if (eventType == XmlPullParser.START_TAG && parser.name == "string") {
+                if (eventType == XmlPullParser.START_TAG && parser.name in setOf("string", "plurals")) {
                     val name = parser.getAttributeValue(null, "name")
-                    if (name != null) {
+                    val translatable = parser.getAttributeValue(null, "translatable") != "false"
+                    if (name != null && translatable) {
                         keys.add(name)
                     }
                 }

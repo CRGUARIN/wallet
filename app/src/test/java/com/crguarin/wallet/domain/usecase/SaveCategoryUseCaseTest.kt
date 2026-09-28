@@ -274,4 +274,17 @@ class SaveCategoryUseCaseTest {
             val result = saveCategoryUseCase(incomeCandidate)
             assertThat(result.isSuccess).isTrue()
         }
+
+    @Test
+    fun `fails when a category is its own parent`() =
+        runTest {
+            val id =
+                saveCategoryUseCase(
+                    Category(name = "Comida", type = CategoryType.EXPENSE, color = 1, icon = "restaurant"),
+                ).getOrNull()!!
+            val stored = categoryRepository.getCategory(id)!!
+
+            val result = saveCategoryUseCase(stored.copy(parentId = id))
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.MaxDepthExceeded)
+        }
 }

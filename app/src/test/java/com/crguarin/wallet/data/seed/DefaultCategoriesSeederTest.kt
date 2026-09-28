@@ -3,6 +3,7 @@ package com.crguarin.wallet.data.seed
 import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
+import com.crguarin.wallet.core.resources.SystemCategoryStrings
 import com.crguarin.wallet.data.db.WalletDatabase
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
@@ -64,5 +65,19 @@ class DefaultCategoriesSeederTest {
 
             val categoriesAfterSecondRun = database.categoryDao().getAll()
             assertThat(categoriesAfterSecondRun).hasSize(20)
+        }
+
+    @Test
+    fun `every seeded system key has a translated string`() =
+        runTest {
+            seeder.seedIfNeeded()
+
+            val seededKeys =
+                database
+                    .categoryDao()
+                    .getAll()
+                    .mapNotNull { it.systemKey }
+                    .toSet()
+            assertThat(SystemCategoryStrings.keys).containsExactlyElementsIn(seededKeys)
         }
 }

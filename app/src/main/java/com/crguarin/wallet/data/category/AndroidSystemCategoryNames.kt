@@ -2,6 +2,7 @@ package com.crguarin.wallet.data.category
 
 import android.content.Context
 import android.content.res.Configuration
+import com.crguarin.wallet.core.resources.SystemCategoryStrings
 import com.crguarin.wallet.domain.model.SystemCategoryNames
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.Locale
@@ -15,9 +16,7 @@ class AndroidSystemCategoryNames
         @ApplicationContext private val context: Context,
     ) : SystemCategoryNames {
         override fun namesFor(systemKey: String): Set<String> {
-            val resourceName = "category_$systemKey"
-            val resId = context.resources.getIdentifier(resourceName, "string", context.packageName)
-            if (resId == 0) return emptySet()
+            val resId = SystemCategoryStrings.resIdFor(systemKey) ?: return emptySet()
 
             val esContext = createLocalizedContext(Locale.forLanguageTag("es"))
             val enContext = createLocalizedContext(Locale.forLanguageTag("en"))

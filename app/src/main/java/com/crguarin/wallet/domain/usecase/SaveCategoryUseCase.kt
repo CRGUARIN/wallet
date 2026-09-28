@@ -28,6 +28,9 @@ class SaveCategoryUseCase
             }
 
             if (category.parentId != null) {
+                if (category.parentId == category.id) {
+                    return DomainResult.Failure(DomainError.MaxDepthExceeded)
+                }
                 val parent =
                     categoryRepository.getCategory(category.parentId)
                         ?: return DomainResult.Failure(DomainError.NotFound)

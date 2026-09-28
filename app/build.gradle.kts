@@ -13,6 +13,13 @@ android {
     namespace = "com.crguarin.wallet"
     compileSdk = 37
 
+    // Per-app language (ES/EN) needs every language in the install, not only the device's one.
+    bundle {
+        language {
+            enableSplit = false
+        }
+    }
+
     defaultConfig {
         applicationId = "com.crguarin.wallet"
         minSdk = 26
