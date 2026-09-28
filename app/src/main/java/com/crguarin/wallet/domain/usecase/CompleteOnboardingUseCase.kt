@@ -13,14 +13,16 @@ class CompleteOnboardingUseCase
         private val preferencesRepository: PreferencesRepository,
     ) {
         suspend operator fun invoke(account: Account): DomainResult<Long> {
-            val saveResult = saveAccountUseCase(account)
-            if (saveResult !is DomainResult.Success) {
-                return saveResult
-            }
-
+            // Seed first: the seeder is idempotent, so a failure here can be retried without
+            // leaving behind an account that would later collide with the same name.
             val seedResult = seedDefaultCategoriesUseCase()
             if (seedResult is DomainResult.Failure) {
                 return DomainResult.Failure(seedResult.error)
+            }
+
+            val saveResult = saveAccountUseCase(account)
+            if (saveResult !is DomainResult.Success) {
+                return saveResult
             }
 
             preferencesRepository.setOnboardingCompleted(true)

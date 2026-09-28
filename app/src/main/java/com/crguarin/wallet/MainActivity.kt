@@ -10,6 +10,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.crguarin.wallet.domain.model.ThemeMode
 import com.crguarin.wallet.ui.MainUiState
@@ -52,11 +53,11 @@ class MainActivity : AppCompatActivity() {
                         darkTheme = darkTheme,
                         dynamicColor = state.preferences.dynamicColor,
                     ) {
+                        // Decided once: finishing onboarding navigates to Home itself, and changing
+                        // the NavHost start destination afterwards would reset the back stack.
                         val startDestination: Any =
-                            if (state.onboardingCompleted) {
-                                Home
-                            } else {
-                                Onboarding
+                            remember {
+                                if (state.onboardingCompleted) Home else Onboarding
                             }
                         WalletAppContent(startDestination = startDestination)
                     }

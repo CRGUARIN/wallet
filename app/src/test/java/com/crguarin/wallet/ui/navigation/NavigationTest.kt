@@ -1,5 +1,7 @@
 package com.crguarin.wallet.ui.navigation
 
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -28,11 +30,14 @@ class NavigationTest {
     private fun setAppContent(startDestination: Any = Home) {
         composeRule.setContent {
             navController = rememberNavController()
-            WalletTheme {
-                WalletAppContent(
-                    navController = navController,
-                    startDestination = startDestination,
-                )
+            // Inspection mode renders the screens without Hilt ViewModels.
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                WalletTheme {
+                    WalletAppContent(
+                        navController = navController,
+                        startDestination = startDestination,
+                    )
+                }
             }
         }
     }

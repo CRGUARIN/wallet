@@ -92,7 +92,7 @@ class CompleteOnboardingUseCaseTest {
         }
 
     @Test
-    fun `empty account name returns failure and does not seed or mark onboarding complete`() =
+    fun `empty account name returns failure and does not mark onboarding complete`() =
         runTest {
             val account =
                 Account(
@@ -113,7 +113,6 @@ class CompleteOnboardingUseCaseTest {
 
             assertThat(result).isEqualTo(DomainResult.Failure(DomainError.NameEmpty))
             assertThat(accountRepository.getAllAccounts()).isEmpty()
-            assertThat(categorySeeder.seedCallCount).isEqualTo(0)
             assertThat(preferencesRepository.getUserPreferences().isOnboardingCompleted).isFalse()
         }
 
@@ -139,7 +138,6 @@ class CompleteOnboardingUseCaseTest {
 
             assertThat(result).isEqualTo(DomainResult.Failure(DomainError.NameTooLong))
             assertThat(accountRepository.getAllAccounts()).isEmpty()
-            assertThat(categorySeeder.seedCallCount).isEqualTo(0)
             assertThat(preferencesRepository.getUserPreferences().isOnboardingCompleted).isFalse()
         }
 }

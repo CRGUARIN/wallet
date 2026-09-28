@@ -23,6 +23,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.time.Instant
+import java.util.Locale
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -178,6 +179,26 @@ class AccountEditViewModelTest {
                 assertThat(updated?.initialBalance).isEqualTo(Money(800_000L))
 
                 cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    @Config(qualifiers = "es")
+    fun `edit mode keeps cents parseable with the locale decimal separator`() =
+        runTest(testDispatcher) {
+            val defaultLocale = Locale.getDefault()
+            Locale.setDefault(Locale.forLanguageTag("es-CO"))
+            try {
+                accountRepository.setInitialData(listOf(existingAccount.copy(initialBalance = Money(150_050L))))
+                val savedStateHandle = SavedStateHandle(mapOf("accountId" to 10L))
+                val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+
+                val state = viewModel.uiState.value
+                assertThat(state.initialBalanceText).isEqualTo("1500,50")
+                assertThat(state.showInitialBalanceWarning).isFalse()
+                assertThat(state.isSaveEnabled).isTrue()
+            } finally {
+                Locale.setDefault(defaultLocale)
             }
         }
 }

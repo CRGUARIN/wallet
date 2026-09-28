@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.text.DecimalFormatSymbols
 import java.time.Instant
 import java.util.Locale
 import javax.inject.Inject
@@ -123,7 +124,8 @@ class AccountEditViewModel
             } else {
                 val major = balance.minorUnits / 100L
                 val fraction = balance.minorUnits % 100L
-                String.format(Locale.ROOT, "%d.%02d", major, fraction)
+                val separator = DecimalFormatSymbols.getInstance().decimalSeparator
+                String.format(Locale.ROOT, "%d%c%02d", major, separator, fraction)
             }
 
         fun setName(name: String) {

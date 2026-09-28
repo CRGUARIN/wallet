@@ -1,40 +1,19 @@
 package com.crguarin.wallet.ui.util
 
-import android.app.Activity
-import android.content.Context
-import android.content.ContextWrapper
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.ViewModel
-import dagger.hilt.internal.GeneratedComponentManager
-import dagger.hilt.internal.GeneratedComponentManagerHolder
 
-private tailrec fun Context.findActivity(): Activity? =
-    when (this) {
-        is Activity -> this
-        is ContextWrapper -> baseContext.findActivity()
-        else -> null
-    }
-
-fun hasHiltComponent(context: Context): Boolean =
-    try {
-        val activity = context.findActivity() ?: return false
-        when (activity) {
-            is GeneratedComponentManagerHolder -> activity.componentManager().generatedComponent() != null
-            is GeneratedComponentManager<*> -> activity.generatedComponent() != null
-            else -> false
-        }
-    } catch (_: Throwable) {
-        false
-    }
-
+/**
+ * Returns the Hilt ViewModel, or null in inspection mode (previews and tests that render
+ * the navigation graph without a Hilt component). In the running app this always delegates
+ * to [hiltViewModel], so a missing component fails loudly instead of showing an empty screen.
+ */
 @Composable
-inline fun <reified VM : ViewModel> safeHiltViewModel(): VM? {
-    val context = LocalContext.current
-    return if (hasHiltComponent(context)) {
-        hiltViewModel<VM>()
-    } else {
+inline fun <reified VM : ViewModel> safeHiltViewModel(): VM? =
+    if (LocalInspectionMode.current) {
         null
+    } else {
+        hiltViewModel<VM>()
     }
-}
