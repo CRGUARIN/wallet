@@ -577,7 +577,7 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
   - Versiones de la sección 2.1, `compileSdk`/`targetSdk = 37`.
   - `MainActivity` (`@AndroidEntryPoint`, edge-to-edge) mostrando `WelcomePlaceholder` ("Bienvenido a Wallet" / "Welcome to Wallet").
   - Tema con dynamic color; paleta aún es la de plantilla (púrpura) → se reemplaza en la Tarea 5.
-  - Ícono adaptativo **temporal** (billetera blanca sobre verde) en `mipmap-anydpi-v26` → se reemplaza en la Tarea 12.
+  - Ícono adaptativo **temporal** (billetera blanca sobre verde) en `mipmap-anydpi-v26` → reemplazado por el definitivo (billetera con tarjeta, capas `background`/`foreground`/`monochrome`) en la Tarea 12.
   - CI en `.github/workflows/ci.yml` (sube el APK debug como artifact).
   - Test de humo `WelcomePlaceholderTest` (ES, EN y fallback a ES).
   - Verificado: la app abre en dispositivo real.
@@ -687,7 +687,7 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 - [x] Tarea 9 — Transferencias
 - [x] Tarea 10 — Movimientos, detalle y Home
 - [x] Tarea 11 — Ajustes y backup
-- [ ] Tarea 12 — Pulido y release
+- [x] Tarea 12 — Pulido y release
 
 ---
 
