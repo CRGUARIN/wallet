@@ -30,6 +30,10 @@ fun WalletNavHost(
         exitTransition = { walletExitTransition() },
         popEnterTransition = { walletPopEnterTransition() },
         popExitTransition = { walletPopExitTransition() },
+        // The system back button (and gesture) goes through predictive back, which otherwise uses
+        // the library's near-instant fade instead of the pop transitions above.
+        predictivePopEnterTransition = { walletPopEnterTransition() },
+        predictivePopExitTransition = { walletPopExitTransition() },
     ) {
         composable<Onboarding> {
             OnboardingRoute(
