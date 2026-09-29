@@ -686,7 +686,7 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 - [x] Tarea 8 — Ingresos y gastos
 - [x] Tarea 9 — Transferencias
 - [x] Tarea 10 — Movimientos, detalle y Home
-- [ ] Tarea 11 — Ajustes y backup
+- [x] Tarea 11 — Ajustes y backup
 - [ ] Tarea 12 — Pulido y release
 
 ---
