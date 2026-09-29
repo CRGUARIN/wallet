@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
@@ -8,6 +9,25 @@ plugins {
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ktlint)
 }
+
+// Release signing comes from WALLET_* environment variables or a git-ignored keystore.properties.
+val keystoreProperties =
+    Properties().apply {
+        val file = rootProject.file("keystore.properties")
+        if (file.exists()) file.inputStream().use { load(it) }
+    }
+
+fun signingValue(
+    envName: String,
+    propertyName: String,
+): String? = System.getenv(envName)?.takeIf { it.isNotBlank() } ?: keystoreProperties.getProperty(propertyName)
+
+val releaseKeystorePath = signingValue("WALLET_KEYSTORE_PATH", "storeFile")
+val releaseKeystorePassword = signingValue("WALLET_KEYSTORE_PASSWORD", "storePassword")
+val releaseKeyAlias = signingValue("WALLET_KEY_ALIAS", "keyAlias")
+val releaseKeyPassword = signingValue("WALLET_KEY_PASSWORD", "keyPassword")
+val hasReleaseSigning =
+    listOf(releaseKeystorePath, releaseKeystorePassword, releaseKeyAlias, releaseKeyPassword).all { !it.isNullOrBlank() }
 
 android {
     namespace = "com.crguarin.wallet"
@@ -30,8 +50,29 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        if (hasReleaseSigning) {
+            create("release") {
+                storeFile = rootProject.file(releaseKeystorePath!!)
+                storePassword = releaseKeystorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+    }
+
     buildTypes {
         release {
+            signingConfig =
+                if (hasReleaseSigning) {
+                    signingConfigs.getByName("release")
+                } else {
+                    logger.warn(
+                        "WARNING: no release signing config found (WALLET_KEYSTORE_* env vars or keystore.properties); " +
+                            "signing the release APK with the debug key. Do not publish this build.",
+                    )
+                    signingConfigs.getByName("debug")
+                }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
@@ -72,6 +113,7 @@ ksp {
 dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.core.splashscreen)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
