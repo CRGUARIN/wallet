@@ -51,6 +51,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -61,6 +62,7 @@ import com.crguarin.wallet.domain.model.CategoryNode
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.ui.components.EmptyState
 import com.crguarin.wallet.ui.components.IconCatalog
+import com.crguarin.wallet.ui.components.LoadingState
 import com.crguarin.wallet.ui.components.displayName
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.util.safeHiltViewModel
@@ -181,25 +183,23 @@ fun CategoriesScreen(
                 )
             }
 
-            if (uiState.activeTree.isEmpty() && uiState.archivedCategories.isEmpty()) {
+            val isExpense = uiState.selectedType == CategoryType.EXPENSE
+            val emptyTitle =
+                stringResource(
+                    if (isExpense) R.string.categories_empty_expense_title else R.string.categories_empty_income_title,
+                )
+            val emptyMessage =
+                stringResource(
+                    if (isExpense) R.string.categories_empty_expense_message else R.string.categories_empty_income_message,
+                )
+
+            if (uiState.isLoading) {
+                LoadingState(modifier = Modifier.weight(1f))
+            } else if (uiState.activeTree.isEmpty() && uiState.archivedCategories.isEmpty()) {
                 EmptyState(
                     icon = Icons.Default.Category,
-                    title =
-                        stringResource(
-                            if (uiState.selectedType == CategoryType.EXPENSE) {
-                                R.string.categories_empty_expense_title
-                            } else {
-                                R.string.categories_empty_income_title
-                            },
-                        ),
-                    message =
-                        stringResource(
-                            if (uiState.selectedType == CategoryType.EXPENSE) {
-                                R.string.categories_empty_expense_message
-                            } else {
-                                R.string.categories_empty_income_message
-                            },
-                        ),
+                    title = emptyTitle,
+                    message = emptyMessage,
                     actionLabel = stringResource(R.string.action_new_category),
                     onActionClick = { onNewCategoryClick(uiState.selectedType) },
                     modifier = Modifier.weight(1f),
@@ -209,6 +209,19 @@ fun CategoriesScreen(
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(bottom = 80.dp),
                 ) {
+                    if (uiState.activeTree.isEmpty()) {
+                        // Only archived categories exist for this type.
+                        item(key = "no_active_categories") {
+                            EmptyState(
+                                icon = Icons.Default.Category,
+                                title = emptyTitle,
+                                message = emptyMessage,
+                                actionLabel = stringResource(R.string.action_new_category),
+                                onActionClick = { onNewCategoryClick(uiState.selectedType) },
+                            )
+                        }
+                    }
+
                     uiState.activeTree.forEach { rootNode ->
                         item(key = "root_${rootNode.category.id}") {
                             RootCategoryRow(
@@ -315,7 +328,7 @@ private fun RootCategoryRow(
         modifier =
             modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
+                .clickable(role = Role.Button, onClick = onClick)
                 .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -329,7 +342,7 @@ private fun RootCategoryRow(
         ) {
             Icon(
                 imageVector = IconCatalog.get(category.icon),
-                contentDescription = stringResource(R.string.cd_category_icon),
+                contentDescription = null,
                 tint = Color.White,
                 modifier = Modifier.size(24.dp),
             )
@@ -350,7 +363,7 @@ private fun RootCategoryRow(
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
-                contentDescription = stringResource(R.string.cd_add_subcategory),
+                contentDescription = null,
                 modifier = Modifier.size(16.dp),
             )
             Spacer(modifier = Modifier.width(4.dp))
@@ -372,7 +385,7 @@ private fun SubcategoryRow(
         modifier =
             modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
+                .clickable(role = Role.Button, onClick = onClick)
                 .padding(start = 72.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -386,7 +399,7 @@ private fun SubcategoryRow(
         ) {
             Icon(
                 imageVector = IconCatalog.get(category.icon),
-                contentDescription = stringResource(R.string.cd_category_icon),
+                contentDescription = null,
                 tint = Color.White,
                 modifier = Modifier.size(18.dp),
             )
@@ -414,7 +427,7 @@ private fun ArchivedCategoryRow(
         modifier =
             modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
+                .clickable(role = Role.Button, onClick = onClick)
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -428,7 +441,7 @@ private fun ArchivedCategoryRow(
         ) {
             Icon(
                 imageVector = IconCatalog.get(category.icon),
-                contentDescription = stringResource(R.string.cd_category_icon),
+                contentDescription = null,
                 tint = Color.White.copy(alpha = 0.8f),
                 modifier = Modifier.size(20.dp),
             )

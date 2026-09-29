@@ -2,12 +2,9 @@ package com.crguarin.wallet.ui.transactions
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -16,14 +13,10 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,7 +28,6 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
@@ -44,10 +36,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -64,16 +54,15 @@ import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.ui.components.AccountPickerSheet
 import com.crguarin.wallet.ui.components.CategoryPickerSheet
 import com.crguarin.wallet.ui.components.EmptyState
+import com.crguarin.wallet.ui.components.ErrorState
+import com.crguarin.wallet.ui.components.LoadingState
 import com.crguarin.wallet.ui.components.TransactionDayHeader
 import com.crguarin.wallet.ui.components.TransactionListItem
-import com.crguarin.wallet.ui.components.categoryFullDisplayName
 import com.crguarin.wallet.ui.theme.WalletTheme
-import com.crguarin.wallet.ui.util.formatMonthYear
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.time.Instant
 import java.time.LocalDate
-import java.time.YearMonth
 
 @SuppressLint("LocalContextGetResourceValueCall")
 @Composable
@@ -242,18 +231,22 @@ fun TransactionsScreen(
                     pagingItems.itemCount == 0 &&
                     pagingItems.loadState.refresh is LoadState.Loading
 
+            val refreshError = pagingItems.loadState.refresh as? LoadState.Error
+
             when {
                 isLoading -> {
                     item(key = "loading", contentType = "status") {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(32.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            CircularProgressIndicator()
-                        }
+                        LoadingState(fillMaxSize = false, modifier = Modifier.fillMaxWidth())
+                    }
+                }
+
+                refreshError != null && pagingItems.itemCount == 0 -> {
+                    item(key = "error", contentType = "status") {
+                        ErrorState(
+                            message = stringResource(R.string.transactions_load_error),
+                            actionLabel = stringResource(R.string.action_retry),
+                            onActionClick = { pagingItems.retry() },
+                        )
                     }
                 }
 
@@ -314,6 +307,15 @@ fun TransactionsScreen(
                             null -> Unit
                         }
                     }
+                    if (pagingItems.loadState.append is LoadState.Error) {
+                        item(key = "append_error", contentType = "status") {
+                            ErrorState(
+                                message = stringResource(R.string.transactions_load_error),
+                                actionLabel = stringResource(R.string.action_retry),
+                                onActionClick = { pagingItems.retry() },
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -341,105 +343,6 @@ fun TransactionsScreen(
             allOptionLabel = stringResource(R.string.transactions_filter_all_categories),
             onAllOptionSelected = { onCategorySelected(null) },
         )
-    }
-}
-
-@Composable
-private fun MonthSelector(
-    month: YearMonth,
-    canGoToNextMonth: Boolean,
-    onPreviousMonth: () -> Unit,
-    onNextMonth: () -> Unit,
-) {
-    val locale = LocalConfiguration.current.locales[0]
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        IconButton(onClick = onPreviousMonth) {
-            Icon(
-                imageVector = Icons.Default.ChevronLeft,
-                contentDescription = stringResource(R.string.transactions_previous_month),
-            )
-        }
-        Text(
-            text = month.formatMonthYear(locale),
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-        )
-        IconButton(
-            onClick = onNextMonth,
-            enabled = canGoToNextMonth,
-        ) {
-            Icon(
-                imageVector = Icons.Default.ChevronRight,
-                contentDescription = stringResource(R.string.transactions_next_month),
-            )
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun FilterRow(
-    uiState: TransactionsUiState,
-    onTypeSelected: (TransactionType?) -> Unit,
-    onOpenAccountSheet: () -> Unit,
-    onOpenCategorySheet: () -> Unit,
-    onClearFilters: () -> Unit,
-) {
-    val categoryLabel =
-        categoryFullDisplayName(
-            parent = uiState.selectedParentCategory,
-            category = uiState.selectedCategory,
-        )
-
-    FlowRow(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        FilterChip(
-            selected = uiState.type == null,
-            onClick = { onTypeSelected(null) },
-            label = { Text(text = stringResource(R.string.transactions_filter_all_types)) },
-        )
-        TransactionType.entries.forEach { type ->
-            FilterChip(
-                selected = uiState.type == type,
-                onClick = { onTypeSelected(type) },
-                label = { Text(text = stringResource(type.labelRes())) },
-            )
-        }
-        FilterChip(
-            selected = uiState.accountId != null,
-            onClick = onOpenAccountSheet,
-            label = {
-                Text(
-                    text = uiState.selectedAccountName ?: stringResource(R.string.transactions_filter_account),
-                )
-            },
-        )
-        FilterChip(
-            selected = uiState.categoryId != null,
-            onClick = onOpenCategorySheet,
-            label = {
-                Text(
-                    text = categoryLabel.ifBlank { stringResource(R.string.transactions_filter_category) },
-                )
-            },
-        )
-        if (uiState.hasActiveFilters) {
-            TextButton(onClick = onClearFilters) {
-                Text(text = stringResource(R.string.transactions_clear_filters))
-            }
-        }
     }
 }
 
@@ -608,6 +511,30 @@ private fun TransactionsScreenPreviewDark() {
     WalletTheme(darkTheme = true) {
         TransactionsScreen(
             uiState = TransactionsUiState(isLoading = false, dailyTotals = previewDailyTotals()).copy(searchQuery = "mercado"),
+            pagingItems = rememberEntriesPagingItems(previewEntries()),
+            onPreviousMonth = {},
+            onNextMonth = {},
+            onTypeSelected = {},
+            onOpenAccountSheet = {},
+            onDismissAccountSheet = {},
+            onAccountSelected = {},
+            onOpenCategorySheet = {},
+            onDismissCategorySheet = {},
+            onCategorySelected = {},
+            onClearFilters = {},
+            onSearchQueryChanged = {},
+            onTransactionClick = {},
+            onDeleteTransaction = {},
+        )
+    }
+}
+
+@Preview(name = "Transactions Font Scale 2.0", showBackground = true, fontScale = 2f)
+@Composable
+private fun TransactionsScreenPreviewLargeFont() {
+    WalletTheme(darkTheme = false) {
+        TransactionsScreen(
+            uiState = TransactionsUiState(isLoading = false, dailyTotals = previewDailyTotals()),
             pagingItems = rememberEntriesPagingItems(previewEntries()),
             onPreviousMonth = {},
             onNextMonth = {},

@@ -24,6 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -79,7 +80,7 @@ fun TransactionListItem(
         modifier =
             modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
+                .clickable(role = Role.Button, onClick = onClick)
                 .heightIn(min = 64.dp)
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -87,7 +88,6 @@ fun TransactionListItem(
         TransactionAvatar(
             details = details,
             isTransfer = isTransfer,
-            contentDescription = title,
         )
 
         Spacer(modifier = Modifier.width(16.dp))
@@ -101,7 +101,7 @@ fun TransactionListItem(
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
                 color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 1,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
@@ -135,7 +135,6 @@ fun TransactionListItem(
 private fun TransactionAvatar(
     details: TransactionDetails,
     isTransfer: Boolean,
-    contentDescription: String,
 ) {
     val containerColor =
         if (isTransfer) {
@@ -165,7 +164,8 @@ private fun TransactionAvatar(
                 } else {
                     IconCatalog.get(details.categoryIcon ?: IconCatalog.DEFAULT_ICON_KEY)
                 },
-            contentDescription = contentDescription,
+            // Decorative: the row already reads the category name and the typed amount.
+            contentDescription = null,
             tint = tintColor,
             modifier = Modifier.size(24.dp),
         )

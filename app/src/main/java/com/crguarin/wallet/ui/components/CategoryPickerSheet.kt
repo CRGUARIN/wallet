@@ -167,7 +167,7 @@ fun CategoryPickerSheet(
                             ) {
                                 Icon(
                                     imageVector = IconCatalog.get(rootNode.category.icon),
-                                    contentDescription = stringResource(R.string.cd_category_icon),
+                                    contentDescription = null,
                                     tint = Color.White,
                                     modifier = Modifier.size(24.dp),
                                 )
@@ -244,7 +244,7 @@ fun CategoryPickerSheet(
                                     ) {
                                         Icon(
                                             imageVector = IconCatalog.get(childNode.category.icon),
-                                            contentDescription = stringResource(R.string.cd_category_icon),
+                                            contentDescription = null,
                                             tint = Color.White,
                                             modifier = Modifier.size(18.dp),
                                         )

@@ -34,6 +34,8 @@ import javax.inject.Inject
 
 data class AccountEditUiState(
     val isLoading: Boolean = false,
+    /** Edit mode for an id that no longer exists. */
+    val notFound: Boolean = false,
     val isEditMode: Boolean = false,
     val accountId: Long? = null,
     val name: String = "",
@@ -83,7 +85,13 @@ class AccountEditViewModel
     ) : ViewModel() {
         val targetAccountId: Long? = savedStateHandle.toRoute<AccountEdit>().accountId
 
-        private val _uiState = MutableStateFlow(AccountEditUiState())
+        private val _uiState =
+            MutableStateFlow(
+                AccountEditUiState(
+                    isLoading = targetAccountId != null && targetAccountId > 0,
+                    isEditMode = targetAccountId != null && targetAccountId > 0,
+                ),
+            )
         val uiState: StateFlow<AccountEditUiState> = _uiState.asStateFlow()
 
         private val _events = Channel<AccountEditEvent>(Channel.BUFFERED)
@@ -112,7 +120,7 @@ class AccountEditViewModel
                             )
                         }
                     } else {
-                        _uiState.update { it.copy(isLoading = false) }
+                        _uiState.update { it.copy(isLoading = false, notFound = true) }
                     }
                 }
             }

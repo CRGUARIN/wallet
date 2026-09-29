@@ -81,6 +81,18 @@ class AccountEditViewModelTest {
         }
 
     @Test
+    fun `edit mode for a missing account is reported as not found`() =
+        runTest(testDispatcher) {
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to 999L))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+
+            val state = viewModel.uiState.value
+            assertThat(state.isLoading).isFalse()
+            assertThat(state.notFound).isTrue()
+            assertThat(state.isSaveEnabled).isFalse()
+        }
+
+    @Test
     fun `edit mode pre-fills fields from existing account`() =
         runTest(testDispatcher) {
             accountRepository.setInitialData(listOf(existingAccount))

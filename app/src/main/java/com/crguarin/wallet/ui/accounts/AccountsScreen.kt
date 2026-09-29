@@ -46,7 +46,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -58,6 +62,7 @@ import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.ui.components.EmptyState
 import com.crguarin.wallet.ui.components.IconCatalog
+import com.crguarin.wallet.ui.components.LoadingState
 import com.crguarin.wallet.ui.components.MoneyText
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.util.safeHiltViewModel
@@ -153,7 +158,9 @@ fun AccountsScreen(
         },
         modifier = modifier.fillMaxSize(),
     ) { innerPadding ->
-        if (uiState.isEmpty) {
+        if (uiState.isLoading) {
+            LoadingState(modifier = Modifier.padding(innerPadding))
+        } else if (uiState.isEmpty) {
             Box(
                 modifier =
                     Modifier
@@ -212,8 +219,32 @@ fun AccountsScreen(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.SemiBold,
                             color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                            modifier =
+                                Modifier
+                                    .padding(top = 8.dp, bottom = 4.dp)
+                                    .semantics { heading() },
                         )
+                    }
+                }
+
+                if (uiState.activeAccounts.isEmpty()) {
+                    // Only archived accounts exist: a compact hint keeps the archived section reachable.
+                    item(key = "no_active_accounts") {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.accounts_no_active_title),
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                text = stringResource(R.string.accounts_no_active_message),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
                     }
                 }
 
@@ -369,6 +400,8 @@ private fun AccountItemRow(
                     text = item.account.name,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                     color =
                         if (isArchived) {
                             MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)

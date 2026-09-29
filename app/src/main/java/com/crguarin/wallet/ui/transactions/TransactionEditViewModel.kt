@@ -60,6 +60,8 @@ private const val KEY_NOTE = "tx_form_note"
 
 data class TransactionEditUiState(
     val isLoading: Boolean = true,
+    /** Editing an id that no longer exists (e.g. deleted from another screen). */
+    val notFound: Boolean = false,
     val isEditMode: Boolean = false,
     val editingTransactionId: Long? = null,
     val selectedType: TransactionType = TransactionType.EXPENSE,
@@ -223,7 +225,7 @@ class TransactionEditViewModel
                 val existing = transactionRepository.getTransaction(editingId)
                 if (existing == null) {
                     _uiState.update {
-                        it.copy(isLoading = false, generalErrorRes = DomainError.NotFound.asStringRes())
+                        it.copy(isLoading = false, notFound = true, generalErrorRes = DomainError.NotFound.asStringRes())
                     }
                     return
                 }

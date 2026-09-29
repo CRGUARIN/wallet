@@ -45,6 +45,7 @@ class AccountDetailScreenTest {
 
     private val baseState =
         AccountDetailUiState(
+            isLoading = false,
             accountWithBalance = AccountWithBalance(sampleAccount, Money(450_000L)),
             monthSummary = MonthSummary(income = Money(600_000L), expense = Money(300_000L)),
         )

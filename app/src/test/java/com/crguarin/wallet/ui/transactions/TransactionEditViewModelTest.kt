@@ -195,6 +195,17 @@ class TransactionEditViewModelTest {
     )
 
     @Test
+    fun `editing a transaction that no longer exists is reported as not found`() =
+        runTest(testDispatcher) {
+            val viewModel = createViewModel(editHandle(transactionId = 999L))
+
+            val state = viewModel.uiState.value
+            assertThat(state.isLoading).isFalse()
+            assertThat(state.notFound).isTrue()
+            assertThat(state.isEditMode).isFalse()
+        }
+
+    @Test
     fun `creation mode defaults to the route account and today's date`() =
         runTest(testDispatcher) {
             val viewModel = createViewModel(creationHandle(accountId = 2L))

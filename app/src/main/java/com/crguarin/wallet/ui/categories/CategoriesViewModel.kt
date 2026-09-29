@@ -85,7 +85,7 @@ class CategoriesViewModel
                 }.stateIn(
                     scope = viewModelScope,
                     started = SharingStarted.WhileSubscribed(5_000),
-                    initialValue = CategoriesUiState(selectedType = initialType),
+                    initialValue = CategoriesUiState(isLoading = true, selectedType = initialType),
                 )
 
         fun selectType(type: CategoryType) {

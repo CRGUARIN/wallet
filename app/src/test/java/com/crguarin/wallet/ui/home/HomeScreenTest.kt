@@ -1,9 +1,13 @@
 package com.crguarin.wallet.ui.home
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.Account
@@ -148,5 +152,43 @@ class HomeScreenTest {
         }
 
         composeRule.onNodeWithText("Aún no hay movimientos").assertIsDisplayed()
+    }
+
+    @Test
+    fun `shows a loading indicator instead of empty content while loading`() {
+        composeRule.setContent {
+            WalletTheme {
+                HomeScreen(
+                    uiState = HomeUiState(isLoading = true),
+                    onAccountClick = {},
+                    onTransactionClick = {},
+                    onViewAllTransactions = {},
+                    onQuickAction = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription("Cargando").assertIsDisplayed()
+        composeRule.onNodeWithText("Aún no hay movimientos").assertDoesNotExist()
+        composeRule.onNodeWithText("Saldo total").assertDoesNotExist()
+    }
+
+    @Test
+    fun `section headers are marked as headings`() {
+        composeRule.setContent {
+            WalletTheme {
+                HomeScreen(
+                    uiState = state(accounts = listOf(AccountWithBalance(account, Money(450_000L))), transactions = emptyList()),
+                    onAccountClick = {},
+                    onTransactionClick = {},
+                    onViewAllTransactions = {},
+                    onQuickAction = {},
+                )
+            }
+        }
+
+        composeRule
+            .onNode(hasText("Últimos movimientos") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
+            .assertIsDisplayed()
     }
 }

@@ -41,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -200,6 +201,7 @@ private fun OnboardingStepWelcome(
             style = MaterialTheme.typography.headlineLarge,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
+            modifier = Modifier.semantics { heading() },
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -217,7 +219,7 @@ private fun OnboardingStepWelcome(
             text = stringResource(R.string.onboarding_language_title),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().semantics { heading() },
         )
 
         Spacer(modifier = Modifier.height(12.dp))
@@ -331,6 +333,7 @@ private fun OnboardingStepFirstAccount(
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
+            modifier = Modifier.semantics { heading() },
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -362,7 +365,7 @@ private fun OnboardingStepFirstAccount(
             text = stringResource(R.string.account_edit_type_label),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().semantics { heading() },
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -407,7 +410,7 @@ private fun OnboardingStepFirstAccount(
             text = stringResource(R.string.account_edit_color_label),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().semantics { heading() },
         )
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -424,7 +427,7 @@ private fun OnboardingStepFirstAccount(
             text = stringResource(R.string.account_edit_icon_label),
             style = MaterialTheme.typography.titleSmall,
             fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().semantics { heading() },
         )
 
         Spacer(modifier = Modifier.height(8.dp))

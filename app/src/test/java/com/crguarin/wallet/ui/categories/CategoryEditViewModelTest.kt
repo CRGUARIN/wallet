@@ -104,6 +104,25 @@ class CategoryEditViewModelTest {
         }
 
     @Test
+    fun `edit mode for a missing category is reported as not found`() =
+        runTest(testDispatcher) {
+            val savedStateHandle =
+                SavedStateHandle(
+                    mapOf(
+                        "categoryId" to 999L,
+                        "parentId" to null,
+                        "type" to CategoryType.EXPENSE,
+                    ),
+                )
+            val viewModel = createViewModel(savedStateHandle)
+
+            val state = viewModel.uiState.value
+            assertThat(state.isLoading).isFalse()
+            assertThat(state.notFound).isTrue()
+            assertThat(state.isSaveEnabled).isFalse()
+        }
+
+    @Test
     fun `creating subcategory inherits parent color and locks type`() =
         runTest(testDispatcher) {
             val savedStateHandle =

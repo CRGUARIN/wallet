@@ -70,7 +70,6 @@
     <string name="categories_empty_income_message">Crea una categoría para organizar tus ingresos.</string>
     <string name="settings_item_categories">Categorías</string>
     <string name="settings_item_categories_subtitle">Gestionar categorías y subcategorías</string>
-    <string name="cd_add_subcategory">Agregar subcategoría</string>
     <string name="cd_parent_category">Categoría principal</string>
 
     <plurals name="categories_archived_count">
@@ -171,8 +170,6 @@
 
     <!-- Descripciones de contenido (accesibilidad) -->
     <string name="cd_selected">Seleccionado</string>
-    <string name="cd_account_icon">Ícono de cuenta</string>
-    <string name="cd_category_icon">Ícono de categoría</string>
     <string name="cd_color">Color</string>
     <string name="cd_icon">Ícono</string>
     <string name="cd_delete_transaction">Eliminar movimiento</string>
@@ -287,4 +284,18 @@
         <item quantity="one">%d movimiento</item>
         <item quantity="other">%d movimientos</item>
     </plurals>
+    <string name="cd_loading">Cargando</string>
+    <string name="a11y_amount_income">Ingreso, %1$s</string>
+    <string name="a11y_amount_expense">Gasto, %1$s</string>
+    <string name="a11y_amount_transfer">Transferencia, %1$s</string>
+    <string name="a11y_amount_transfer_out">Transferencia enviada, %1$s</string>
+    <string name="a11y_amount_transfer_in">Transferencia recibida, %1$s</string>
+    <string name="a11y_amount_positive">Más %1$s</string>
+    <string name="a11y_amount_negative">Menos %1$s</string>
+    <string name="action_retry">Reintentar</string>
+    <string name="transactions_load_error">No se pudieron cargar los movimientos</string>
+    <string name="accounts_no_active_title">Sin cuentas activas</string>
+    <string name="accounts_no_active_message">Crea una cuenta nueva o desarchiva una de las existentes.</string>
+    <string name="account_detail_not_found">Esta cuenta ya no existe</string>
+    <string name="transaction_edit_not_found">Este movimiento ya no existe</string>
 </resources>

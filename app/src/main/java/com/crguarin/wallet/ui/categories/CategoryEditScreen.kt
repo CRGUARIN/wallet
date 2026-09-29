@@ -21,7 +21,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -37,7 +36,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,8 +48,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -59,9 +58,10 @@ import com.crguarin.wallet.R
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.ui.components.CategoryPickerSheet
 import com.crguarin.wallet.ui.components.ColorPicker
-import com.crguarin.wallet.ui.components.ConfirmDialog
+import com.crguarin.wallet.ui.components.ErrorState
 import com.crguarin.wallet.ui.components.IconCatalog
 import com.crguarin.wallet.ui.components.IconPicker
+import com.crguarin.wallet.ui.components.LoadingState
 import com.crguarin.wallet.ui.components.displayName
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.util.safeHiltViewModel
@@ -222,6 +222,26 @@ fun CategoryEditScreen(
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
+        if (uiState.isLoading) {
+            LoadingState(modifier = Modifier.padding(innerPadding))
+            return@Scaffold
+        }
+        if (uiState.notFound) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                contentAlignment = Alignment.Center,
+            ) {
+                ErrorState(
+                    message = stringResource(R.string.error_not_found),
+                    actionLabel = stringResource(R.string.action_back),
+                    onActionClick = onNavigateBack,
+                )
+            }
+            return@Scaffold
+        }
         Column(
             modifier =
                 Modifier
@@ -251,6 +271,7 @@ fun CategoryEditScreen(
                     text = stringResource(R.string.category_type_label),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.semantics { heading() },
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -279,6 +300,7 @@ fun CategoryEditScreen(
                     text = stringResource(R.string.category_parent_label),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.semantics { heading() },
                 )
 
                 val selectedParent = uiState.parentOptions.find { it.id == uiState.parentId }
@@ -396,6 +418,7 @@ fun CategoryEditScreen(
                     text = stringResource(R.string.category_color_label),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.semantics { heading() },
                 )
                 ColorPicker(
                     selectedColor = uiState.color,
@@ -409,6 +432,7 @@ fun CategoryEditScreen(
                     text = stringResource(R.string.category_icon_label),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.semantics { heading() },
                 )
                 IconPicker(
                     selectedIcon = uiState.icon,
@@ -449,70 +473,13 @@ fun CategoryEditScreen(
         }
     }
 
-    // Diálogos de eliminación
-    when (val dialogState = uiState.deleteDialogState) {
-        is DeleteDialogState.ConfirmSimple -> {
-            ConfirmDialog(
-                title = stringResource(R.string.category_delete_confirm_title),
-                message = stringResource(R.string.category_delete_confirm_message),
-                isDestructive = true,
-                onConfirm = onConfirmSimpleDelete,
-                onDismiss = onDismissDeleteDialog,
-            )
-        }
-
-        is DeleteDialogState.HasChildren -> {
-            AlertDialog(
-                onDismissRequest = onDismissDeleteDialog,
-                title = { Text(text = stringResource(R.string.category_delete_has_children_title)) },
-                text = { Text(text = stringResource(R.string.category_delete_has_children_message)) },
-                confirmButton = {
-                    TextButton(onClick = onArchiveClick) {
-                        Text(text = stringResource(R.string.action_archive))
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = onDismissDeleteDialog) {
-                        Text(text = stringResource(R.string.action_cancel))
-                    }
-                },
-            )
-        }
-
-        is DeleteDialogState.HasTransactions -> {
-            AlertDialog(
-                onDismissRequest = onDismissDeleteDialog,
-                title = { Text(text = stringResource(R.string.category_delete_has_transactions_title)) },
-                text = {
-                    Text(
-                        text =
-                            pluralStringResource(
-                                R.plurals.category_delete_has_transactions_message,
-                                dialogState.count,
-                                dialogState.count,
-                            ),
-                    )
-                },
-                confirmButton = {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(onClick = onArchiveClick) {
-                            Text(text = stringResource(R.string.action_archive))
-                        }
-                        TextButton(onClick = onReassignOptionSelected) {
-                            Text(text = stringResource(R.string.action_reassign_and_delete))
-                        }
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = onDismissDeleteDialog) {
-                        Text(text = stringResource(R.string.action_cancel))
-                    }
-                },
-            )
-        }
-
-        is DeleteDialogState.None -> Unit
-    }
+    CategoryDeleteDialogs(
+        state = uiState.deleteDialogState,
+        onConfirmSimpleDelete = onConfirmSimpleDelete,
+        onArchiveClick = onArchiveClick,
+        onReassignOptionSelected = onReassignOptionSelected,
+        onDismiss = onDismissDeleteDialog,
+    )
 
     // Sheet de reasignación
     if (uiState.showReassignSheet) {

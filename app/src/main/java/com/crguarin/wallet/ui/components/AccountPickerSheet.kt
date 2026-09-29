@@ -135,7 +135,7 @@ fun AccountPickerSheet(
                         ) {
                             Icon(
                                 imageVector = IconCatalog.get(item.account.icon),
-                                contentDescription = stringResource(R.string.cd_account_icon),
+                                contentDescription = null,
                                 tint = Color.White,
                                 modifier = Modifier.size(24.dp),
                             )

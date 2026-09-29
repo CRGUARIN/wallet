@@ -10,6 +10,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.core.money.Money
@@ -49,6 +51,11 @@ fun TransactionDayHeader(
             text = relativeDayLabel(date = date, today = today),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier =
+                Modifier
+                    .weight(1f)
+                    .padding(end = 8.dp)
+                    .semantics { heading() },
         )
         MoneyText(
             amount = absoluteNet,

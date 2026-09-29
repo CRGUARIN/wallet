@@ -8,8 +8,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.takeOrElse
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.tooling.preview.Preview
+import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.core.money.MoneyFormatter
 import com.crguarin.wallet.domain.model.TransactionType
@@ -68,11 +72,31 @@ fun MoneyText(
             MoneySign.AUTO, MoneySign.NONE -> formattedAmount
         }
 
+    // Screen readers should say "expense" or "minus", not read the "−" glyph.
+    val spokenAmount = formattedAmount
+    val description =
+        when (type) {
+            TransactionType.INCOME -> stringResource(R.string.a11y_amount_income, spokenAmount)
+            TransactionType.EXPENSE -> stringResource(R.string.a11y_amount_expense, spokenAmount)
+            TransactionType.TRANSFER ->
+                when (resolvedSign) {
+                    MoneySign.MINUS -> stringResource(R.string.a11y_amount_transfer_out, spokenAmount)
+                    MoneySign.PLUS -> stringResource(R.string.a11y_amount_transfer_in, spokenAmount)
+                    MoneySign.AUTO, MoneySign.NONE -> stringResource(R.string.a11y_amount_transfer, spokenAmount)
+                }
+            null ->
+                when (resolvedSign) {
+                    MoneySign.PLUS -> stringResource(R.string.a11y_amount_positive, spokenAmount)
+                    MoneySign.MINUS -> stringResource(R.string.a11y_amount_negative, spokenAmount)
+                    MoneySign.AUTO, MoneySign.NONE -> spokenAmount
+                }
+        }
+
     Text(
         text = text,
         style = style,
         color = textColor,
-        modifier = modifier,
+        modifier = modifier.semantics { contentDescription = description },
     )
 }
 

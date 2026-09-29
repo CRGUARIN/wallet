@@ -68,7 +68,6 @@
     <string name="categories_empty_income_message">Create a category to organize your income.</string>
     <string name="settings_item_categories">Categories</string>
     <string name="settings_item_categories_subtitle">Manage categories and subcategories</string>
-    <string name="cd_add_subcategory">Add subcategory</string>
     <string name="cd_parent_category">Parent category</string>
 
     <plurals name="categories_archived_count">
@@ -169,8 +168,6 @@
 
     <!-- Content descriptions (accessibility) -->
     <string name="cd_selected">Selected</string>
-    <string name="cd_account_icon">Account icon</string>
-    <string name="cd_category_icon">Category icon</string>
     <string name="cd_color">Color</string>
     <string name="cd_icon">Icon</string>
     <string name="cd_delete_transaction">Delete transaction</string>
@@ -285,4 +282,18 @@
         <item quantity="one">%d transaction</item>
         <item quantity="other">%d transactions</item>
     </plurals>
+    <string name="cd_loading">Loading</string>
+    <string name="a11y_amount_income">Income, %1$s</string>
+    <string name="a11y_amount_expense">Expense, %1$s</string>
+    <string name="a11y_amount_transfer">Transfer, %1$s</string>
+    <string name="a11y_amount_transfer_out">Transfer sent, %1$s</string>
+    <string name="a11y_amount_transfer_in">Transfer received, %1$s</string>
+    <string name="a11y_amount_positive">Plus %1$s</string>
+    <string name="a11y_amount_negative">Minus %1$s</string>
+    <string name="action_retry">Retry</string>
+    <string name="transactions_load_error">Couldn\'t load transactions</string>
+    <string name="accounts_no_active_title">No active accounts</string>
+    <string name="accounts_no_active_message">Create a new account or unarchive an existing one.</string>
+    <string name="account_detail_not_found">This account no longer exists</string>
+    <string name="transaction_edit_not_found">This transaction no longer exists</string>
 </resources>

@@ -39,6 +39,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -136,7 +137,8 @@ private fun SectionHeader(text: String) {
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp)),
+                .padding(PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp))
+                .semantics { heading() },
     )
 }
 

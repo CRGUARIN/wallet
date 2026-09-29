@@ -3,6 +3,7 @@ package com.crguarin.wallet.ui.accounts
 import android.annotation.SuppressLint
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -45,6 +46,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -54,7 +57,9 @@ import com.crguarin.wallet.R
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.ui.components.AmountTextField
 import com.crguarin.wallet.ui.components.ColorPicker
+import com.crguarin.wallet.ui.components.ErrorState
 import com.crguarin.wallet.ui.components.IconPicker
+import com.crguarin.wallet.ui.components.LoadingState
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 
@@ -153,6 +158,26 @@ fun AccountEditScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier.fillMaxSize(),
     ) { innerPadding ->
+        if (uiState.isLoading) {
+            LoadingState(modifier = Modifier.padding(innerPadding))
+            return@Scaffold
+        }
+        if (uiState.notFound) {
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding),
+                contentAlignment = Alignment.Center,
+            ) {
+                ErrorState(
+                    message = stringResource(R.string.error_not_found),
+                    actionLabel = stringResource(R.string.action_back),
+                    onActionClick = onNavigateBack,
+                )
+            }
+            return@Scaffold
+        }
         Column(
             modifier =
                 Modifier
@@ -178,6 +203,7 @@ fun AccountEditScreen(
                 text = stringResource(R.string.account_edit_type_label),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.semantics { heading() },
             )
 
             Row(
@@ -248,6 +274,7 @@ fun AccountEditScreen(
                 text = stringResource(R.string.account_edit_color_label),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.semantics { heading() },
             )
 
             ColorPicker(
@@ -260,6 +287,7 @@ fun AccountEditScreen(
                 text = stringResource(R.string.account_edit_icon_label),
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.semantics { heading() },
             )
 
             IconPicker(

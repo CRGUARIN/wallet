@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -42,8 +44,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -58,6 +64,7 @@ import com.crguarin.wallet.domain.model.TransactionDetails
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.ui.components.EmptyState
 import com.crguarin.wallet.ui.components.IconCatalog
+import com.crguarin.wallet.ui.components.LoadingState
 import com.crguarin.wallet.ui.components.MoneyText
 import com.crguarin.wallet.ui.components.TransactionListItem
 import com.crguarin.wallet.ui.theme.WalletTheme
@@ -115,6 +122,10 @@ fun HomeScreen(
         },
         modifier = modifier.fillMaxSize(),
     ) { innerPadding ->
+        if (uiState.isLoading) {
+            LoadingState(modifier = Modifier.padding(innerPadding))
+            return@Scaffold
+        }
         LazyColumn(
             modifier =
                 Modifier
@@ -156,7 +167,10 @@ fun HomeScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    SectionHeader(title = stringResource(R.string.home_recent_transactions))
+                    SectionHeader(
+                        title = stringResource(R.string.home_recent_transactions),
+                        modifier = Modifier.weight(1f),
+                    )
                     TextButton(onClick = onViewAllTransactions) {
                         Text(text = stringResource(R.string.home_view_all))
                     }
@@ -218,6 +232,7 @@ private fun TotalBalanceCard(totalBalance: Money) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MonthSummaryCard(monthSummary: MonthSummary) {
     Card(
@@ -235,11 +250,14 @@ private fun MonthSummaryCard(monthSummary: MonthSummary) {
                 style = MaterialTheme.typography.titleSmall,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.semantics { heading() },
             )
             Spacer(modifier = Modifier.height(12.dp))
-            Row(
+            // FlowRow so the three amounts wrap instead of overlapping with large font scales.
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 SummaryColumn(
                     label = stringResource(R.string.account_detail_income),
@@ -282,12 +300,16 @@ private fun SummaryColumn(
 }
 
 @Composable
-private fun SectionHeader(title: String) {
+private fun SectionHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+) {
     Text(
         text = title,
         style = MaterialTheme.typography.titleMedium,
         fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.onSurface,
+        modifier = modifier.semantics { heading() },
     )
 }
 
@@ -326,7 +348,8 @@ private fun AccountsRow(
                         text = item.account.name,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.SemiBold,
-                        maxLines = 1,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     MoneyText(
@@ -340,6 +363,8 @@ private fun AccountsRow(
     }
 }
 
+private const val STACKED_FONT_SCALE = 1.3f
+
 @Composable
 private fun QuickActions(
     canTransfer: Boolean,
@@ -347,29 +372,43 @@ private fun QuickActions(
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionHeader(title = stringResource(R.string.home_quick_actions))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
+        // Large font scales do not fit three buttons side by side: stack them instead.
+        val stacked = LocalDensity.current.fontScale > STACKED_FONT_SCALE
+        val buttons: @Composable (Modifier) -> Unit = { buttonModifier ->
             QuickActionButton(
                 label = stringResource(R.string.type_expense),
                 icon = Icons.Default.ArrowDownward,
                 onClick = { onQuickAction(TransactionType.EXPENSE) },
-                modifier = Modifier.weight(1f),
+                modifier = buttonModifier,
             )
             QuickActionButton(
                 label = stringResource(R.string.type_income),
                 icon = Icons.Default.ArrowUpward,
                 onClick = { onQuickAction(TransactionType.INCOME) },
-                modifier = Modifier.weight(1f),
+                modifier = buttonModifier,
             )
             if (canTransfer) {
                 QuickActionButton(
                     label = stringResource(R.string.type_transfer),
                     icon = Icons.Default.SwapHoriz,
                     onClick = { onQuickAction(TransactionType.TRANSFER) },
-                    modifier = Modifier.weight(1f),
+                    modifier = buttonModifier,
                 )
+            }
+        }
+        if (stacked) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                buttons(Modifier.fillMaxWidth())
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                buttons(Modifier.weight(1f))
             }
         }
     }
@@ -393,7 +432,7 @@ private fun QuickActionButton(
             modifier = Modifier.size(18.dp),
         )
         Spacer(modifier = Modifier.width(4.dp))
-        Text(text = label, maxLines = 1)
+        Text(text = label, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -467,6 +506,20 @@ private fun previewState(): HomeUiState =
 @Preview(name = "Home Light", showBackground = true)
 @Composable
 private fun HomeScreenPreviewLight() {
+    WalletTheme(darkTheme = false) {
+        HomeScreen(
+            uiState = previewState(),
+            onAccountClick = {},
+            onTransactionClick = {},
+            onViewAllTransactions = {},
+            onQuickAction = {},
+        )
+    }
+}
+
+@Preview(name = "Home Font Scale 2.0", showBackground = true, fontScale = 2f)
+@Composable
+private fun HomeScreenPreviewLargeFont() {
     WalletTheme(darkTheme = false) {
         HomeScreen(
             uiState = previewState(),

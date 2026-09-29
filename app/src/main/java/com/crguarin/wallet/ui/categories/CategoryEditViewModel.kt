@@ -49,6 +49,8 @@ sealed interface DeleteDialogState {
 
 data class CategoryEditUiState(
     val isLoading: Boolean = false,
+    /** Edit mode for an id that no longer exists. */
+    val notFound: Boolean = false,
     val isEditMode: Boolean = false,
     val categoryId: Long? = null,
     val name: String = "",
@@ -104,7 +106,7 @@ class CategoryEditViewModel
         private val initialParentId: Long? = route.parentId
         private val initialType: CategoryType = route.type
 
-        private val _uiState = MutableStateFlow(CategoryEditUiState())
+        private val _uiState = MutableStateFlow(CategoryEditUiState(isLoading = true))
         val uiState: StateFlow<CategoryEditUiState> = _uiState.asStateFlow()
 
         private val _events = Channel<CategoryEditEvent>(Channel.BUFFERED)
@@ -157,7 +159,7 @@ class CategoryEditViewModel
                         }
                         refreshParentOptions(category.type, category.id)
                     } else {
-                        _uiState.update { it.copy(isLoading = false) }
+                        _uiState.update { it.copy(isLoading = false, notFound = true) }
                     }
                 } else {
                     var initialColor = WalletPalette.colors.first()
