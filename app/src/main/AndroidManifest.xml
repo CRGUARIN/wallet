@@ -14,8 +14,10 @@
         android:theme="@style/Theme.Wallet"
         android:localeConfig="@xml/locales_config"
         tools:targetApi="34">
+        <!-- Compose se recompone al cambiar el idioma: sin recrear la Activity la pantalla no titila. -->
         <activity
             android:name=".MainActivity"
+            android:configChanges="locale|layoutDirection"
             android:exported="true"
             android:theme="@style/Theme.Wallet.Starting">
             <intent-filter>
