@@ -9,6 +9,7 @@ import androidx.paging.PagingData
 import androidx.paging.cachedIn
 import androidx.paging.insertSeparators
 import androidx.paging.map
+import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.core.time.TimeProvider
 import com.crguarin.wallet.domain.model.AccountWithBalance
@@ -42,6 +43,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -75,6 +77,8 @@ data class TransactionsUiState(
     val selectedParentCategory: Category? = null,
     val showAccountSheet: Boolean = false,
     val showCategorySheet: Boolean = false,
+    /** Net per day for the active filters, shown in the day headers of the list. */
+    val dailyTotals: Map<LocalDate, Money> = emptyMap(),
 ) {
     val hasActiveFilters: Boolean
         get() = type != null || accountId != null || categoryId != null || searchQuery.isNotBlank()
@@ -90,7 +94,10 @@ data class TransactionsUiState(
 }
 
 sealed interface TransactionsEvent {
-    data object ShowTransactionDeleted : TransactionsEvent
+    /** Carries the deleted transaction so each snackbar's "undo" restores its own deletion. */
+    data class ShowTransactionDeleted(
+        val transaction: Transaction,
+    ) : TransactionsEvent
 
     data class ShowSnackbar(
         @StringRes val messageRes: Int,
@@ -131,12 +138,11 @@ class TransactionsViewModel
         private val sheetFlow: MutableStateFlow<SheetState> = MutableStateFlow(SheetState())
         private val categorySelectionFlow: MutableStateFlow<CategorySelection> = MutableStateFlow(CategorySelection())
 
-        private var lastDeleted: Transaction? = null
-
         private val _events = Channel<TransactionsEvent>(Channel.BUFFERED)
         val events: Flow<TransactionsEvent> = _events.receiveAsFlow()
 
-        private val accountsFlow: Flow<List<AccountWithBalance>> = observeAccountsUseCase()
+        // Archived accounts are included so their history can still be filtered (e.g. "View all" from their detail).
+        private val accountsFlow: Flow<List<AccountWithBalance>> = observeAccountsUseCase(includeArchived = true)
 
         private val categoryNodesFlow: Flow<List<CategoryNode>> =
             combine(
@@ -153,14 +159,19 @@ class TransactionsViewModel
                 searchFlow.debounce { query -> if (query.isEmpty()) 0L else SEARCH_DEBOUNCE_MILLIS }.distinctUntilChanged(),
             ) { selection, search -> ListQuery(selection, search) }
 
+        private val dailyTotalsFlow: Flow<Map<LocalDate, Money>> =
+            queryFlow.flatMapLatest { query -> observeDailyTotalsUseCase(query.toTransactionFilter()) }
+
+        private val panelFlow: Flow<PanelState> =
+            combine(categorySelectionFlow, sheetFlow, dailyTotalsFlow, ::PanelState)
+
         val uiState: StateFlow<TransactionsUiState> =
             combine(
                 uiFilterFlow,
                 accountsFlow,
                 categoryNodesFlow,
-                categorySelectionFlow,
-                sheetFlow,
-            ) { query, accounts, categoryNodes, categorySelection, sheetState ->
+                panelFlow,
+            ) { query, accounts, categoryNodes, panel ->
                 TransactionsUiState(
                     isLoading = false,
                     month = query.selection.month,
@@ -171,10 +182,11 @@ class TransactionsViewModel
                     searchQuery = query.searchQuery,
                     accounts = accounts,
                     categoryNodes = categoryNodes,
-                    selectedCategory = categorySelection.category,
-                    selectedParentCategory = categorySelection.parent,
-                    showAccountSheet = sheetState.showAccountSheet,
-                    showCategorySheet = sheetState.showCategorySheet,
+                    selectedCategory = panel.categorySelection.category,
+                    selectedParentCategory = panel.categorySelection.parent,
+                    showAccountSheet = panel.sheetState.showAccountSheet,
+                    showCategorySheet = panel.sheetState.showCategorySheet,
+                    dailyTotals = panel.dailyTotals,
                 )
             }.stateIn(
                 scope = viewModelScope,
@@ -182,21 +194,20 @@ class TransactionsViewModel
                 initialValue = TransactionsUiState(today = today, isLoading = true),
             )
 
-        /** Paginated transactions with a day header inserted before each new day. */
+        /**
+         * Paginated transactions with a day header inserted before each new day. The day totals
+         * live in [TransactionsUiState.dailyTotals]; they are not combined here because every
+         * re-emission would collect the same `PagingData` twice.
+         */
         val pagingData: Flow<PagingData<TransactionListEntry>> =
             queryFlow
-                .flatMapLatest { query ->
-                    val filter = query.toTransactionFilter()
-                    combine(
-                        observeTransactionsUseCase(filter),
-                        observeDailyTotalsUseCase(filter),
-                    ) { paging, totals ->
-                        paging
-                            .map { TransactionListEntry.Item(it) }
-                            .insertSeparators<TransactionListEntry.Item, TransactionListEntry> { before, after ->
-                                TransactionDaySeparators.headerFor(before, after, totals)
-                            }
-                    }
+                .flatMapLatest { query -> observeTransactionsUseCase(query.toTransactionFilter()) }
+                .map { paging ->
+                    paging
+                        .map { TransactionListEntry.Item(it) }
+                        .insertSeparators<TransactionListEntry.Item, TransactionListEntry> { before, after ->
+                            TransactionDaySeparators.headerFor(before, after)
+                        }
                 }.cachedIn(viewModelScope)
 
         init {
@@ -269,8 +280,7 @@ class TransactionsViewModel
             viewModelScope.launch {
                 when (val result = deleteTransactionUseCase(details.transaction.id)) {
                     is DomainResult.Success -> {
-                        lastDeleted = details.transaction
-                        _events.send(TransactionsEvent.ShowTransactionDeleted)
+                        _events.send(TransactionsEvent.ShowTransactionDeleted(details.transaction))
                     }
                     is DomainResult.Failure -> {
                         _events.send(TransactionsEvent.ShowSnackbar(result.error.asStringRes()))
@@ -279,9 +289,7 @@ class TransactionsViewModel
             }
         }
 
-        fun undoDelete() {
-            val transaction = lastDeleted ?: return
-            lastDeleted = null
+        fun undoDelete(transaction: Transaction) {
             viewModelScope.launch {
                 when (val result = restoreTransactionUseCase(transaction)) {
                     is DomainResult.Success -> Unit
@@ -352,6 +360,12 @@ class TransactionsViewModel
         private data class SheetState(
             val showAccountSheet: Boolean = false,
             val showCategorySheet: Boolean = false,
+        )
+
+        private data class PanelState(
+            val categorySelection: CategorySelection,
+            val sheetState: SheetState,
+            val dailyTotals: Map<LocalDate, Money>,
         )
 
         private data class CategorySelection(

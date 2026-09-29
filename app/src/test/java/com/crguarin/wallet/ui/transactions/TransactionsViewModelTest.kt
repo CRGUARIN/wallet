@@ -277,12 +277,38 @@ class TransactionsViewModelTest {
 
             viewModel.events.test {
                 viewModel.deleteTransaction(details)
-                assertThat(awaitItem()).isEqualTo(TransactionsEvent.ShowTransactionDeleted)
+                val event = awaitItem() as TransactionsEvent.ShowTransactionDeleted
+                assertThat(event.transaction).isEqualTo(original)
                 assertThat(transactionRepository.getTransaction(5L)).isNull()
 
-                viewModel.undoDelete()
+                viewModel.undoDelete(event.transaction)
                 advanceUntilIdle()
                 assertThat(transactionRepository.getTransaction(5L)).isEqualTo(original)
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `undo of an earlier deletion restores that transaction, not the latest one`() =
+        runTest(testDispatcher) {
+            val first = transaction(id = 5L, type = TransactionType.EXPENSE, amount = 150_000L, note = "Almuerzo")
+            val second = transaction(id = 6L, type = TransactionType.INCOME, amount = 90_000L, note = "Venta")
+            transactionRepository.setInitialData(listOf(first, second))
+            val viewModel = createViewModel()
+            val firstDetails = transactionRepository.getTransactionDetails(5L)!!
+            val secondDetails = transactionRepository.getTransactionDetails(6L)!!
+
+            viewModel.events.test {
+                viewModel.deleteTransaction(firstDetails)
+                val firstEvent = awaitItem() as TransactionsEvent.ShowTransactionDeleted
+                viewModel.deleteTransaction(secondDetails)
+                awaitItem()
+
+                viewModel.undoDelete(firstEvent.transaction)
+                advanceUntilIdle()
+                assertThat(transactionRepository.getTransaction(5L)).isEqualTo(first)
+                assertThat(transactionRepository.getTransaction(6L)).isNull()
 
                 cancelAndIgnoreRemainingEvents()
             }

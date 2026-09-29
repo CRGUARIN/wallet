@@ -119,7 +119,7 @@ fun TransactionsRoute(
                             actionLabel = context.getString(R.string.action_undo),
                         )
                     if (result == SnackbarResult.ActionPerformed) {
-                        viewModel.undoDelete()
+                        viewModel.undoDelete(event.transaction)
                     }
                 }
                 is TransactionsEvent.ShowSnackbar -> {
@@ -299,13 +299,14 @@ fun TransactionsScreen(
                             is TransactionListEntry.DayHeader -> {
                                 TransactionDayHeader(
                                     date = entry.date,
-                                    net = entry.net,
+                                    net = uiState.dailyTotals[entry.date] ?: Money.ZERO,
                                     today = uiState.today,
                                 )
                             }
                             is TransactionListEntry.Item -> {
                                 SwipeableTransactionRow(
                                     details = entry.details,
+                                    perspectiveAccountId = uiState.accountId,
                                     onClick = { onTransactionClick(entry.details.transaction.id) },
                                     onDelete = { onDeleteTransaction(entry.details) },
                                 )
@@ -446,6 +447,7 @@ private fun FilterRow(
 @Composable
 private fun SwipeableTransactionRow(
     details: TransactionDetails,
+    perspectiveAccountId: Long?,
     onClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -479,6 +481,7 @@ private fun SwipeableTransactionRow(
     ) {
         TransactionListItem(
             details = details,
+            perspectiveAccountId = perspectiveAccountId,
             onClick = onClick,
             modifier = Modifier.background(MaterialTheme.colorScheme.surface),
         )
@@ -550,10 +553,15 @@ private fun previewDetails(
         parentCategorySystemKey = parentCategorySystemKey,
     )
 
+private fun previewDailyTotals(): Map<LocalDate, Money> {
+    val today = LocalDate.of(2026, 9, 28)
+    return mapOf(today to Money(2_000_000L), today.minusDays(1) to Money(-150_000L))
+}
+
 private fun previewEntries(): List<TransactionListEntry> {
     val today = LocalDate.of(2026, 9, 28)
     return listOf(
-        TransactionListEntry.DayHeader(today, Money(2_000_000L)),
+        TransactionListEntry.DayHeader(today),
         TransactionListEntry.Item(
             previewDetails(
                 1L,
@@ -565,7 +573,7 @@ private fun previewEntries(): List<TransactionListEntry> {
             ),
         ),
         TransactionListEntry.Item(previewDetails(2L, TransactionType.INCOME, today, categorySystemKey = "salary")),
-        TransactionListEntry.DayHeader(today.minusDays(1), Money(-150_000L)),
+        TransactionListEntry.DayHeader(today.minusDays(1)),
         TransactionListEntry.Item(previewDetails(3L, TransactionType.TRANSFER, today.minusDays(1))),
     )
 }
@@ -575,7 +583,7 @@ private fun previewEntries(): List<TransactionListEntry> {
 private fun TransactionsScreenPreviewLight() {
     WalletTheme(darkTheme = false) {
         TransactionsScreen(
-            uiState = TransactionsUiState(isLoading = false),
+            uiState = TransactionsUiState(isLoading = false, dailyTotals = previewDailyTotals()),
             pagingItems = rememberEntriesPagingItems(previewEntries()),
             onPreviousMonth = {},
             onNextMonth = {},
@@ -599,7 +607,7 @@ private fun TransactionsScreenPreviewLight() {
 private fun TransactionsScreenPreviewDark() {
     WalletTheme(darkTheme = true) {
         TransactionsScreen(
-            uiState = TransactionsUiState(isLoading = false).copy(searchQuery = "mercado"),
+            uiState = TransactionsUiState(isLoading = false, dailyTotals = previewDailyTotals()).copy(searchQuery = "mercado"),
             pagingItems = rememberEntriesPagingItems(previewEntries()),
             onPreviousMonth = {},
             onNextMonth = {},

@@ -34,9 +34,9 @@ class TransactionDaySeparatorsTest {
 
     @Test
     fun `inserts a header before the first item`() {
-        val header = TransactionDaySeparators.headerFor(before = null, after = item(1L, dayOne), netByDate = emptyMap())
+        val header = TransactionDaySeparators.headerFor(before = null, after = item(1L, dayOne))
 
-        assertThat(header).isEqualTo(TransactionListEntry.DayHeader(dayOne, Money.ZERO))
+        assertThat(header).isEqualTo(TransactionListEntry.DayHeader(dayOne))
     }
 
     @Test
@@ -45,10 +45,9 @@ class TransactionDaySeparatorsTest {
             TransactionDaySeparators.headerFor(
                 before = item(1L, dayOne),
                 after = item(2L, dayTwo),
-                netByDate = mapOf(dayTwo to Money(5_000L)),
             )
 
-        assertThat(header).isEqualTo(TransactionListEntry.DayHeader(dayTwo, Money(5_000L)))
+        assertThat(header).isEqualTo(TransactionListEntry.DayHeader(dayTwo))
     }
 
     @Test
@@ -57,7 +56,6 @@ class TransactionDaySeparatorsTest {
             TransactionDaySeparators.headerFor(
                 before = item(1L, dayOne),
                 after = item(2L, dayOne),
-                netByDate = emptyMap(),
             )
 
         assertThat(header).isNull()
@@ -65,27 +63,8 @@ class TransactionDaySeparatorsTest {
 
     @Test
     fun `does not insert a header for the terminal position`() {
-        val header = TransactionDaySeparators.headerFor(before = item(1L, dayOne), after = null, netByDate = emptyMap())
+        val header = TransactionDaySeparators.headerFor(before = item(1L, dayOne), after = null)
 
         assertThat(header).isNull()
-    }
-
-    @Test
-    fun `uses the net from the provided map and falls back to zero`() {
-        val withNet =
-            TransactionDaySeparators.headerFor(
-                before = null,
-                after = item(1L, dayOne),
-                netByDate = mapOf(dayOne to Money(-3_000L)),
-            )
-        val withoutNet =
-            TransactionDaySeparators.headerFor(
-                before = null,
-                after = item(1L, dayOne),
-                netByDate = emptyMap(),
-            )
-
-        assertThat(withNet?.net).isEqualTo(Money(-3_000L))
-        assertThat(withoutNet?.net).isEqualTo(Money.ZERO)
     }
 }

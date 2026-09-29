@@ -35,6 +35,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -52,6 +53,8 @@ data class AccountDetailUiState(
     /** True when there is another active account to transfer to. */
     val canTransfer: Boolean = false,
     val today: LocalDate = LocalDate.now(),
+    /** Net per day from this account's perspective, shown in the day headers of the list. */
+    val dailyTotals: Map<LocalDate, Money> = emptyMap(),
     val errorMessageRes: Int? = null,
 )
 
@@ -101,18 +104,19 @@ class AccountDetailViewModel
 
         private val accountFilter = TransactionFilter(accountId = accountId)
 
-        /** Paginated transactions of this account, grouped by day. */
+        /**
+         * Paginated transactions of this account, grouped by day. The day totals live in
+         * [AccountDetailUiState.dailyTotals] so the same `PagingData` is never collected twice.
+         */
         val pagingData: Flow<PagingData<TransactionListEntry>> =
-            combine(
-                observeTransactionsUseCase(accountFilter),
-                observeDailyTotalsUseCase(accountFilter),
-            ) { paging, totals ->
-                paging
-                    .map { TransactionListEntry.Item(it) }
-                    .insertSeparators<TransactionListEntry.Item, TransactionListEntry> { before, after ->
-                        TransactionDaySeparators.headerFor(before, after, totals)
-                    }
-            }.cachedIn(viewModelScope)
+            observeTransactionsUseCase(accountFilter)
+                .map { paging ->
+                    paging
+                        .map { TransactionListEntry.Item(it) }
+                        .insertSeparators<TransactionListEntry.Item, TransactionListEntry> { before, after ->
+                            TransactionDaySeparators.headerFor(before, after)
+                        }
+                }.cachedIn(viewModelScope)
 
         val uiState: StateFlow<AccountDetailUiState> =
             combine(
@@ -120,7 +124,8 @@ class AccountDetailViewModel
                 observeMonthSummaryUseCase(currentYearMonth, accountId),
                 dialogStateFlow,
                 accountRepository.observeAccountsWithBalance(includeArchived = false),
-            ) { account, monthSummary, dialogState, activeAccounts ->
+                observeDailyTotalsUseCase(accountFilter),
+            ) { account, monthSummary, dialogState, activeAccounts, dailyTotals ->
                 AccountDetailUiState(
                     isLoading = false,
                     today = today,
@@ -129,6 +134,7 @@ class AccountDetailViewModel
                     showDeleteConfirmDialog = dialogState.showDelete,
                     showOfferArchiveDialog = dialogState.showOfferArchive,
                     canTransfer = activeAccounts.any { it.account.id != accountId },
+                    dailyTotals = dailyTotals,
                 )
             }.stateIn(
                 scope = viewModelScope,

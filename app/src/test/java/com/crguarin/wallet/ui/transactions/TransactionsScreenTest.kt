@@ -75,15 +75,20 @@ class TransactionsScreenTest {
 
     private val entries =
         listOf(
-            TransactionListEntry.DayHeader(today, Money(100_000L)),
+            TransactionListEntry.DayHeader(today),
             TransactionListEntry.Item(details(id = 1L, note = "Mercado semanal")),
-            TransactionListEntry.DayHeader(today.minusDays(1), Money(-50_000L)),
+            TransactionListEntry.DayHeader(today.minusDays(1)),
             TransactionListEntry.Item(details(id = 2L, type = TransactionType.TRANSFER, accountId = 1L, toAccountId = 2L)),
         )
 
     @Composable
     private fun Screen(
-        uiState: TransactionsUiState = TransactionsUiState(isLoading = false, today = today),
+        uiState: TransactionsUiState =
+            TransactionsUiState(
+                isLoading = false,
+                today = today,
+                dailyTotals = mapOf(today to Money(100_000L), today.minusDays(1) to Money(-50_000L)),
+            ),
         list: List<TransactionListEntry> = entries,
         onDeleteTransaction: (TransactionDetails) -> Unit = {},
         snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
@@ -126,6 +131,22 @@ class TransactionsScreenTest {
         composeRule.onNodeWithText("Alimentación › Mercado").assertIsDisplayed()
         composeRule.onNodeWithText("Ayer").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("− $ 500").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `filtering by account signs transfers from that account's perspective`() {
+        composeRule.setContent {
+            Screen(
+                uiState = TransactionsUiState(isLoading = false, today = today, accountId = 1L),
+                list =
+                    listOf(
+                        TransactionListEntry.Item(details(id = 2L, type = TransactionType.TRANSFER, accountId = 1L, toAccountId = 2L)),
+                    ),
+            )
+        }
+
+        waitForText("− $ 45.500")
+        composeRule.onNodeWithText("− $ 45.500").assertIsDisplayed()
     }
 
     @Test

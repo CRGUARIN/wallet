@@ -336,7 +336,7 @@ fun AccountDetailScreen(
                             is TransactionListEntry.DayHeader -> {
                                 TransactionDayHeader(
                                     date = entry.date,
-                                    net = entry.net,
+                                    net = uiState.dailyTotals[entry.date] ?: Money.ZERO,
                                     today = uiState.today,
                                 )
                             }
