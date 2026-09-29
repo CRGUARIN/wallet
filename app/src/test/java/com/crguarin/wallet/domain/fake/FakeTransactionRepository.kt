@@ -95,8 +95,6 @@ class FakeTransactionRepository : TransactionRepository {
                 }
         }
 
-    override fun observeTransaction(id: Long): Flow<TransactionDetails?> = transactionsFlow.map { transactions[id]?.let { toDetails(it) } }
-
     override suspend fun getTransaction(id: Long): Transaction? = transactions[id]
 
     override suspend fun getTransactionDetails(id: Long): TransactionDetails? = transactions[id]?.let { toDetails(it) }
@@ -109,11 +107,16 @@ class FakeTransactionRepository : TransactionRepository {
         return id
     }
 
-    override suspend fun restoreTransaction(transaction: Transaction) {
+    /** When true, [restoreTransaction] fails like a constraint violation would. */
+    var failRestore: Boolean = false
+
+    override suspend fun restoreTransaction(transaction: Transaction): Boolean {
+        if (failRestore) return false
         val id = if (transaction.id == 0L) nextId++ else transaction.id
         transactions[id] = transaction.copy(id = id)
         if (id >= nextId) nextId = id + 1
         notifyChanged()
+        return true
     }
 
     override suspend fun deleteTransaction(id: Long) {

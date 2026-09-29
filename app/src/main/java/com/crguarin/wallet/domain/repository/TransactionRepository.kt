@@ -22,8 +22,6 @@ interface TransactionRepository {
      */
     fun observeDailyTotals(filter: TransactionFilter = TransactionFilter()): Flow<Map<LocalDate, Money>>
 
-    fun observeTransaction(id: Long): Flow<TransactionDetails?>
-
     suspend fun getTransaction(id: Long): Transaction?
 
     suspend fun getTransactionDetails(id: Long): TransactionDetails?
@@ -32,9 +30,10 @@ interface TransactionRepository {
 
     /**
      * Inserts a previously deleted transaction preserving its id and timestamps, so it can be
-     * restored exactly as it was (used by the "undo delete" action).
+     * restored exactly as it was (used by the "undo delete" action). Returns false when it cannot be
+     * inserted, e.g. its account or category no longer exists or its id is taken.
      */
-    suspend fun restoreTransaction(transaction: Transaction)
+    suspend fun restoreTransaction(transaction: Transaction): Boolean
 
     suspend fun deleteTransaction(id: Long)
 

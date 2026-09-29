@@ -1,5 +1,6 @@
 package com.crguarin.wallet.domain.usecase
 
+import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.repository.TransactionRepository
@@ -14,8 +15,10 @@ class RestoreTransactionUseCase
     constructor(
         private val transactionRepository: TransactionRepository,
     ) {
-        suspend operator fun invoke(transaction: Transaction): DomainResult<Unit> {
-            transactionRepository.restoreTransaction(transaction)
-            return DomainResult.Success(Unit)
-        }
+        suspend operator fun invoke(transaction: Transaction): DomainResult<Unit> =
+            if (transactionRepository.restoreTransaction(transaction)) {
+                DomainResult.Success(Unit)
+            } else {
+                DomainResult.Failure(DomainError.NotFound)
+            }
     }

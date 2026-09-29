@@ -35,7 +35,7 @@ class AccountRepositoryImplTest {
                 .inMemoryDatabaseBuilder(context, WalletDatabase::class.java)
                 .allowMainThreadQueries()
                 .build()
-        repository = AccountRepositoryImpl(database.accountDao(), Dispatchers.Unconfined)
+        repository = AccountRepositoryImpl(database.accountDao(), database, Dispatchers.Unconfined)
     }
 
     @After

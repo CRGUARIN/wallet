@@ -52,7 +52,7 @@ class TransactionBalanceIntegrationTest {
                 .inMemoryDatabaseBuilder(context, WalletDatabase::class.java)
                 .allowMainThreadQueries()
                 .build()
-        accountRepository = AccountRepositoryImpl(database.accountDao(), Dispatchers.Unconfined)
+        accountRepository = AccountRepositoryImpl(database.accountDao(), database, Dispatchers.Unconfined)
         transactionRepository = TransactionRepositoryImpl(database.transactionDao(), Dispatchers.Unconfined)
         categoryRepository =
             CategoryRepositoryImpl(

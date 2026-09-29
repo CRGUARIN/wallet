@@ -2,8 +2,8 @@ package com.crguarin.wallet.domain.usecase
 
 import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
+import com.crguarin.wallet.domain.model.normalizedName
 import com.crguarin.wallet.domain.repository.AccountRepository
-import java.util.Locale
 import javax.inject.Inject
 
 class UnarchiveAccountUseCase
@@ -16,9 +16,9 @@ class UnarchiveAccountUseCase
                 accountRepository.getAccount(accountId)
                     ?: return DomainResult.Failure(DomainError.NotFound)
 
-            val normalizedName = account.name.trim().lowercase(Locale.ROOT)
+            val normalizedName = account.name.normalizedName()
             val activeAccounts = accountRepository.getAllAccounts().filter { !it.isArchived && it.id != accountId }
-            if (activeAccounts.any { it.name.trim().lowercase(Locale.ROOT) == normalizedName }) {
+            if (activeAccounts.any { it.name.normalizedName() == normalizedName }) {
                 return DomainResult.Failure(DomainError.NameDuplicated)
             }
 

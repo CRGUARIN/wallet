@@ -5,12 +5,16 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.crguarin.wallet.core.money.APP_CURRENCY
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.core.money.MoneyParser
+import com.crguarin.wallet.core.money.formatForInput
 import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
+import com.crguarin.wallet.domain.model.DomainLimits
+import com.crguarin.wallet.domain.model.normalizedName
 import com.crguarin.wallet.domain.repository.AccountRepository
 import com.crguarin.wallet.domain.usecase.SaveAccountUseCase
 import com.crguarin.wallet.ui.navigation.AccountEdit
@@ -25,9 +29,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.DecimalFormatSymbols
 import java.time.Instant
-import java.util.Locale
 import javax.inject.Inject
 
 data class AccountEditUiState(
@@ -58,7 +60,7 @@ data class AccountEditUiState(
             !isLoading &&
                 !isSaving &&
                 name.isNotBlank() &&
-                name.trim().length <= 40 &&
+                name.trim().length <= DomainLimits.NAME_MAX_LENGTH &&
                 nameErrorRes == null &&
                 amountErrorRes == null
 }
@@ -96,7 +98,7 @@ class AccountEditViewModel
                     _uiState.update { it.copy(isLoading = true, isEditMode = true, accountId = targetAccountId) }
                     val account = accountRepository.getAccount(targetAccountId)
                     if (account != null) {
-                        val formattedBalance = formatInitialBalanceForInput(account.initialBalance)
+                        val formattedBalance = formatForInput(account.initialBalance)
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
@@ -116,47 +118,28 @@ class AccountEditViewModel
             }
         }
 
-        private fun formatInitialBalanceForInput(balance: Money): String =
-            if (balance.minorUnits == 0L) {
-                ""
-            } else if (balance.minorUnits % 100L == 0L) {
-                (balance.minorUnits / 100L).toString()
-            } else {
-                val major = balance.minorUnits / 100L
-                val fraction = balance.minorUnits % 100L
-                val separator = DecimalFormatSymbols.getInstance().decimalSeparator
-                String.format(Locale.ROOT, "%d%c%02d", major, separator, fraction)
-            }
-
         fun setName(name: String) {
             val trimmed = name.trim()
             val error =
-                when {
-                    trimmed.length > 40 -> DomainError.NameTooLong.asStringRes()
-                    name.isNotEmpty() && trimmed.isEmpty() -> DomainError.NameEmpty.asStringRes()
-                    trimmed.isNotEmpty() && isDuplicateName(trimmed) -> DomainError.NameDuplicated.asStringRes()
-                    else -> null
-                }
+                accountNameInputError(name)
+                    ?: if (trimmed.isNotEmpty() && isDuplicateName(trimmed)) {
+                        DomainError.NameDuplicated.asStringRes()
+                    } else {
+                        null
+                    }
             _uiState.update { it.copy(name = name, nameErrorRes = error, generalErrorRes = null) }
         }
 
         private fun isDuplicateName(candidate: String): Boolean {
-            val normalized = candidate.lowercase(Locale.ROOT)
+            val normalized = candidate.normalizedName()
             val currentId = _uiState.value.accountId
             return existingAccounts.any {
-                !it.isArchived && it.id != currentId && it.name.trim().lowercase(Locale.ROOT) == normalized
+                !it.isArchived && it.id != currentId && it.name.normalizedName() == normalized
             }
         }
 
         fun setType(type: AccountType) {
-            val currentIcon = _uiState.value.icon
-            val newIcon =
-                when {
-                    type == AccountType.SAVINGS && currentIcon == "wallet" -> "savings"
-                    type == AccountType.CASH && currentIcon == "savings" -> "wallet"
-                    else -> currentIcon
-                }
-            _uiState.update { it.copy(type = type, icon = newIcon) }
+            _uiState.update { it.copy(type = type, icon = iconAfterTypeChange(type, it.icon)) }
         }
 
         fun setInitialBalanceText(text: String) {
@@ -178,13 +161,14 @@ class AccountEditViewModel
         }
 
         fun saveAccount() {
+            if (_uiState.value.isSaving) return
             val state = _uiState.value
             val trimmedName = state.name.trim()
             if (trimmedName.isEmpty()) {
                 _uiState.update { it.copy(nameErrorRes = DomainError.NameEmpty.asStringRes()) }
                 return
             }
-            if (trimmedName.length > 40) {
+            if (trimmedName.length > DomainLimits.NAME_MAX_LENGTH) {
                 _uiState.update { it.copy(nameErrorRes = DomainError.NameTooLong.asStringRes()) }
                 return
             }
@@ -199,14 +183,14 @@ class AccountEditViewModel
                 return
             }
 
+            _uiState.update { it.copy(isSaving = true, generalErrorRes = null) }
             viewModelScope.launch {
-                _uiState.update { it.copy(isSaving = true, generalErrorRes = null) }
                 val account =
                     Account(
                         id = state.accountId ?: 0L,
                         name = trimmedName,
                         type = state.type,
-                        currencyCode = "COP",
+                        currencyCode = APP_CURRENCY,
                         initialBalance = balance,
                         color = state.color,
                         icon = state.icon,

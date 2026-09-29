@@ -2,6 +2,7 @@ package com.crguarin.wallet.core.money
 
 import java.math.BigDecimal
 import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
 import java.text.NumberFormat
 import java.util.Currency
 import java.util.Locale
@@ -58,3 +59,20 @@ fun Money.format(
     locale: Locale = Locale.getDefault(),
     currencyCode: String = APP_CURRENCY,
 ): String = MoneyFormatter.format(this, locale, currencyCode)
+
+/**
+ * Plain editable text for an amount field: empty for zero, no decimals for whole amounts and a
+ * two-digit fraction otherwise, using the decimal separator of [locale]. Inverse of [MoneyParser].
+ */
+fun formatForInput(
+    money: Money,
+    locale: Locale = Locale.getDefault(),
+): String =
+    when {
+        money.minorUnits == 0L -> ""
+        money.minorUnits % 100L == 0L -> (money.minorUnits / 100L).toString()
+        else -> {
+            val separator = DecimalFormatSymbols.getInstance(locale).decimalSeparator
+            String.format(Locale.ROOT, "%d%c%02d", money.minorUnits / 100L, separator, money.minorUnits % 100L)
+        }
+    }

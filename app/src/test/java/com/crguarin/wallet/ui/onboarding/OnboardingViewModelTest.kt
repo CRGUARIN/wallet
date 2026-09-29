@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.fake.FakeAccountRepository
+import com.crguarin.wallet.domain.fake.FakeAppLanguageController
 import com.crguarin.wallet.domain.fake.FakeCategorySeeder
 import com.crguarin.wallet.domain.fake.FakePreferencesRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
@@ -11,10 +12,13 @@ import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.usecase.CompleteOnboardingUseCase
 import com.crguarin.wallet.domain.usecase.SaveAccountUseCase
 import com.crguarin.wallet.domain.usecase.SeedDefaultCategoriesUseCase
+import com.crguarin.wallet.ui.util.AppLanguage
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -52,7 +56,7 @@ class OnboardingViewModelTest {
                 preferencesRepository = preferencesRepository,
             )
         savedStateHandle = SavedStateHandle()
-        viewModel = OnboardingViewModel(completeOnboardingUseCase, savedStateHandle)
+        viewModel = OnboardingViewModel(completeOnboardingUseCase, savedStateHandle, FakeAppLanguageController())
     }
 
     @After
@@ -138,4 +142,41 @@ class OnboardingViewModelTest {
                 cancelAndIgnoreRemainingEvents()
             }
         }
+
+    @Test
+    fun `double tap on complete seeds and creates the account only once`() {
+        val standardDispatcher = StandardTestDispatcher()
+        Dispatchers.setMain(standardDispatcher)
+        runTest(standardDispatcher) {
+            val vm = OnboardingViewModel(completeOnboardingUseCase, SavedStateHandle(), FakeAppLanguageController())
+            vm.setAccountName("Efectivo")
+            vm.setInitialBalanceText("50000")
+
+            vm.completeOnboarding()
+            vm.completeOnboarding()
+            advanceUntilIdle()
+
+            assertThat(categorySeeder.seedCallCount).isEqualTo(1)
+            assertThat(accountRepository.getAllAccounts()).hasSize(1)
+        }
+    }
+
+    @Test
+    fun `language changes go through the injected controller`() {
+        val controller = FakeAppLanguageController(AppLanguage.ENGLISH)
+        val vm = OnboardingViewModel(completeOnboardingUseCase, SavedStateHandle(), controller)
+        assertThat(vm.uiState.value.selectedLanguage).isEqualTo(AppLanguage.ENGLISH)
+
+        vm.setLanguage(AppLanguage.SPANISH)
+
+        assertThat(controller.setCalls).containsExactly(AppLanguage.SPANISH)
+        assertThat(vm.uiState.value.selectedLanguage).isEqualTo(AppLanguage.SPANISH)
+    }
+
+    @Test
+    fun `an unknown restored account type falls back to cash`() {
+        val handle = SavedStateHandle(mapOf("onboarding_account_type" to "BOGUS"))
+        val vm = OnboardingViewModel(completeOnboardingUseCase, handle, FakeAppLanguageController())
+        assertThat(vm.uiState.value.accountType).isEqualTo(AccountType.CASH)
+    }
 }

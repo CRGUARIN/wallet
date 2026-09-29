@@ -8,11 +8,14 @@ import com.crguarin.wallet.domain.fake.FakeAccountRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
+import com.crguarin.wallet.domain.repository.AccountRepository
 import com.crguarin.wallet.domain.usecase.SaveAccountUseCase
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -159,6 +162,35 @@ class AccountEditViewModelTest {
                 cancelAndIgnoreRemainingEvents()
             }
         }
+
+    @Test
+    fun `double tap on save saves the account only once`() {
+        val standardDispatcher = StandardTestDispatcher()
+        Dispatchers.setMain(standardDispatcher)
+        runTest(standardDispatcher) {
+            var saveCalls = 0
+            val countingRepository =
+                object : AccountRepository by accountRepository {
+                    override suspend fun saveAccount(account: Account): Long {
+                        saveCalls++
+                        return accountRepository.saveAccount(account)
+                    }
+                }
+            val useCase = SaveAccountUseCase(countingRepository, timeProvider)
+            val viewModel =
+                AccountEditViewModel(SavedStateHandle(mapOf("accountId" to null)), countingRepository, useCase)
+            advanceUntilIdle()
+            viewModel.setName("Efectivo")
+            viewModel.setInitialBalanceText("50000")
+
+            viewModel.saveAccount()
+            viewModel.saveAccount()
+            advanceUntilIdle()
+
+            assertThat(saveCalls).isEqualTo(1)
+            assertThat(accountRepository.getAllAccounts()).hasSize(1)
+        }
+    }
 
     @Test
     fun `saveAccount in edit mode updates existing account and emits NavigateBack`() =

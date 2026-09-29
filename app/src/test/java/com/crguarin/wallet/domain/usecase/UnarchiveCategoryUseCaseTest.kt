@@ -4,6 +4,7 @@ import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.domain.fake.FakeCategoryRepository
 import com.crguarin.wallet.domain.fake.FakeSystemCategoryNames
 import com.crguarin.wallet.domain.model.Category
+import com.crguarin.wallet.domain.model.CategoryNameMatcher
 import com.crguarin.wallet.domain.model.CategoryType
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
@@ -19,7 +20,7 @@ class UnarchiveCategoryUseCaseTest {
     fun setUp() {
         categoryRepository = FakeCategoryRepository()
         systemCategoryNames = FakeSystemCategoryNames()
-        unarchiveCategoryUseCase = UnarchiveCategoryUseCase(categoryRepository, systemCategoryNames)
+        unarchiveCategoryUseCase = UnarchiveCategoryUseCase(categoryRepository, CategoryNameMatcher(systemCategoryNames))
     }
 
     @Test

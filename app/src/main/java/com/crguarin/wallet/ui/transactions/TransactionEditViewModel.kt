@@ -4,8 +4,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
-import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.core.money.MoneyParser
+import com.crguarin.wallet.core.money.formatForInput
 import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.core.time.TimeProvider
@@ -14,6 +14,7 @@ import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryNode
 import com.crguarin.wallet.domain.model.CategoryType
+import com.crguarin.wallet.domain.model.DomainLimits
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.repository.AccountRepository
@@ -40,9 +41,7 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.text.DecimalFormatSymbols
 import java.time.LocalDate
-import java.util.Locale
 import javax.inject.Inject
 
 /**
@@ -58,8 +57,6 @@ private const val KEY_TO_ACCOUNT = "tx_form_to_account"
 private const val KEY_CATEGORY = "tx_form_category"
 private const val KEY_DATE = "tx_form_date"
 private const val KEY_NOTE = "tx_form_note"
-
-const val NOTE_MAX_LENGTH = 200
 
 data class TransactionEditUiState(
     val isLoading: Boolean = true,
@@ -243,7 +240,7 @@ class TransactionEditViewModel
                             isEditMode = true,
                             editingTransactionId = editingId,
                             selectedType = existing.type,
-                            amountText = formatAmountForInput(existing.amount),
+                            amountText = formatForInput(existing.amount),
                             accountId = existing.accountId,
                             toAccountId = existing.toAccountId,
                             categoryId = existing.categoryId,
@@ -453,7 +450,7 @@ class TransactionEditViewModel
         fun setNote(note: String) {
             savedStateHandle[KEY_NOTE] = note
             val error =
-                if (note.length > NOTE_MAX_LENGTH) {
+                if (note.length > DomainLimits.NOTE_MAX_LENGTH) {
                     DomainError.NoteTooLong.asStringRes()
                 } else {
                     null
@@ -507,9 +504,10 @@ class TransactionEditViewModel
         }
 
         fun onSaveClick() {
+            if (_uiState.value.isSaving) return
             val transaction = buildTransaction(showErrors = true) ?: return
+            _uiState.update { it.copy(isSaving = true, generalErrorRes = null) }
             viewModelScope.launch {
-                _uiState.update { it.copy(isSaving = true, generalErrorRes = null) }
                 if (checkNegativeBalanceUseCase(transaction)) {
                     _uiState.update { it.copy(isSaving = false, showNegativeBalanceDialog = true) }
                     return@launch
@@ -519,10 +517,10 @@ class TransactionEditViewModel
         }
 
         fun confirmNegativeBalanceSave() {
+            if (_uiState.value.isSaving) return
             val transaction = buildTransaction(showErrors = false) ?: return
-            _uiState.update { it.copy(showNegativeBalanceDialog = false) }
+            _uiState.update { it.copy(showNegativeBalanceDialog = false, isSaving = true, generalErrorRes = null) }
             viewModelScope.launch {
-                _uiState.update { it.copy(isSaving = true, generalErrorRes = null) }
                 saveAndFinish(transaction)
             }
         }
@@ -604,7 +602,7 @@ class TransactionEditViewModel
                 }
             }
 
-            if (state.note.length > NOTE_MAX_LENGTH) {
+            if (state.note.length > DomainLimits.NOTE_MAX_LENGTH) {
                 if (showErrors) {
                     _uiState.update { it.copy(noteErrorRes = DomainError.NoteTooLong.asStringRes()) }
                 }
@@ -633,7 +631,7 @@ class TransactionEditViewModel
         }
 
         private fun validateDate(date: LocalDate): Int? {
-            val maxAllowed = timeProvider.today().plusYears(1)
+            val maxAllowed = DomainLimits.maxTransactionDate(timeProvider.today())
             return if (date > maxAllowed) {
                 DomainError.DateOutOfRange.asStringRes()
             } else {
@@ -651,18 +649,6 @@ class TransactionEditViewModel
             state.date?.let { savedStateHandle[KEY_DATE] = it.toEpochDay() }
             savedStateHandle[KEY_NOTE] = state.note
         }
-
-        private fun formatAmountForInput(amount: Money): String =
-            if (amount.minorUnits == 0L) {
-                ""
-            } else if (amount.minorUnits % 100L == 0L) {
-                (amount.minorUnits / 100L).toString()
-            } else {
-                val major = amount.minorUnits / 100L
-                val fraction = amount.minorUnits % 100L
-                val separator = DecimalFormatSymbols.getInstance().decimalSeparator
-                String.format(Locale.ROOT, "%d%c%02d", major, separator, fraction)
-            }
 
         private fun TransactionType.toCategoryType(): CategoryType =
             if (this == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE

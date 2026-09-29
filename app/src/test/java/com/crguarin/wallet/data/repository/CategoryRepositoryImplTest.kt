@@ -47,7 +47,7 @@ class CategoryRepositoryImplTest {
                 walletDatabase = database,
                 ioDispatcher = Dispatchers.Unconfined,
             )
-        accountRepository = AccountRepositoryImpl(database.accountDao(), Dispatchers.Unconfined)
+        accountRepository = AccountRepositoryImpl(database.accountDao(), database, Dispatchers.Unconfined)
         transactionRepository = TransactionRepositoryImpl(database.transactionDao(), Dispatchers.Unconfined)
     }
 

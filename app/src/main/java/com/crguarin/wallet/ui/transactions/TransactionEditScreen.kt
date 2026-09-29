@@ -65,6 +65,7 @@ import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.CategoryType
+import com.crguarin.wallet.domain.model.DomainLimits
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.ui.components.AccountPickerSheet
 import com.crguarin.wallet.ui.components.AmountTextField
@@ -558,7 +559,7 @@ private fun TransactionEditForm(
                         stringResource(
                             R.string.transaction_edit_note_counter,
                             uiState.note.length,
-                            NOTE_MAX_LENGTH,
+                            DomainLimits.NOTE_MAX_LENGTH,
                         ),
                     color =
                         if (uiState.noteErrorRes != null) {

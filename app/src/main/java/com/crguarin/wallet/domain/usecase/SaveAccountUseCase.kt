@@ -5,8 +5,9 @@ import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.core.time.TimeProvider
 import com.crguarin.wallet.domain.model.Account
+import com.crguarin.wallet.domain.model.DomainLimits
+import com.crguarin.wallet.domain.model.normalizedName
 import com.crguarin.wallet.domain.repository.AccountRepository
-import java.util.Locale
 import javax.inject.Inject
 
 class SaveAccountUseCase
@@ -20,7 +21,7 @@ class SaveAccountUseCase
             if (trimmedName.isEmpty()) {
                 return DomainResult.Failure(DomainError.NameEmpty)
             }
-            if (trimmedName.length > 40) {
+            if (trimmedName.length > DomainLimits.NAME_MAX_LENGTH) {
                 return DomainResult.Failure(DomainError.NameTooLong)
             }
             if (account.initialBalance < Money.ZERO) {
@@ -28,9 +29,9 @@ class SaveAccountUseCase
             }
 
             val allAccounts = accountRepository.getAllAccounts()
-            val normalizedCandidate = trimmedName.lowercase(Locale.ROOT)
+            val normalizedCandidate = trimmedName.normalizedName()
             val activeAccounts = allAccounts.filter { !it.isArchived && it.id != account.id }
-            if (activeAccounts.any { it.name.trim().lowercase(Locale.ROOT) == normalizedCandidate }) {
+            if (activeAccounts.any { it.name.normalizedName() == normalizedCandidate }) {
                 return DomainResult.Failure(DomainError.NameDuplicated)
             }
 

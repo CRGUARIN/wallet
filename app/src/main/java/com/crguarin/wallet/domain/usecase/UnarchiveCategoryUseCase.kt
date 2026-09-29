@@ -3,16 +3,15 @@ package com.crguarin.wallet.domain.usecase
 import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.domain.model.Category
-import com.crguarin.wallet.domain.model.SystemCategoryNames
+import com.crguarin.wallet.domain.model.CategoryNameMatcher
 import com.crguarin.wallet.domain.repository.CategoryRepository
-import java.util.Locale
 import javax.inject.Inject
 
 class UnarchiveCategoryUseCase
     @Inject
     constructor(
         private val categoryRepository: CategoryRepository,
-        private val systemCategoryNames: SystemCategoryNames,
+        private val categoryNameMatcher: CategoryNameMatcher,
     ) {
         suspend operator fun invoke(categoryId: Long): DomainResult<Unit> {
             val category =
@@ -30,31 +29,9 @@ class UnarchiveCategoryUseCase
                 parentId: Long?,
                 excludeId: Long,
             ): Boolean {
-                val candidateNames: List<String> =
-                    if (target.name != null) {
-                        listOf(target.name.trim().lowercase(Locale.ROOT))
-                    } else if (target.systemKey != null) {
-                        systemCategoryNames.namesFor(target.systemKey).map { it.trim().lowercase(Locale.ROOT) }
-                    } else {
-                        emptyList()
-                    }
-
-                if (candidateNames.isEmpty()) return false
-
+                val candidateNames = categoryNameMatcher.namesOf(target)
                 val activeSiblings = allInType.filter { !it.isArchived && it.parentId == parentId && it.id != excludeId }
-                for (sibling in activeSiblings) {
-                    if (sibling.name != null) {
-                        if (sibling.name.trim().lowercase(Locale.ROOT) in candidateNames) {
-                            return true
-                        }
-                    } else if (sibling.systemKey != null) {
-                        val siblingNames = systemCategoryNames.namesFor(sibling.systemKey).map { it.trim().lowercase(Locale.ROOT) }
-                        if (siblingNames.any { it in candidateNames }) {
-                            return true
-                        }
-                    }
-                }
-                return false
+                return categoryNameMatcher.collides(candidateNames, activeSiblings)
             }
 
             if (category.parentId == null) {

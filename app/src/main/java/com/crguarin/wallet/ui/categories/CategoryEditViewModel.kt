@@ -9,9 +9,13 @@ import com.crguarin.wallet.R
 import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.domain.model.Category
+import com.crguarin.wallet.domain.model.CategoryNameMatcher
 import com.crguarin.wallet.domain.model.CategoryNode
 import com.crguarin.wallet.domain.model.CategoryType
+import com.crguarin.wallet.domain.model.DomainLimits
 import com.crguarin.wallet.domain.model.SystemCategoryNames
+import com.crguarin.wallet.domain.model.buildCategoryTree
+import com.crguarin.wallet.domain.model.normalizedName
 import com.crguarin.wallet.domain.repository.CategoryRepository
 import com.crguarin.wallet.domain.usecase.ArchiveCategoryUseCase
 import com.crguarin.wallet.domain.usecase.DeleteCategoryUseCase
@@ -29,7 +33,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.util.Locale
 import javax.inject.Inject
 
 sealed interface DeleteDialogState {
@@ -69,7 +72,7 @@ data class CategoryEditUiState(
             !isLoading &&
                 !isSaving &&
                 name.isNotBlank() &&
-                name.trim().length <= 40 &&
+                name.trim().length <= DomainLimits.NAME_MAX_LENGTH &&
                 nameErrorRes == null
 }
 
@@ -94,6 +97,7 @@ class CategoryEditViewModel
         private val reassignAndDeleteCategoryUseCase: ReassignAndDeleteCategoryUseCase,
         private val archiveCategoryUseCase: ArchiveCategoryUseCase,
         private val systemCategoryNames: SystemCategoryNames,
+        private val categoryNameMatcher: CategoryNameMatcher,
     ) : ViewModel() {
         private val route: CategoryEdit = savedStateHandle.toRoute<CategoryEdit>()
         val targetCategoryId: Long? = route.categoryId
@@ -198,7 +202,7 @@ class CategoryEditViewModel
             val state = _uiState.value
             val error =
                 when {
-                    trimmed.length > 40 -> DomainError.NameTooLong.asStringRes()
+                    trimmed.length > DomainLimits.NAME_MAX_LENGTH -> DomainError.NameTooLong.asStringRes()
                     name.isNotEmpty() && trimmed.isEmpty() -> DomainError.NameEmpty.asStringRes()
                     trimmed.isNotEmpty() && isDuplicateName(trimmed, state.parentId, state.type, state.categoryId) ->
                         DomainError.NameDuplicated.asStringRes()
@@ -213,25 +217,11 @@ class CategoryEditViewModel
             type: CategoryType,
             excludeId: Long?,
         ): Boolean {
-            val normalized = name.lowercase(Locale.ROOT)
             val siblings =
                 existingCategories.filter {
                     it.type == type && it.parentId == parentId && it.id != excludeId && !it.isArchived
                 }
-
-            for (sibling in siblings) {
-                if (sibling.name != null) {
-                    if (sibling.name.trim().lowercase(Locale.ROOT) == normalized) {
-                        return true
-                    }
-                } else if (sibling.systemKey != null) {
-                    val systemNames = systemCategoryNames.namesFor(sibling.systemKey)
-                    if (systemNames.any { it.trim().lowercase(Locale.ROOT) == normalized }) {
-                        return true
-                    }
-                }
-            }
-            return false
+            return categoryNameMatcher.collides(listOf(name.normalizedName()), siblings)
         }
 
         fun setType(newType: CategoryType) {
@@ -404,17 +394,7 @@ class CategoryEditViewModel
             viewModelScope.launch {
                 val allCategories =
                     categoryRepository.getAllCategories(type).filter { !it.isArchived && it.id != categoryId }
-                val roots =
-                    allCategories.filter { it.parentId == null }.sortedWith(compareBy({ it.sortOrder }, { it.id }))
-                val nodes =
-                    roots.map { root ->
-                        val children =
-                            allCategories
-                                .filter { it.parentId == root.id }
-                                .sortedWith(compareBy({ it.sortOrder }, { it.id }))
-                                .map { CategoryNode(it) }
-                        CategoryNode(root, children)
-                    }
+                val nodes = buildCategoryTree(allCategories)
                 _uiState.update {
                     it.copy(
                         deleteDialogState = DeleteDialogState.None,

@@ -61,6 +61,7 @@ import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
 import com.crguarin.wallet.R
+import com.crguarin.wallet.core.money.APP_CURRENCY
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
@@ -528,7 +529,7 @@ private fun AccountDetailPreviewLight() {
                 id = 1L,
                 name = "Efectivo",
                 type = AccountType.CASH,
-                currencyCode = "COP",
+                currencyCode = APP_CURRENCY,
                 initialBalance = Money(150_000L),
                 color = -16711936,
                 icon = "wallet",
@@ -568,7 +569,7 @@ private fun AccountDetailPreviewDark() {
                 id = 1L,
                 name = "Cuenta de Ahorros",
                 type = AccountType.SAVINGS,
-                currencyCode = "COP",
+                currencyCode = APP_CURRENCY,
                 initialBalance = Money(1_000_000L),
                 color = -16711936,
                 icon = "savings",

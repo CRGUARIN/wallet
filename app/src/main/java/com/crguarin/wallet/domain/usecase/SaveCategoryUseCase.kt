@@ -3,16 +3,17 @@ package com.crguarin.wallet.domain.usecase
 import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.domain.model.Category
-import com.crguarin.wallet.domain.model.SystemCategoryNames
+import com.crguarin.wallet.domain.model.CategoryNameMatcher
+import com.crguarin.wallet.domain.model.DomainLimits
+import com.crguarin.wallet.domain.model.normalizedName
 import com.crguarin.wallet.domain.repository.CategoryRepository
-import java.util.Locale
 import javax.inject.Inject
 
 class SaveCategoryUseCase
     @Inject
     constructor(
         private val categoryRepository: CategoryRepository,
-        private val systemCategoryNames: SystemCategoryNames,
+        private val categoryNameMatcher: CategoryNameMatcher,
     ) {
         suspend operator fun invoke(category: Category): DomainResult<Long> {
             val trimmedName = category.name?.trim()
@@ -20,7 +21,7 @@ class SaveCategoryUseCase
                 if (trimmedName.isNullOrEmpty()) {
                     return DomainResult.Failure(DomainError.NameEmpty)
                 }
-                if (trimmedName.length > 40) {
+                if (trimmedName.length > DomainLimits.NAME_MAX_LENGTH) {
                     return DomainResult.Failure(DomainError.NameTooLong)
                 }
             } else if (category.systemKey == null) {
@@ -69,20 +70,10 @@ class SaveCategoryUseCase
             val siblings = allInType.filter { it.parentId == category.parentId && it.id != category.id }
 
             if (trimmedName != null) {
-                val candidateNormalized = trimmedName.lowercase(Locale.ROOT)
-
                 // Archived siblings do not block a name, like archived accounts; unarchiving re-checks it.
-                for (sibling in siblings.filter { !it.isArchived }) {
-                    if (sibling.name != null) {
-                        if (sibling.name.trim().lowercase(Locale.ROOT) == candidateNormalized) {
-                            return DomainResult.Failure(DomainError.NameDuplicated)
-                        }
-                    } else if (sibling.systemKey != null) {
-                        val systemNames = systemCategoryNames.namesFor(sibling.systemKey)
-                        if (systemNames.any { it.trim().lowercase(Locale.ROOT) == candidateNormalized }) {
-                            return DomainResult.Failure(DomainError.NameDuplicated)
-                        }
-                    }
+                val activeSiblings = siblings.filter { !it.isArchived }
+                if (categoryNameMatcher.collides(listOf(trimmedName.normalizedName()), activeSiblings)) {
+                    return DomainResult.Failure(DomainError.NameDuplicated)
                 }
             }
 

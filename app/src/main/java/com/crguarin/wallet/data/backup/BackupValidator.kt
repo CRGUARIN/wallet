@@ -3,6 +3,7 @@ package com.crguarin.wallet.data.backup
 import com.crguarin.wallet.core.money.APP_CURRENCY
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.core.result.DomainError
+import com.crguarin.wallet.domain.model.DomainLimits
 import com.crguarin.wallet.domain.model.TransactionType
 import java.time.DateTimeException
 import java.time.LocalDate
@@ -12,9 +13,6 @@ import java.time.LocalDate
  * reject anything that would violate a business rule or a foreign key on insert.
  */
 object BackupValidator {
-    const val MAX_ACCOUNT_NAME_LENGTH = 40
-    const val MAX_NOTE_LENGTH = 200
-
     /** Returns null when [dto] is valid, or the [DomainError] to report otherwise. */
     fun validate(dto: BackupDto): DomainError? {
         if (dto.schemaVersion != BackupDto.SCHEMA_VERSION) return DomainError.BackupVersionUnsupported
@@ -35,7 +33,7 @@ object BackupValidator {
             when {
                 account.currencyCode != APP_CURRENCY -> return "account ${account.id}: unsupported currency"
                 name.isEmpty() -> return "account ${account.id}: empty name"
-                name.length > MAX_ACCOUNT_NAME_LENGTH -> return "account ${account.id}: name too long"
+                name.length > DomainLimits.NAME_MAX_LENGTH -> return "account ${account.id}: name too long"
                 account.initialBalance < 0 -> return "account ${account.id}: negative initial balance"
                 account.initialBalance > Money.MAX_MINOR_UNITS -> return "account ${account.id}: initial balance too large"
             }
@@ -77,7 +75,7 @@ object BackupValidator {
             tx.amount <= 0 -> "$label: amount must be positive"
             tx.amount > Money.MAX_MINOR_UNITS -> "$label: amount too large"
             !isValidDate(tx.date) -> "$label: invalid date"
-            (tx.note?.length ?: 0) > MAX_NOTE_LENGTH -> "$label: note too long"
+            (tx.note?.length ?: 0) > DomainLimits.NOTE_MAX_LENGTH -> "$label: note too long"
             tx.accountId !in accountIds -> "$label: unknown account ${tx.accountId}"
             tx.type == TransactionType.TRANSFER -> transferProblem(tx, accountIds)
             else -> flowProblem(tx, categoriesById)

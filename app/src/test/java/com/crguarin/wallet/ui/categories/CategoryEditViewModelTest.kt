@@ -5,6 +5,7 @@ import app.cash.turbine.test
 import com.crguarin.wallet.domain.fake.FakeCategoryRepository
 import com.crguarin.wallet.domain.fake.FakeSystemCategoryNames
 import com.crguarin.wallet.domain.model.Category
+import com.crguarin.wallet.domain.model.CategoryNameMatcher
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.usecase.ArchiveCategoryUseCase
 import com.crguarin.wallet.domain.usecase.DeleteCategoryUseCase
@@ -65,7 +66,7 @@ class CategoryEditViewModelTest {
             FakeSystemCategoryNames(
                 currentNamesMap = mapOf("food" to "Alimentación"),
             )
-        saveCategoryUseCase = SaveCategoryUseCase(categoryRepository, systemCategoryNames)
+        saveCategoryUseCase = SaveCategoryUseCase(categoryRepository, CategoryNameMatcher(systemCategoryNames))
         deleteCategoryUseCase = DeleteCategoryUseCase(categoryRepository)
         reassignAndDeleteCategoryUseCase = ReassignAndDeleteCategoryUseCase(categoryRepository)
         archiveCategoryUseCase = ArchiveCategoryUseCase(categoryRepository)
@@ -378,5 +379,6 @@ class CategoryEditViewModelTest {
             reassignAndDeleteCategoryUseCase = reassignAndDeleteCategoryUseCase,
             archiveCategoryUseCase = archiveCategoryUseCase,
             systemCategoryNames = systemCategoryNames,
+            categoryNameMatcher = CategoryNameMatcher(systemCategoryNames),
         )
 }

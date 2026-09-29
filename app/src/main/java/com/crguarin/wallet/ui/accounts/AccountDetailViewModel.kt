@@ -55,7 +55,6 @@ data class AccountDetailUiState(
     val today: LocalDate = LocalDate.now(),
     /** Net per day from this account's perspective, shown in the day headers of the list. */
     val dailyTotals: Map<LocalDate, Money> = emptyMap(),
-    val errorMessageRes: Int? = null,
 )
 
 sealed interface AccountDetailEvent {
@@ -139,7 +138,7 @@ class AccountDetailViewModel
             }.stateIn(
                 scope = viewModelScope,
                 started =
-                    kotlinx.coroutines.flow.SharingStarted
+                    SharingStarted
                         .WhileSubscribed(5_000),
                 initialValue = AccountDetailUiState(isLoading = true),
             )

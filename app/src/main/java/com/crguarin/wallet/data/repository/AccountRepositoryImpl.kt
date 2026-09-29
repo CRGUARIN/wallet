@@ -1,6 +1,8 @@
 package com.crguarin.wallet.data.repository
 
+import androidx.room.withTransaction
 import com.crguarin.wallet.data.db.AccountDao
+import com.crguarin.wallet.data.db.WalletDatabase
 import com.crguarin.wallet.di.IoDispatcher
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountWithBalance
@@ -18,6 +20,7 @@ class AccountRepositoryImpl
     @Inject
     constructor(
         private val accountDao: AccountDao,
+        private val walletDatabase: WalletDatabase,
         @IoDispatcher private val ioDispatcher: CoroutineDispatcher,
     ) : AccountRepository {
         override fun observeAccountsWithBalance(includeArchived: Boolean): Flow<List<AccountWithBalance>> =
@@ -75,10 +78,9 @@ class AccountRepositoryImpl
 
         override suspend fun updateSortOrders(accountOrders: List<Pair<Long, Int>>) {
             withContext(ioDispatcher) {
-                for ((id, sortOrder) in accountOrders) {
-                    val existing = accountDao.getById(id)
-                    if (existing != null) {
-                        accountDao.update(existing.copy(sortOrder = sortOrder))
+                walletDatabase.withTransaction {
+                    for ((id, sortOrder) in accountOrders) {
+                        accountDao.updateSortOrder(id, sortOrder)
                     }
                 }
             }

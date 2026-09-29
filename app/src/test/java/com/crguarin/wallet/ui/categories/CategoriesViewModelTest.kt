@@ -6,6 +6,7 @@ import com.crguarin.wallet.R
 import com.crguarin.wallet.domain.fake.FakeCategoryRepository
 import com.crguarin.wallet.domain.fake.FakeSystemCategoryNames
 import com.crguarin.wallet.domain.model.Category
+import com.crguarin.wallet.domain.model.CategoryNameMatcher
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.usecase.ObserveCategoryTreeUseCase
 import com.crguarin.wallet.domain.usecase.UnarchiveCategoryUseCase
@@ -77,7 +78,7 @@ class CategoriesViewModelTest {
         categoryRepository = FakeCategoryRepository()
         systemCategoryNames = FakeSystemCategoryNames()
         observeCategoryTreeUseCase = ObserveCategoryTreeUseCase(categoryRepository)
-        unarchiveCategoryUseCase = UnarchiveCategoryUseCase(categoryRepository, systemCategoryNames)
+        unarchiveCategoryUseCase = UnarchiveCategoryUseCase(categoryRepository, CategoryNameMatcher(systemCategoryNames))
 
         categoryRepository.setInitialData(
             listOf(expenseRoot, expenseSub, expenseArchived, incomeRoot),

@@ -1,6 +1,8 @@
 package com.crguarin.wallet.domain.usecase
 
 import com.crguarin.wallet.core.money.Money
+import com.crguarin.wallet.core.result.DomainError
+import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionType
@@ -49,6 +51,17 @@ class RestoreTransactionUseCaseTest {
             assertThat(transactionRepository.getTransaction(transaction.id)?.createdAt).isEqualTo(now)
             assertThat(transactionRepository.getTransaction(transaction.id)?.updatedAt).isEqualTo(now)
             assertThat(transactionRepository.getTransaction(transaction.id)?.note).isEqualTo("Almuerzo")
+        }
+
+    @Test
+    fun `fails with NotFound when the repository cannot restore the transaction`() =
+        runTest {
+            transactionRepository.failRestore = true
+
+            val result = restoreTransactionUseCase(transaction)
+
+            assertThat(result).isEqualTo(DomainResult.Failure(DomainError.NotFound))
+            assertThat(transactionRepository.getTransaction(transaction.id)).isNull()
         }
 
     @Test

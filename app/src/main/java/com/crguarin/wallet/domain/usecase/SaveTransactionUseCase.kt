@@ -7,6 +7,7 @@ import com.crguarin.wallet.core.time.TimeProvider
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryType
+import com.crguarin.wallet.domain.model.DomainLimits
 import com.crguarin.wallet.domain.model.SaveTransactionResult
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionType
@@ -29,11 +30,11 @@ class SaveTransactionUseCase
                 return DomainResult.Failure(DomainError.AmountInvalid)
             }
 
-            if (transaction.note != null && transaction.note.length > 200) {
+            if (transaction.note != null && transaction.note.length > DomainLimits.NOTE_MAX_LENGTH) {
                 return DomainResult.Failure(DomainError.NoteTooLong)
             }
 
-            val maxAllowedDate = timeProvider.today().plusYears(1)
+            val maxAllowedDate = DomainLimits.maxTransactionDate(timeProvider.today())
             if (transaction.date > maxAllowedDate) {
                 return DomainResult.Failure(DomainError.DateOutOfRange)
             }

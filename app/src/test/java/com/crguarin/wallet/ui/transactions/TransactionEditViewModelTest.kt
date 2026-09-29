@@ -13,6 +13,7 @@ import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryType
+import com.crguarin.wallet.domain.model.DomainLimits
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.UserPreferences
@@ -25,6 +26,7 @@ import com.crguarin.wallet.ui.navigation.NEW_CATEGORY_RESULT_KEY
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -359,7 +361,7 @@ class TransactionEditViewModelTest {
             assertThat(viewModel.uiState.value.amountErrorRes).isNull()
             assertThat(viewModel.uiState.value.isSaveEnabled).isTrue()
 
-            viewModel.setNote("x".repeat(NOTE_MAX_LENGTH + 1))
+            viewModel.setNote("x".repeat(DomainLimits.NOTE_MAX_LENGTH + 1))
             assertThat(viewModel.uiState.value.noteErrorRes).isEqualTo(R.string.error_note_too_long)
             assertThat(viewModel.uiState.value.isSaveEnabled).isFalse()
 
@@ -399,6 +401,26 @@ class TransactionEditViewModelTest {
             assertThat(saved?.type).isEqualTo(TransactionType.EXPENSE)
             assertThat(preferencesRepository.getUserPreferences().lastUsedAccountId).isEqualTo(2L)
         }
+
+    @Test
+    fun `double tap on save creates only one transaction`() {
+        val standardDispatcher = StandardTestDispatcher()
+        Dispatchers.setMain(standardDispatcher)
+        runTest(standardDispatcher) {
+            val viewModel = createViewModel(creationHandle(accountId = 2L))
+            advanceUntilIdle()
+            viewModel.setAmountText("1000")
+            viewModel.setCategoryId(10L)
+            advanceUntilIdle()
+
+            viewModel.onSaveClick()
+            viewModel.onSaveClick()
+            advanceUntilIdle()
+
+            assertThat(transactionRepository.getTransaction(1L)).isNotNull()
+            assertThat(transactionRepository.getTransaction(2L)).isNull()
+        }
+    }
 
     @Test
     fun `negative balance warning is shown and dismissing keeps the form unchanged`() =

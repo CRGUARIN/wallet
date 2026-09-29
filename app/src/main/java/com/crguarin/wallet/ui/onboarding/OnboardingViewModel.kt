@@ -3,15 +3,19 @@ package com.crguarin.wallet.ui.onboarding
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.crguarin.wallet.core.money.APP_CURRENCY
 import com.crguarin.wallet.core.money.MoneyParser
 import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
+import com.crguarin.wallet.domain.model.DomainLimits
 import com.crguarin.wallet.domain.usecase.CompleteOnboardingUseCase
+import com.crguarin.wallet.ui.accounts.accountNameInputError
+import com.crguarin.wallet.ui.accounts.iconAfterTypeChange
 import com.crguarin.wallet.ui.theme.WalletPalette
 import com.crguarin.wallet.ui.util.AppLanguage
-import com.crguarin.wallet.ui.util.LanguageHelper
+import com.crguarin.wallet.ui.util.AppLanguageController
 import com.crguarin.wallet.ui.util.asStringRes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.channels.Channel
@@ -27,7 +31,7 @@ import javax.inject.Inject
 
 data class OnboardingUiState(
     val step: Int = 1,
-    val selectedLanguage: AppLanguage = LanguageHelper.getCurrentLanguage(),
+    val selectedLanguage: AppLanguage = AppLanguage.SYSTEM,
     val accountName: String = "",
     val accountType: AccountType = AccountType.CASH,
     val initialBalanceText: String = "",
@@ -42,7 +46,7 @@ data class OnboardingUiState(
     val isAccountValid: Boolean
         get() =
             accountName.isNotBlank() &&
-                accountName.trim().length <= 40 &&
+                accountName.trim().length <= DomainLimits.NAME_MAX_LENGTH &&
                 nameErrorRes == null &&
                 amountErrorRes == null &&
                 !isSaving
@@ -58,15 +62,16 @@ class OnboardingViewModel
     constructor(
         private val completeOnboardingUseCase: CompleteOnboardingUseCase,
         private val savedStateHandle: SavedStateHandle,
+        private val appLanguageController: AppLanguageController,
     ) : ViewModel() {
         private val _uiState =
             MutableStateFlow(
                 OnboardingUiState(
                     step = savedStateHandle.get<Int>(KEY_STEP) ?: 1,
-                    selectedLanguage = LanguageHelper.getCurrentLanguage(),
+                    selectedLanguage = appLanguageController.current(),
                     accountName = savedStateHandle.get<String>(KEY_ACCOUNT_NAME) ?: "",
                     accountType =
-                        savedStateHandle.get<String>(KEY_ACCOUNT_TYPE)?.let { AccountType.valueOf(it) }
+                        savedStateHandle.get<String>(KEY_ACCOUNT_TYPE)?.let { runCatching { AccountType.valueOf(it) }.getOrNull() }
                             ?: AccountType.CASH,
                     initialBalanceText = savedStateHandle.get<String>(KEY_INITIAL_BALANCE) ?: "",
                     selectedColor = savedStateHandle.get<Int>(KEY_COLOR) ?: WalletPalette.colors.first(),
@@ -80,7 +85,7 @@ class OnboardingViewModel
         val events: Flow<OnboardingEvent> = _events.receiveAsFlow()
 
         fun setLanguage(language: AppLanguage) {
-            LanguageHelper.setLanguage(language)
+            appLanguageController.set(language)
             _uiState.update { it.copy(selectedLanguage = language) }
         }
 
@@ -97,25 +102,13 @@ class OnboardingViewModel
 
         fun setAccountName(name: String) {
             savedStateHandle[KEY_ACCOUNT_NAME] = name
-            val trimmed = name.trim()
-            val error =
-                when {
-                    trimmed.length > 40 -> DomainError.NameTooLong.asStringRes()
-                    name.isNotEmpty() && trimmed.isEmpty() -> DomainError.NameEmpty.asStringRes()
-                    else -> null
-                }
+            val error = accountNameInputError(name)
             _uiState.update { it.copy(accountName = name, nameErrorRes = error, generalErrorRes = null) }
         }
 
         fun setAccountType(type: AccountType) {
             savedStateHandle[KEY_ACCOUNT_TYPE] = type.name
-            val currentIcon = _uiState.value.selectedIcon
-            val newIcon =
-                when {
-                    type == AccountType.SAVINGS && currentIcon == "wallet" -> "savings"
-                    type == AccountType.CASH && currentIcon == "savings" -> "wallet"
-                    else -> currentIcon
-                }
+            val newIcon = iconAfterTypeChange(type, _uiState.value.selectedIcon)
             savedStateHandle[KEY_ICON] = newIcon
             _uiState.update { it.copy(accountType = type, selectedIcon = newIcon) }
         }
@@ -143,13 +136,14 @@ class OnboardingViewModel
         }
 
         fun completeOnboarding() {
+            if (_uiState.value.isSaving) return
             val state = _uiState.value
             val trimmedName = state.accountName.trim()
             if (trimmedName.isEmpty()) {
                 _uiState.update { it.copy(nameErrorRes = DomainError.NameEmpty.asStringRes()) }
                 return
             }
-            if (trimmedName.length > 40) {
+            if (trimmedName.length > DomainLimits.NAME_MAX_LENGTH) {
                 _uiState.update { it.copy(nameErrorRes = DomainError.NameTooLong.asStringRes()) }
                 return
             }
@@ -160,14 +154,14 @@ class OnboardingViewModel
                 return
             }
 
+            _uiState.update { it.copy(isSaving = true, generalErrorRes = null) }
             viewModelScope.launch {
-                _uiState.update { it.copy(isSaving = true, generalErrorRes = null) }
                 val account =
                     Account(
                         id = 0L,
                         name = trimmedName,
                         type = state.accountType,
-                        currencyCode = "COP",
+                        currencyCode = APP_CURRENCY,
                         initialBalance = balance,
                         color = state.selectedColor,
                         icon = state.selectedIcon,

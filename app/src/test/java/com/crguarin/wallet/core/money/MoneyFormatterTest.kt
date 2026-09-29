@@ -128,4 +128,29 @@ class MoneyFormatterTest {
         assertThat(es).contains("15.000")
         assertThat(en).isEqualTo("$15,000")
     }
+
+    @Test
+    fun `formatForInput is empty for zero and has no decimals for whole amounts`() {
+        assertThat(formatForInput(Money.ZERO, esLocale)).isEmpty()
+        assertThat(formatForInput(Money(1_500_000L), esLocale)).isEqualTo("15000")
+        assertThat(formatForInput(Money(1_500_000L), enLocale)).isEqualTo("15000")
+    }
+
+    @Test
+    fun `formatForInput uses the locale decimal separator with two fraction digits`() {
+        assertThat(formatForInput(Money(150_050L), esLocale)).isEqualTo("1500,50")
+        assertThat(formatForInput(Money(150_050L), enLocale)).isEqualTo("1500.50")
+        assertThat(formatForInput(Money(105L), enLocale)).isEqualTo("1.05")
+    }
+
+    @Test
+    fun `formatForInput round-trips through MoneyParser`() {
+        val amounts = listOf(1L, 5L, 99L, 100L, 105L, 150_050L, 1_500_000L, 123_456_789L)
+        for (locale in listOf(esLocale, enLocale)) {
+            for (minor in amounts) {
+                val money = Money(minor)
+                assertThat(MoneyParser.parse(formatForInput(money, locale), locale)).isEqualTo(money)
+            }
+        }
+    }
 }

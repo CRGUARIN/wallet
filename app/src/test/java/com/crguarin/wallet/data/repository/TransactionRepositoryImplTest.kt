@@ -45,7 +45,7 @@ class TransactionRepositoryImplTest {
                 .allowMainThreadQueries()
                 .build()
         transactionRepository = TransactionRepositoryImpl(database.transactionDao(), Dispatchers.Unconfined)
-        accountRepository = AccountRepositoryImpl(database.accountDao(), Dispatchers.Unconfined)
+        accountRepository = AccountRepositoryImpl(database.accountDao(), database, Dispatchers.Unconfined)
         categoryRepository =
             CategoryRepositoryImpl(
                 categoryDao = database.categoryDao(),

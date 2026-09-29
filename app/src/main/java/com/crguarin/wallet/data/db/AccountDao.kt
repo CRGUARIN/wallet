@@ -8,18 +8,23 @@ import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
+private const val ACCOUNT_BALANCE_SELECT =
+    """
+SELECT a.*,
+  a.initial_balance
+  + COALESCE((SELECT SUM(amount) FROM transactions WHERE account_id = a.id AND type = 'INCOME'), 0)
+  - COALESCE((SELECT SUM(amount) FROM transactions WHERE account_id = a.id AND type = 'EXPENSE'), 0)
+  - COALESCE((SELECT SUM(amount) FROM transactions WHERE account_id = a.id AND type = 'TRANSFER'), 0)
+  + COALESCE((SELECT SUM(amount) FROM transactions WHERE to_account_id = a.id AND type = 'TRANSFER'), 0)
+  AS balance
+FROM accounts a
+"""
+
 @Dao
 interface AccountDao {
     @Query(
         """
-        SELECT a.*,
-          a.initial_balance
-          + COALESCE((SELECT SUM(amount) FROM transactions WHERE account_id = a.id AND type = 'INCOME'), 0)
-          - COALESCE((SELECT SUM(amount) FROM transactions WHERE account_id = a.id AND type = 'EXPENSE'), 0)
-          - COALESCE((SELECT SUM(amount) FROM transactions WHERE account_id = a.id AND type = 'TRANSFER'), 0)
-          + COALESCE((SELECT SUM(amount) FROM transactions WHERE to_account_id = a.id AND type = 'TRANSFER'), 0)
-          AS balance
-        FROM accounts a
+        $ACCOUNT_BALANCE_SELECT
         ORDER BY a.is_archived, a.sort_order, a.name
         """,
     )
@@ -27,14 +32,7 @@ interface AccountDao {
 
     @Query(
         """
-        SELECT a.*,
-          a.initial_balance
-          + COALESCE((SELECT SUM(amount) FROM transactions WHERE account_id = a.id AND type = 'INCOME'), 0)
-          - COALESCE((SELECT SUM(amount) FROM transactions WHERE account_id = a.id AND type = 'EXPENSE'), 0)
-          - COALESCE((SELECT SUM(amount) FROM transactions WHERE account_id = a.id AND type = 'TRANSFER'), 0)
-          + COALESCE((SELECT SUM(amount) FROM transactions WHERE to_account_id = a.id AND type = 'TRANSFER'), 0)
-          AS balance
-        FROM accounts a
+        $ACCOUNT_BALANCE_SELECT
         WHERE a.id = :id
         """,
     )
@@ -42,14 +40,7 @@ interface AccountDao {
 
     @Query(
         """
-        SELECT a.*,
-          a.initial_balance
-          + COALESCE((SELECT SUM(amount) FROM transactions WHERE account_id = a.id AND type = 'INCOME'), 0)
-          - COALESCE((SELECT SUM(amount) FROM transactions WHERE account_id = a.id AND type = 'EXPENSE'), 0)
-          - COALESCE((SELECT SUM(amount) FROM transactions WHERE account_id = a.id AND type = 'TRANSFER'), 0)
-          + COALESCE((SELECT SUM(amount) FROM transactions WHERE to_account_id = a.id AND type = 'TRANSFER'), 0)
-          AS balance
-        FROM accounts a
+        $ACCOUNT_BALANCE_SELECT
         WHERE a.id = :id
         """,
     )
@@ -66,6 +57,12 @@ interface AccountDao {
 
     @Query("SELECT * FROM accounts ORDER BY is_archived, sort_order, name")
     suspend fun getAll(): List<AccountEntity>
+
+    @Query("UPDATE accounts SET sort_order = :sortOrder WHERE id = :id")
+    suspend fun updateSortOrder(
+        id: Long,
+        sortOrder: Int,
+    ): Int
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(account: AccountEntity): Long

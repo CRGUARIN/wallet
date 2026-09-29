@@ -39,13 +39,4 @@ class MainViewModel
                     started = SharingStarted.WhileSubscribed(5_000),
                     initialValue = MainUiState.Loading,
                 )
-
-        val userPreferences: StateFlow<UserPreferences> =
-            preferencesRepository
-                .observeUserPreferences()
-                .stateIn(
-                    scope = viewModelScope,
-                    started = SharingStarted.WhileSubscribed(5_000),
-                    initialValue = UserPreferences(),
-                )
     }

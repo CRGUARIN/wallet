@@ -51,6 +51,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.crguarin.wallet.R
+import com.crguarin.wallet.core.money.APP_CURRENCY
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
@@ -441,7 +442,7 @@ private fun AccountsPreviewLight() {
                 id = 1L,
                 name = "Efectivo",
                 type = AccountType.CASH,
-                currencyCode = "COP",
+                currencyCode = APP_CURRENCY,
                 initialBalance = Money(150_000L),
                 color = -16711936,
                 icon = "wallet",
@@ -475,7 +476,7 @@ private fun AccountsPreviewDark() {
                 id = 1L,
                 name = "Ahorros",
                 type = AccountType.SAVINGS,
-                currencyCode = "COP",
+                currencyCode = APP_CURRENCY,
                 initialBalance = Money(150_000L),
                 color = -16711936,
                 icon = "savings",

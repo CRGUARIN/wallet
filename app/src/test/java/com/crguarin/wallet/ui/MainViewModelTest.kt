@@ -49,19 +49,4 @@ class MainViewModelTest {
                 cancelAndIgnoreRemainingEvents()
             }
         }
-
-    @Test
-    fun `userPreferences flow emits updated preferences`() =
-        runTest(testDispatcher) {
-            viewModel.userPreferences.test {
-                val initial = awaitItem()
-                assertThat(initial.themeMode).isEqualTo(ThemeMode.SYSTEM)
-
-                preferencesRepository.setThemeMode(ThemeMode.DARK)
-                val updated = awaitItem()
-                assertThat(updated.themeMode).isEqualTo(ThemeMode.DARK)
-
-                cancelAndIgnoreRemainingEvents()
-            }
-        }
 }

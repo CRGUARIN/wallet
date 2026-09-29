@@ -1,5 +1,6 @@
 package com.crguarin.wallet.data.repository
 
+import android.database.sqlite.SQLiteConstraintException
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
@@ -73,9 +74,6 @@ class TransactionRepositoryImpl
                 ).map { rows -> rows.associate { it.date to Money(it.net) } }
                 .flowOn(ioDispatcher)
 
-        override fun observeTransaction(id: Long): Flow<TransactionDetails?> =
-            transactionDao.observeById(id).map { it?.toDomain() }.flowOn(ioDispatcher)
-
         override suspend fun getTransaction(id: Long): Transaction? =
             withContext(ioDispatcher) {
                 transactionDao.getById(id)?.toDomain()
@@ -102,11 +100,16 @@ class TransactionRepositoryImpl
             }
         }
 
-        override suspend fun restoreTransaction(transaction: Transaction) {
+        override suspend fun restoreTransaction(transaction: Transaction): Boolean =
             withContext(ioDispatcher) {
-                transactionDao.insert(transaction.toEntity())
+                try {
+                    transactionDao.insert(transaction.toEntity())
+                    true
+                } catch (_: SQLiteConstraintException) {
+                    // The account or category no longer exists, or the id was reused.
+                    false
+                }
             }
-        }
 
         override fun observeMonthSummary(
             from: LocalDate,
