@@ -1,6 +1,7 @@
 package com.crguarin.wallet
 
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
@@ -10,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -33,9 +35,9 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         // Must run before super.onCreate so the splash replaces the starting theme.
-        val splashScreen = installSplashScreen()
+        val compatSplashScreen = installSplashScreen()
         super.onCreate(savedInstanceState)
-        splashScreen.setKeepOnScreenCondition { viewModel.uiState.value is MainUiState.Loading }
+        compatSplashScreen.setKeepOnScreenCondition { viewModel.uiState.value is MainUiState.Loading }
         enableEdgeToEdge()
         setContent {
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -58,9 +60,12 @@ class MainActivity : AppCompatActivity() {
                         onDispose {}
                     }
 
+                    val dynamicColor = state.preferences.dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                    LaunchedEffect(dynamicColor) { rememberSplashColors(dynamicColor) }
+
                     WalletTheme(
                         darkTheme = darkTheme,
-                        dynamicColor = state.preferences.dynamicColor,
+                        dynamicColor = dynamicColor,
                     ) {
                         // Decided once: finishing onboarding navigates to Home itself, and changing
                         // the NavHost start destination afterwards would reset the back stack.
@@ -73,12 +78,24 @@ class MainActivity : AppCompatActivity() {
                             // Cold start only: saved state keeps it from replaying after recreation.
                             var showIntro by rememberSaveable { mutableStateOf(true) }
                             if (showIntro) {
-                                BrandIntro(onFinished = { showIntro = false })
+                                BrandIntro(onFinished = { showIntro = false }, dynamicColor = dynamicColor)
                             }
                         }
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * The system draws the splash before preferences load, so it cannot read the dynamic color
+     * setting. On Android 13+ the chosen splash theme is saved for the next launches instead.
+     */
+    private fun rememberSplashColors(dynamicColor: Boolean) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            splashScreen.setSplashScreenTheme(
+                if (dynamicColor) R.style.Theme_Wallet_Starting else R.style.Theme_Wallet_Starting_Green,
+            )
         }
     }
 }

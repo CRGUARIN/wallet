@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Colores del splash con color dinámico. Sin color dinámico (antes de Android 12) equivalen al verde de la app. -->
+<resources>
+    <color name="splash_dynamic_background">@color/splash_background</color>
+    <color name="splash_dynamic_icon_body">#FFFFFFFF</color>
+    <color name="splash_dynamic_icon_card">#FFA5D6A7</color>
+    <color name="splash_dynamic_icon_tab">#FFC8E6C9</color>
+    <color name="splash_dynamic_icon_dot">#FF1B5E20</color>
+</resources>

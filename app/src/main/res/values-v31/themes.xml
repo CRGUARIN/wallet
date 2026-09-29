@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+: el splash usa el color dinámico, que es la opción por defecto de la app. -->
+    <style name="Theme.Wallet.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_dynamic_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash_dynamic</item>
+        <item name="postSplashScreenTheme">@style/Theme.Wallet</item>
+    </style>
+</resources>

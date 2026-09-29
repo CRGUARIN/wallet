@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Colores del splash tomados de la paleta del fondo de pantalla (Material You), modo oscuro. -->
+<resources>
+    <color name="splash_dynamic_background">@android:color/system_neutral1_900</color>
+    <color name="splash_dynamic_icon_body">@android:color/system_accent1_100</color>
+    <color name="splash_dynamic_icon_card">@android:color/system_accent1_300</color>
+    <color name="splash_dynamic_icon_tab">@android:color/system_accent1_200</color>
+    <color name="splash_dynamic_icon_dot">@android:color/system_accent1_800</color>
+</resources>

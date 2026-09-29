@@ -50,11 +50,15 @@ private const val FADE_OUT_MILLIS = 300
 /**
  * Brief branded intro shown right after the system splash on a cold start: the splash icon rises,
  * the app name fades in below it and the whole screen fades out to reveal the app.
+ *
+ * [dynamicColor] must match the splash that was shown (wallpaper colors or the app green), so the
+ * hand-off has no color jump.
  */
 @Composable
 fun BrandIntro(
     onFinished: () -> Unit,
     modifier: Modifier = Modifier,
+    dynamicColor: Boolean = false,
 ) {
     val currentOnFinished by rememberUpdatedState(onFinished)
     val rise = remember { Animatable(0f) }
@@ -74,18 +78,22 @@ fun BrandIntro(
     }
 
     val density = LocalDensity.current
+    val backgroundColor =
+        colorResource(if (dynamicColor) R.color.splash_dynamic_background else R.color.splash_background)
+    val nameColor = if (dynamicColor) colorResource(R.color.splash_dynamic_icon_body) else Color.White
+    val icon = if (dynamicColor) R.drawable.ic_splash_dynamic else R.drawable.ic_launcher_foreground
     Box(
         modifier =
             modifier
                 .fillMaxSize()
                 .graphicsLayer { alpha = screenAlpha.value }
-                .background(colorResource(R.color.splash_background))
+                .background(backgroundColor)
                 // Swallow touches so the screen underneath cannot be tapped while the intro plays.
                 .pointerInput(Unit) { awaitPointerEventScope { while (true) awaitPointerEvent() } },
         contentAlignment = Alignment.Center,
     ) {
         Image(
-            painter = painterResource(R.drawable.ic_launcher_foreground),
+            painter = painterResource(icon),
             // Decorative: the app name below is read instead.
             contentDescription = null,
             modifier =
@@ -95,7 +103,7 @@ fun BrandIntro(
         )
         Text(
             text = stringResource(R.string.app_name),
-            color = Color.White,
+            color = nameColor,
             style = MaterialTheme.typography.displaySmall,
             fontWeight = FontWeight.SemiBold,
             letterSpacing = 2.sp,
@@ -114,4 +122,10 @@ fun BrandIntro(
 @Composable
 private fun BrandIntroPreview() {
     BrandIntro(onFinished = {})
+}
+
+@Preview(apiLevel = 35)
+@Composable
+private fun BrandIntroDynamicPreview() {
+    BrandIntro(onFinished = {}, dynamicColor = true)
 }

@@ -8,4 +8,10 @@
         <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
         <item name="postSplashScreenTheme">@style/Theme.Wallet</item>
     </style>
+
+    <!-- Splash verde fijo: Android 13+ lo usa en los siguientes arranques si se desactiva el color dinámico. -->
+    <style name="Theme.Wallet.Starting.Green">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+    </style>
 </resources>
