@@ -17,6 +17,14 @@ import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.theme.walletSemanticColors
 import java.util.Locale
 
+/**
+ * Sign shown before a monetary amount.
+ *
+ * [AUTO] derives it from the transaction type (income `+`, expense `−`, transfers and plain
+ * amounts without a sign).
+ */
+enum class MoneySign { AUTO, PLUS, MINUS, NONE }
+
 @Composable
 fun MoneyText(
     amount: Money,
@@ -25,6 +33,7 @@ fun MoneyText(
     style: TextStyle = MaterialTheme.typography.bodyLarge,
     color: Color = Color.Unspecified,
     locale: Locale = LocalConfiguration.current.locales[0],
+    sign: MoneySign = MoneySign.AUTO,
 ) {
     val semanticColors = MaterialTheme.walletSemanticColors
     val textColor =
@@ -35,6 +44,17 @@ fun MoneyText(
             null -> color.takeOrElse { LocalContentColor.current }
         }
 
+    val resolvedSign =
+        when (sign) {
+            MoneySign.AUTO ->
+                when (type) {
+                    TransactionType.INCOME -> MoneySign.PLUS
+                    TransactionType.EXPENSE -> MoneySign.MINUS
+                    TransactionType.TRANSFER, null -> MoneySign.NONE
+                }
+            else -> sign
+        }
+
     val formattedAmount =
         MoneyFormatter
             .format(amount, locale)
@@ -42,10 +62,10 @@ fun MoneyText(
             .replace('\u202F', ' ')
 
     val text =
-        when (type) {
-            TransactionType.INCOME -> "+ $formattedAmount"
-            TransactionType.EXPENSE -> "− $formattedAmount"
-            TransactionType.TRANSFER, null -> formattedAmount
+        when (resolvedSign) {
+            MoneySign.PLUS -> "+ $formattedAmount"
+            MoneySign.MINUS -> "− $formattedAmount"
+            MoneySign.AUTO, MoneySign.NONE -> formattedAmount
         }
 
     Text(

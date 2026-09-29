@@ -5,17 +5,16 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.toRoute
 import com.crguarin.wallet.ui.accounts.AccountDetailRoute
 import com.crguarin.wallet.ui.accounts.AccountEditRoute
 import com.crguarin.wallet.ui.accounts.AccountsRoute
 import com.crguarin.wallet.ui.categories.CategoriesRoute
 import com.crguarin.wallet.ui.categories.CategoryEditRoute
-import com.crguarin.wallet.ui.home.HomeScreen
+import com.crguarin.wallet.ui.home.HomeRoute
 import com.crguarin.wallet.ui.onboarding.OnboardingRoute
 import com.crguarin.wallet.ui.settings.SettingsScreen
 import com.crguarin.wallet.ui.transactions.TransactionEditRoute
-import com.crguarin.wallet.ui.transactions.TransactionsScreen
+import com.crguarin.wallet.ui.transactions.TransactionsRoute
 
 @Composable
 fun WalletNavHost(
@@ -38,13 +37,26 @@ fun WalletNavHost(
             )
         }
         composable<Home> {
-            HomeScreen()
+            HomeRoute(
+                onAccountClick = { accountId ->
+                    navController.navigate(AccountDetail(accountId = accountId))
+                },
+                onTransactionClick = { transactionId ->
+                    navController.navigate(TransactionEdit(transactionId = transactionId))
+                },
+                onViewAllTransactions = {
+                    navController.navigateToTopLevelDestination(Transactions())
+                },
+                onQuickAction = { type ->
+                    navController.navigate(TransactionEdit(initialType = type))
+                },
+            )
         }
-        composable<Transactions> { backStackEntry ->
-            val route = backStackEntry.toRoute<Transactions>()
-            TransactionsScreen(
-                accountId = route.accountId,
-                categoryId = route.categoryId,
+        composable<Transactions> {
+            TransactionsRoute(
+                onTransactionClick = { transactionId ->
+                    navController.navigate(TransactionEdit(transactionId = transactionId))
+                },
             )
         }
         composable<TransactionEdit> {
@@ -81,6 +93,12 @@ fun WalletNavHost(
                             accountId = accountId,
                         ),
                     )
+                },
+                onTransactionClick = { transactionId ->
+                    navController.navigate(TransactionEdit(transactionId = transactionId))
+                },
+                onViewAllTransactions = { accountId ->
+                    navController.navigate(Transactions(accountId = accountId))
                 },
             )
         }

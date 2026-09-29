@@ -37,3 +37,24 @@ fun categoryFullDisplayName(
         parent == null -> category.displayName()
         else -> stringResource(R.string.category_breadcrumb, parent.displayName(), category.displayName())
     }
+
+/**
+ * Same as [categoryFullDisplayName] but taking the raw name/systemKey fields carried by
+ * `TransactionDetails`, so persisted transactions can be rendered without loading full entities.
+ */
+@Composable
+fun categoryFullDisplayName(
+    parentName: String?,
+    parentSystemKey: String?,
+    name: String?,
+    systemKey: String?,
+): String {
+    val child = categoryDisplayName(name, systemKey)
+    if (child.isBlank()) return ""
+    val hasParent = !parentName.isNullOrBlank() || !parentSystemKey.isNullOrBlank()
+    return if (hasParent) {
+        stringResource(R.string.category_breadcrumb, categoryDisplayName(parentName, parentSystemKey), child)
+    } else {
+        child
+    }
+}

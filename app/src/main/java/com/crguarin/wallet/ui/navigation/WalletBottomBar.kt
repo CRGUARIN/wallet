@@ -17,7 +17,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import com.crguarin.wallet.R
 import kotlin.reflect.KClass
@@ -70,13 +69,7 @@ fun WalletBottomBar(
             NavigationBarItem(
                 selected = selected,
                 onClick = {
-                    navController.navigate(destination.route) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
-                        }
-                        launchSingleTop = true
-                        restoreState = true
-                    }
+                    navController.navigateToTopLevelDestination(destination.route)
                 },
                 icon = {
                     Icon(

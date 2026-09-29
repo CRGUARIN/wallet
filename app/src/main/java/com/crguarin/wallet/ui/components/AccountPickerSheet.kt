@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -47,6 +48,8 @@ fun AccountPickerSheet(
     modifier: Modifier = Modifier,
     selectedAccountId: Long? = null,
     sheetState: SheetState = rememberModalBottomSheetState(),
+    allOptionLabel: String? = null,
+    onAllOptionSelected: (() -> Unit)? = null,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -68,6 +71,50 @@ fun AccountPickerSheet(
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
             ) {
+                if (allOptionLabel != null && onAllOptionSelected != null) {
+                    item(key = "all_accounts") {
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onAllOptionSelected() }
+                                    .padding(horizontal = 24.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .size(40.dp)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DoneAll,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(16.dp))
+
+                            Text(
+                                text = allOptionLabel,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.weight(1f),
+                            )
+
+                            if (selectedAccountId == null) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = stringResource(R.string.cd_selected),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                    }
+                }
+
                 items(accounts, key = { it.account.id }) { item ->
                     val isSelected = item.account.id == selectedAccountId
                     Row(

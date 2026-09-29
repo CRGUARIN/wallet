@@ -11,12 +11,16 @@ import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.usecase.ArchiveAccountUseCase
 import com.crguarin.wallet.domain.usecase.DeleteAccountUseCase
+import com.crguarin.wallet.domain.usecase.ObserveDailyTotalsUseCase
 import com.crguarin.wallet.domain.usecase.ObserveMonthSummaryUseCase
+import com.crguarin.wallet.domain.usecase.ObserveTransactionsUseCase
 import com.crguarin.wallet.domain.usecase.UnarchiveAccountUseCase
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -82,6 +86,8 @@ class AccountDetailViewModelTest {
                 savedStateHandle = savedStateHandle,
                 accountRepository = accountRepository,
                 observeMonthSummaryUseCase = observeMonthSummaryUseCase,
+                observeTransactionsUseCase = ObserveTransactionsUseCase(transactionRepository),
+                observeDailyTotalsUseCase = ObserveDailyTotalsUseCase(transactionRepository),
                 archiveAccountUseCase = archiveAccountUseCase,
                 unarchiveAccountUseCase = unarchiveAccountUseCase,
                 deleteAccountUseCase = deleteAccountUseCase,
@@ -230,6 +236,17 @@ class AccountDetailViewModelTest {
 
                 cancelAndIgnoreRemainingEvents()
             }
+        }
+
+    @Test
+    fun `paging query filters by this account as source or destination`() =
+        runTest(testDispatcher) {
+            val job = backgroundScope.launch { viewModel.pagingData.collect {} }
+            advanceUntilIdle()
+
+            assertThat(transactionRepository.lastPagedFilter?.accountId).isEqualTo(42L)
+
+            job.cancel()
         }
 
     private fun activeAccount(

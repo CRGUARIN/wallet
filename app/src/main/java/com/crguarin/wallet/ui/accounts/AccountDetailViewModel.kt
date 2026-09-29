@@ -5,6 +5,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
+import androidx.paging.insertSeparators
+import androidx.paging.map
 import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.core.result.DomainError
@@ -12,10 +16,15 @@ import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.core.time.TimeProvider
 import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.MonthSummary
+import com.crguarin.wallet.domain.model.TransactionDaySeparators
+import com.crguarin.wallet.domain.model.TransactionFilter
+import com.crguarin.wallet.domain.model.TransactionListEntry
 import com.crguarin.wallet.domain.repository.AccountRepository
 import com.crguarin.wallet.domain.usecase.ArchiveAccountUseCase
 import com.crguarin.wallet.domain.usecase.DeleteAccountUseCase
+import com.crguarin.wallet.domain.usecase.ObserveDailyTotalsUseCase
 import com.crguarin.wallet.domain.usecase.ObserveMonthSummaryUseCase
+import com.crguarin.wallet.domain.usecase.ObserveTransactionsUseCase
 import com.crguarin.wallet.domain.usecase.UnarchiveAccountUseCase
 import com.crguarin.wallet.ui.navigation.AccountDetail
 import com.crguarin.wallet.ui.util.asStringRes
@@ -30,6 +39,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.LocalDate
 import java.time.YearMonth
 import javax.inject.Inject
 
@@ -41,6 +51,7 @@ data class AccountDetailUiState(
     val showOfferArchiveDialog: Boolean = false,
     /** True when there is another active account to transfer to. */
     val canTransfer: Boolean = false,
+    val today: LocalDate = LocalDate.now(),
     val errorMessageRes: Int? = null,
 )
 
@@ -59,12 +70,16 @@ class AccountDetailViewModel
         savedStateHandle: SavedStateHandle,
         accountRepository: AccountRepository,
         observeMonthSummaryUseCase: ObserveMonthSummaryUseCase,
+        observeTransactionsUseCase: ObserveTransactionsUseCase,
+        observeDailyTotalsUseCase: ObserveDailyTotalsUseCase,
         private val archiveAccountUseCase: ArchiveAccountUseCase,
         private val unarchiveAccountUseCase: UnarchiveAccountUseCase,
         private val deleteAccountUseCase: DeleteAccountUseCase,
         timeProvider: TimeProvider,
     ) : ViewModel() {
         val accountId: Long = savedStateHandle.toRoute<AccountDetail>().accountId
+
+        private val today: LocalDate = timeProvider.today()
 
         private val dialogStateFlow =
             MutableStateFlow(
@@ -84,6 +99,21 @@ class AccountDetailViewModel
 
         private val currentYearMonth = YearMonth.from(timeProvider.today())
 
+        private val accountFilter = TransactionFilter(accountId = accountId)
+
+        /** Paginated transactions of this account, grouped by day. */
+        val pagingData: Flow<PagingData<TransactionListEntry>> =
+            combine(
+                observeTransactionsUseCase(accountFilter),
+                observeDailyTotalsUseCase(accountFilter),
+            ) { paging, totals ->
+                paging
+                    .map { TransactionListEntry.Item(it) }
+                    .insertSeparators<TransactionListEntry.Item, TransactionListEntry> { before, after ->
+                        TransactionDaySeparators.headerFor(before, after, totals)
+                    }
+            }.cachedIn(viewModelScope)
+
         val uiState: StateFlow<AccountDetailUiState> =
             combine(
                 accountRepository.observeAccountWithBalance(accountId),
@@ -93,6 +123,7 @@ class AccountDetailViewModel
             ) { account, monthSummary, dialogState, activeAccounts ->
                 AccountDetailUiState(
                     isLoading = false,
+                    today = today,
                     accountWithBalance = account,
                     monthSummary = monthSummary,
                     showDeleteConfirmDialog = dialogState.showDelete,

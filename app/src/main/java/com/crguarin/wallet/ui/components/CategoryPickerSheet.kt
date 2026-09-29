@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -55,6 +56,9 @@ fun CategoryPickerSheet(
     modifier: Modifier = Modifier,
     selectedCategoryId: Long? = null,
     sheetState: SheetState = rememberModalBottomSheetState(),
+    showNewCategoryAction: Boolean = true,
+    allOptionLabel: String? = null,
+    onAllOptionSelected: (() -> Unit)? = null,
 ) {
     var expandedCategoryIds by remember { mutableStateOf(setOf<Long>()) }
 
@@ -81,20 +85,66 @@ fun CategoryPickerSheet(
                     text = stringResource(R.string.category_picker_title),
                     style = MaterialTheme.typography.titleLarge,
                 )
-                TextButton(onClick = onNewCategoryClick) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(text = stringResource(R.string.action_new_category))
+                if (showNewCategoryAction) {
+                    TextButton(onClick = onNewCategoryClick) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = stringResource(R.string.action_new_category))
+                    }
                 }
             }
 
             LazyColumn(
                 modifier = Modifier.fillMaxWidth(),
             ) {
+                if (allOptionLabel != null && onAllOptionSelected != null) {
+                    item(key = "all_categories") {
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable { onAllOptionSelected() }
+                                    .padding(horizontal = 24.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .size(40.dp)
+                                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DoneAll,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(16.dp))
+
+                            Text(
+                                text = allOptionLabel,
+                                style = MaterialTheme.typography.bodyLarge,
+                                modifier = Modifier.weight(1f),
+                            )
+
+                            if (selectedCategoryId == null) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = stringResource(R.string.cd_selected),
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                    }
+                }
+
                 items(categories, key = { it.category.id }) { rootNode ->
                     val isExpanded = expandedCategoryIds.contains(rootNode.category.id)
                     val isSelected = rootNode.category.id == selectedCategoryId

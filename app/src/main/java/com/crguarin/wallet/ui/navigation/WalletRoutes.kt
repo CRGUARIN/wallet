@@ -1,5 +1,7 @@
 package com.crguarin.wallet.ui.navigation
 
+import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.TransactionType
 import kotlinx.serialization.Serializable
@@ -57,3 +59,15 @@ data object Settings
  * and [com.crguarin.wallet.ui.transactions.TransactionEditViewModel] reads it to select the new category.
  */
 const val NEW_CATEGORY_RESULT_KEY = "new_category_result_key"
+
+/**
+ * Navigates to a bottom-bar destination without duplicating it in the back stack: it pops up to the
+ * graph's start destination saving state, and restores the destination state when returning.
+ */
+fun NavHostController.navigateToTopLevelDestination(route: Any) {
+    navigate(route) {
+        popUpTo(graph.findStartDestination().id) { saveState = true }
+        launchSingleTop = true
+        restoreState = true
+    }
+}

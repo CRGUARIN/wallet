@@ -177,6 +177,34 @@
     <string name="cd_icon">Ícono</string>
     <string name="cd_delete_transaction">Eliminar movimiento</string>
 
+    <!-- Lista de movimientos -->
+    <string name="transactions_previous_month">Mes anterior</string>
+    <string name="transactions_next_month">Mes siguiente</string>
+    <string name="transactions_filter_all_types">Todos</string>
+    <string name="transactions_filter_account">Cuenta</string>
+    <string name="transactions_filter_category">Categoría</string>
+    <string name="transactions_filter_all_accounts">Todas las cuentas</string>
+    <string name="transactions_filter_all_categories">Todas las categorías</string>
+    <string name="transactions_clear_filters">Limpiar filtros</string>
+    <string name="transactions_search_hint">Buscar por nota</string>
+    <string name="transactions_day_today">Hoy</string>
+    <string name="transactions_day_yesterday">Ayer</string>
+    <string name="transactions_deleted_message">Movimiento eliminado</string>
+    <string name="transactions_empty_title">Sin movimientos</string>
+    <string name="transactions_empty_message">Tus movimientos aparecerán aquí.</string>
+    <string name="transactions_empty_filtered_title">Sin resultados</string>
+    <string name="transactions_empty_filtered_message">No hay movimientos con estos filtros.</string>
+    <string name="action_undo">Deshacer</string>
+    <string name="cd_clear_search">Limpiar búsqueda</string>
+    <string name="transaction_transfer_accounts">%1$s → %2$s</string>
+
+    <!-- Home -->
+    <string name="home_recent_transactions">Últimos movimientos</string>
+    <string name="home_view_all">Ver todos</string>
+    <string name="home_quick_actions">Acciones rápidas</string>
+    <string name="home_empty_title">Aún no hay movimientos</string>
+    <string name="home_empty_message">Registra tu primer ingreso o gasto para empezar.</string>
+
     <!-- Errores de dominio -->
     <string name="error_name_empty">El nombre no puede estar vacío</string>
     <string name="error_name_too_long">El nombre es demasiado largo</string>

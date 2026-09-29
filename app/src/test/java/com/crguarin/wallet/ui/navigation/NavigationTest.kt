@@ -9,10 +9,12 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.crguarin.wallet.ui.WalletAppContent
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -169,5 +171,32 @@ class NavigationTest {
 
         // Destination is now Categories screen
         composeRule.onAllNodesWithText("Categorías").onFirst().assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "es-w1000dp-h3000dp")
+    fun `view all from Home opens the transactions tab without duplicating it`() {
+        setAppContent()
+
+        // Home shows the "Ver todos" link next to recent movements
+        composeRule.onNodeWithText("Ver todos").performClick()
+
+        // Transactions tab is displayed
+        composeRule.onAllNodesWithText("Movimientos").onFirst().assertIsDisplayed()
+
+        val transactionsEntries =
+            navController.currentBackStack.value.count { entry ->
+                entry.destination.hasRoute(Transactions::class)
+            }
+        assertThat(transactionsEntries).isEqualTo(1)
+
+        // Tapping the bottom bar tab again does not add another Transactions entry
+        composeRule.onNodeWithContentDescription("Movimientos", useUnmergedTree = true).performClick()
+
+        val afterTappingTab =
+            navController.currentBackStack.value.count { entry ->
+                entry.destination.hasRoute(Transactions::class)
+            }
+        assertThat(afterTappingTab).isEqualTo(1)
     }
 }

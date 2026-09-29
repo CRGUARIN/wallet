@@ -175,6 +175,34 @@
     <string name="cd_icon">Icon</string>
     <string name="cd_delete_transaction">Delete transaction</string>
 
+    <!-- Transactions list -->
+    <string name="transactions_previous_month">Previous month</string>
+    <string name="transactions_next_month">Next month</string>
+    <string name="transactions_filter_all_types">All</string>
+    <string name="transactions_filter_account">Account</string>
+    <string name="transactions_filter_category">Category</string>
+    <string name="transactions_filter_all_accounts">All accounts</string>
+    <string name="transactions_filter_all_categories">All categories</string>
+    <string name="transactions_clear_filters">Clear filters</string>
+    <string name="transactions_search_hint">Search by note</string>
+    <string name="transactions_day_today">Today</string>
+    <string name="transactions_day_yesterday">Yesterday</string>
+    <string name="transactions_deleted_message">Transaction deleted</string>
+    <string name="transactions_empty_title">No transactions</string>
+    <string name="transactions_empty_message">Your transactions will appear here.</string>
+    <string name="transactions_empty_filtered_title">No results</string>
+    <string name="transactions_empty_filtered_message">There are no transactions with these filters.</string>
+    <string name="action_undo">Undo</string>
+    <string name="cd_clear_search">Clear search</string>
+    <string name="transaction_transfer_accounts">%1$s → %2$s</string>
+
+    <!-- Home -->
+    <string name="home_recent_transactions">Recent transactions</string>
+    <string name="home_view_all">View all</string>
+    <string name="home_quick_actions">Quick actions</string>
+    <string name="home_empty_title">No transactions yet</string>
+    <string name="home_empty_message">Record your first income or expense to get started.</string>
+
     <!-- Domain errors -->
     <string name="error_name_empty">Name cannot be empty</string>
     <string name="error_name_too_long">Name is too long</string>
