@@ -8,15 +8,20 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.crguarin.wallet.domain.model.ThemeMode
 import com.crguarin.wallet.ui.MainUiState
 import com.crguarin.wallet.ui.MainViewModel
 import com.crguarin.wallet.ui.WalletAppContent
+import com.crguarin.wallet.ui.components.BrandIntro
 import com.crguarin.wallet.ui.navigation.Home
 import com.crguarin.wallet.ui.navigation.Onboarding
 import com.crguarin.wallet.ui.theme.WalletTheme
@@ -63,7 +68,14 @@ class MainActivity : AppCompatActivity() {
                             remember {
                                 if (state.onboardingCompleted) Home else Onboarding
                             }
-                        WalletAppContent(startDestination = startDestination)
+                        Box {
+                            WalletAppContent(startDestination = startDestination)
+                            // Cold start only: saved state keeps it from replaying after recreation.
+                            var showIntro by rememberSaveable { mutableStateOf(true) }
+                            if (showIntro) {
+                                BrandIntro(onFinished = { showIntro = false })
+                            }
+                        }
                     }
                 }
             }
