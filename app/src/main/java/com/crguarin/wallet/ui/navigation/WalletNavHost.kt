@@ -26,6 +26,10 @@ fun WalletNavHost(
         navController = navController,
         startDestination = startDestination,
         modifier = modifier,
+        enterTransition = { walletEnterTransition() },
+        exitTransition = { walletExitTransition() },
+        popEnterTransition = { walletPopEnterTransition() },
+        popExitTransition = { walletPopExitTransition() },
     ) {
         composable<Onboarding> {
             OnboardingRoute(

@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -127,7 +128,8 @@ fun OnboardingScreen(
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
-        contentWindowInsets = WindowInsets(0),
+        // No TopAppBar here, so the screen itself keeps clear of the status bar.
+        contentWindowInsets = WindowInsets.statusBars,
         modifier = modifier.fillMaxSize(),
     ) { innerPadding ->
         Box(

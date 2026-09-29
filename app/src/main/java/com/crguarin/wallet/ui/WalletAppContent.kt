@@ -1,6 +1,11 @@
 package com.crguarin.wallet.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -9,6 +14,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.navigation.NavDestination.Companion.hasRoute
@@ -18,11 +24,11 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.crguarin.wallet.R
 import com.crguarin.wallet.ui.navigation.Home
-import com.crguarin.wallet.ui.navigation.TopLevelDestination
 import com.crguarin.wallet.ui.navigation.TransactionEdit
 import com.crguarin.wallet.ui.navigation.Transactions
 import com.crguarin.wallet.ui.navigation.WalletBottomBar
 import com.crguarin.wallet.ui.navigation.WalletNavHost
+import com.crguarin.wallet.ui.navigation.isTopLevel
 
 @Composable
 fun WalletAppContent(
@@ -33,10 +39,7 @@ fun WalletAppContent(
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentDestination = navBackStackEntry?.destination
 
-    val isTopLevelDestination =
-        TopLevelDestination.entries.any { destination ->
-            currentDestination?.hierarchy?.any { it.hasRoute(destination.routeClass) } == true
-        }
+    val isTopLevelDestination = currentDestination.isTopLevel()
 
     val isFabDestination =
         currentDestination?.hierarchy?.any {
@@ -45,8 +48,15 @@ fun WalletAppContent(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        // Each screen's TopAppBar pads for the status bar; here only the navigation bar is reserved.
+        contentWindowInsets = WindowInsets.navigationBars,
         bottomBar = {
-            if (isTopLevelDestination) {
+            // Animated so the bar does not pop in or out while the screens cross-fade.
+            AnimatedVisibility(
+                visible = isTopLevelDestination,
+                enter = expandVertically(expandFrom = Alignment.Top),
+                exit = shrinkVertically(shrinkTowards = Alignment.Top),
+            ) {
                 WalletBottomBar(
                     navController = navController,
                     currentDestination = currentDestination,
