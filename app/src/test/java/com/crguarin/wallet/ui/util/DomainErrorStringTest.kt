@@ -38,6 +38,7 @@ class DomainErrorStringTest {
                 DomainError.InvalidTransaction,
                 DomainError.BackupInvalid("corrupted"),
                 DomainError.BackupVersionUnsupported,
+                DomainError.BackupFailed,
             )
 
         for (error in allErrors) {

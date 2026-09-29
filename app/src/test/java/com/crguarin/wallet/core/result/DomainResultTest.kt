@@ -116,9 +116,10 @@ class DomainResultTest {
                 DomainError.InvalidTransaction,
                 DomainError.BackupInvalid(reason = "Corrupt JSON"),
                 DomainError.BackupVersionUnsupported,
+                DomainError.BackupFailed,
             )
 
-        assertThat(errors).hasSize(20)
+        assertThat(errors).hasSize(21)
 
         for (err in errors) {
             val description =
@@ -143,6 +144,7 @@ class DomainResultTest {
                     DomainError.InvalidTransaction -> "InvalidTransaction"
                     is DomainError.BackupInvalid -> "BackupInvalid(${err.reason})"
                     DomainError.BackupVersionUnsupported -> "BackupVersionUnsupported"
+                    DomainError.BackupFailed -> "BackupFailed"
                 }
             assertThat(description).isNotEmpty()
         }

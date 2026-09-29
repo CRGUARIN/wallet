@@ -30,4 +30,5 @@ fun DomainError.asStringRes(): Int =
         is DomainError.InvalidTransaction -> R.string.error_invalid_transaction
         is DomainError.BackupInvalid -> R.string.error_backup_invalid
         is DomainError.BackupVersionUnsupported -> R.string.error_backup_version_unsupported
+        is DomainError.BackupFailed -> R.string.error_backup_failed
     }

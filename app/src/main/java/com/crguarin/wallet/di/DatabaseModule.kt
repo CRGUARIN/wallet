@@ -3,6 +3,7 @@ package com.crguarin.wallet.di
 import android.content.Context
 import androidx.room.Room
 import com.crguarin.wallet.data.db.AccountDao
+import com.crguarin.wallet.data.db.BackupDao
 import com.crguarin.wallet.data.db.CategoryDao
 import com.crguarin.wallet.data.db.TransactionDao
 import com.crguarin.wallet.data.db.WalletDatabase
@@ -38,4 +39,7 @@ object DatabaseModule {
 
     @Provides
     fun provideTransactionDao(database: WalletDatabase): TransactionDao = database.transactionDao()
+
+    @Provides
+    fun provideBackupDao(database: WalletDatabase): BackupDao = database.backupDao()
 }

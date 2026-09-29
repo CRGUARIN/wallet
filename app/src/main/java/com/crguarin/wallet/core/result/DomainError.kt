@@ -47,4 +47,6 @@ sealed interface DomainError {
     ) : DomainError
 
     data object BackupVersionUnsupported : DomainError
+
+    data object BackupFailed : DomainError
 }

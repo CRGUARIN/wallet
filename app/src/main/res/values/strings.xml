@@ -224,8 +224,9 @@
     <string name="error_category_archived">La categoría está archivada</string>
     <string name="error_same_category_reassignment">No se puede reasignar a la misma categoría</string>
     <string name="error_invalid_transaction">Transacción inválida</string>
-    <string name="error_backup_invalid">El archivo de copia de seguridad no es válido</string>
+    <string name="error_backup_invalid">El archivo no es un backup válido de Wallet</string>
     <string name="error_backup_version_unsupported">Versión de copia de seguridad no soportada</string>
+    <string name="error_backup_failed">No se pudo completar la operación de backup. Tus datos actuales no se modificaron.</string>
 
     <!-- Categorías del sistema - Gastos -->
     <string name="category_food">Alimentación</string>
@@ -250,4 +251,40 @@
     <string name="category_gifts">Regalos</string>
     <string name="category_interest">Intereses</string>
     <string name="category_other_income">Otros ingresos</string>
+
+    <!-- Ajustes y backup -->
+    <string name="settings_section_language">Idioma</string>
+    <string name="settings_section_theme">Tema</string>
+    <string name="settings_section_data">Datos</string>
+    <string name="settings_section_backup">Backup</string>
+    <string name="settings_section_about">Acerca de</string>
+    <string name="theme_system">Sistema</string>
+    <string name="theme_light">Claro</string>
+    <string name="theme_dark">Oscuro</string>
+    <string name="settings_dynamic_color">Color dinámico</string>
+    <string name="settings_dynamic_color_subtitle">Usar los colores de tu fondo de pantalla</string>
+    <string name="settings_about_version">Versión</string>
+    <string name="backup_export_title">Exportar datos</string>
+    <string name="backup_export_subtitle">Guarda un archivo con tus cuentas, categorías y movimientos</string>
+    <string name="backup_import_title">Importar datos</string>
+    <string name="backup_import_subtitle">Restaura tus datos desde un archivo de backup</string>
+    <string name="backup_in_progress">Procesando backup</string>
+    <string name="backup_export_success">Backup exportado</string>
+    <string name="backup_import_success">Datos importados</string>
+    <string name="backup_import_confirm_title">¿Importar datos?</string>
+    <string name="backup_import_confirm_action">Importar</string>
+    <string name="backup_import_warning">Esto reemplazará todos tus datos actuales</string>
+    <string name="backup_summary_format">%1$s, %2$s, %3$s</string>
+    <plurals name="backup_summary_accounts">
+        <item quantity="one">%d cuenta</item>
+        <item quantity="other">%d cuentas</item>
+    </plurals>
+    <plurals name="backup_summary_categories">
+        <item quantity="one">%d categoría</item>
+        <item quantity="other">%d categorías</item>
+    </plurals>
+    <plurals name="backup_summary_transactions">
+        <item quantity="one">%d movimiento</item>
+        <item quantity="other">%d movimientos</item>
+    </plurals>
 </resources>
