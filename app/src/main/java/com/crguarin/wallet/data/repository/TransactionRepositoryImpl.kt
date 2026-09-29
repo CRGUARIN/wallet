@@ -4,6 +4,7 @@ import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
 import androidx.paging.map
+import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.data.db.TransactionDao
 import com.crguarin.wallet.di.IoDispatcher
 import com.crguarin.wallet.domain.model.MonthSummary
@@ -60,6 +61,18 @@ class TransactionRepositoryImpl
         override fun observeRecentTransactions(limit: Int): Flow<List<TransactionDetails>> =
             transactionDao.observeRecent(limit).map { list -> list.map { it.toDomain() } }.flowOn(ioDispatcher)
 
+        override fun observeDailyTotals(filter: TransactionFilter): Flow<Map<LocalDate, Money>> =
+            transactionDao
+                .observeDailyTotals(
+                    startDate = filter.startDate,
+                    endDate = filter.endDate,
+                    accountId = filter.accountId,
+                    categoryId = filter.categoryId,
+                    type = filter.type,
+                    noteQuery = filter.noteQuery,
+                ).map { rows -> rows.associate { it.date to Money(it.net) } }
+                .flowOn(ioDispatcher)
+
         override fun observeTransaction(id: Long): Flow<TransactionDetails?> =
             transactionDao.observeById(id).map { it?.toDomain() }.flowOn(ioDispatcher)
 
@@ -86,6 +99,12 @@ class TransactionRepositoryImpl
         override suspend fun deleteTransaction(id: Long) {
             withContext(ioDispatcher) {
                 transactionDao.deleteById(id)
+            }
+        }
+
+        override suspend fun restoreTransaction(transaction: Transaction) {
+            withContext(ioDispatcher) {
+                transactionDao.insert(transaction.toEntity())
             }
         }
 

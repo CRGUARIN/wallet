@@ -1,6 +1,7 @@
 package com.crguarin.wallet.domain.repository
 
 import androidx.paging.PagingData
+import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.MonthSummary
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionDetails
@@ -15,6 +16,12 @@ interface TransactionRepository {
 
     fun observeRecentTransactions(limit: Int): Flow<List<TransactionDetails>>
 
+    /**
+     * Net amount per day within the given filter, used to render the day headers of a paginated
+     * transactions list.
+     */
+    fun observeDailyTotals(filter: TransactionFilter = TransactionFilter()): Flow<Map<LocalDate, Money>>
+
     fun observeTransaction(id: Long): Flow<TransactionDetails?>
 
     suspend fun getTransaction(id: Long): Transaction?
@@ -22,6 +29,12 @@ interface TransactionRepository {
     suspend fun getTransactionDetails(id: Long): TransactionDetails?
 
     suspend fun saveTransaction(transaction: Transaction): Long
+
+    /**
+     * Inserts a previously deleted transaction preserving its id and timestamps, so it can be
+     * restored exactly as it was (used by the "undo delete" action).
+     */
+    suspend fun restoreTransaction(transaction: Transaction)
 
     suspend fun deleteTransaction(id: Long)
 

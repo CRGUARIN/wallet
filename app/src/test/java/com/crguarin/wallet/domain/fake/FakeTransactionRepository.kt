@@ -6,6 +6,7 @@ import com.crguarin.wallet.domain.model.MonthSummary
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionDetails
 import com.crguarin.wallet.domain.model.TransactionFilter
+import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.repository.TransactionRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,6 +18,14 @@ class FakeTransactionRepository : TransactionRepository {
     private val transactions = mutableMapOf<Long, Transaction>()
     private val transactionsFlow = MutableStateFlow<List<Transaction>>(emptyList())
     private var nextId: Long = 1L
+
+    /** Number of times the paged query factory was invoked (used to assert search debounce). */
+    var observeTransactionsPagedCallCount: Int = 0
+        private set
+
+    /** Last filter passed to the paged query. */
+    var lastPagedFilter: TransactionFilter? = null
+        private set
 
     fun setInitialData(transactionList: List<Transaction>) {
         transactions.clear()
@@ -34,27 +43,57 @@ class FakeTransactionRepository : TransactionRepository {
             )
     }
 
-    override fun observeTransactions(filter: TransactionFilter): Flow<List<TransactionDetails>> =
-        transactionsFlow.map { list ->
-            list
-                .filter { tx ->
-                    (filter.startDate == null || tx.date >= filter.startDate) &&
-                        (filter.endDate == null || tx.date <= filter.endDate) &&
-                        (filter.accountId == null || tx.accountId == filter.accountId || tx.toAccountId == filter.accountId) &&
-                        (filter.categoryId == null || tx.categoryId == filter.categoryId) &&
-                        (filter.type == null || tx.type == filter.type) &&
-                        (
-                            filter.noteQuery.isNullOrEmpty() ||
-                                (tx.note != null && tx.note.contains(filter.noteQuery, ignoreCase = true))
-                        )
-                }.map { toDetails(it) }
-        }
+    private fun matches(
+        tx: Transaction,
+        filter: TransactionFilter,
+    ): Boolean =
+        (filter.startDate == null || tx.date >= filter.startDate) &&
+            (filter.endDate == null || tx.date <= filter.endDate) &&
+            (filter.accountId == null || tx.accountId == filter.accountId || tx.toAccountId == filter.accountId) &&
+            (filter.categoryId == null || tx.categoryId == filter.categoryId) &&
+            (filter.type == null || tx.type == filter.type) &&
+            (
+                filter.noteQuery.isNullOrEmpty() ||
+                    (tx.note != null && tx.note.contains(filter.noteQuery, ignoreCase = true))
+            )
 
-    override fun observeTransactionsPaged(filter: TransactionFilter): Flow<PagingData<TransactionDetails>> =
-        flowOf(PagingData.from(transactions.values.map { toDetails(it) }))
+    override fun observeTransactions(filter: TransactionFilter): Flow<List<TransactionDetails>> =
+        transactionsFlow.map { list -> list.filter { matches(it, filter) }.map { toDetails(it) } }
+
+    override fun observeTransactionsPaged(filter: TransactionFilter): Flow<PagingData<TransactionDetails>> {
+        observeTransactionsPagedCallCount++
+        lastPagedFilter = filter
+        return flowOf(PagingData.from(transactions.values.filter { matches(it, filter) }.map { toDetails(it) }))
+    }
 
     override fun observeRecentTransactions(limit: Int): Flow<List<TransactionDetails>> =
         transactionsFlow.map { list -> list.take(limit).map { toDetails(it) } }
+
+    override fun observeDailyTotals(filter: TransactionFilter): Flow<Map<LocalDate, Money>> =
+        transactionsFlow.map { list ->
+            list
+                .filter { matches(it, filter) }
+                .groupBy { it.date }
+                .mapValues { (_, dayTransactions) ->
+                    dayTransactions.fold(Money.ZERO) { acc, tx -> acc + signedAmount(tx, filter.accountId) }
+                }
+        }
+
+    private fun signedAmount(
+        tx: Transaction,
+        perspectiveAccountId: Long?,
+    ): Money =
+        when (tx.type) {
+            TransactionType.INCOME -> tx.amount
+            TransactionType.EXPENSE -> -tx.amount
+            TransactionType.TRANSFER ->
+                when {
+                    perspectiveAccountId == null -> Money.ZERO
+                    tx.accountId == perspectiveAccountId -> -tx.amount
+                    tx.toAccountId == perspectiveAccountId -> tx.amount
+                    else -> Money.ZERO
+                }
+        }
 
     override fun observeTransaction(id: Long): Flow<TransactionDetails?> = transactionsFlow.map { transactions[id]?.let { toDetails(it) } }
 
@@ -68,6 +107,13 @@ class FakeTransactionRepository : TransactionRepository {
         transactions[id] = saved
         notifyChanged()
         return id
+    }
+
+    override suspend fun restoreTransaction(transaction: Transaction) {
+        val id = if (transaction.id == 0L) nextId++ else transaction.id
+        transactions[id] = transaction.copy(id = id)
+        if (id >= nextId) nextId = id + 1
+        notifyChanged()
     }
 
     override suspend fun deleteTransaction(id: Long) {
@@ -102,11 +148,11 @@ class FakeTransactionRepository : TransactionRepository {
             }
         val income =
             filtered
-                .filter { it.type == com.crguarin.wallet.domain.model.TransactionType.INCOME }
+                .filter { it.type == TransactionType.INCOME }
                 .fold(Money.ZERO) { acc, tx -> acc + tx.amount }
         val expense =
             filtered
-                .filter { it.type == com.crguarin.wallet.domain.model.TransactionType.EXPENSE }
+                .filter { it.type == TransactionType.EXPENSE }
                 .fold(Money.ZERO) { acc, tx -> acc + tx.amount }
         return MonthSummary(income = income, expense = expense)
     }

@@ -193,6 +193,41 @@ interface TransactionDao {
     @Query(
         """
         SELECT
+            t.date AS date,
+            COALESCE(
+                SUM(
+                    CASE
+                        WHEN t.type = 'INCOME' THEN t.amount
+                        WHEN t.type = 'EXPENSE' THEN -t.amount
+                        WHEN t.type = 'TRANSFER' AND :accountId IS NOT NULL AND t.account_id = :accountId THEN -t.amount
+                        WHEN t.type = 'TRANSFER' AND :accountId IS NOT NULL AND t.to_account_id = :accountId THEN t.amount
+                        ELSE 0
+                    END
+                ),
+                0
+            ) AS net
+        FROM transactions t
+        WHERE (:startDate IS NULL OR t.date >= :startDate)
+          AND (:endDate IS NULL OR t.date <= :endDate)
+          AND (:accountId IS NULL OR t.account_id = :accountId OR t.to_account_id = :accountId)
+          AND (:categoryId IS NULL OR t.category_id = :categoryId OR t.category_id IN (SELECT c2.id FROM categories c2 WHERE c2.parent_id = :categoryId))
+          AND (:type IS NULL OR t.type = :type)
+          AND (:noteQuery IS NULL OR :noteQuery = '' OR t.note LIKE '%' || :noteQuery || '%')
+        GROUP BY t.date
+        """,
+    )
+    fun observeDailyTotals(
+        startDate: LocalDate? = null,
+        endDate: LocalDate? = null,
+        accountId: Long? = null,
+        categoryId: Long? = null,
+        type: TransactionType? = null,
+        noteQuery: String? = null,
+    ): Flow<List<DailyTotalRow>>
+
+    @Query(
+        """
+        SELECT
             COALESCE(SUM(CASE WHEN type = 'INCOME' THEN amount ELSE 0 END), 0) AS income,
             COALESCE(SUM(CASE WHEN type = 'EXPENSE' THEN amount ELSE 0 END), 0) AS expense
         FROM transactions

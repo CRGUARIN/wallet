@@ -9,6 +9,7 @@ import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.TransactionType
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
@@ -481,5 +482,73 @@ class TransactionDaoTest {
             assertThat(page.data).hasSize(2)
             assertThat(page.data[0].transaction.amount).isEqualTo(20L)
             assertThat(page.data[1].transaction.amount).isEqualTo(10L)
+        }
+
+    @Test
+    fun observeDailyTotals_excludesTransfersWithoutAccountFilter() =
+        runTest {
+            val day = LocalDate.of(2026, 9, 15)
+            insertTx(type = TransactionType.INCOME, amount = 1_000L, categoryId = incomeCatSalaryId, date = day)
+            insertTx(type = TransactionType.EXPENSE, amount = 300L, categoryId = rootCatFoodId, date = day)
+            insertTx(
+                type = TransactionType.TRANSFER,
+                amount = 500L,
+                accountId = accountCashId,
+                toAccountId = accountSavingsId,
+                date = day,
+            )
+
+            val totals = transactionDao.observeDailyTotals(startDate = day, endDate = day).first()
+
+            assertThat(totals).hasSize(1)
+            assertThat(totals.first().date).isEqualTo(day)
+            assertThat(totals.first().net).isEqualTo(700L)
+        }
+
+    @Test
+    fun observeDailyTotals_signsTransfersFromTheSelectedAccount() =
+        runTest {
+            val day = LocalDate.of(2026, 9, 15)
+            insertTx(
+                type = TransactionType.TRANSFER,
+                amount = 500L,
+                accountId = accountCashId,
+                toAccountId = accountSavingsId,
+                date = day,
+            )
+
+            val cash = transactionDao.observeDailyTotals(startDate = day, endDate = day, accountId = accountCashId).first()
+            val savings = transactionDao.observeDailyTotals(startDate = day, endDate = day, accountId = accountSavingsId).first()
+
+            assertThat(cash.first().net).isEqualTo(-500L)
+            assertThat(savings.first().net).isEqualTo(500L)
+        }
+
+    @Test
+    fun observeDailyTotals_appliesCategoryAndNoteFilters() =
+        runTest {
+            val day = LocalDate.of(2026, 9, 15)
+            insertTx(
+                type = TransactionType.EXPENSE,
+                amount = 100L,
+                categoryId = subCatGroceriesId,
+                date = day,
+                note = "Mercado",
+            )
+            insertTx(
+                type = TransactionType.EXPENSE,
+                amount = 200L,
+                categoryId = rootCatTransportId,
+                date = day,
+                note = "Taxi",
+            )
+
+            val byRootCategory =
+                transactionDao.observeDailyTotals(startDate = day, endDate = day, categoryId = rootCatFoodId).first()
+            val byNote =
+                transactionDao.observeDailyTotals(startDate = day, endDate = day, noteQuery = "taxi").first()
+
+            assertThat(byRootCategory.first().net).isEqualTo(-100L)
+            assertThat(byNote.first().net).isEqualTo(-200L)
         }
 }

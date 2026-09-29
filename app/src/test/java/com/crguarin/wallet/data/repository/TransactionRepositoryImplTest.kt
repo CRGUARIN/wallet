@@ -15,6 +15,7 @@ import com.crguarin.wallet.domain.model.TransactionFilter
 import com.crguarin.wallet.domain.model.TransactionType
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Before
@@ -160,5 +161,111 @@ class TransactionRepositoryImplTest {
                 assertThat(list.first().transaction.note).isEqualTo("Note B")
                 cancelAndIgnoreRemainingEvents()
             }
+        }
+
+    @Test
+    fun `restoreTransaction keeps the same id and fields`() =
+        runTest {
+            val accId =
+                accountRepository.saveAccount(
+                    Account(
+                        name = "Efectivo",
+                        type = AccountType.CASH,
+                        initialBalance = Money(100_000L),
+                        color = 1,
+                        icon = "w",
+                        createdAt = now,
+                    ),
+                )
+            val catId =
+                categoryRepository.saveCategory(
+                    Category(name = "Comida", type = CategoryType.EXPENSE, color = 1, icon = "r"),
+                )
+            val id =
+                transactionRepository.saveTransaction(
+                    Transaction(
+                        type = TransactionType.EXPENSE,
+                        amount = Money(20_000L),
+                        accountId = accId,
+                        categoryId = catId,
+                        date = LocalDate.of(2026, 9, 28),
+                        note = "Almuerzo",
+                        createdAt = now,
+                        updatedAt = now,
+                    ),
+                )
+            val saved = transactionRepository.getTransaction(id)!!
+
+            transactionRepository.deleteTransaction(id)
+            assertThat(transactionRepository.getTransaction(id)).isNull()
+
+            transactionRepository.restoreTransaction(saved)
+
+            val restored = transactionRepository.getTransaction(id)
+            assertThat(restored).isEqualTo(saved)
+            assertThat(restored?.createdAt).isEqualTo(now)
+            assertThat(restored?.updatedAt).isEqualTo(now)
+        }
+
+    @Test
+    fun `observeDailyTotals signs transfers only when filtering by account`() =
+        runTest {
+            val cashId =
+                accountRepository.saveAccount(
+                    Account(name = "Efectivo", type = AccountType.CASH, initialBalance = Money(0), color = 1, icon = "w", createdAt = now),
+                )
+            val savingsId =
+                accountRepository.saveAccount(
+                    Account(
+                        name = "Ahorros",
+                        type = AccountType.SAVINGS,
+                        initialBalance = Money(0),
+                        color = 2,
+                        icon = "s",
+                        createdAt = now,
+                    ),
+                )
+            val expenseCat =
+                categoryRepository.saveCategory(
+                    Category(name = "Comida", type = CategoryType.EXPENSE, color = 1, icon = "r"),
+                )
+            val day = LocalDate.of(2026, 9, 15)
+
+            transactionRepository.saveTransaction(
+                Transaction(
+                    type = TransactionType.EXPENSE,
+                    amount = Money(30_000L),
+                    accountId = cashId,
+                    categoryId = expenseCat,
+                    date = day,
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+            transactionRepository.saveTransaction(
+                Transaction(
+                    type = TransactionType.TRANSFER,
+                    amount = Money(50_000L),
+                    accountId = cashId,
+                    toAccountId = savingsId,
+                    date = day,
+                    createdAt = now,
+                    updatedAt = now,
+                ),
+            )
+
+            val all = transactionRepository.observeDailyTotals(TransactionFilter(startDate = day, endDate = day)).first()
+            val cash =
+                transactionRepository
+                    .observeDailyTotals(TransactionFilter(startDate = day, endDate = day, accountId = cashId))
+                    .first()
+            val savings =
+                transactionRepository
+                    .observeDailyTotals(TransactionFilter(startDate = day, endDate = day, accountId = savingsId))
+                    .first()
+
+            assertThat(all[day]).isEqualTo(Money(-30_000L))
+            assertThat(cash[day]).isEqualTo(Money(-80_000L))
+            assertThat(savings[day]).isEqualTo(Money(50_000L))
         }
 }
