@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
@@ -166,8 +167,8 @@ class NavigationTest {
         composeRule.onNodeWithText("Ajustes").performClick()
         composeRule.onAllNodesWithText("Ajustes").onFirst().assertIsDisplayed()
 
-        // Click Categorías item in settings
-        composeRule.onNodeWithText("Categorías").performClick()
+        // Click Categorías item in settings (the screen scrolls, so it may start below the fold)
+        composeRule.onNodeWithText("Categorías").performScrollTo().performClick()
 
         // Destination is now Categories screen
         composeRule.onAllNodesWithText("Categorías").onFirst().assertIsDisplayed()

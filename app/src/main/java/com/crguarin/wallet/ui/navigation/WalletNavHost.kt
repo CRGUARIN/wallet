@@ -12,7 +12,7 @@ import com.crguarin.wallet.ui.categories.CategoriesRoute
 import com.crguarin.wallet.ui.categories.CategoryEditRoute
 import com.crguarin.wallet.ui.home.HomeRoute
 import com.crguarin.wallet.ui.onboarding.OnboardingRoute
-import com.crguarin.wallet.ui.settings.SettingsScreen
+import com.crguarin.wallet.ui.settings.SettingsRoute
 import com.crguarin.wallet.ui.transactions.TransactionEditRoute
 import com.crguarin.wallet.ui.transactions.TransactionsRoute
 
@@ -133,7 +133,7 @@ fun WalletNavHost(
             )
         }
         composable<Settings> {
-            SettingsScreen(
+            SettingsRoute(
                 onCategoriesClick = {
                     navController.navigate(Categories())
                 },
