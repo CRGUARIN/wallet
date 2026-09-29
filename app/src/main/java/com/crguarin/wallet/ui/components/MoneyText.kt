@@ -73,22 +73,21 @@ fun MoneyText(
         }
 
     // Screen readers should say "expense" or "minus", not read the "−" glyph.
-    val spokenAmount = formattedAmount
     val description =
         when (type) {
-            TransactionType.INCOME -> stringResource(R.string.a11y_amount_income, spokenAmount)
-            TransactionType.EXPENSE -> stringResource(R.string.a11y_amount_expense, spokenAmount)
+            TransactionType.INCOME -> stringResource(R.string.a11y_amount_income, formattedAmount)
+            TransactionType.EXPENSE -> stringResource(R.string.a11y_amount_expense, formattedAmount)
             TransactionType.TRANSFER ->
                 when (resolvedSign) {
-                    MoneySign.MINUS -> stringResource(R.string.a11y_amount_transfer_out, spokenAmount)
-                    MoneySign.PLUS -> stringResource(R.string.a11y_amount_transfer_in, spokenAmount)
-                    MoneySign.AUTO, MoneySign.NONE -> stringResource(R.string.a11y_amount_transfer, spokenAmount)
+                    MoneySign.MINUS -> stringResource(R.string.a11y_amount_transfer_out, formattedAmount)
+                    MoneySign.PLUS -> stringResource(R.string.a11y_amount_transfer_in, formattedAmount)
+                    MoneySign.AUTO, MoneySign.NONE -> stringResource(R.string.a11y_amount_transfer, formattedAmount)
                 }
             null ->
                 when (resolvedSign) {
-                    MoneySign.PLUS -> stringResource(R.string.a11y_amount_positive, spokenAmount)
-                    MoneySign.MINUS -> stringResource(R.string.a11y_amount_negative, spokenAmount)
-                    MoneySign.AUTO, MoneySign.NONE -> spokenAmount
+                    MoneySign.PLUS -> stringResource(R.string.a11y_amount_positive, formattedAmount)
+                    MoneySign.MINUS -> stringResource(R.string.a11y_amount_negative, formattedAmount)
+                    MoneySign.AUTO, MoneySign.NONE -> formattedAmount
                 }
         }
 

@@ -34,7 +34,7 @@ Wallet es una app Android de finanzas personales, offline y sin cuenta de usuari
 ## Comandos de Build y Test
 Antes de cada PR, **deben pasar** los siguientes comandos:
 ```bash
-./gradlew ktlintCheck lintDebug testDebugUnitTest assembleDebug
+./gradlew ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease
 ```
 
 ## Reglas de estilo (Convenciones de código)
@@ -58,7 +58,7 @@ Antes de cada PR, **deben pasar** los siguientes comandos:
 - **Antigravity (local, agente principal)**: el SDK ya está en `~/Android/Sdk`. No ejecutar `setup_sdk.sh`. Compilar con el JDK de Android Studio:
   ```bash
   export JAVA_HOME=/opt/android-studio/jbr
-  ./gradlew ktlintCheck lintDebug testDebugUnitTest assembleDebug
+  ./gradlew ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease
   ```
   Trabajar en una rama `feat/tarea-N-<tema>` creada desde `main` actualizado. Al terminar, **detenerse y avisar**; no hacer push a `main` ni merge.
 - **Jules (nube)**: en "Environment setup" usar `source ./setup_sdk.sh`. Entregar como PR a `main`; el CI debe quedar verde.

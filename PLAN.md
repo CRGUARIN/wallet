@@ -543,7 +543,7 @@ Cobertura objetivo: ≥ 80 % en `domain` y `core/money`.
 
 Comandos que **deben pasar** antes de cada PR:
 ```bash
-./gradlew ktlintCheck lintDebug testDebugUnitTest assembleDebug
+./gradlew ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease
 ```
 
 Notas de testing:
@@ -705,7 +705,7 @@ El plan sirve para cualquier agente. Las reglas del proyecto viven en **`AGENTS.
 - Compilar por terminal usando el JDK de Android Studio:
   ```bash
   export JAVA_HOME=/opt/android-studio/jbr
-  ./gradlew ktlintCheck lintDebug testDebugUnitTest assembleDebug
+  ./gradlew ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease
   ```
 - Flujo por tarea:
   1. `git checkout main && git pull`, luego `git checkout -b feat/tarea-N-<tema>`.
