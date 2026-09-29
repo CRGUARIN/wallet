@@ -52,7 +52,7 @@
     <string name="type_expense">Expense</string>
     <string name="type_income">Income</string>
     <string name="type_transfer">Transfer</string>
-    <string name="action_add_subcategory">+ Subcategory</string>
+    <string name="action_add_subcategory">Subcategory</string>
     <string name="action_unarchive">Unarchive</string>
     <string name="action_reassign_and_delete">Reassign and delete</string>
     <string name="category_delete_confirm_title">Delete category?</string>

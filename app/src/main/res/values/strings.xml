@@ -54,7 +54,7 @@
     <string name="type_expense">Gasto</string>
     <string name="type_income">Ingreso</string>
     <string name="type_transfer">Transferencia</string>
-    <string name="action_add_subcategory">+ Subcategoría</string>
+    <string name="action_add_subcategory">Subcategoría</string>
     <string name="action_unarchive">Desarchivar</string>
     <string name="action_reassign_and_delete">Reasignar y eliminar</string>
     <string name="category_delete_confirm_title">¿Eliminar categoría?</string>

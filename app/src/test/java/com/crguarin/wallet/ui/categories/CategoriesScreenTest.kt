@@ -104,7 +104,7 @@ class CategoriesScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("+ Subcategoría").performClick()
+        composeRule.onNodeWithText("Subcategoría").performClick()
         assertThat(clickedParentId).isEqualTo(1L)
         assertThat(clickedType).isEqualTo(CategoryType.EXPENSE)
     }
