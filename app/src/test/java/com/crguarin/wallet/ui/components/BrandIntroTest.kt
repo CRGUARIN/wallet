@@ -30,7 +30,8 @@ class BrandIntroTest {
         composeRule.setContent { WalletTheme { BrandIntro(onFinished = { finished = true }) } }
 
         composeRule.mainClock.advanceTimeBy(700)
-        // Reads app_name instead of hardcoding it: debug builds append "-debug" to the app name.
+        // Reads app_name instead of hardcoding it: in debug it is "Wallet Debug"
+        // (app/src/debug/res/values/strings.xml), while "-debug" is the versionNameSuffix.
         val appName = ApplicationProvider.getApplicationContext<Context>().getString(R.string.app_name)
         composeRule.onNodeWithText(appName).assertExists()
         assertThat(finished).isFalse()
