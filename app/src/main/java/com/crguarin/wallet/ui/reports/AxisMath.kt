@@ -1,0 +1,32 @@
+package com.crguarin.wallet.ui.reports
+
+/**
+ * Pure helpers for chart axes.
+ *
+ * Lives in the UI layer on purpose: the domain's `ReportMath` must not duplicate [niceAxisMax];
+ * axis ticks are a presentation concern.
+ */
+object AxisMath {
+    /**
+     * Rounds [maxMinorUnits] up to the next "nice" value of the form `1`, `2` or `5` times a power
+     * of ten, so the mapped y labels of a chart are easy to read and the axis can be split into 3
+     * or 4 even segments.
+     *
+     * Returns 0 for zero or negative input. Inputs are in minor units (cents), so for values of at
+     * least 100 the result is always a whole number of pesos.
+     */
+    fun niceAxisMax(maxMinorUnits: Long): Long {
+        if (maxMinorUnits <= 0L) return 0L
+        var magnitude = 1L
+        while (magnitude <= maxMinorUnits / 10L) {
+            magnitude *= 10L
+        }
+        return when {
+            magnitude >= maxMinorUnits -> magnitude
+            2L * magnitude >= maxMinorUnits -> 2L * magnitude
+            5L * magnitude >= maxMinorUnits -> 5L * magnitude
+            magnitude <= Long.MAX_VALUE / 10L -> 10L * magnitude
+            else -> Long.MAX_VALUE
+        }
+    }
+}
