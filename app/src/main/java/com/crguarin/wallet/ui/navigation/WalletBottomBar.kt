@@ -12,13 +12,14 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.navigation.NavDestination
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.navigation.NavGraph
 import androidx.navigation.NavHostController
 import com.crguarin.wallet.R
 import kotlin.reflect.KClass
@@ -61,23 +62,63 @@ enum class TopLevelDestination(
     ),
 }
 
+/**
+ * Tab that owns the current back stack: the first tab destination after the initial one (Home),
+ * or HOME when the stack holds no other tab. For example `[Home, Reports, Transactions]` belongs
+ * to REPORTS, so the Transactions list opened from Reports keeps the Reports tab selected.
+ *
+ * [routeClasses] are the route classes of the back stack entries in order, oldest first,
+ * excluding navigation graphs. Non-tab entries are ignored.
+ */
+fun ownerTopLevelDestination(routeClasses: List<KClass<*>>): TopLevelDestination {
+    val afterInitial = if (routeClasses.isEmpty()) emptyList() else routeClasses.drop(1)
+    return afterInitial.firstNotNullOfOrNull { routeClass ->
+        TopLevelDestination.entries.firstOrNull { it.routeClass == routeClass }
+    } ?: TopLevelDestination.HOME
+}
+
 @Composable
 fun WalletBottomBar(
     navController: NavHostController,
-    currentDestination: NavDestination?,
     modifier: Modifier = Modifier,
 ) {
+    val backStack by navController.currentBackStack.collectAsStateWithLifecycle()
+    val routeClasses =
+        backStack.mapNotNull { entry ->
+            val destination = entry.destination
+            if (destination is NavGraph) {
+                null
+            } else {
+                TopLevelDestination.entries
+                    .firstOrNull { destination.hasRoute(it.routeClass) }
+                    ?.routeClass
+            }
+        }
+    val ownerTab = ownerTopLevelDestination(routeClasses)
+
     NavigationBar(modifier = modifier) {
         TopLevelDestination.entries.forEach { destination ->
-            val selected =
-                currentDestination?.hierarchy?.any {
-                    it.hasRoute(destination.routeClass)
-                } == true
-
             NavigationBarItem(
-                selected = selected,
+                selected = destination == ownerTab,
                 onClick = {
-                    navController.navigateToTopLevelDestination(destination.route)
+                    if (destination == ownerTab) {
+                        // Tapping the owning tab pops back to its root instead of restoring the
+                        // saved stack (which would show the nested screen again).
+                        val rootEntry =
+                            backStack.firstOrNull { entry ->
+                                val entryDestination = entry.destination
+                                entryDestination !is NavGraph &&
+                                    entryDestination.hasRoute(destination.routeClass)
+                            }
+                        if (rootEntry != null && rootEntry != backStack.lastOrNull()) {
+                            navController.popBackStack(rootEntry.destination.id, inclusive = false)
+                        } else if (rootEntry == null) {
+                            navController.navigateToTopLevelDestination(destination.route)
+                        }
+                        // Already at the tab root: nothing to do.
+                    } else {
+                        navController.navigateToTopLevelDestination(destination.route)
+                    }
                 },
                 icon = {
                     Icon(

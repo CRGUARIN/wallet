@@ -59,7 +59,6 @@ fun WalletAppContent(
             ) {
                 WalletBottomBar(
                     navController = navController,
-                    currentDestination = currentDestination,
                 )
             }
         },

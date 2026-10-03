@@ -2,6 +2,9 @@ package com.crguarin.wallet.ui.navigation
 
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.semantics.SemanticsNode
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -13,6 +16,8 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
+import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.ui.WalletAppContent
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.google.common.truth.Truth.assertThat
@@ -227,5 +232,51 @@ class NavigationTest {
                 entry.destination.hasRoute(Transactions::class)
             }
         assertThat(afterTappingTab).isEqualTo(1)
+    }
+
+    @Test
+    @Config(qualifiers = "es")
+    fun `reports tab stays selected on filtered transactions and tapping it pops back to reports`() {
+        setAppContent()
+
+        // Go to the Reports tab
+        composeRule.onNodeWithText("Reportes").performClick()
+        composeRule.onAllNodesWithText("Reportes").onFirst().assertIsDisplayed()
+
+        // Open "Ver movimientos" as the NavHost does
+        composeRule.runOnUiThread {
+            navController.navigate(
+                Transactions(categoryId = 7L, type = TransactionType.EXPENSE, month = "2026-10"),
+            )
+        }
+
+        // The filtered entry keeps its arguments
+        val route = navController.currentBackStackEntry?.toRoute<Transactions>()
+        assertThat(route?.categoryId).isEqualTo(7L)
+        assertThat(route?.type).isEqualTo(TransactionType.EXPENSE)
+        assertThat(route?.month).isEqualTo("2026-10")
+
+        // The owning tab (Reports) stays selected, not Movimientos
+        assertTabSelected("Reportes", selected = true)
+        assertTabSelected("Movimientos", selected = false)
+
+        // Tapping Reports pops back to the Reports root instead of restoring the filtered list
+        composeRule.onNodeWithContentDescription("Reportes", useUnmergedTree = true).performClick()
+        composeRule.onAllNodesWithText("Reportes").onFirst().assertIsDisplayed()
+        assertThat(navController.currentBackStackEntry?.destination?.hasRoute(Reports::class)).isTrue()
+    }
+
+    private fun assertTabSelected(
+        contentDescription: String,
+        selected: Boolean,
+    ) {
+        var node: SemanticsNode? =
+            composeRule
+                .onNodeWithContentDescription(contentDescription, useUnmergedTree = true)
+                .fetchSemanticsNode()
+        while (node != null && !node.config.contains(SemanticsProperties.Selected)) {
+            node = node.parent
+        }
+        assertThat(node?.config?.getOrNull(SemanticsProperties.Selected)).isEqualTo(selected)
     }
 }
