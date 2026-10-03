@@ -48,6 +48,41 @@ class AxisMathTest {
     }
 
     @Test
+    fun `axisScale splits four million pesos into four round millions`() {
+        assertThat(AxisMath.axisScale(400_000_000L)).isEqualTo(
+            AxisScale(
+                400_000_000L,
+                listOf(0L, 100_000_000L, 200_000_000L, 300_000_000L, 400_000_000L),
+            ),
+        )
+    }
+
+    @Test
+    fun `axisScale splits 150 thousand pesos into steps of 50 thousand`() {
+        assertThat(AxisMath.axisScale(15_000_000L)).isEqualTo(
+            AxisScale(
+                20_000_000L,
+                listOf(0L, 5_000_000L, 10_000_000L, 15_000_000L, 20_000_000L),
+            ),
+        )
+    }
+
+    @Test
+    fun `axisScale of zero or negative is zero with a single tick`() {
+        assertThat(AxisMath.axisScale(0L)).isEqualTo(AxisScale(0L, listOf(0L)))
+        assertThat(AxisMath.axisScale(-1L)).isEqualTo(AxisScale(0L, listOf(0L)))
+    }
+
+    @Test
+    fun `axisScale near a quarter of Long MAX_VALUE does not overflow`() {
+        val scale = AxisMath.axisScale(Long.MAX_VALUE / 4L)
+        assertThat(scale.maxMinorUnits).isAtLeast(Long.MAX_VALUE / 4L)
+        assertThat(scale.ticksMinorUnits).hasSize(5)
+        assertThat(scale.ticksMinorUnits).isInOrder()
+        assertThat(scale.maxMinorUnits).isEqualTo(scale.ticksMinorUnits.last())
+    }
+
+    @Test
     fun `result is always of the form one two or five times a power of ten`() {
         val samples = listOf(1L, 3L, 7L, 11L, 21L, 99L, 101L, 1_234_567L, 88_888_888L, 99_999_999_999_999L)
         val pattern = Regex("[125]0*")
