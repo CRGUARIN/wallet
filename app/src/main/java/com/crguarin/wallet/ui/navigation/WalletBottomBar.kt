@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
@@ -14,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
@@ -38,6 +40,12 @@ enum class TopLevelDestination(
         routeClass = Transactions::class,
         labelRes = R.string.nav_transactions,
         icon = Icons.AutoMirrored.Filled.ReceiptLong,
+    ),
+    REPORTS(
+        route = Reports,
+        routeClass = Reports::class,
+        labelRes = R.string.nav_reports,
+        icon = Icons.Default.PieChart,
     ),
     ACCOUNTS(
         route = Accounts,
@@ -78,7 +86,12 @@ fun WalletBottomBar(
                     )
                 },
                 label = {
-                    Text(text = stringResource(destination.labelRes))
+                    // With 5 destinations and font scale 2.0 the label must not wrap or overlap.
+                    Text(
+                        text = stringResource(destination.labelRes),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 },
             )
         }

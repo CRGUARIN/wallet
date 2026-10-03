@@ -12,6 +12,7 @@ import com.crguarin.wallet.ui.categories.CategoriesRoute
 import com.crguarin.wallet.ui.categories.CategoryEditRoute
 import com.crguarin.wallet.ui.home.HomeRoute
 import com.crguarin.wallet.ui.onboarding.OnboardingRoute
+import com.crguarin.wallet.ui.reports.ReportsRoute
 import com.crguarin.wallet.ui.settings.SettingsRoute
 import com.crguarin.wallet.ui.transactions.TransactionEditRoute
 import com.crguarin.wallet.ui.transactions.TransactionsRoute
@@ -58,12 +59,29 @@ fun WalletNavHost(
                 onQuickAction = { type ->
                     navController.navigate(TransactionEdit(initialType = type))
                 },
+                onViewReports = {
+                    navController.navigateToTopLevelDestination(Reports)
+                },
             )
         }
         composable<Transactions> {
             TransactionsRoute(
                 onTransactionClick = { transactionId ->
                     navController.navigate(TransactionEdit(transactionId = transactionId))
+                },
+            )
+        }
+        composable<Reports> {
+            ReportsRoute(
+                onViewTransactions = { categoryId, accountId, type, yearMonth ->
+                    navController.navigate(
+                        Transactions(
+                            accountId = accountId,
+                            categoryId = categoryId,
+                            type = type,
+                            month = yearMonth.toString(),
+                        ),
+                    )
                 },
             )
         }

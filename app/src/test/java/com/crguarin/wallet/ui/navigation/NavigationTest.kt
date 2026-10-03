@@ -159,6 +159,34 @@ class NavigationTest {
     }
 
     @Test
+    @Config(qualifiers = "es-w1000dp-h3000dp")
+    fun `bottom bar has five destinations with reports between transactions and accounts`() {
+        setAppContent()
+
+        val transactionsX =
+            composeRule
+                .onNodeWithContentDescription("Movimientos", useUnmergedTree = true)
+                .fetchSemanticsNode()
+                .boundsInRoot.left
+        val reportsX =
+            composeRule
+                .onNodeWithContentDescription("Reportes", useUnmergedTree = true)
+                .fetchSemanticsNode()
+                .boundsInRoot.left
+        val accountsX =
+            composeRule
+                .onNodeWithContentDescription("Cuentas", useUnmergedTree = true)
+                .fetchSemanticsNode()
+                .boundsInRoot.left
+
+        assertThat(transactionsX).isLessThan(reportsX)
+        assertThat(reportsX).isLessThan(accountsX)
+
+        composeRule.onNodeWithText("Reportes").assertIsDisplayed()
+        composeRule.onNodeWithText("Ajustes").assertIsDisplayed()
+    }
+
+    @Test
     @Config(qualifiers = "es")
     fun `navigating from Settings to Categories opens Categories screen`() {
         setAppContent()

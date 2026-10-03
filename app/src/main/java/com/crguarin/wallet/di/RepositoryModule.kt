@@ -4,11 +4,13 @@ import com.crguarin.wallet.data.category.AndroidSystemCategoryNames
 import com.crguarin.wallet.data.prefs.PreferencesRepositoryImpl
 import com.crguarin.wallet.data.repository.AccountRepositoryImpl
 import com.crguarin.wallet.data.repository.CategoryRepositoryImpl
+import com.crguarin.wallet.data.repository.ReportRepositoryImpl
 import com.crguarin.wallet.data.repository.TransactionRepositoryImpl
 import com.crguarin.wallet.domain.model.SystemCategoryNames
 import com.crguarin.wallet.domain.repository.AccountRepository
 import com.crguarin.wallet.domain.repository.CategoryRepository
 import com.crguarin.wallet.domain.repository.PreferencesRepository
+import com.crguarin.wallet.domain.repository.ReportRepository
 import com.crguarin.wallet.domain.repository.TransactionRepository
 import dagger.Binds
 import dagger.Module
@@ -30,6 +32,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindTransactionRepository(impl: TransactionRepositoryImpl): TransactionRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindReportRepository(impl: ReportRepositoryImpl): ReportRepository
 
     @Binds
     @Singleton
