@@ -76,10 +76,21 @@ internal fun labelStride(
  * system font size. Colors are never hardcoded: bars use the colors resolved by the caller and the
  * guides/average line use [androidx.compose.material3.ColorScheme].
  *
+ * [BarGroup.values] are POSITIONS 0..1 inside the axis range: each bar goes from
+ * [baselineFraction] to its value. With `baselineFraction = 0` this is identical to the previous
+ * behavior (bars grow from the base).
+ *
  * @param selectedIndex group drawn at full opacity when set; the rest are dimmed to 0.5.
  * @param averageFraction optional dashed line (0..1 of the axis maximum), for example the average
  *   expense of the drawn months.
+ * @param baselineFraction y position (0..1) of the zero line; bars grow from it.
+ * @param lineValues optional overlay line, one y position (0..1) per group; null = no point.
+ * @param lineColor color of the overlay line.
+ * @param linePointColors color of each point (e.g. by sign); defaults to [lineColor].
  * @param contentDescription accessibility summary resolved by the caller with `stringResource`.
+ *
+ * Contract note: [baselineFraction], [lineValues], [lineColor] and [linePointColors] are wired by
+ * the "ejes y gráficas" owner; until then they are accepted and ignored.
  */
 @Composable
 fun GroupedBarChart(
@@ -90,6 +101,10 @@ fun GroupedBarChart(
     onGroupClick: (Int) -> Unit,
     contentDescription: String,
     modifier: Modifier = Modifier,
+    baselineFraction: Float = 0f,
+    lineValues: List<Float?>? = null,
+    lineColor: Color = Color.Unspecified,
+    linePointColors: List<Color>? = null,
 ) {
     val labelStyle = MaterialTheme.typography.labelSmall
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant

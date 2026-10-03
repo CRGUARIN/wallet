@@ -1,11 +1,13 @@
 package com.crguarin.wallet.domain.fake
 
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.report.BalanceDeltas
 import com.crguarin.wallet.domain.model.report.CategoryTotal
 import com.crguarin.wallet.domain.model.report.DailyIncomeExpense
 import com.crguarin.wallet.domain.repository.ReportRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 
@@ -35,6 +37,12 @@ class FakeReportRepository : ReportRepository {
 
     /** Account ids received by [observeCategoryTotals], in call order. */
     val categoryAccountRequests = mutableListOf<Long?>()
+
+    /** Signed balance effects returned by [observeBalanceDeltas]. */
+    var balanceDeltas: BalanceDeltas = BalanceDeltas.EMPTY
+
+    /** (accountIds, from, to) received by [observeBalanceDeltas], in call order. */
+    val balanceRequests = mutableListOf<Triple<Set<Long>, LocalDate, LocalDate>>()
 
     /** Replaces the whole in-memory dataset; both arguments default to empty. */
     fun setInitialData(
@@ -83,5 +91,14 @@ class FakeReportRepository : ReportRepository {
         return dailyIncomeExpense.map { rows ->
             rows.filter { it.date >= from && it.date <= to }
         }
+    }
+
+    override fun observeBalanceDeltas(
+        accountIds: Set<Long>,
+        from: LocalDate,
+        to: LocalDate,
+    ): Flow<BalanceDeltas> {
+        balanceRequests += Triple(accountIds, from, to)
+        return flowOf(balanceDeltas)
     }
 }

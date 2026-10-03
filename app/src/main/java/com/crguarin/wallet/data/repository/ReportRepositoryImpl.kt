@@ -6,11 +6,13 @@ import com.crguarin.wallet.data.db.DailyIncomeExpenseRow
 import com.crguarin.wallet.data.db.TransactionDao
 import com.crguarin.wallet.di.IoDispatcher
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.report.BalanceDeltas
 import com.crguarin.wallet.domain.model.report.CategoryTotal
 import com.crguarin.wallet.domain.model.report.DailyIncomeExpense
 import com.crguarin.wallet.domain.repository.ReportRepository
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
@@ -46,6 +48,13 @@ class ReportRepositoryImpl
                 .observeDailyIncomeExpense(from, to, accountId)
                 .map { rows -> rows.map { it.toDomain() } }
                 .flowOn(ioDispatcher)
+
+        /** Contract stub: the body is implemented by the "datos y dominio" owner. */
+        override fun observeBalanceDeltas(
+            accountIds: Set<Long>,
+            from: LocalDate,
+            to: LocalDate,
+        ): Flow<BalanceDeltas> = flowOf(BalanceDeltas.EMPTY)
     }
 
 private fun CategoryTotalRow.toDomain(): CategoryTotal =

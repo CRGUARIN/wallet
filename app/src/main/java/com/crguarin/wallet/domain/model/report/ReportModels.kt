@@ -93,6 +93,71 @@ data class PeriodSummary(
 )
 
 /**
+ * Balance result of a period: income, expense, net (income − expense), the savings rate and the
+ * net change in money against the previous period.
+ *
+ * [savingsRatePerMille] is `net * 1000 / income`, rounded half away from zero; null when income
+ * is zero. It can be negative: more was spent than earned. [previousNet] is null when the
+ * previous period has no income and no expense; [netChange] (`net − previousNet`) is null when
+ * [previousNet] is null.
+ */
+data class BalanceSummary(
+    val income: Money,
+    val expense: Money,
+    val net: Money,
+    val savingsRatePerMille: Int?,
+    val previousNet: Money?,
+    val netChange: Money?,
+) {
+    companion object {
+        val EMPTY = BalanceSummary(Money.ZERO, Money.ZERO, Money.ZERO, null, null, null)
+    }
+}
+
+/** Granularity of a [BalanceEvolution]: one point per day or one per month end. */
+enum class BalanceGranularity { DAILY, MONTHLY }
+
+/** Closing balance of one day ([BalanceGranularity.DAILY]) or one month ([BalanceGranularity.MONTHLY]). */
+data class BalancePoint(
+    val date: LocalDate,
+    val balance: Money,
+)
+
+/**
+ * Balance over time: [opening] is the balance at the end of the day before the period starts and
+ * [points] holds one closing balance per day (DAILY) or per month end (MONTHLY), never after
+ * today. For the current month in MONTHLY mode the last point is dated today.
+ */
+data class BalanceEvolution(
+    val granularity: BalanceGranularity,
+    val opening: Money,
+    val points: List<BalancePoint>,
+) {
+    /** Closing balance: the last point, or [opening] when there are no points. */
+    val closing: Money get() = points.lastOrNull()?.balance ?: opening
+
+    companion object {
+        val EMPTY = BalanceEvolution(BalanceGranularity.DAILY, Money.ZERO, emptyList())
+    }
+}
+
+/**
+ * Signed balance effects (minor units) of an account set: INCOME +, EXPENSE −, TRANSFER − at the
+ * source and + at the destination, only for accounts in the set.
+ *
+ * [openingDelta] sums the effects dated before `from`; [daily] holds one signed effect per date
+ * in `[from, to]`. Dates without movements are absent.
+ */
+data class BalanceDeltas(
+    val openingDelta: Money,
+    val daily: Map<LocalDate, Money>,
+) {
+    companion object {
+        val EMPTY = BalanceDeltas(Money.ZERO, emptyMap())
+    }
+}
+
+/**
  * Cumulative amount per day of one month, compared against the same days of the previous month.
  *
  * [current] has one entry per day up to [comparisonDay]; [previous] covers the whole previous

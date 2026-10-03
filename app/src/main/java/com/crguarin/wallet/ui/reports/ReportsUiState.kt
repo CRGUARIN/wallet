@@ -3,10 +3,13 @@ package com.crguarin.wallet.ui.reports
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.report.BalanceEvolution
+import com.crguarin.wallet.domain.model.report.BalanceSummary
 import com.crguarin.wallet.domain.model.report.CategoryBreakdown
 import com.crguarin.wallet.domain.model.report.CategorySlice
 import com.crguarin.wallet.domain.model.report.MonthTotals
 import com.crguarin.wallet.domain.model.report.PeriodSummary
+import com.crguarin.wallet.domain.model.report.ReportFocus
 import com.crguarin.wallet.domain.model.report.ReportMode
 import com.crguarin.wallet.domain.model.report.SliceKey
 import com.crguarin.wallet.domain.model.report.SpendingPace
@@ -40,6 +43,10 @@ data class ReportsUiState(
     val canGoNext: Boolean = false,
     /** True mientras se cargan los datos de una selección nueva; los datos mostrados son de la selección anterior. */
     val isRefreshing: Boolean = false,
+    /** Contract stub: the ViewModel owner wires the balance focus. */
+    val focus: ReportFocus = ReportFocus.EXPENSE,
+    val balanceSummary: BalanceSummary = BalanceSummary.EMPTY,
+    val balanceEvolution: BalanceEvolution? = null,
 ) {
     /** No income and no expenses in the whole monthly evolution range. */
     val isEmpty: Boolean

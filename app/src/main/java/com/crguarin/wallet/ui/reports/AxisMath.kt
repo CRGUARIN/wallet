@@ -10,6 +10,22 @@ data class AxisScale(
 )
 
 /**
+ * Y axis range of a chart that can show negative values: the rounded minimum and maximum (minor
+ * units) and the tick values, bottom to top.
+ */
+data class AxisRange(
+    val minMinorUnits: Long,
+    val maxMinorUnits: Long,
+    val ticksMinorUnits: List<Long>,
+) {
+    /** Position of [minorUnits] in 0..1 (0 = minMinorUnits), clamped. */
+    fun fractionOf(minorUnits: Long): Float {
+        if (maxMinorUnits == minMinorUnits) return 0f
+        return ((minorUnits - minMinorUnits).toFloat() / (maxMinorUnits - minMinorUnits)).coerceIn(0f, 1f)
+    }
+}
+
+/**
  * Pure helpers for chart axes.
  *
  * Lives in the UI layer on purpose: the domain's `ReportMath` must not duplicate [niceAxisMax];
@@ -25,6 +41,24 @@ object AxisMath {
      * Returns `AxisScale(0, [0])` for zero or negative input. Products that would overflow
      * saturate at [Long.MAX_VALUE].
      */
+    /**
+     * Computes the [AxisRange] covering [minMinorUnits]..[maxMinorUnits], with 0 always inside the
+     * range and as a tick.
+     *
+     * Contract stub: without negatives it matches [axisScale]; with negatives the "ejes y gráficas"
+     * owner implements the final rounding.
+     */
+    fun axisRange(
+        minMinorUnits: Long,
+        maxMinorUnits: Long,
+    ): AxisRange {
+        if (minMinorUnits >= 0L) {
+            val scale = axisScale(maxMinorUnits)
+            return AxisRange(0L, scale.maxMinorUnits, scale.ticksMinorUnits)
+        }
+        return AxisRange(minMinorUnits, maxMinorUnits, listOf(minMinorUnits, maxMinorUnits))
+    }
+
     fun axisScale(maxMinorUnits: Long): AxisScale {
         if (maxMinorUnits <= 0L) return AxisScale(0L, listOf(0L))
         val quarter = maxMinorUnits / 4L + if (maxMinorUnits % 4L == 0L) 0L else 1L

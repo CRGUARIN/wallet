@@ -1,6 +1,7 @@
 package com.crguarin.wallet.domain.repository
 
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.report.BalanceDeltas
 import com.crguarin.wallet.domain.model.report.CategoryTotal
 import com.crguarin.wallet.domain.model.report.DailyIncomeExpense
 import kotlinx.coroutines.flow.Flow
@@ -34,4 +35,15 @@ interface ReportRepository {
         to: LocalDate,
         accountId: Long?,
     ): Flow<List<DailyIncomeExpense>>
+
+    /**
+     * Signed balance effects for [accountIds] (INCOME +, EXPENSE -, TRANSFER - at source and + at
+     * destination, only for accounts in the set) up to [to]; effects before [from] are summed into
+     * openingDelta. Empty set -> BalanceDeltas.EMPTY.
+     */
+    fun observeBalanceDeltas(
+        accountIds: Set<Long>,
+        from: LocalDate,
+        to: LocalDate,
+    ): Flow<BalanceDeltas>
 }
