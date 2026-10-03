@@ -211,8 +211,6 @@
     <string name="reports_total">Total</string>
     <string name="reports_vs_previous_month">vs. previous month</string>
     <string name="reports_vs_previous_year">vs. previous year</string>
-    <string name="reports_change_up">▲</string>
-    <string name="reports_change_down">▼</string>
     <string name="reports_average_daily">Daily average</string>
     <string name="reports_average_monthly">Monthly average</string>
     <string name="reports_no_previous_data">No data for the previous period</string>
@@ -226,15 +224,17 @@
     <string name="reports_monthly_evolution">Monthly evolution</string>
     <string name="reports_average">Average</string>
     <string name="reports_spending_pace">Month pace</string>
+    <string name="reports_pace_legend_current">This month</string>
     <string name="reports_pace_current_plain">So far you have %1$s</string>
     <string name="reports_pace_current_more">So far you have %1$s, %2$d%% more than last month</string>
     <string name="reports_pace_current_less">So far you have %1$s, %2$d%% less than last month</string>
     <string name="reports_pace_past_plain">You ended the month with %1$s</string>
     <string name="reports_pace_past_more">You ended the month with %1$s, %2$d%% more than the previous month</string>
     <string name="reports_pace_past_less">You ended the month with %1$s, %2$d%% less than the previous month</string>
-    <string name="reports_compact_thousands">%1$sK</string>
-    <string name="reports_compact_millions">%1$sM</string>
-    <string name="reports_compact_billions">%1$sB</string>
+    <!-- %1$s receives only the number; the template decides where the $ goes. -->
+    <string name="reports_compact_thousands">$%1$sK</string>
+    <string name="reports_compact_millions">$%1$sM</string>
+    <string name="reports_compact_billions">$%1$sB</string>
     <string name="reports_percent">%1$s%%</string>
     <string name="reports_empty_period_title">No movements in this period</string>
     <string name="reports_empty_period_message">Add income or expenses to see your reports.</string>
@@ -246,6 +246,8 @@
     <string name="reports_cd_line">Line chart. %1$s</string>
     <string name="reports_cd_item">%1$s %2$s</string>
     <string name="reports_cd_bars_group">%1$s: %2$s, %3$s</string>
+    <string name="reports_cd_change_up">up %1$s</string>
+    <string name="reports_cd_change_down">down %1$s</string>
     <string name="reports_list_separator">,&#160;</string>
 
     <!-- Domain errors -->

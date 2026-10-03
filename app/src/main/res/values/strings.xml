@@ -213,8 +213,8 @@
     <string name="reports_total">Total</string>
     <string name="reports_vs_previous_month">vs. mes anterior</string>
     <string name="reports_vs_previous_year">vs. año anterior</string>
-    <string name="reports_change_up">▲</string>
-    <string name="reports_change_down">▼</string>
+    <string name="reports_change_up" translatable="false">▲</string>
+    <string name="reports_change_down" translatable="false">▼</string>
     <string name="reports_average_daily">Promedio diario</string>
     <string name="reports_average_monthly">Promedio mensual</string>
     <string name="reports_no_previous_data">Sin datos del período anterior</string>
@@ -228,16 +228,17 @@
     <string name="reports_monthly_evolution">Evolución mensual</string>
     <string name="reports_average">Promedio</string>
     <string name="reports_spending_pace">Ritmo del mes</string>
+    <string name="reports_pace_legend_current">Este mes</string>
     <string name="reports_pace_current_plain">A esta fecha llevas %1$s</string>
     <string name="reports_pace_current_more">A esta fecha llevas %1$s, un %2$d %% más que el mes pasado</string>
     <string name="reports_pace_current_less">A esta fecha llevas %1$s, un %2$d %% menos que el mes pasado</string>
     <string name="reports_pace_past_plain">Terminaste el mes con %1$s</string>
     <string name="reports_pace_past_more">Terminaste el mes con %1$s, un %2$d %% más que el mes anterior</string>
     <string name="reports_pace_past_less">Terminaste el mes con %1$s, un %2$d %% menos que el mes anterior</string>
-    <string name="reports_compact_thousands">%1$s mil</string>
-    <string name="reports_compact_millions">%1$s M</string>
-    <!-- En español no se usa "B": a partir de mil millones se muestran millones ("1.200 M"). -->
-    <string name="reports_compact_billions">%1$s M</string>
+    <!-- %1$s recibe solo el número; la plantilla decide dónde va el $. En español no se usa "B": a partir de mil millones se muestran millones ("1.200 M $"). -->
+    <string name="reports_compact_thousands">%1$s mil $</string>
+    <string name="reports_compact_millions">%1$s M $</string>
+    <string name="reports_compact_billions">%1$s M $</string>
     <string name="reports_percent">%1$s %%</string>
     <string name="reports_empty_period_title">No hay movimientos en este período</string>
     <string name="reports_empty_period_message">Registra ingresos o gastos para ver tus reportes.</string>
@@ -249,6 +250,8 @@
     <string name="reports_cd_line">Gráfico de líneas. %1$s</string>
     <string name="reports_cd_item">%1$s %2$s</string>
     <string name="reports_cd_bars_group">%1$s: %2$s, %3$s</string>
+    <string name="reports_cd_change_up">sube %1$s</string>
+    <string name="reports_cd_change_down">baja %1$s</string>
     <string name="reports_list_separator">,&#160;</string>
 
     <!-- Errores de dominio -->
