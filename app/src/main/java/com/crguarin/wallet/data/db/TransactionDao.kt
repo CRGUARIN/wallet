@@ -168,4 +168,55 @@ interface TransactionDao {
         to: LocalDate,
         accountId: Long? = null,
     ): MonthSummary
+
+    @Query(
+        """
+        SELECT
+            t.category_id      AS category_id,
+            c.name             AS category_name,
+            c.system_key       AS category_system_key,
+            c.color            AS category_color,
+            c.icon             AS category_icon,
+            c.parent_id        AS parent_id,
+            pc.name            AS parent_name,
+            pc.system_key      AS parent_system_key,
+            pc.color           AS parent_color,
+            pc.icon            AS parent_icon,
+            SUM(t.amount)      AS total,
+            COUNT(*)           AS tx_count
+        FROM transactions t
+        LEFT JOIN categories c  ON t.category_id = c.id
+        LEFT JOIN categories pc ON c.parent_id = pc.id
+        WHERE t.type = :type
+          AND t.date >= :from AND t.date <= :to
+          AND (:accountId IS NULL OR t.account_id = :accountId)
+        GROUP BY t.category_id
+        """,
+    )
+    fun observeCategoryTotals(
+        from: LocalDate,
+        to: LocalDate,
+        type: TransactionType,
+        accountId: Long? = null,
+    ): Flow<List<CategoryTotalRow>>
+
+    @Query(
+        """
+        SELECT
+            t.date AS date,
+            COALESCE(SUM(CASE WHEN t.type = 'INCOME'  THEN t.amount ELSE 0 END), 0) AS income,
+            COALESCE(SUM(CASE WHEN t.type = 'EXPENSE' THEN t.amount ELSE 0 END), 0) AS expense
+        FROM transactions t
+        WHERE t.date >= :from AND t.date <= :to
+          AND t.type IN ('INCOME', 'EXPENSE')
+          AND (:accountId IS NULL OR t.account_id = :accountId)
+        GROUP BY t.date
+        ORDER BY t.date
+        """,
+    )
+    fun observeDailyIncomeExpense(
+        from: LocalDate,
+        to: LocalDate,
+        accountId: Long? = null,
+    ): Flow<List<DailyIncomeExpenseRow>>
 }
