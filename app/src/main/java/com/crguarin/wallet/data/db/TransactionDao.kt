@@ -219,4 +219,36 @@ interface TransactionDao {
         to: LocalDate,
         accountId: Long? = null,
     ): Flow<List<DailyIncomeExpenseRow>>
+
+    /**
+     * Signed balance effects per date for [accountIds], up to [to] (inclusive).
+     *
+     * The first branch covers INCOME (+), EXPENSE (−) and outgoing TRANSFER (−); the second covers
+     * incoming TRANSFER (+). A transfer between two accounts of the set appears in both branches
+     * and nets to zero. Everything before [from] is grouped into a single row dated [openingDate]
+     * (`from - 1 day`). Callers must not pass an empty [accountIds].
+     */
+    @Query(
+        """
+        SELECT CASE WHEN x.date < :from THEN :openingDate ELSE x.date END AS date, SUM(x.delta) AS delta
+        FROM (
+          SELECT t.date AS date,
+                 CASE t.type WHEN 'INCOME' THEN t.amount ELSE -t.amount END AS delta
+          FROM transactions t
+          WHERE t.account_id IN (:accountIds) AND t.date <= :to
+          UNION ALL
+          SELECT t.date AS date, t.amount AS delta
+          FROM transactions t
+          WHERE t.type = 'TRANSFER' AND t.to_account_id IN (:accountIds) AND t.date <= :to
+        ) x
+        GROUP BY 1
+        ORDER BY 1
+        """,
+    )
+    fun observeBalanceDeltas(
+        accountIds: List<Long>,
+        from: LocalDate,
+        to: LocalDate,
+        openingDate: LocalDate,
+    ): Flow<List<BalanceDeltaRow>>
 }
