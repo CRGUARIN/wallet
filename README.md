@@ -8,6 +8,7 @@ Wallet es una app Android de finanzas personales que funciona **sin conexión y 
 - **Ingresos, gastos y transferencias** entre cuentas, con fecha, nota y aviso cuando una cuenta quedaría en negativo.
 - **Categorías y subcategorías** con colores e íconos; vienen unas por defecto y puedes crear, editar, archivar o reasignar las tuyas.
 - **Movimientos** por mes, con filtros (tipo, cuenta, categoría), búsqueda y deshacer al eliminar.
+- **Reportes con gráficas**: dona por categoría con drill-down a subcategorías, evolución mensual de ingresos y gastos, y ritmo del mes frente al anterior, con filtro por período, tipo y cuenta.
 - **Inicio** con saldo total, resumen del mes, cuentas y últimos movimientos.
 - **Backup en JSON**: exporta todos tus datos a un archivo e impórtalos después (reemplaza los datos actuales, con confirmación previa).
 - **Español e inglés** (idioma por app), **tema claro, oscuro o del sistema** y color dinámico en Android 12+.
@@ -79,7 +80,7 @@ Un solo módulo `:app` (paquete `com.crguarin.wallet`) con arquitectura MVVM + f
 | `data/` | Room (entidades, DAOs), repositorios, backup JSON, preferencias (DataStore), datos iniciales |
 | `domain/` | Modelos, interfaces de repositorios y casos de uso (Kotlin puro, sin Android) |
 | `di/` | Módulos de Hilt |
-| `ui/` | Tema, navegación, componentes comunes y pantallas (`onboarding`, `home`, `accounts`, `transactions`, `categories`, `settings`) |
+| `ui/` | Tema, navegación, componentes comunes y pantallas (`onboarding`, `home`, `reports`, `accounts`, `transactions`, `categories`, `settings`) |
 
 Stack: Kotlin, Jetpack Compose + Material 3, Hilt, Room, DataStore, Paging 3, Navigation Compose (rutas type-safe), kotlinx.serialization y Coroutines/Flow. Más detalle en [`PLAN.md`](PLAN.md) y [`AGENTS.md`](AGENTS.md).
 
@@ -91,4 +92,4 @@ Licencia MIT; consulta el archivo [`LICENSE`](LICENSE).
 
 ## English summary
 
-Wallet is an offline, account-free personal finance app for Android (8.0+): multiple accounts, income/expense/transfer tracking, categories and subcategories, monthly transaction lists with filters, JSON backup export/import, Spanish and English UI, and light/dark/dynamic themes. Build and verify with `./gradlew ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease` (JDK 17, Android SDK 37). See "Release firmado" above for signing the release build with `WALLET_KEYSTORE_*` environment variables or a git-ignored `keystore.properties`.
+Wallet is an offline, account-free personal finance app for Android (8.0+): multiple accounts, income/expense/transfer tracking, categories and subcategories, monthly transaction lists with filters, reports with a category donut, monthly evolution bars and month pace, JSON backup export/import, Spanish and English UI, and light/dark/dynamic themes. Build and verify with `./gradlew ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease` (JDK 17, Android SDK 37). See "Release firmado" above for signing the release build with `WALLET_KEYSTORE_*` environment variables or a git-ignored `keystore.properties`.

@@ -404,13 +404,14 @@ Inyectar un `Clock`/`TimeProvider` para poder testear fechas.
 - `@Preview` (claro y oscuro) para cada pantalla principal.
 
 ### 8.2 Navegación
-Barra inferior con 4 destinos: **Inicio**, **Movimientos**, **Cuentas**, **Ajustes**. FAB "+" en Inicio y Movimientos para nueva transacción.
+Barra inferior con 5 destinos: **Inicio**, **Movimientos**, **Reportes**, **Cuentas**, **Ajustes** (Material 3 admite 5). FAB "+" en Inicio y Movimientos para nueva transacción; no se muestra en Reportes.
 
 Rutas (`@Serializable`):
 ```
 Onboarding
 Home
-Transactions(accountId: Long? = null, categoryId: Long? = null)
+Transactions(accountId: Long? = null, categoryId: Long? = null, type: TransactionType? = null, month: String? = null)
+Reports
 TransactionEdit(transactionId: Long? = null, initialType: TransactionType = EXPENSE, accountId: Long? = null)
 Accounts
 AccountDetail(accountId: Long)
@@ -434,6 +435,13 @@ Settings
 - **Últimos 10 movimientos** (tap → editar) + botón "Ver todos".
 - FAB: nueva transacción. Acciones rápidas: "Gasto", "Ingreso", "Transferencia".
 - Estado vacío amigable si no hay movimientos.
+
+**Reportes**
+- Resumen del período: total, variación frente al período anterior (▲/▼ %) y promedio diario (Mes) o mensual (Año).
+- Dona por categoría con drill-down a sus subcategorías; la leyenda muestra color, ícono, monto y porcentaje, y permite "Ver movimientos" con los filtros del reporte.
+- Evolución mensual de ingresos y gastos (6 meses en modo Mes, 12 en modo Año) con línea punteada del promedio; tocar un mes lo selecciona.
+- Ritmo del mes (solo modo Mes): acumulado día a día del mes elegido frente al mes anterior.
+- Controles persistentes: Mes/Año, selector de período (sin avanzar al futuro), Gastos/Ingresos y filtro de cuenta.
 
 **Movimientos (lista)**
 - Lista paginada agrupada por **día** (encabezado con fecha y total neto del día).
@@ -646,6 +654,13 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 - Actualizar `README.md`: descripción, capturas, cómo compilar.
 - **Aceptación**: `./gradlew assembleRelease` genera APK minificado que funciona; sin warnings de Lint de severidad error.
 
+### Tarea 13 — Reportes con gráficas
+- Pestaña **Reportes** en la barra inferior (la barra pasa a 5 destinos).
+- Resumen del período (total, variación y promedio), dona por categoría con drill-down y "Ver movimientos", evolución mensual con promedio y ritmo del mes, dibujadas a mano con `Canvas` (sin librerías nuevas).
+- Controles persistentes en `SavedStateHandle`: Mes/Año, período, Gastos/Ingresos y cuenta.
+- Consultas agregadas nuevas en `TransactionDao` (sin cambios de esquema), `ReportRepository`, modelos y matemática de reportes en dominio (`ReportMath`), y enlace "Ver reportes" desde Home.
+- **Aceptación**: la verificación completa (`ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease`) pasa y la pantalla se probó en dispositivo real.
+
 ---
 
 ## 13. Convenciones de código
@@ -661,16 +676,15 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 ---
 
 ## 14. Roadmap futuro (no implementar en v1)
-1. Reportes: gráfico de gastos por categoría (dona) y evolución mensual (barras).
-2. Presupuestos mensuales por categoría con alertas.
-3. Transacciones recurrentes (WorkManager).
-4. Comisión en transferencias (gasto vinculado).
-5. Más tipos de cuenta: corriente, tarjeta de crédito, inversión.
-6. Multi-moneda con tasas de cambio.
-7. Bloqueo con biometría.
-8. Backup automático (Google Drive / carpeta local programada).
-9. Exportar CSV.
-10. Widgets de pantalla de inicio.
+1. Presupuestos mensuales por categoría con alertas.
+2. Transacciones recurrentes (WorkManager).
+3. Comisión en transferencias (gasto vinculado).
+4. Más tipos de cuenta: corriente, tarjeta de crédito, inversión.
+5. Multi-moneda con tasas de cambio.
+6. Bloqueo con biometría.
+7. Backup automático (Google Drive / carpeta local programada).
+8. Exportar CSV.
+9. Widgets de pantalla de inicio.
 
 ---
 
@@ -688,6 +702,7 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 - [x] Tarea 10 — Movimientos, detalle y Home
 - [x] Tarea 11 — Ajustes y backup
 - [x] Tarea 12 — Pulido y release
+- [x] Tarea 13 — Reportes y gráficas
 
 ---
 
