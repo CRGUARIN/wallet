@@ -1,5 +1,9 @@
 package com.crguarin.wallet.ui.reports
 
+import android.content.Context
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
@@ -7,6 +11,8 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.test.core.app.ApplicationProvider
+import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.report.CategoryBreakdown
@@ -261,5 +267,34 @@ class ReportsScreenTest {
         composeRule.onNodeWithText("Monthly evolution").assertIsDisplayed()
         composeRule.onNodeWithText("Month pace").assertIsDisplayed()
         composeRule.onNodeWithText("45.0%").assertIsDisplayed()
+    }
+
+    @Test
+    fun `summary change label follows the selected period`() {
+        var change by mutableStateOf(12)
+        composeRule.setContent {
+            WalletTheme {
+                ReportsSummaryCard(
+                    uiState =
+                        state().copy(
+                            summary = PeriodSummary(Money(250_000_000L), Money(200_000_000L), change, Money(16_666_666L)),
+                        ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("▲ 12 %").assertIsDisplayed()
+        change = 25
+        composeRule.onNodeWithText("▲ 25 %").assertIsDisplayed()
+    }
+
+    @Test
+    fun `change value exposes an accessible up description`() {
+        setScreen(state())
+
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val percent = context.getString(R.string.reports_percent, "25")
+        val expected = context.getString(R.string.reports_cd_change_up, percent)
+        composeRule.onNodeWithContentDescription(expected).assertIsDisplayed()
     }
 }

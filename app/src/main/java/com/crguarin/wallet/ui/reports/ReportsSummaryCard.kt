@@ -18,6 +18,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.R
@@ -92,10 +94,12 @@ internal fun ReportsSummaryCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     } else {
+                        val changeDescription = changeContentDescription(change)
                         Text(
                             text = changeLabel(change),
                             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                             color = changeColor,
+                            modifier = Modifier.semantics { contentDescription = changeDescription },
                         )
                     }
                 }
@@ -136,12 +140,18 @@ private fun SummaryColumn(
     }
 }
 
+/** "12 %": localized percent body of a change value, without the arrow. */
+@Composable
+private fun formattedChangePercent(change: Int): String {
+    val locale = LocalConfiguration.current.locales[0]
+    val formatted = remember(locale, change) { NumberFormat.getIntegerInstance(locale).format(kotlin.math.abs(change)) }
+    return stringResource(R.string.reports_percent, formatted)
+}
+
 /** "▲ 12 %" or "▼ 3 %", using the localized percent format; no arrow when nothing changed. */
 @Composable
 private fun changeLabel(change: Int): String {
-    val locale = LocalConfiguration.current.locales[0]
-    val formatted = remember(locale) { NumberFormat.getIntegerInstance(locale).format(kotlin.math.abs(change)) }
-    val percent = stringResource(R.string.reports_percent, formatted)
+    val percent = formattedChangePercent(change)
     val arrow =
         when {
             change > 0 -> stringResource(R.string.reports_change_up)
@@ -149,4 +159,20 @@ private fun changeLabel(change: Int): String {
             else -> null
         }
     return if (arrow == null) percent else "$arrow $percent"
+}
+
+/**
+ * Accessibility description of a change ("sube 12 %" / "baja 3 %"), so TalkBack does not read
+ * the arrow glyph. With 0 % it is just the percent.
+ */
+@Composable
+private fun changeContentDescription(change: Int): String {
+    val percent = formattedChangePercent(change)
+    val up = stringResource(R.string.reports_cd_change_up, percent)
+    val down = stringResource(R.string.reports_cd_change_down, percent)
+    return when {
+        change > 0 -> up
+        change < 0 -> down
+        else -> percent
+    }
 }
