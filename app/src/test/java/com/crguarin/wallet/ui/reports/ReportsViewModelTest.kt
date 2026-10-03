@@ -197,6 +197,21 @@ class ReportsViewModelTest {
         }
 
     @Test
+    fun `selecting a future month is ignored`() =
+        runTest(testDispatcher) {
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+            viewModel.setMode(ReportMode.YEAR)
+            advanceUntilIdle()
+
+            viewModel.selectMonth(YearMonth.of(2026, 12))
+            advanceUntilIdle()
+
+            assertThat(viewModel.uiState.value.mode).isEqualTo(ReportMode.YEAR)
+            assertThat(viewModel.uiState.value.yearMonth).isEqualTo(YearMonth.of(2026, 9))
+        }
+
+    @Test
     fun `drill down and up moves the breakdown and loads the parent`() =
         runTest(testDispatcher) {
             categoryRepository.setInitialData(listOf(food, groceries))
@@ -261,6 +276,36 @@ class ReportsViewModelTest {
             assertThat(state.selectedSliceKey).isNull()
             assertThat(state.drillDownParent).isNull()
             assertThat(state.breakdown.parentId).isNull()
+        }
+
+    @Test
+    fun `changing the period or account also clears the selection and drill down`() =
+        runTest(testDispatcher) {
+            categoryRepository.setInitialData(listOf(food))
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+
+            viewModel.drillInto(10L)
+            viewModel.selectSlice(SliceKey.Category(10L))
+            advanceUntilIdle()
+            viewModel.setAccount(2L)
+            advanceUntilIdle()
+
+            assertThat(viewModel.uiState.value.accountId).isEqualTo(2L)
+            assertThat(viewModel.uiState.value.selectedSliceKey).isNull()
+            assertThat(viewModel.uiState.value.drillDownParent).isNull()
+            assertThat(viewModel.uiState.value.breakdown.parentId).isNull()
+
+            viewModel.drillInto(10L)
+            viewModel.selectSlice(SliceKey.Category(10L))
+            advanceUntilIdle()
+            viewModel.previousPeriod()
+            advanceUntilIdle()
+
+            assertThat(viewModel.uiState.value.yearMonth).isEqualTo(YearMonth.of(2026, 8))
+            assertThat(viewModel.uiState.value.selectedSliceKey).isNull()
+            assertThat(viewModel.uiState.value.drillDownParent).isNull()
+            assertThat(viewModel.uiState.value.breakdown.parentId).isNull()
         }
 
     @Test

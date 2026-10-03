@@ -15,7 +15,8 @@ import java.time.LocalDate
 interface ReportRepository {
     /**
      * Totals per category (leaf, or root with direct movements) in the inclusive date range.
-     * Returns an empty list when [type] is TRANSFER (callers must not ask for it).
+     * Throws [IllegalArgumentException] when [type] is TRANSFER: transfers are neither income nor
+     * expense.
      */
     fun observeCategoryTotals(
         from: LocalDate,

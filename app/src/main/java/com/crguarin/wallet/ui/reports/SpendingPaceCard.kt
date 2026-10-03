@@ -44,14 +44,16 @@ internal fun SpendingPaceCard(
             TransactionType.INCOME -> semanticColors.income
             else -> semanticColors.expense
         }
-    val (current, previous) = remember(pace) { ReportsChartMapper.cumulativeFractions(pace) }
-    val seriesMax =
+    val axisMax =
         remember(pace) {
-            maxOf(
-                pace.current.maxOfOrNull { it.minorUnits } ?: 0L,
-                pace.previous.maxOfOrNull { it.minorUnits } ?: 0L,
-            )
+            val seriesMax =
+                maxOf(
+                    pace.current.maxOfOrNull { it.minorUnits } ?: 0L,
+                    pace.previous.maxOfOrNull { it.minorUnits } ?: 0L,
+                )
+            AxisMath.niceAxisMax(seriesMax)
         }
+    val (current, previous) = remember(pace, axisMax) { ReportsChartMapper.cumulativeFractions(pace, axisMax) }
     val xLabels = remember(pace) { listOf(1, 15, pace.daysInMonth).distinct().map { day -> day to day.toString() } }
     val phrase = pacePhrase(uiState, pace, locale)
 
@@ -75,7 +77,7 @@ internal fun SpendingPaceCard(
                 daysInMonth = pace.daysInMonth,
                 currentColor = currentColor,
                 xLabels = xLabels,
-                yLabels = ReportsChartMapper.yAxisMinorUnits(seriesMax).map { compactMoney(it) },
+                yLabels = ReportsChartMapper.yAxisMinorUnits(axisMax).map { compactMoney(it) },
                 contentDescription = stringResource(R.string.reports_cd_line, phrase),
                 modifier =
                     Modifier

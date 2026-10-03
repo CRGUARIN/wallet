@@ -110,10 +110,12 @@ fun GroupedBarChart(
                 .semantics { this.contentDescription = description }
                 .pointerInput(groups.size, yAxisWidth) {
                     detectTapGestures { offset ->
-                        if (groups.isEmpty() || yAxisWidth >= size.width) return@detectTapGestures
+                        if (groups.isEmpty() || yAxisWidth >= size.width || offset.x < yAxisWidth) {
+                            return@detectTapGestures
+                        }
                         val columnWidth = (size.width - yAxisWidth) / groups.size
-                        val index = ((offset.x - yAxisWidth) / columnWidth).toInt().coerceIn(0, groups.size - 1)
-                        currentOnGroupClick(index)
+                        val index = ((offset.x - yAxisWidth) / columnWidth).toInt()
+                        if (index in groups.indices) currentOnGroupClick(index)
                     }
                 },
     ) {

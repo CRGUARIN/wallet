@@ -99,7 +99,12 @@ internal fun MonthlyEvolutionCard(
                 selectedIndex = selectedIndex,
                 averageFraction = average,
                 yLabels = ReportsChartMapper.yAxisMinorUnits(axisMax).map { compactMoney(it) },
-                onGroupClick = { index -> months.getOrNull(index)?.let { onSelectMonth(it.yearMonth) } },
+                onGroupClick = { index ->
+                    months
+                        .getOrNull(index)
+                        ?.takeIf { it.yearMonth <= todayMonth }
+                        ?.let { onSelectMonth(it.yearMonth) }
+                },
                 contentDescription = barsDescription(months, locale),
                 modifier =
                     Modifier

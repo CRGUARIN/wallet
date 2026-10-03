@@ -82,17 +82,16 @@ object ReportsChartMapper {
     }
 
     /**
-     * Normalizes [SpendingPace.current] and [SpendingPace.previous] over the maximum of both, so
-     * the two lines are comparable. Returns `current to previous`.
+     * Normalizes [SpendingPace.current] and [SpendingPace.previous] over [axisMaxMinorUnits] (the
+     * caller passes `AxisMath.niceAxisMax` of the maximum of both series, so the y labels line up
+     * with the drawn lines). Returns `current to previous`.
      */
-    fun cumulativeFractions(pace: SpendingPace): Pair<List<Float>, List<Float>> {
-        val max =
-            maxOf(
-                pace.current.maxOfOrNull { it.minorUnits } ?: 0L,
-                pace.previous.maxOfOrNull { it.minorUnits } ?: 0L,
-            )
-        val current = pace.current.map { fraction(it.minorUnits, max) }
-        val previous = pace.previous.map { fraction(it.minorUnits, max) }
+    fun cumulativeFractions(
+        pace: SpendingPace,
+        axisMaxMinorUnits: Long,
+    ): Pair<List<Float>, List<Float>> {
+        val current = pace.current.map { fraction(it.minorUnits, axisMaxMinorUnits) }
+        val previous = pace.previous.map { fraction(it.minorUnits, axisMaxMinorUnits) }
         return current to previous
     }
 

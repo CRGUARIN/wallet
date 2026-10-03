@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -108,6 +109,13 @@ class ReportsViewModel
         private val dataFlow: Flow<ReportData> =
             queryFlow.flatMapLatest { selection ->
                 errorFlow.value = false
+                // The pace query only runs in MONTH mode, where its card is visible.
+                val paceFlow: Flow<SpendingPace?> =
+                    if (selection.mode == ReportMode.MONTH) {
+                        observeSpendingPaceUseCase(selection.yearMonth, selection.type, selection.accountId, today)
+                    } else {
+                        flowOf(null)
+                    }
                 combine(
                     observePeriodSummaryUseCase(selection.period(), selection.type, selection.accountId, today),
                     observeCategoryBreakdownUseCase(
@@ -117,7 +125,7 @@ class ReportsViewModel
                         parentId = selection.drillDownParentId,
                     ),
                     observeMonthlyTotalsUseCase(barMonths(selection), selection.accountId),
-                    observeSpendingPaceUseCase(selection.yearMonth, selection.type, selection.accountId, today),
+                    paceFlow,
                 ) { summary, breakdown, monthlyTotals, pace ->
                     ReportData(summary, breakdown, monthlyTotals, pace)
                 }.catch {
@@ -243,6 +251,8 @@ class ReportsViewModel
         }
 
         fun selectMonth(yearMonth: YearMonth) {
+            // The bar chart must not navigate into the future (spec 1): ignore future months.
+            if (yearMonth > YearMonth.from(today)) return
             applySelection(
                 selectionFlow.value.copy(
                     mode = ReportMode.MONTH,

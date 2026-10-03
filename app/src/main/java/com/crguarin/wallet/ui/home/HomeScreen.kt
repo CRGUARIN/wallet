@@ -79,8 +79,8 @@ fun HomeRoute(
     onTransactionClick: (Long) -> Unit,
     onViewAllTransactions: () -> Unit,
     onQuickAction: (TransactionType) -> Unit,
-    onViewReports: () -> Unit = {},
     modifier: Modifier = Modifier,
+    onViewReports: () -> Unit = {},
     viewModel: HomeViewModel? = safeHiltViewModel(),
 ) {
     if (viewModel == null) {
