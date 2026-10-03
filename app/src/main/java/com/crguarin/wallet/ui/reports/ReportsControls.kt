@@ -15,14 +15,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.R
-import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.report.ReportFocus
 import com.crguarin.wallet.domain.model.report.ReportMode
 import com.crguarin.wallet.ui.components.PeriodSelector
 import com.crguarin.wallet.ui.util.formatMonthYear
 
 /**
- * Top block of the Reports screen: mode (month/year), period selector, type (expenses/income) and
- * account filter. Every control reports through a lambda; the selection itself lives in the state.
+ * Top block of the Reports screen: mode (month/year), period selector, focus
+ * (expenses/income/balance) and account filter. Every control reports through a lambda; the
+ * selection itself lives in the state.
  */
 @Composable
 internal fun ReportsControls(
@@ -30,7 +31,7 @@ internal fun ReportsControls(
     onModeChange: (ReportMode) -> Unit,
     onPreviousPeriod: () -> Unit,
     onNextPeriod: () -> Unit,
-    onTypeChange: (TransactionType) -> Unit,
+    onFocusChange: (ReportFocus) -> Unit,
     onOpenAccountSheet: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -79,12 +80,18 @@ internal fun ReportsControls(
         )
 
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            REPORT_TYPES.forEachIndexed { index, type ->
+            ReportFocus.entries.forEachIndexed { index, focus ->
                 SegmentedButton(
-                    selected = uiState.type == type,
-                    onClick = { onTypeChange(type) },
-                    shape = SegmentedButtonDefaults.itemShape(index = index, count = REPORT_TYPES.size),
-                    label = { Text(text = stringResource(type.labelRes())) },
+                    selected = uiState.focus == focus,
+                    onClick = { onFocusChange(focus) },
+                    shape = SegmentedButtonDefaults.itemShape(index = index, count = ReportFocus.entries.size),
+                    label = {
+                        Text(
+                            text = stringResource(focus.labelRes()),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
                 )
             }
         }
@@ -103,18 +110,15 @@ internal fun ReportsControls(
     }
 }
 
-/** Only expenses and income are reported; transfers never count. */
-private val REPORT_TYPES = listOf(TransactionType.EXPENSE, TransactionType.INCOME)
-
 private fun ReportMode.labelRes(): Int =
     when (this) {
         ReportMode.MONTH -> R.string.reports_mode_month
         ReportMode.YEAR -> R.string.reports_mode_year
     }
 
-private fun TransactionType.labelRes(): Int =
+private fun ReportFocus.labelRes(): Int =
     when (this) {
-        TransactionType.EXPENSE -> R.string.type_expense
-        TransactionType.INCOME -> R.string.type_income
-        TransactionType.TRANSFER -> R.string.type_transfer
+        ReportFocus.EXPENSE -> R.string.type_expense
+        ReportFocus.INCOME -> R.string.type_income
+        ReportFocus.BALANCE -> R.string.reports_focus_balance
     }

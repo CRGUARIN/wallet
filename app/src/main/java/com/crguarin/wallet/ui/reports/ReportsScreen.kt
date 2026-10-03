@@ -30,6 +30,7 @@ import com.crguarin.wallet.domain.model.report.CategoryBreakdown
 import com.crguarin.wallet.domain.model.report.CategorySlice
 import com.crguarin.wallet.domain.model.report.MonthTotals
 import com.crguarin.wallet.domain.model.report.PeriodSummary
+import com.crguarin.wallet.domain.model.report.ReportFocus
 import com.crguarin.wallet.domain.model.report.ReportMode
 import com.crguarin.wallet.domain.model.report.SliceKey
 import com.crguarin.wallet.domain.model.report.SpendingPace
@@ -56,7 +57,7 @@ fun ReportsRoute(
             onModeChange = {},
             onPreviousPeriod = {},
             onNextPeriod = {},
-            onTypeChange = {},
+            onFocusChange = {},
             onOpenAccountSheet = {},
             onDismissAccountSheet = {},
             onAccountSelected = {},
@@ -78,7 +79,8 @@ fun ReportsRoute(
         onModeChange = viewModel::setMode,
         onPreviousPeriod = viewModel::previousPeriod,
         onNextPeriod = viewModel::nextPeriod,
-        onTypeChange = viewModel::setType,
+        // TODO(lider): cambiar a viewModel::setFocus al integrar C.
+        onFocusChange = { focus -> viewModel.setType(focus.transactionType ?: TransactionType.EXPENSE) },
         onOpenAccountSheet = viewModel::openAccountSheet,
         onDismissAccountSheet = viewModel::dismissAccountSheet,
         onAccountSelected = viewModel::setAccount,
@@ -93,9 +95,10 @@ fun ReportsRoute(
 }
 
 /**
- * Stateless Reports screen: controls on top and then the summary, the category donut, the monthly
- * bars and the month pace (MONTH mode only). The empty state is shown below the controls so the
- * period can still be changed.
+ * Stateless Reports screen: controls on top and then the cards of the selected focus. In
+ * EXPENSE/INCOME the summary, the category donut, the monthly bars and the month pace (MONTH mode
+ * only); in BALANCE the balance summary, the balance evolution and the monthly bars. The empty
+ * state is shown below the controls so the period can still be changed.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,7 +107,7 @@ fun ReportsScreen(
     onModeChange: (ReportMode) -> Unit,
     onPreviousPeriod: () -> Unit,
     onNextPeriod: () -> Unit,
-    onTypeChange: (TransactionType) -> Unit,
+    onFocusChange: (ReportFocus) -> Unit,
     onOpenAccountSheet: () -> Unit,
     onDismissAccountSheet: () -> Unit,
     onAccountSelected: (Long?) -> Unit,
@@ -137,7 +140,7 @@ fun ReportsScreen(
                     onModeChange = onModeChange,
                     onPreviousPeriod = onPreviousPeriod,
                     onNextPeriod = onNextPeriod,
-                    onTypeChange = onTypeChange,
+                    onFocusChange = onFocusChange,
                     onOpenAccountSheet = onOpenAccountSheet,
                 )
             }
@@ -171,27 +174,44 @@ fun ReportsScreen(
                 }
 
                 else -> {
-                    item(key = "summary", contentType = "card") {
-                        ReportsSummaryCard(uiState = uiState)
-                    }
-                    item(key = "breakdown", contentType = "card") {
-                        CategoryBreakdownCard(
-                            uiState = uiState,
-                            onSelectSlice = onSelectSlice,
-                            onDrillInto = onDrillInto,
-                            onDrillUp = onDrillUp,
-                            onViewTransactions = onViewTransactions,
-                        )
-                    }
-                    item(key = "evolution", contentType = "card") {
-                        MonthlyEvolutionCard(
-                            uiState = uiState,
-                            onSelectMonth = onSelectMonth,
-                        )
-                    }
-                    if (uiState.mode == ReportMode.MONTH && uiState.pace != null) {
-                        item(key = "pace", contentType = "card") {
-                            SpendingPaceCard(uiState = uiState)
+                    if (uiState.focus == ReportFocus.BALANCE) {
+                        item(key = "balanceSummary", contentType = "card") {
+                            BalanceSummaryCard(uiState = uiState)
+                        }
+                        if (uiState.balanceEvolution != null) {
+                            item(key = "balanceEvolution", contentType = "card") {
+                                BalanceEvolutionCard(uiState = uiState)
+                            }
+                        }
+                        item(key = "evolution", contentType = "card") {
+                            MonthlyEvolutionCard(
+                                uiState = uiState,
+                                onSelectMonth = onSelectMonth,
+                            )
+                        }
+                    } else {
+                        item(key = "summary", contentType = "card") {
+                            ReportsSummaryCard(uiState = uiState)
+                        }
+                        item(key = "breakdown", contentType = "card") {
+                            CategoryBreakdownCard(
+                                uiState = uiState,
+                                onSelectSlice = onSelectSlice,
+                                onDrillInto = onDrillInto,
+                                onDrillUp = onDrillUp,
+                                onViewTransactions = onViewTransactions,
+                            )
+                        }
+                        item(key = "evolution", contentType = "card") {
+                            MonthlyEvolutionCard(
+                                uiState = uiState,
+                                onSelectMonth = onSelectMonth,
+                            )
+                        }
+                        if (uiState.mode == ReportMode.MONTH && uiState.pace != null) {
+                            item(key = "pace", contentType = "card") {
+                                SpendingPaceCard(uiState = uiState)
+                            }
                         }
                     }
                 }
@@ -332,7 +352,7 @@ private fun ReportsScreenPreview() {
         onModeChange = {},
         onPreviousPeriod = {},
         onNextPeriod = {},
-        onTypeChange = {},
+        onFocusChange = {},
         onOpenAccountSheet = {},
         onDismissAccountSheet = {},
         onAccountSelected = {},

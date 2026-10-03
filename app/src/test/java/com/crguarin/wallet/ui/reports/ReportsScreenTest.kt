@@ -27,11 +27,15 @@ import androidx.test.core.app.ApplicationProvider
 import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.report.BalanceEvolution
 import com.crguarin.wallet.domain.model.report.BalanceGranularity
+import com.crguarin.wallet.domain.model.report.BalancePoint
+import com.crguarin.wallet.domain.model.report.BalanceSummary
 import com.crguarin.wallet.domain.model.report.CategoryBreakdown
 import com.crguarin.wallet.domain.model.report.CategorySlice
 import com.crguarin.wallet.domain.model.report.MonthTotals
 import com.crguarin.wallet.domain.model.report.PeriodSummary
+import com.crguarin.wallet.domain.model.report.ReportFocus
 import com.crguarin.wallet.domain.model.report.ReportMode
 import com.crguarin.wallet.domain.model.report.SliceKey
 import com.crguarin.wallet.domain.model.report.SpendingPace
@@ -106,9 +110,33 @@ class ReportsScreenTest {
             changePercent = 14,
         )
 
+    private fun balanceSummaryWithData() =
+        BalanceSummary(
+            income = Money(1_800_000_000L),
+            expense = Money(1_200_000_000L),
+            net = Money(600_000_000L),
+            savingsRatePerMille = 333,
+            previousNet = Money(400_000_000L),
+            netChange = Money(200_000_000L),
+        )
+
+    private fun balanceEvolutionWithData() =
+        BalanceEvolution(
+            granularity = BalanceGranularity.DAILY,
+            opening = Money(5_000_000_000L),
+            points =
+                (1..15).map { day ->
+                    BalancePoint(
+                        date = LocalDate.of(2026, 10, day),
+                        balance = Money(5_000_000_000L + day * 10_000_000L),
+                    )
+                },
+        )
+
     private fun state(
         mode: ReportMode = ReportMode.MONTH,
         type: TransactionType = TransactionType.EXPENSE,
+        focus: ReportFocus = ReportFocus.EXPENSE,
         accountId: Long? = null,
         isLoading: Boolean = false,
         breakdown: CategoryBreakdown = breakdownWithData(),
@@ -116,6 +144,8 @@ class ReportsScreenTest {
         pace: SpendingPace? = monthPace(),
         selectedSliceKey: SliceKey? = null,
         drillDownParent: CategorySlice? = null,
+        balanceSummary: BalanceSummary = balanceSummaryWithData(),
+        balanceEvolution: BalanceEvolution? = balanceEvolutionWithData(),
     ) = ReportsUiState(
         isLoading = isLoading,
         mode = mode,
@@ -132,6 +162,9 @@ class ReportsScreenTest {
         monthlyTotals = monthlyTotals,
         pace = if (mode == ReportMode.MONTH) pace else null,
         canGoNext = false,
+        focus = focus,
+        balanceSummary = balanceSummary,
+        balanceEvolution = balanceEvolution,
     )
 
     @Composable
@@ -142,6 +175,7 @@ class ReportsScreenTest {
         onViewTransactions: (Long?, Long?, TransactionType, YearMonth) -> Unit,
         onModeChange: (ReportMode) -> Unit,
         onRetry: () -> Unit,
+        onFocusChange: (ReportFocus) -> Unit,
     ) {
         WalletTheme {
             ReportsScreen(
@@ -149,7 +183,7 @@ class ReportsScreenTest {
                 onModeChange = onModeChange,
                 onPreviousPeriod = {},
                 onNextPeriod = {},
-                onTypeChange = {},
+                onFocusChange = onFocusChange,
                 onOpenAccountSheet = {},
                 onDismissAccountSheet = {},
                 onAccountSelected = {},
@@ -170,14 +204,15 @@ class ReportsScreenTest {
         onViewTransactions: (Long?, Long?, TransactionType, YearMonth) -> Unit = { _, _, _, _ -> },
         onModeChange: (ReportMode) -> Unit = {},
         onRetry: () -> Unit = {},
+        onFocusChange: (ReportFocus) -> Unit = {},
         density: Density? = null,
     ) {
         composeRule.setContent {
             if (density == null) {
-                ScreenContent(uiState, onSelectSlice, onDrillInto, onViewTransactions, onModeChange, onRetry)
+                ScreenContent(uiState, onSelectSlice, onDrillInto, onViewTransactions, onModeChange, onRetry, onFocusChange)
             } else {
                 CompositionLocalProvider(LocalDensity provides density) {
-                    ScreenContent(uiState, onSelectSlice, onDrillInto, onViewTransactions, onModeChange, onRetry)
+                    ScreenContent(uiState, onSelectSlice, onDrillInto, onViewTransactions, onModeChange, onRetry, onFocusChange)
                 }
             }
         }
@@ -198,6 +233,7 @@ class ReportsScreenTest {
         composeRule.onNodeWithText("Año").assertIsDisplayed()
         composeRule.onNodeWithText("Gasto").assertIsDisplayed()
         composeRule.onNodeWithText("Ingreso").assertIsDisplayed()
+        composeRule.onNodeWithText("Balance").assertIsDisplayed()
         composeRule.onNodeWithText("Todas las cuentas").assertIsDisplayed()
         composeRule.onNodeWithText("vs. mes anterior").assertIsDisplayed()
         composeRule.onNodeWithText("Promedio diario").assertIsDisplayed()
@@ -304,6 +340,7 @@ class ReportsScreenTest {
 
         composeRule.onNodeWithText("Reports").assertIsDisplayed()
         composeRule.onNodeWithText("Month").assertIsDisplayed()
+        composeRule.onNodeWithText("Balance").assertIsDisplayed()
         composeRule.onNodeWithText("By category").assertIsDisplayed()
         composeRule.onNodeWithText("Monthly evolution").assertIsDisplayed()
         composeRule.onNodeWithText("Month pace").assertIsDisplayed()
@@ -540,19 +577,91 @@ class ReportsScreenTest {
     }
 
     @Test
-    fun `monthly evolution legend shows the net entry`() {
-        setScreen(state())
+    fun `balance focus shows the balance cards without donut or pace`() {
+        setScreen(state(focus = ReportFocus.BALANCE))
 
-        composeRule.onAllNodesWithText("Neto").assertCountEquals(1)
+        // "Neto" appears twice: the summary label and the monthly legend.
+        composeRule.onAllNodesWithText("Neto").assertCountEquals(2)
+        composeRule.onNodeWithText("Tasa de ahorro").assertIsDisplayed()
+        composeRule.onNodeWithText("33,3 %").assertIsDisplayed()
+        composeRule.onNodeWithText("Evolución del saldo").assertIsDisplayed()
+        composeRule.onNodeWithText("Evolución mensual").assertIsDisplayed()
+        composeRule.onNodeWithText("Por categoría").assertDoesNotExist()
+        composeRule.onNodeWithText("Ritmo del mes").assertDoesNotExist()
     }
 
     @Test
-    fun `signed money carries an explicit sign`() {
-        val locale = Locale("es", "CO")
+    fun `balance summary shows opening closing and net change`() {
+        setScreen(state(focus = ReportFocus.BALANCE))
 
-        assertThat(signedMoney(600_000_000L, locale)).isEqualTo("+ $ 6.000.000")
-        assertThat(signedMoney(-200_000_000L, locale)).isEqualTo("− $ 2.000.000")
-        assertThat(signedMoney(0L, locale)).isEqualTo("$ 0")
+        composeRule.onNodeWithText("+ $ 6.000.000").assertIsDisplayed()
+        composeRule.onNodeWithText("Ahorraste en este período").assertIsDisplayed()
+        composeRule.onNodeWithText("▲ $ 2.000.000").assertIsDisplayed()
+        composeRule.onNodeWithText("Al inicio $ 50.000.000").assertIsDisplayed()
+        composeRule.onNodeWithText("Hoy $ 51.500.000").assertIsDisplayed()
+        composeRule.onNodeWithText("Cuentas incluidas en el saldo total").assertIsDisplayed()
+    }
+
+    @Test
+    fun `negative net shows the sign and the negative hint`() {
+        val summary =
+            balanceSummaryWithData().copy(
+                income = Money(1_800_000_000L),
+                expense = Money(2_000_000_000L),
+                net = Money(-200_000_000L),
+                savingsRatePerMille = -111,
+            )
+        setScreen(state(focus = ReportFocus.BALANCE, balanceSummary = summary))
+
+        composeRule.onNodeWithText("− $ 2.000.000").assertIsDisplayed()
+        composeRule.onNodeWithText("Gastaste más de lo que ganaste").assertIsDisplayed()
+        composeRule.onNodeWithText("Ahorraste en este período").assertDoesNotExist()
+    }
+
+    @Test
+    fun `null savings rate shows the no income line`() {
+        val summary = balanceSummaryWithData().copy(savingsRatePerMille = null)
+        setScreen(state(focus = ReportFocus.BALANCE, balanceSummary = summary))
+
+        composeRule.onNodeWithText("Tasa de ahorro").assertIsDisplayed()
+        composeRule.onNodeWithText("Sin ingresos").assertIsDisplayed()
+    }
+
+    @Test
+    fun `null net change shows the no previous data line`() {
+        val summary = balanceSummaryWithData().copy(previousNet = null, netChange = null)
+        setScreen(state(focus = ReportFocus.BALANCE, balanceSummary = summary))
+
+        composeRule.onNodeWithText("Neto vs. mes anterior").assertIsDisplayed()
+        composeRule.onNodeWithText("Sin datos del período anterior").assertIsDisplayed()
+    }
+
+    @Test
+    fun `tapping balance calls onFocusChange`() {
+        var focused: ReportFocus? = null
+        setScreen(state(), onFocusChange = { focused = it })
+
+        composeRule.onNodeWithText("Balance").performClick()
+
+        assertThat(focused).isEqualTo(ReportFocus.BALANCE)
+    }
+
+    @Test
+    fun `expense focus keeps the classic layout without balance cards`() {
+        setScreen(state(focus = ReportFocus.EXPENSE))
+
+        composeRule.onNodeWithText("Por categoría").assertIsDisplayed()
+        composeRule.onNodeWithText("Ritmo del mes").assertIsDisplayed()
+        composeRule.onNodeWithText("Evolución del saldo").assertDoesNotExist()
+        composeRule.onNodeWithText("Tasa de ahorro").assertDoesNotExist()
+    }
+
+    @Test
+    fun `monthly evolution legend shows the net entry`() {
+        setScreen(state(focus = ReportFocus.EXPENSE))
+
+        // In EXPENSE the only "Neto" is the monthly legend.
+        composeRule.onAllNodesWithText("Neto").assertCountEquals(1)
     }
 
     @Test
