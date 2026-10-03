@@ -1,12 +1,27 @@
 package com.crguarin.wallet.ui.reports
 
+import android.content.Context
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.unit.Density
+import androidx.test.core.app.ApplicationProvider
+import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.report.CategoryBreakdown
@@ -25,6 +40,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.time.LocalDate
 import java.time.YearMonth
+import java.util.Locale
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "es-rCO-w1000dp-h3000dp")
@@ -114,32 +130,59 @@ class ReportsScreenTest {
         canGoNext = false,
     )
 
+    @Composable
+    private fun ScreenContent(
+        uiState: ReportsUiState,
+        onSelectSlice: (SliceKey) -> Unit,
+        onDrillInto: (Long) -> Unit,
+        onViewTransactions: (Long?, Long?, TransactionType, YearMonth) -> Unit,
+        onModeChange: (ReportMode) -> Unit,
+        onRetry: () -> Unit,
+    ) {
+        WalletTheme {
+            ReportsScreen(
+                uiState = uiState,
+                onModeChange = onModeChange,
+                onPreviousPeriod = {},
+                onNextPeriod = {},
+                onTypeChange = {},
+                onOpenAccountSheet = {},
+                onDismissAccountSheet = {},
+                onAccountSelected = {},
+                onSelectSlice = onSelectSlice,
+                onDrillInto = onDrillInto,
+                onDrillUp = {},
+                onSelectMonth = {},
+                onViewTransactions = onViewTransactions,
+                onRetry = onRetry,
+            )
+        }
+    }
+
     private fun setScreen(
         uiState: ReportsUiState,
         onSelectSlice: (SliceKey) -> Unit = {},
         onDrillInto: (Long) -> Unit = {},
         onViewTransactions: (Long?, Long?, TransactionType, YearMonth) -> Unit = { _, _, _, _ -> },
+        onModeChange: (ReportMode) -> Unit = {},
+        onRetry: () -> Unit = {},
+        density: Density? = null,
     ) {
         composeRule.setContent {
-            WalletTheme {
-                ReportsScreen(
-                    uiState = uiState,
-                    onModeChange = {},
-                    onPreviousPeriod = {},
-                    onNextPeriod = {},
-                    onTypeChange = {},
-                    onOpenAccountSheet = {},
-                    onDismissAccountSheet = {},
-                    onAccountSelected = {},
-                    onSelectSlice = onSelectSlice,
-                    onDrillInto = onDrillInto,
-                    onDrillUp = {},
-                    onSelectMonth = {},
-                    onViewTransactions = onViewTransactions,
-                    onRetry = {},
-                )
+            if (density == null) {
+                ScreenContent(uiState, onSelectSlice, onDrillInto, onViewTransactions, onModeChange, onRetry)
+            } else {
+                CompositionLocalProvider(LocalDensity provides density) {
+                    ScreenContent(uiState, onSelectSlice, onDrillInto, onViewTransactions, onModeChange, onRetry)
+                }
             }
         }
+    }
+
+    private fun clickDonutTop() {
+        val node = composeRule.onNodeWithContentDescription("Gráfico de dona", substring = true)
+        val size = node.fetchSemanticsNode().size
+        node.performTouchInput { click(Offset(size.width * 0.5f, size.height * 0.1f)) }
     }
 
     @Test
@@ -261,5 +304,224 @@ class ReportsScreenTest {
         composeRule.onNodeWithText("Monthly evolution").assertIsDisplayed()
         composeRule.onNodeWithText("Month pace").assertIsDisplayed()
         composeRule.onNodeWithText("45.0%").assertIsDisplayed()
+    }
+
+    @Test
+    fun `summary change label follows the selected period`() {
+        var change by mutableStateOf(12)
+        composeRule.setContent {
+            WalletTheme {
+                ReportsSummaryCard(
+                    uiState =
+                        state().copy(
+                            summary = PeriodSummary(Money(250_000_000L), Money(200_000_000L), change, Money(16_666_666L)),
+                        ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("▲ 12 %").assertIsDisplayed()
+        change = 25
+        composeRule.onNodeWithText("▲ 25 %").assertIsDisplayed()
+    }
+
+    @Test
+    fun `change value exposes an accessible up description`() {
+        setScreen(state())
+
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val percent = context.getString(R.string.reports_percent, "25")
+        val expected = context.getString(R.string.reports_cd_change_up, percent)
+        composeRule.onNodeWithContentDescription(expected).assertIsDisplayed()
+    }
+
+    @Test
+    fun `month mode selects the month and dims only future bars`() {
+        val (selected, dimmed) =
+            evolutionSelection(monthsWithData(), ReportMode.MONTH, YearMonth.of(2026, 10), YearMonth.of(2026, 7))
+
+        assertThat(selected).isEqualTo(5)
+        assertThat(dimmed).containsExactly(false, false, false, true, true, true).inOrder()
+    }
+
+    @Test
+    fun `year mode selects nothing and dims nothing`() {
+        val (selected, dimmed) =
+            evolutionSelection(monthsWithData(), ReportMode.YEAR, YearMonth.of(2026, 10), YearMonth.of(2026, 10))
+
+        assertThat(selected).isNull()
+        assertThat(dimmed).containsExactly(false, false, false, false, false, false).inOrder()
+    }
+
+    @Test
+    fun `narrow month letter is a single capital`() {
+        val locale = Locale("es", "CO")
+
+        assertThat(monthNarrowLetter(YearMonth.of(2026, 1), locale)).isEqualTo("E")
+        assertThat(monthNarrowLetter(YearMonth.of(2026, 10), locale)).isEqualTo("O")
+    }
+
+    @Test
+    fun `bars description uses the full month name`() {
+        setScreen(state())
+
+        composeRule.onNodeWithContentDescription("octubre", substring = true).assertExists()
+    }
+
+    @Test
+    fun `cards derive their axes from axisScale`() {
+        val months = monthsWithData()
+        val dataMax = months.maxOf { maxOf(it.income.minorUnits, it.expense.minorUnits) }
+        val evolution = evolutionAxisScale(months)
+        assertThat(evolution).isEqualTo(AxisMath.axisScale(dataMax))
+        assertThat(evolution.maxMinorUnits).isAtLeast(dataMax)
+        assertThat(evolution.ticksMinorUnits.first()).isEqualTo(0L)
+        assertThat(evolution.ticksMinorUnits.last()).isEqualTo(evolution.maxMinorUnits)
+
+        val pace = monthPace()
+        val paceMax = maxOf(pace.current.maxOf { it.minorUnits }, pace.previous.maxOf { it.minorUnits })
+        val paceScale = paceAxisScale(pace)
+        assertThat(paceScale).isEqualTo(AxisMath.axisScale(paceMax))
+        assertThat(paceScale.maxMinorUnits).isAtLeast(paceMax)
+        assertThat(paceScale.ticksMinorUnits.first()).isEqualTo(0L)
+        assertThat(paceScale.ticksMinorUnits.last()).isEqualTo(paceScale.maxMinorUnits)
+    }
+
+    @Test
+    fun `donut center shows a huge total at double font scale`() {
+        val huge =
+            CategoryBreakdown(
+                total = Money(12_345_678_900L),
+                slices =
+                    listOf(
+                        slice(SliceKey.Category(10L), "Alimentación", "food", 12_000_000_000L, 972),
+                        slice(SliceKey.Category(20L), "Transporte", "transport", 345_678_900L, 28),
+                    ),
+                parentId = null,
+            )
+        setScreen(state(breakdown = huge), density = Density(density = 1f, fontScale = 2f))
+
+        composeRule.onNodeWithText("$ 123.456.789").assertIsDisplayed()
+    }
+
+    @Test
+    fun `legend amount columns line up with and without trailing actions`() {
+        setScreen(state())
+
+        val foodRight =
+            composeRule
+                .onNodeWithText("$ 1.125.000", useUnmergedTree = true)
+                .fetchSemanticsNode()
+                .boundsInRoot.right
+        val transportRight =
+            composeRule
+                .onNodeWithText("$ 500.000", useUnmergedTree = true)
+                .fetchSemanticsNode()
+                .boundsInRoot.right
+        val othersRight =
+            composeRule
+                .onNodeWithText("$ 875.000", useUnmergedTree = true)
+                .fetchSemanticsNode()
+                .boundsInRoot.right
+        assertThat(foodRight).isWithin(1f).of(transportRight)
+        assertThat(foodRight).isWithin(1f).of(othersRight)
+    }
+
+    @Test
+    fun `pace legend explains both lines`() {
+        setScreen(state())
+
+        composeRule.onNodeWithText("Este mes").assertIsDisplayed()
+        composeRule.onNodeWithText("Mes anterior").assertIsDisplayed()
+    }
+
+    @Test
+    fun `pace legend hides the previous month without comparison data`() {
+        setScreen(state(pace = monthPace().copy(previous = List(30) { Money.ZERO })))
+
+        composeRule.onNodeWithText("Este mes").assertIsDisplayed()
+        composeRule.onNodeWithText("Mes anterior").assertDoesNotExist()
+    }
+
+    @Test
+    fun `drill-down general row has no view-transactions action`() {
+        val parent = slice(SliceKey.Category(10L), "Alimentación", "food", 200_000_000L, 800, hasChildren = true)
+        val breakdown =
+            CategoryBreakdown(
+                total = Money(250_000_000L),
+                slices =
+                    listOf(
+                        CategorySlice(
+                            key = SliceKey.ParentDirect(10L),
+                            name = "Alimentación",
+                            systemKey = "food",
+                            color = 0xFFEF5350.toInt(),
+                            icon = "restaurant",
+                            amount = Money(50_000_000L),
+                            perMille = 200,
+                            hasChildren = false,
+                        ),
+                        CategorySlice(
+                            key = SliceKey.Category(11L),
+                            name = "Mercado",
+                            systemKey = null,
+                            color = 0xFFEF5350.toInt(),
+                            icon = "restaurant",
+                            amount = Money(200_000_000L),
+                            perMille = 800,
+                            hasChildren = false,
+                        ),
+                    ),
+                parentId = 10L,
+            )
+        setScreen(state(breakdown = breakdown, drillDownParent = parent))
+
+        composeRule.onNodeWithText("Alimentación (general)").assertIsDisplayed()
+        composeRule.onNodeWithText("Mercado").assertIsDisplayed()
+        composeRule.onAllNodesWithContentDescription("Ver movimientos", substring = true).assertCountEquals(1)
+    }
+
+    @Test
+    fun `error state shows the message and retries`() {
+        var retried = false
+        setScreen(state().copy(hasError = true), onRetry = { retried = true })
+
+        composeRule.onNodeWithText("No se pudieron cargar los reportes").assertIsDisplayed()
+        composeRule.onNodeWithText("Reintentar").performClick()
+        assertThat(retried).isTrue()
+    }
+
+    @Test
+    fun `refreshing disables card actions but keeps controls and content`() {
+        var selected: SliceKey? = null
+        var viewed = false
+        var modeChanged: ReportMode? = null
+        setScreen(
+            state().copy(isRefreshing = true),
+            onSelectSlice = { selected = it },
+            onViewTransactions = { _, _, _, _ -> viewed = true },
+            onModeChange = { modeChanged = it },
+        )
+
+        composeRule.onNodeWithText("Por categoría").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Cargando").assertDoesNotExist()
+        composeRule.onAllNodesWithContentDescription("Ver movimientos", substring = true).onFirst().assertIsNotEnabled()
+        composeRule.onNodeWithContentDescription("Ver subcategorías", substring = true).assertIsNotEnabled()
+        clickDonutTop()
+        assertThat(selected).isNull()
+        assertThat(viewed).isFalse()
+
+        composeRule.onNodeWithText("Año").performClick()
+        assertThat(modeChanged).isEqualTo(ReportMode.YEAR)
+    }
+
+    @Test
+    fun `donut tap selects a slice when not refreshing`() {
+        var selected: SliceKey? = null
+        setScreen(state(), onSelectSlice = { selected = it })
+
+        clickDonutTop()
+
+        assertThat(selected).isEqualTo(SliceKey.Category(10L))
     }
 }

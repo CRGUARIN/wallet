@@ -1,10 +1,15 @@
 package com.crguarin.wallet.ui.reports
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -12,7 +17,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -44,17 +54,11 @@ internal fun SpendingPaceCard(
             TransactionType.INCOME -> semanticColors.income
             else -> semanticColors.expense
         }
-    val axisMax =
-        remember(pace) {
-            val seriesMax =
-                maxOf(
-                    pace.current.maxOfOrNull { it.minorUnits } ?: 0L,
-                    pace.previous.maxOfOrNull { it.minorUnits } ?: 0L,
-                )
-            AxisMath.niceAxisMax(seriesMax)
-        }
+    val axisScale = remember(pace) { paceAxisScale(pace) }
+    val axisMax = axisScale.maxMinorUnits
     val (current, previous) = remember(pace, axisMax) { ReportsChartMapper.cumulativeFractions(pace, axisMax) }
     val xLabels = remember(pace) { listOf(1, 15, pace.daysInMonth).distinct().map { day -> day to day.toString() } }
+    val hasPrevious = remember(pace) { pace.previous.any { !it.isZero } }
     val phrase = pacePhrase(uiState, pace, locale)
 
     Card(
@@ -70,6 +74,11 @@ internal fun SpendingPaceCard(
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.semantics { heading() },
             )
+            Spacer(modifier = Modifier.height(4.dp))
+            PaceLegend(
+                currentColor = currentColor,
+                showPrevious = hasPrevious,
+            )
             Spacer(modifier = Modifier.height(12.dp))
             CumulativeLineChart(
                 current = current,
@@ -77,7 +86,7 @@ internal fun SpendingPaceCard(
                 daysInMonth = pace.daysInMonth,
                 currentColor = currentColor,
                 xLabels = xLabels,
-                yLabels = ReportsChartMapper.yAxisMinorUnits(axisMax).map { compactMoney(it) },
+                yLabels = axisScale.ticksMinorUnits.map { compactMoney(it) },
                 contentDescription = stringResource(R.string.reports_cd_line, phrase),
                 modifier =
                     Modifier
@@ -92,6 +101,73 @@ internal fun SpendingPaceCard(
             )
         }
     }
+}
+
+/**
+ * Legend of the pace lines, in the style of the monthly evolution legend: a solid line for this
+ * month and a dashed one for the previous month, which is hidden without comparison data.
+ */
+@Composable
+private fun PaceLegend(
+    currentColor: Color,
+    showPrevious: Boolean,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier =
+                    Modifier
+                        .width(16.dp)
+                        .height(2.dp)
+                        .background(currentColor),
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = stringResource(R.string.reports_pace_legend_current),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (showPrevious) {
+            val dashedColor = MaterialTheme.colorScheme.onSurfaceVariant
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier =
+                        Modifier
+                            .width(16.dp)
+                            .height(2.dp)
+                            .drawBehind {
+                                drawLine(
+                                    color = dashedColor,
+                                    start = Offset(0f, size.height / 2f),
+                                    end = Offset(size.width, size.height / 2f),
+                                    strokeWidth = size.height,
+                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 4f)),
+                                )
+                            },
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = stringResource(R.string.transactions_previous_month),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+/** Y axis scale of the pace lines, covering the largest point of either series. */
+internal fun paceAxisScale(pace: SpendingPace): AxisScale {
+    val seriesMax =
+        maxOf(
+            pace.current.maxOfOrNull { it.minorUnits } ?: 0L,
+            pace.previous.maxOfOrNull { it.minorUnits } ?: 0L,
+        )
+    return AxisMath.axisScale(seriesMax)
 }
 
 /** Summary phrase: current month ("so far") or past month ("you ended the month with ..."). */

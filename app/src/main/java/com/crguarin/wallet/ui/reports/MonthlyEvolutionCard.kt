@@ -33,6 +33,7 @@ import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.core.money.MoneyFormatter
 import com.crguarin.wallet.domain.model.report.MonthTotals
+import com.crguarin.wallet.domain.model.report.ReportMode
 import com.crguarin.wallet.ui.reports.charts.BarGroup
 import com.crguarin.wallet.ui.reports.charts.GroupedBarChart
 import com.crguarin.wallet.ui.theme.walletSemanticColors
@@ -53,7 +54,9 @@ internal fun MonthlyEvolutionCard(
     val locale = LocalConfiguration.current.locales[0]
     val semanticColors = MaterialTheme.walletSemanticColors
     val months = uiState.monthlyTotals
-    val axisMax = remember(months) { ReportsChartMapper.barAxisMaxMinorUnits(months) }
+    val refreshing = uiState.isRefreshing
+    val axisScale = remember(months) { evolutionAxisScale(months) }
+    val axisMax = axisScale.maxMinorUnits
     val fractions = remember(months, axisMax) { ReportsChartMapper.barFractions(months, axisMax) }
     val todayMonth = YearMonth.from(uiState.today)
     // Future months are drawn empty and dimmed; they do not count for the average either.
@@ -62,18 +65,22 @@ internal fun MonthlyEvolutionCard(
         remember(months, axisMax, lastRelevantMonth) {
             lastRelevantMonth?.let { ReportsChartMapper.averageExpenseFraction(months, axisMax, it) }
         }
+    val (selectedIndex, dimmedFlags) =
+        remember(months, uiState.mode, uiState.yearMonth, todayMonth) {
+            evolutionSelection(months, uiState.mode, uiState.yearMonth, todayMonth)
+        }
     val groups =
-        remember(months, fractions, locale, semanticColors, todayMonth) {
+        remember(months, fractions, dimmedFlags, locale, semanticColors) {
             months.mapIndexed { index, month ->
                 BarGroup(
                     label = monthAbbreviation(month.yearMonth, locale),
+                    narrowLabel = monthNarrowLetter(month.yearMonth, locale),
                     values = fractions.getOrElse(index) { listOf(0f, 0f) },
                     colors = listOf(semanticColors.income, semanticColors.expense),
-                    dimmed = month.yearMonth > todayMonth,
+                    dimmed = dimmedFlags.getOrElse(index) { false },
                 )
             }
         }
-    val selectedIndex = months.indexOfFirst { it.yearMonth == uiState.yearMonth }.takeIf { it >= 0 }
 
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
@@ -98,12 +105,14 @@ internal fun MonthlyEvolutionCard(
                 groups = groups,
                 selectedIndex = selectedIndex,
                 averageFraction = average,
-                yLabels = ReportsChartMapper.yAxisMinorUnits(axisMax).map { compactMoney(it) },
+                yLabels = axisScale.ticksMinorUnits.map { compactMoney(it) },
                 onGroupClick = { index ->
-                    months
-                        .getOrNull(index)
-                        ?.takeIf { it.yearMonth <= todayMonth }
-                        ?.let { onSelectMonth(it.yearMonth) }
+                    if (!refreshing) {
+                        months
+                            .getOrNull(index)
+                            ?.takeIf { it.yearMonth <= todayMonth }
+                            ?.let { onSelectMonth(it.yearMonth) }
+                    }
                 },
                 contentDescription = barsDescription(months, locale),
                 modifier =
@@ -182,7 +191,7 @@ private fun barsDescription(
         parts +=
             stringResource(
                 R.string.reports_cd_bars_group,
-                monthAbbreviation(month.yearMonth, locale),
+                monthFullName(month.yearMonth, locale),
                 income,
                 expense,
             )
@@ -202,6 +211,12 @@ internal fun compactMoney(minorUnits: Long): String {
     }
 }
 
+/** Y axis scale of the evolution bars, covering the largest income or expense bar. */
+internal fun evolutionAxisScale(months: List<MonthTotals>): AxisScale {
+    val max = months.maxOfOrNull { maxOf(it.income.minorUnits, it.expense.minorUnits) } ?: 0L
+    return AxisMath.axisScale(max)
+}
+
 /** "oct" / "Oct": abbreviated month name with a capital first letter. */
 internal fun monthAbbreviation(
     yearMonth: YearMonth,
@@ -209,6 +224,42 @@ internal fun monthAbbreviation(
 ): String {
     val name = yearMonth.month.getDisplayName(TextStyle.SHORT, locale)
     return name.replaceFirstChar { if (it.isLowerCase()) it.titlecase(locale) else it.toString() }
+}
+
+/** "E" / "F": narrow standalone month letter for crowded year labels, with a capital letter. */
+internal fun monthNarrowLetter(
+    yearMonth: YearMonth,
+    locale: Locale,
+): String {
+    val name = yearMonth.month.getDisplayName(TextStyle.NARROW_STANDALONE, locale)
+    return name.replaceFirstChar { if (it.isLowerCase()) it.titlecase(locale) else it.toString() }
+}
+
+/** "octubre": full standalone month name, used in accessibility descriptions. */
+internal fun monthFullName(
+    yearMonth: YearMonth,
+    locale: Locale,
+): String = yearMonth.month.getDisplayName(TextStyle.FULL_STANDALONE, locale)
+
+/**
+ * Selected bar and per-group dimming of the monthly evolution.
+ *
+ * In MONTH mode the selected month is highlighted and the other bars are dimmed; future months are
+ * dimmed too. In YEAR mode there is no selected month, so no bar is dimmed.
+ *
+ * Returns the selected index (null when none) and one dimmed flag per month.
+ */
+internal fun evolutionSelection(
+    months: List<MonthTotals>,
+    mode: ReportMode,
+    selectedMonth: YearMonth,
+    todayMonth: YearMonth,
+): Pair<Int?, List<Boolean>> {
+    if (mode == ReportMode.YEAR) {
+        return null to List(months.size) { false }
+    }
+    val selectedIndex = months.indexOfFirst { it.yearMonth == selectedMonth }.takeIf { it >= 0 }
+    return selectedIndex to months.map { it.yearMonth > todayMonth }
 }
 
 internal fun formattedMoney(
