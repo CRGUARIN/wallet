@@ -331,4 +331,39 @@ class ReportsScreenTest {
 
         composeRule.onNodeWithContentDescription("octubre", substring = true).assertExists()
     }
+
+    @Test
+    fun `cards derive their axes from axisScale`() {
+        val months = monthsWithData()
+        val dataMax = months.maxOf { maxOf(it.income.minorUnits, it.expense.minorUnits) }
+        val evolution = evolutionAxisScale(months)
+        assertThat(evolution).isEqualTo(AxisMath.axisScale(dataMax))
+        assertThat(evolution.maxMinorUnits).isAtLeast(dataMax)
+        assertThat(evolution.ticksMinorUnits.first()).isEqualTo(0L)
+        assertThat(evolution.ticksMinorUnits.last()).isEqualTo(evolution.maxMinorUnits)
+
+        val pace = monthPace()
+        val paceMax = maxOf(pace.current.maxOf { it.minorUnits }, pace.previous.maxOf { it.minorUnits })
+        val paceScale = paceAxisScale(pace)
+        assertThat(paceScale).isEqualTo(AxisMath.axisScale(paceMax))
+        assertThat(paceScale.maxMinorUnits).isAtLeast(paceMax)
+        assertThat(paceScale.ticksMinorUnits.first()).isEqualTo(0L)
+        assertThat(paceScale.ticksMinorUnits.last()).isEqualTo(paceScale.maxMinorUnits)
+    }
+
+    @Test
+    fun `pace legend explains both lines`() {
+        setScreen(state())
+
+        composeRule.onNodeWithText("Este mes").assertIsDisplayed()
+        composeRule.onNodeWithText("Mes anterior").assertIsDisplayed()
+    }
+
+    @Test
+    fun `pace legend hides the previous month without comparison data`() {
+        setScreen(state(pace = monthPace().copy(previous = List(30) { Money.ZERO })))
+
+        composeRule.onNodeWithText("Este mes").assertIsDisplayed()
+        composeRule.onNodeWithText("Mes anterior").assertDoesNotExist()
+    }
 }
