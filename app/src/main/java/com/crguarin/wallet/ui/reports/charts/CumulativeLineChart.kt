@@ -115,6 +115,7 @@ fun CumulativeLineChart(
                             yAxisWidth = yAxisWidth,
                             xAxisHeight = xAxisHeight,
                         )
+                    val previousDash = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()))
                     onDrawBehind {
                         for (index in yLayouts.indices) {
                             val layout = yLayouts[index]
@@ -155,7 +156,7 @@ fun CumulativeLineChart(
                                 style =
                                     Stroke(
                                         width = 2.dp.toPx(),
-                                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx())),
+                                        pathEffect = previousDash,
                                     ),
                             )
                         }
