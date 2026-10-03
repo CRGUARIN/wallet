@@ -15,9 +15,6 @@ import java.time.YearMonth
  * percentages shown to the user are computed with integer math in the domain.
  */
 object ReportsChartMapper {
-    /** Number of segments (and therefore labels) drawn on each y axis. */
-    const val Y_AXIS_SEGMENTS = 4
-
     /** Donut slices of [breakdown], with the colors resolved from the palette or the theme. */
     fun donutSlices(
         breakdown: CategoryBreakdown,
@@ -46,12 +43,6 @@ object ReportsChartMapper {
             SliceKey.Uncategorized -> uncategorizedColor
             is SliceKey.Category, is SliceKey.ParentDirect -> slice.color?.let { Color(it) } ?: othersColor
         }
-
-    /** Rounded-up y axis maximum (minor units) of the bars of [monthlyTotals]. */
-    fun barAxisMaxMinorUnits(monthlyTotals: List<MonthTotals>): Long {
-        val max = monthlyTotals.maxOfOrNull { maxOf(it.income.minorUnits, it.expense.minorUnits) } ?: 0L
-        return AxisMath.axisScale(max).maxMinorUnits
-    }
 
     /** Fractions `0..1` of each bar: one `[income, expense]` pair per month. */
     fun barFractions(
@@ -83,7 +74,7 @@ object ReportsChartMapper {
 
     /**
      * Normalizes [SpendingPace.current] and [SpendingPace.previous] over [axisMaxMinorUnits] (the
-     * caller passes `AxisMath.niceAxisMax` of the maximum of both series, so the y labels line up
+     * caller passes `AxisMath.axisScale(...).maxMinorUnits` of the maximum of both series, so the y labels line up
      * with the drawn lines). Returns `current to previous`.
      */
     fun cumulativeFractions(
@@ -93,15 +84,6 @@ object ReportsChartMapper {
         val current = pace.current.map { fraction(it.minorUnits, axisMaxMinorUnits) }
         val previous = pace.previous.map { fraction(it.minorUnits, axisMaxMinorUnits) }
         return current to previous
-    }
-
-    /** Y labels in minor units bottom to top: 0, max/segments, ..., max. */
-    fun yAxisMinorUnits(
-        axisMaxMinorUnits: Long,
-        segments: Int = Y_AXIS_SEGMENTS,
-    ): List<Long> {
-        if (axisMaxMinorUnits <= 0L || segments <= 0) return listOf(0L)
-        return (0..segments).map { axisMaxMinorUnits * it / segments }
     }
 
     private fun fraction(

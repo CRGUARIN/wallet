@@ -87,16 +87,15 @@ class ReportsViewModel
         private val selectedSliceFlow = MutableStateFlow<SliceKey?>(null)
         private val parentSliceFlow = MutableStateFlow<CategorySlice?>(null)
         private val sheetFlow = MutableStateFlow(false)
-        private val errorFlow = MutableStateFlow(false)
         private val refreshFlow = MutableStateFlow(0)
 
-        private val queryFlow: Flow<ReportsSelection> =
-            combine(selectionFlow, refreshFlow) { selection, _ -> selection }
+        private val queryFlow: Flow<ReportsQuery> =
+            combine(selectionFlow, refreshFlow) { selection, refresh -> ReportsQuery(selection, refresh) }
 
         private val dataFlow: Flow<ReportData> =
-            queryFlow.flatMapLatest { selection ->
+            queryFlow.flatMapLatest { query ->
+                val selection = query.selection
                 flow {
-                    errorFlow.value = false
                     // The pace query only runs in MONTH mode, where its card is visible.
                     val queryToday = today()
                     val paceFlow: Flow<SpendingPace?> =
@@ -117,12 +116,11 @@ class ReportsViewModel
                             observeMonthlyTotalsUseCase(barMonths(selection), selection.accountId),
                             paceFlow,
                         ) { summary, breakdown, monthlyTotals, pace ->
-                            ReportData(selection, summary, breakdown, monthlyTotals, pace)
+                            ReportData(query, queryToday, summary, breakdown, monthlyTotals, pace, hasError = false)
                         },
                     )
                 }.catch {
-                    errorFlow.value = true
-                    emit(ReportData(selection, EMPTY_SUMMARY, EMPTY_BREAKDOWN, emptyList(), null))
+                    emit(ReportData(query, today(), EMPTY_SUMMARY, EMPTY_BREAKDOWN, emptyList(), null, hasError = true))
                 }
             }
 
@@ -140,17 +138,18 @@ class ReportsViewModel
                 dataFlow,
                 accountsFlow,
                 panelFlow,
-                errorFlow,
-            ) { selection, data, accounts, panel, hasError ->
-                // The controls follow the new selection at once, while the data shown is still the
-                // previous complete snapshot until the new query emits (then isRefreshing is false).
-                val now = today()
+            ) { query, data, accounts, panel ->
+                // The controls follow the new selection at once, while the data shown (and its error
+                // flag) is still the previous complete snapshot until the new query emits; then
+                // isRefreshing is false. A retry therefore keeps the error visible instead of
+                // flashing the empty state.
+                val selection = query.selection
                 ReportsUiState(
                     isLoading = false,
-                    hasError = hasError,
+                    hasError = data.hasError,
                     mode = selection.mode,
                     yearMonth = selection.yearMonth,
-                    today = now,
+                    today = data.today,
                     type = selection.type,
                     accountId = selection.accountId,
                     selectedAccountName =
@@ -165,8 +164,8 @@ class ReportsViewModel
                     selectedSliceKey = panel.selectedSliceKey,
                     monthlyTotals = data.monthlyTotals,
                     pace = data.pace.takeIf { selection.mode == ReportMode.MONTH },
-                    canGoNext = canGoNext(selection, now),
-                    isRefreshing = data.selection != selection,
+                    canGoNext = canGoNext(selection, today()),
+                    isRefreshing = data.query != query,
                 )
             }.stateIn(
                 scope = viewModelScope,
@@ -274,7 +273,6 @@ class ReportsViewModel
 
         /** Re-subscribes every report flow; used by the error state "Retry" action. */
         fun retry() {
-            errorFlow.value = false
             refreshFlow.value = refreshFlow.value + 1
         }
 
@@ -302,6 +300,8 @@ class ReportsViewModel
 
         private suspend fun loadParentSlice(parentId: Long) {
             val category = categoryRepository.getCategory(parentId)
+            // A newer drill (or drill-up) happened while loading: this result is stale.
+            if (selectionFlow.value.drillDownParentId != parentId) return
             if (category == null) {
                 // The drilled parent no longer exists: back out to the root instead of getting stuck.
                 drillUp()
@@ -382,15 +382,24 @@ class ReportsViewModel
         }
 
         /**
-         * Rows combined from the four report use cases. Each snapshot travels with the [ReportsSelection]
-         * it was queried for, so the UI never mixes a new selection with half-loaded data.
+         * Rows combined from the four report use cases. Each snapshot travels with the [ReportsQuery]
+         * it was loaded for (and the "today" it used), so the UI never mixes a new selection with
+         * half-loaded data. [hasError] marks the placeholder emitted when the query failed.
          */
         private data class ReportData(
-            val selection: ReportsSelection,
+            val query: ReportsQuery,
+            val today: LocalDate,
             val summary: PeriodSummary,
             val breakdown: CategoryBreakdown,
             val monthlyTotals: List<MonthTotals>,
             val pace: SpendingPace?,
+            val hasError: Boolean,
+        )
+
+        /** A selection plus the retry counter, so a retry of the same selection is a new query. */
+        private data class ReportsQuery(
+            val selection: ReportsSelection,
+            val refresh: Int,
         )
 
         private data class PanelState(

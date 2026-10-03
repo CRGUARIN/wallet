@@ -224,7 +224,7 @@ fun GroupedBarChart(
         val useNarrow = fullMaxWidth > columnWidth - 2.dp.toPx()
         val activeLayouts = if (useNarrow) narrowLayouts else xLayouts
         val activeMaxWidth = activeLayouts.maxOfOrNull { it.size.width }?.toFloat() ?: 0f
-        val stride = labelStride(activeMaxWidth, columnWidth)
+        val stride = labelStride(activeMaxWidth + 2.dp.toPx(), columnWidth)
         activeLayouts.forEachIndexed { index, layout ->
             if (index % stride != 0) return@forEachIndexed
             val columnCenter = plotLeft + index * columnWidth + columnWidth / 2f

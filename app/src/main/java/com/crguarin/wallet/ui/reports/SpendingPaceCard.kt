@@ -19,7 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
@@ -82,7 +82,8 @@ internal fun SpendingPaceCard(
             Spacer(modifier = Modifier.height(12.dp))
             CumulativeLineChart(
                 current = current,
-                previous = previous,
+                // Without a previous month there is nothing to compare: no dashed line at zero.
+                previous = if (hasPrevious) previous else emptyList(),
                 daysInMonth = pace.daysInMonth,
                 currentColor = currentColor,
                 xLabels = xLabels,
@@ -139,19 +140,23 @@ private fun PaceLegend(
                         Modifier
                             .width(16.dp)
                             .height(2.dp)
-                            .drawBehind {
-                                drawLine(
-                                    color = dashedColor,
-                                    start = Offset(0f, size.height / 2f),
-                                    end = Offset(size.width, size.height / 2f),
-                                    strokeWidth = size.height,
-                                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 4f)),
-                                )
+                            .drawWithCache {
+                                // Same 6dp/4dp dashes as the chart's previous-month line.
+                                val dashes = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()))
+                                onDrawBehind {
+                                    drawLine(
+                                        color = dashedColor,
+                                        start = Offset(0f, size.height / 2f),
+                                        end = Offset(size.width, size.height / 2f),
+                                        strokeWidth = size.height,
+                                        pathEffect = dashes,
+                                    )
+                                }
                             },
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = stringResource(R.string.transactions_previous_month),
+                    text = stringResource(R.string.reports_pace_legend_previous),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

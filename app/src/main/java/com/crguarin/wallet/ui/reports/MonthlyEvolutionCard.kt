@@ -199,7 +199,7 @@ private fun barsDescription(
     return stringResource(R.string.reports_cd_bars, parts.joinToString(separator))
 }
 
-/** Compact label of an amount for chart axes, e.g. `$ 12 mil` / `$12K`. */
+/** Compact label of an amount for chart axes, e.g. `12 mil $` / `$12K`. */
 @Composable
 internal fun compactMoney(minorUnits: Long): String {
     val locale = LocalConfiguration.current.locales[0]

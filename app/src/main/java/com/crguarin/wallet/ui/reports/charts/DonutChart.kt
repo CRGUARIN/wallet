@@ -47,8 +47,7 @@ data class DonutSlice<T>(
 )
 
 /**
- * Index of the slice covering [angleDegrees] (measured from the top, clockwise), or null when the
- * angle falls past the last slice.
+ * Index of the slice covering [angleDegrees] (measured from the top, clockwise).
  *
  * When [Float] rounding makes the fractions add up to less than 1, an angle at the very end falls
  * past every sweep; as a fallback it resolves to the last slice with a positive fraction. When no

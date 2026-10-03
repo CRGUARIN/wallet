@@ -225,6 +225,7 @@
     <string name="reports_average">Average</string>
     <string name="reports_spending_pace">Month pace</string>
     <string name="reports_pace_legend_current">This month</string>
+    <string name="reports_pace_legend_previous">Previous month</string>
     <string name="reports_pace_current_plain">So far you have %1$s</string>
     <string name="reports_pace_current_more">So far you have %1$s, %2$d%% more than last month</string>
     <string name="reports_pace_current_less">So far you have %1$s, %2$d%% less than last month</string>

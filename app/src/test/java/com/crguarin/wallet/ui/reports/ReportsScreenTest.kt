@@ -8,6 +8,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -19,6 +20,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
 import androidx.test.core.app.ApplicationProvider
 import com.crguarin.wallet.R
@@ -401,7 +403,16 @@ class ReportsScreenTest {
             )
         setScreen(state(breakdown = huge), density = Density(density = 1f, fontScale = 2f))
 
-        composeRule.onNodeWithText("$ 123.456.789").assertIsDisplayed()
+        val center = composeRule.onNodeWithText("$ 123.456.789")
+        center.assertIsDisplayed()
+        // The amount shrinks to fit instead of wrapping over the ring.
+        val layouts = mutableListOf<TextLayoutResult>()
+        center
+            .fetchSemanticsNode()
+            .config[SemanticsActions.GetTextLayoutResult]
+            .action
+            ?.invoke(layouts)
+        assertThat(layouts.single().lineCount).isEqualTo(1)
     }
 
     @Test

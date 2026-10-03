@@ -544,9 +544,14 @@ class ReportsViewModelTest {
             reportRepository.setInitialData(
                 dailyIncomeExpense = listOf(DailyIncomeExpense(today, Money(10_000L), Money(5_000L))),
             )
+            val afterRetry = mutableListOf<ReportsUiState>()
+            backgroundScope.launch { viewModel.uiState.collect { afterRetry += it } }
             viewModel.retry()
             advanceUntilIdle()
 
+            // Until the new data arrives the error stays on screen: no flash of the empty state.
+            assertThat(afterRetry.filter { !it.hasError && !it.isRefreshing }.all { it.monthlyTotals.size == 6 })
+                .isTrue()
             val state = viewModel.uiState.value
             assertThat(state.hasError).isFalse()
             assertThat(state.isRefreshing).isFalse()

@@ -229,6 +229,7 @@
     <string name="reports_average">Promedio</string>
     <string name="reports_spending_pace">Ritmo del mes</string>
     <string name="reports_pace_legend_current">Este mes</string>
+    <string name="reports_pace_legend_previous">Mes anterior</string>
     <string name="reports_pace_current_plain">A esta fecha llevas %1$s</string>
     <string name="reports_pace_current_more">A esta fecha llevas %1$s, un %2$d %% más que el mes pasado</string>
     <string name="reports_pace_current_less">A esta fecha llevas %1$s, un %2$d %% menos que el mes pasado</string>

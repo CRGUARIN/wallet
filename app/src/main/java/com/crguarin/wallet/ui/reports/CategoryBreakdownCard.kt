@@ -256,7 +256,7 @@ private fun LegendRow(
                 .fillMaxWidth()
                 .defaultMinSize(minHeight = 48.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .clickable(role = Role.Button, onClick = onSelect)
+                .clickable(enabled = actionsEnabled, role = Role.Button, onClick = onSelect)
                 .semantics(mergeDescendants = true) {}
                 .padding(horizontal = 8.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
