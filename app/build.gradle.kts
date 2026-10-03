@@ -62,6 +62,12 @@ android {
     }
 
     buildTypes {
+        // Debug builds install alongside the owner's release app (com.crguarin.wallet) on the
+        // test phone: a different application id and name keeps both installed and untouched.
+        debug {
+            applicationIdSuffix = ".debug"
+            versionNameSuffix = "-debug"
+        }
         release {
             signingConfig =
                 if (hasReleaseSigning) {

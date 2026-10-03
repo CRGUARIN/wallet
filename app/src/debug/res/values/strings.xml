@@ -1,0 +1,4 @@
+<resources>
+    <!-- Debug builds install next to the release app; a distinct launcher name avoids confusion. -->
+    <string name="app_name" translatable="false">Wallet Debug</string>
+</resources>

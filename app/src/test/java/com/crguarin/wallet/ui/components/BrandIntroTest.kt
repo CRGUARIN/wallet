@@ -1,11 +1,14 @@
 package com.crguarin.wallet.ui.components
 
+import android.content.Context
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.Button
 import androidx.compose.material3.Text
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.test.core.app.ApplicationProvider
+import com.crguarin.wallet.R
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
@@ -27,7 +30,9 @@ class BrandIntroTest {
         composeRule.setContent { WalletTheme { BrandIntro(onFinished = { finished = true }) } }
 
         composeRule.mainClock.advanceTimeBy(700)
-        composeRule.onNodeWithText("Wallet").assertExists()
+        // Reads app_name instead of hardcoding it: debug builds append "-debug" to the app name.
+        val appName = ApplicationProvider.getApplicationContext<Context>().getString(R.string.app_name)
+        composeRule.onNodeWithText(appName).assertExists()
         assertThat(finished).isFalse()
 
         composeRule.mainClock.advanceTimeBy(1_000)
