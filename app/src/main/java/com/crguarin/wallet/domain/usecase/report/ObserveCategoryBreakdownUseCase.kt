@@ -68,14 +68,18 @@ class ObserveCategoryBreakdownUseCase
                             )
                         } else {
                             // All rows of a root share its fields: a child row carries them in
-                            // parent*, a direct root row in its own columns.
+                            // parent*, a direct root row in its own columns. System roots have
+                            // null own columns, so the source is picked by row kind, never with ?:
+                            // falling back to the child name would label the slice "Mercado"
+                            // instead of the "food" root.
                             val source = rootRows.first()
+                            val fromParent = source.parentId != null
                             CategorySlice(
                                 key = SliceKey.Category(rootId),
-                                name = source.parentName ?: source.name,
-                                systemKey = source.parentSystemKey ?: source.systemKey,
-                                color = source.parentColor ?: source.color,
-                                icon = source.parentIcon ?: source.icon,
+                                name = if (fromParent) source.parentName else source.name,
+                                systemKey = if (fromParent) source.parentSystemKey else source.systemKey,
+                                color = if (fromParent) source.parentColor else source.color,
+                                icon = if (fromParent) source.parentIcon else source.icon,
                                 amount = amount,
                                 perMille = 0,
                                 hasChildren = rootRows.any { it.parentId != null },
@@ -138,7 +142,7 @@ class ObserveCategoryBreakdownUseCase
 
         /**
          * Keeps the `maxSlices - 1` largest slices and merges the rest into a single "Others"
-         * slice. A single leftover is never merged into an "Others" slice of its own.
+         * slice. With `maxSlices` slices or fewer nothing is grouped.
          */
         private fun applyMaxSlices(
             slices: List<CategorySlice>,
@@ -148,7 +152,7 @@ class ObserveCategoryBreakdownUseCase
             val keep = maxSlices - 1
             if (keep <= 0) return listOf(othersSlice(slices))
             val rest = slices.drop(keep)
-            return if (rest.size == 1) slices else slices.take(keep) + othersSlice(rest)
+            return slices.take(keep) + othersSlice(rest)
         }
 
         private fun othersSlice(rest: List<CategorySlice>): CategorySlice =
