@@ -31,6 +31,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.time.LocalDate
 import java.time.YearMonth
+import java.util.Locale
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "es-rCO-w1000dp-h3000dp")
@@ -296,5 +297,38 @@ class ReportsScreenTest {
         val percent = context.getString(R.string.reports_percent, "25")
         val expected = context.getString(R.string.reports_cd_change_up, percent)
         composeRule.onNodeWithContentDescription(expected).assertIsDisplayed()
+    }
+
+    @Test
+    fun `month mode selects the month and dims only future bars`() {
+        val (selected, dimmed) =
+            evolutionSelection(monthsWithData(), ReportMode.MONTH, YearMonth.of(2026, 10), YearMonth.of(2026, 7))
+
+        assertThat(selected).isEqualTo(5)
+        assertThat(dimmed).containsExactly(false, false, false, true, true, true).inOrder()
+    }
+
+    @Test
+    fun `year mode selects nothing and dims nothing`() {
+        val (selected, dimmed) =
+            evolutionSelection(monthsWithData(), ReportMode.YEAR, YearMonth.of(2026, 10), YearMonth.of(2026, 10))
+
+        assertThat(selected).isNull()
+        assertThat(dimmed).containsExactly(false, false, false, false, false, false).inOrder()
+    }
+
+    @Test
+    fun `narrow month letter is a single capital`() {
+        val locale = Locale("es", "CO")
+
+        assertThat(monthNarrowLetter(YearMonth.of(2026, 1), locale)).isEqualTo("E")
+        assertThat(monthNarrowLetter(YearMonth.of(2026, 10), locale)).isEqualTo("O")
+    }
+
+    @Test
+    fun `bars description uses the full month name`() {
+        setScreen(state())
+
+        composeRule.onNodeWithContentDescription("octubre", substring = true).assertExists()
     }
 }
