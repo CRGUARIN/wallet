@@ -36,6 +36,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -56,9 +57,11 @@ import com.crguarin.wallet.ui.components.CategoryPickerSheet
 import com.crguarin.wallet.ui.components.EmptyState
 import com.crguarin.wallet.ui.components.ErrorState
 import com.crguarin.wallet.ui.components.LoadingState
+import com.crguarin.wallet.ui.components.PeriodSelector
 import com.crguarin.wallet.ui.components.TransactionDayHeader
 import com.crguarin.wallet.ui.components.TransactionListItem
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.util.formatMonthYear
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import java.time.Instant
@@ -161,6 +164,7 @@ fun TransactionsScreen(
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
     val listState = rememberLazyListState()
+    val locale = LocalConfiguration.current.locales[0]
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -179,11 +183,14 @@ fun TransactionsScreen(
             contentPadding = PaddingValues(bottom = 96.dp),
         ) {
             item(key = "month_selector", contentType = "controls") {
-                MonthSelector(
-                    month = uiState.month,
-                    canGoToNextMonth = uiState.canGoToNextMonth,
-                    onPreviousMonth = onPreviousMonth,
-                    onNextMonth = onNextMonth,
+                PeriodSelector(
+                    label = uiState.month.formatMonthYear(locale),
+                    canGoPrevious = true,
+                    canGoNext = uiState.canGoToNextMonth,
+                    onPrevious = onPreviousMonth,
+                    onNext = onNextMonth,
+                    previousContentDescription = stringResource(R.string.transactions_previous_month),
+                    nextContentDescription = stringResource(R.string.transactions_next_month),
                 )
             }
 
