@@ -27,6 +27,7 @@ import androidx.test.core.app.ApplicationProvider
 import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.report.BalanceGranularity
 import com.crguarin.wallet.domain.model.report.CategoryBreakdown
 import com.crguarin.wallet.domain.model.report.CategorySlice
 import com.crguarin.wallet.domain.model.report.MonthTotals
@@ -552,5 +553,26 @@ class ReportsScreenTest {
         assertThat(signedMoney(600_000_000L, locale)).isEqualTo("+ $ 6.000.000")
         assertThat(signedMoney(-200_000_000L, locale)).isEqualTo("− $ 2.000.000")
         assertThat(signedMoney(0L, locale)).isEqualTo("$ 0")
+    }
+
+    @Test
+    fun `balance x labels use days and month letters`() {
+        val locale = Locale("es", "CO")
+
+        assertThat(balanceXLabels(BalanceGranularity.DAILY, YearMonth.of(2026, 10), 31, locale))
+            .containsExactly(0 to "1", 14 to "15", 30 to "31")
+            .inOrder()
+        val monthly = balanceXLabels(BalanceGranularity.MONTHLY, YearMonth.of(2026, 10), 12, locale)
+        assertThat(monthly).hasSize(12)
+        assertThat(monthly[0]).isEqualTo(0 to "E")
+        assertThat(monthly[9]).isEqualTo(9 to "O")
+    }
+
+    @Test
+    fun `balance point date uses short day and full month`() {
+        val locale = Locale("es", "CO")
+
+        assertThat(pointDateLabel(LocalDate.of(2026, 10, 3), BalanceGranularity.DAILY, locale)).isEqualTo("3 oct")
+        assertThat(pointDateLabel(LocalDate.of(2026, 10, 15), BalanceGranularity.MONTHLY, locale)).isEqualTo("octubre")
     }
 }
