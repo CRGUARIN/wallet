@@ -2,63 +2,351 @@ package com.crguarin.wallet.ui.reports
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.core.time.TimeProvider
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.report.CategoryBreakdown
+import com.crguarin.wallet.domain.model.report.CategorySlice
+import com.crguarin.wallet.domain.model.report.MonthTotals
+import com.crguarin.wallet.domain.model.report.PeriodSummary
 import com.crguarin.wallet.domain.model.report.ReportMode
+import com.crguarin.wallet.domain.model.report.ReportPeriod
 import com.crguarin.wallet.domain.model.report.SliceKey
+import com.crguarin.wallet.domain.model.report.SpendingPace
+import com.crguarin.wallet.domain.repository.CategoryRepository
 import com.crguarin.wallet.domain.usecase.ObserveAccountsUseCase
 import com.crguarin.wallet.domain.usecase.report.ObserveCategoryBreakdownUseCase
 import com.crguarin.wallet.domain.usecase.report.ObserveMonthlyTotalsUseCase
 import com.crguarin.wallet.domain.usecase.report.ObservePeriodSummaryUseCase
 import com.crguarin.wallet.domain.usecase.report.ObserveSpendingPaceUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+import java.time.LocalDate
+import java.time.Year
 import java.time.YearMonth
 import javax.inject.Inject
 
+/** Saved-state keys with the `reports_` prefix; the month is the epochDay of its first day. */
+private const val KEY_MODE = "reports_mode"
+private const val KEY_MONTH = "reports_month"
+private const val KEY_TYPE = "reports_type"
+private const val KEY_ACCOUNT = "reports_account"
+private const val KEY_DRILL_PARENT = "reports_drill_parent"
+
+private const val NO_ACCOUNT = -1L
+private const val NO_PARENT = -1L
+
+/** Number of months drawn by the bar chart in MONTH mode. */
+private const val BAR_MONTHS = 6L
+
+/** Number of months in a year, drawn by the bar chart in YEAR mode. */
+private const val MONTHS_IN_YEAR = 12
+
+private val EMPTY_SUMMARY = PeriodSummary(Money.ZERO, Money.ZERO, null, Money.ZERO)
+private val EMPTY_BREAKDOWN = CategoryBreakdown(Money.ZERO, emptyList(), null)
+
+/** Rows combined from the four report use cases before being mapped to [ReportsUiState]. */
+private data class ReportData(
+    val summary: PeriodSummary,
+    val breakdown: CategoryBreakdown,
+    val monthlyTotals: List<MonthTotals>,
+    val pace: SpendingPace?,
+)
+
+private val EMPTY_REPORT_DATA =
+    ReportData(
+        summary = EMPTY_SUMMARY,
+        breakdown = EMPTY_BREAKDOWN,
+        monthlyTotals = emptyList(),
+        pace = null,
+    )
+
 /**
- * ViewModel of the Reports screen. Selection persists in [SavedStateHandle] with `reports_` keys.
+ * ViewModel of the Reports screen. The whole selection persists in [SavedStateHandle] with the
+ * `reports_` keys, so rotating or recreating the screen keeps the mode, period, type, account and
+ * drill-down.
  *
- * Public API frozen for the screen: [uiState] plus the action methods below.
+ * Changing the period, type or account always clears the selected slice and the drill-down: it is
+ * the simplest behavior allowed by the spec and avoids showing a parent without data.
  */
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class ReportsViewModel
     @Inject
     constructor(
         private val savedStateHandle: SavedStateHandle,
-        private val observeCategoryBreakdownUseCase: ObserveCategoryBreakdownUseCase,
-        private val observeMonthlyTotalsUseCase: ObserveMonthlyTotalsUseCase,
-        private val observePeriodSummaryUseCase: ObservePeriodSummaryUseCase,
-        private val observeSpendingPaceUseCase: ObserveSpendingPaceUseCase,
-        private val observeAccountsUseCase: ObserveAccountsUseCase,
-        private val timeProvider: TimeProvider,
+        private val categoryRepository: CategoryRepository,
+        observeCategoryBreakdownUseCase: ObserveCategoryBreakdownUseCase,
+        observeMonthlyTotalsUseCase: ObserveMonthlyTotalsUseCase,
+        observePeriodSummaryUseCase: ObservePeriodSummaryUseCase,
+        observeSpendingPaceUseCase: ObserveSpendingPaceUseCase,
+        observeAccountsUseCase: ObserveAccountsUseCase,
+        timeProvider: TimeProvider,
     ) : ViewModel() {
-        val uiState: StateFlow<ReportsUiState> = TODO("Implemented by subagent D1")
+        private val today: LocalDate = timeProvider.today()
 
-        fun setMode(mode: ReportMode): Unit = TODO()
+        private val selectionFlow = MutableStateFlow(readSelection(savedStateHandle))
+        private val selectedSliceFlow = MutableStateFlow<SliceKey?>(null)
+        private val parentSliceFlow = MutableStateFlow<CategorySlice?>(null)
+        private val sheetFlow = MutableStateFlow(false)
+        private val errorFlow = MutableStateFlow(false)
+        private val refreshFlow = MutableStateFlow(0)
 
-        fun previousPeriod(): Unit = TODO()
+        private val queryFlow: Flow<ReportsSelection> =
+            combine(selectionFlow, refreshFlow) { selection, _ -> selection }
 
-        fun nextPeriod(): Unit = TODO()
+        private val dataFlow: Flow<ReportData> =
+            queryFlow.flatMapLatest { selection ->
+                errorFlow.value = false
+                combine(
+                    observePeriodSummaryUseCase(selection.period(), selection.type, selection.accountId, today),
+                    observeCategoryBreakdownUseCase(
+                        period = selection.period(),
+                        type = selection.type,
+                        accountId = selection.accountId,
+                        parentId = selection.drillDownParentId,
+                    ),
+                    observeMonthlyTotalsUseCase(barMonths(selection), selection.accountId),
+                    observeSpendingPaceUseCase(selection.yearMonth, selection.type, selection.accountId, today),
+                ) { summary, breakdown, monthlyTotals, pace ->
+                    ReportData(summary, breakdown, monthlyTotals, pace)
+                }.catch {
+                    errorFlow.value = true
+                    emit(EMPTY_REPORT_DATA)
+                }
+            }
 
-        fun setType(type: TransactionType): Unit = TODO()
+        // Archived accounts are kept so their history can still be filtered, like in Movements.
+        private val accountsFlow = observeAccountsUseCase(includeArchived = true)
 
-        fun setAccount(accountId: Long?): Unit = TODO()
+        private val panelFlow: Flow<PanelState> =
+            combine(selectedSliceFlow, parentSliceFlow, sheetFlow) { slice, parent, showSheet ->
+                PanelState(selectedSliceKey = slice, parentSlice = parent, showAccountSheet = showSheet)
+            }
 
-        fun openAccountSheet(): Unit = TODO()
+        val uiState: StateFlow<ReportsUiState> =
+            combine(
+                combine(queryFlow, dataFlow) { selection, data -> selection to data },
+                accountsFlow,
+                panelFlow,
+                errorFlow,
+            ) { (selection, data), accounts, panel, hasError ->
+                ReportsUiState(
+                    isLoading = false,
+                    hasError = hasError,
+                    mode = selection.mode,
+                    yearMonth = selection.yearMonth,
+                    today = today,
+                    type = selection.type,
+                    accountId = selection.accountId,
+                    selectedAccountName =
+                        selection.accountId?.let { id ->
+                            accounts.firstOrNull { it.account.id == id }?.account?.name
+                        },
+                    accounts = accounts,
+                    showAccountSheet = panel.showAccountSheet,
+                    summary = data.summary,
+                    breakdown = data.breakdown,
+                    drillDownParent = panel.parentSlice,
+                    selectedSliceKey = panel.selectedSliceKey,
+                    monthlyTotals = data.monthlyTotals,
+                    pace = data.pace.takeIf { selection.mode == ReportMode.MONTH },
+                    canGoNext = canGoNext(selection),
+                )
+            }.stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = ReportsUiState(isLoading = true, today = today),
+            )
 
-        fun dismissAccountSheet(): Unit = TODO()
+        init {
+            selectionFlow.value.drillDownParentId?.let { parentId ->
+                viewModelScope.launch { loadParentSlice(parentId) }
+            }
+        }
 
-        /** Selects [key]; selecting the already selected slice deselects it. */
-        fun selectSlice(key: SliceKey): Unit = TODO()
+        fun setMode(mode: ReportMode) {
+            val selection = selectionFlow.value
+            if (selection.mode == mode) return
+            applySelection(selection.copy(mode = mode, drillDownParentId = null))
+        }
 
-        fun drillInto(parentId: Long): Unit = TODO()
+        fun previousPeriod() {
+            val selection = selectionFlow.value
+            val yearMonth =
+                when (selection.mode) {
+                    ReportMode.MONTH -> selection.yearMonth.minusMonths(1)
+                    ReportMode.YEAR -> selection.yearMonth.minusYears(1)
+                }
+            applySelection(selection.copy(yearMonth = yearMonth, drillDownParentId = null))
+        }
 
-        fun drillUp(): Unit = TODO()
+        fun nextPeriod() {
+            val selection = selectionFlow.value
+            if (!canGoNext(selection)) return
+            val yearMonth =
+                when (selection.mode) {
+                    ReportMode.MONTH -> selection.yearMonth.plusMonths(1)
+                    ReportMode.YEAR -> selection.yearMonth.plusYears(1)
+                }
+            applySelection(selection.copy(yearMonth = yearMonth, drillDownParentId = null))
+        }
 
-        /** Called from the bar chart: switches to MONTH mode and selects [yearMonth]. */
-        fun selectMonth(yearMonth: YearMonth): Unit = TODO()
+        fun setType(type: TransactionType) {
+            if (type == TransactionType.TRANSFER) return
+            applySelection(selectionFlow.value.copy(type = type, drillDownParentId = null))
+        }
 
-        /** Retries after a flow error: resets the selection to its initial values. */
-        fun retry(): Unit = TODO()
+        fun setAccount(accountId: Long?) {
+            applySelection(selectionFlow.value.copy(accountId = accountId, drillDownParentId = null))
+            dismissAccountSheet()
+        }
+
+        fun openAccountSheet() {
+            sheetFlow.value = true
+        }
+
+        fun dismissAccountSheet() {
+            sheetFlow.value = false
+        }
+
+        fun selectSlice(key: SliceKey) {
+            selectedSliceFlow.value = if (selectedSliceFlow.value == key) null else key
+        }
+
+        fun drillInto(parentId: Long) {
+            val selection = selectionFlow.value
+            if (selection.drillDownParentId == parentId) return
+            selectedSliceFlow.value = null
+            parentSliceFlow.value = null
+            persist(selection.copy(drillDownParentId = parentId))
+            selectionFlow.value = selection.copy(drillDownParentId = parentId)
+            viewModelScope.launch { loadParentSlice(parentId) }
+        }
+
+        fun drillUp() {
+            val selection = selectionFlow.value
+            selectedSliceFlow.value = null
+            parentSliceFlow.value = null
+            persist(selection.copy(drillDownParentId = null))
+            selectionFlow.value = selection.copy(drillDownParentId = null)
+        }
+
+        fun selectMonth(yearMonth: YearMonth) {
+            applySelection(
+                selectionFlow.value.copy(
+                    mode = ReportMode.MONTH,
+                    yearMonth = yearMonth,
+                    drillDownParentId = null,
+                ),
+            )
+        }
+
+        /** Re-subscribes every report flow; used by the error state "Retry" action. */
+        fun retry() {
+            errorFlow.value = false
+            refreshFlow.value = refreshFlow.value + 1
+        }
+
+        private fun applySelection(selection: ReportsSelection) {
+            selectedSliceFlow.value = null
+            parentSliceFlow.value = null
+            persist(selection)
+            selectionFlow.value = selection
+        }
+
+        private fun persist(selection: ReportsSelection) {
+            savedStateHandle[KEY_MODE] = selection.mode.name
+            savedStateHandle[KEY_MONTH] = selection.yearMonth.atDay(1).toEpochDay()
+            savedStateHandle[KEY_TYPE] = selection.type.name
+            savedStateHandle[KEY_ACCOUNT] = selection.accountId ?: NO_ACCOUNT
+            savedStateHandle[KEY_DRILL_PARENT] = selection.drillDownParentId ?: NO_PARENT
+        }
+
+        private suspend fun loadParentSlice(parentId: Long) {
+            val category = categoryRepository.getCategory(parentId) ?: return
+            parentSliceFlow.value =
+                CategorySlice(
+                    key = SliceKey.Category(parentId),
+                    name = category.name,
+                    systemKey = category.systemKey,
+                    color = category.color,
+                    icon = category.icon,
+                    amount = Money.ZERO,
+                    perMille = 0,
+                    hasChildren = true,
+                )
+        }
+
+        private fun canGoNext(selection: ReportsSelection): Boolean =
+            when (selection.mode) {
+                ReportMode.MONTH -> selection.yearMonth < YearMonth.from(today)
+                ReportMode.YEAR -> selection.yearMonth.year < today.year
+            }
+
+        private fun barMonths(selection: ReportsSelection): List<YearMonth> =
+            when (selection.mode) {
+                ReportMode.MONTH ->
+                    (BAR_MONTHS - 1 downTo 0).map { monthsBack -> selection.yearMonth.minusMonths(monthsBack) }
+                ReportMode.YEAR ->
+                    (1..MONTHS_IN_YEAR).map { month -> YearMonth.of(selection.yearMonth.year, month) }
+            }
+
+        private fun readSelection(handle: SavedStateHandle): ReportsSelection {
+            val mode =
+                handle
+                    .get<String>(KEY_MODE)
+                    ?.let { runCatching { ReportMode.valueOf(it) }.getOrNull() }
+                    ?: ReportMode.MONTH
+            val yearMonth =
+                handle
+                    .get<Long>(KEY_MONTH)
+                    ?.let { YearMonth.from(LocalDate.ofEpochDay(it)) }
+                    ?: YearMonth.from(today)
+            val type =
+                handle
+                    .get<String>(KEY_TYPE)
+                    ?.let { runCatching { TransactionType.valueOf(it) }.getOrNull() }
+                    ?.takeIf { it != TransactionType.TRANSFER }
+                    ?: TransactionType.EXPENSE
+            val accountId = handle.get<Long>(KEY_ACCOUNT)?.takeIf { it != NO_ACCOUNT }
+            val drillDownParentId = handle.get<Long>(KEY_DRILL_PARENT)?.takeIf { it != NO_PARENT }
+            return ReportsSelection(
+                mode = mode,
+                yearMonth = yearMonth,
+                type = type,
+                accountId = accountId,
+                drillDownParentId = drillDownParentId,
+            )
+        }
+
+        private data class ReportsSelection(
+            val mode: ReportMode,
+            val yearMonth: YearMonth,
+            val type: TransactionType,
+            val accountId: Long?,
+            val drillDownParentId: Long?,
+        ) {
+            fun period(): ReportPeriod =
+                when (mode) {
+                    ReportMode.MONTH -> ReportPeriod.Month(yearMonth)
+                    ReportMode.YEAR -> ReportPeriod.Year(Year.of(yearMonth.year))
+                }
+        }
+
+        private data class PanelState(
+            val selectedSliceKey: SliceKey?,
+            val parentSlice: CategorySlice?,
+            val showAccountSheet: Boolean,
+        )
     }
