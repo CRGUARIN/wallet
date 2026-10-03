@@ -125,6 +125,22 @@ class TransactionsViewModelTest {
         ),
     )
 
+    private fun savedHandle(
+        type: TransactionType? = null,
+        month: String? = null,
+        savedType: String? = null,
+        savedMonth: YearMonth? = null,
+    ) = SavedStateHandle(
+        buildMap<String, Any?> {
+            put("accountId", null)
+            put("categoryId", null)
+            put("type", type)
+            put("month", month)
+            if (savedType != null) put("tx_list_type", savedType)
+            if (savedMonth != null) put("tx_list_month", savedMonth.atDay(1).toEpochDay())
+        },
+    )
+
     private fun transaction(
         id: Long,
         type: TransactionType,
@@ -234,6 +250,45 @@ class TransactionsViewModelTest {
             assertThat(transactionRepository.lastPagedFilter?.startDate).isEqualTo(today.withDayOfMonth(1))
             assertThat(transactionRepository.lastPagedFilter?.endDate)
                 .isEqualTo(today.withDayOfMonth(today.lengthOfMonth()))
+        }
+
+    @Test
+    fun `saved type of none wins over the route type argument`() =
+        runTest(testDispatcher) {
+            val viewModel =
+                observeState(
+                    createViewModel(
+                        savedHandle(type = TransactionType.EXPENSE, savedType = "none"),
+                    ),
+                )
+            advanceUntilIdle()
+
+            assertThat(viewModel.uiState.value.type).isNull()
+        }
+
+    @Test
+    fun `saved month wins over the route month argument`() =
+        runTest(testDispatcher) {
+            val viewModel =
+                observeState(
+                    createViewModel(
+                        savedHandle(month = "2026-08", savedMonth = YearMonth.of(2026, 7)),
+                    ),
+                )
+            advanceUntilIdle()
+
+            assertThat(viewModel.uiState.value.month).isEqualTo(YearMonth.of(2026, 7))
+        }
+
+    @Test
+    fun `out of range and non-numeric route months fall back to the current month`() =
+        runTest(testDispatcher) {
+            listOf("2026-13", "abc").forEach { malformed ->
+                val viewModel = observeState(createViewModel(defaultHandle(month = malformed)))
+                advanceUntilIdle()
+
+                assertThat(viewModel.uiState.value.month).isEqualTo(YearMonth.of(2026, 9))
+            }
         }
 
     @Test
