@@ -2,6 +2,7 @@ package com.crguarin.wallet.domain.model.report
 
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.TransactionType
+import java.time.LocalDate
 import java.time.YearMonth
 
 /**
@@ -58,6 +59,50 @@ object ReportMath {
         return roundedDiv(numerator, previous.minorUnits)
             .coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong())
             .toInt()
+    }
+
+    /**
+     * Savings rate in per-mille: `net * 1000 / income`, rounded to the nearest integer with ties
+     * [half away from zero][roundedDiv], or null when [income] is zero or negative. It can be
+     * negative (more was spent than earned) and it is clamped to the [Int] range instead of
+     * truncating on overflow.
+     *
+     * `Money.MAX_MINOR_UNITS * 1000` is about 1e17, well below `Long.MAX_VALUE` (about 9.2e18), so
+     * the multiplication cannot overflow.
+     */
+    fun savingsRatePerMille(
+        net: Money,
+        income: Money,
+    ): Int? {
+        if (income.minorUnits <= 0L) return null
+        val numerator = net.minorUnits * PER_MILLE.toLong()
+        return roundedDiv(numerator, income.minorUnits)
+            .coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong())
+            .toInt()
+    }
+
+    /**
+     * Closing balance of each date in [dates], in ascending order: [opening] plus every delta in
+     * [daily] dated on or before each date. Deltas on days absent from [dates] (for example the
+     * intermediate days of a month in monthly granularity) are included in the following points.
+     */
+    fun balancePoints(
+        opening: Money,
+        daily: Map<LocalDate, Money>,
+        dates: List<LocalDate>,
+    ): List<Money> {
+        val sortedDeltas = daily.entries.sortedBy { it.key }
+        val result = ArrayList<Money>(dates.size)
+        var running = opening.minorUnits
+        var deltaIndex = 0
+        for (date in dates.sorted()) {
+            while (deltaIndex < sortedDeltas.size && sortedDeltas[deltaIndex].key <= date) {
+                running += sortedDeltas[deltaIndex].value.minorUnits
+                deltaIndex++
+            }
+            result += Money(running)
+        }
+        return result
     }
 
     /**

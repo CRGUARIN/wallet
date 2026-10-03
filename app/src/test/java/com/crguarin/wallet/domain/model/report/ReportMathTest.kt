@@ -164,6 +164,104 @@ class ReportMathTest {
         assertThat(result.last()).isEqualTo(Money(10))
     }
 
+    @Test
+    fun `savingsRatePerMille returns zero when the net is zero`() {
+        assertThat(ReportMath.savingsRatePerMille(Money.ZERO, Money(1000))).isEqualTo(0)
+    }
+
+    @Test
+    fun `savingsRatePerMille returns 1000 when the net equals the income`() {
+        assertThat(ReportMath.savingsRatePerMille(Money(1000), Money(1000))).isEqualTo(1000)
+    }
+
+    @Test
+    fun `savingsRatePerMille computes positive and negative rates`() {
+        assertThat(ReportMath.savingsRatePerMille(Money(235), Money(1000))).isEqualTo(235)
+        assertThat(ReportMath.savingsRatePerMille(Money(-120), Money(1000))).isEqualTo(-120)
+    }
+
+    @Test
+    fun `savingsRatePerMille rounds ties away from zero`() {
+        assertThat(ReportMath.savingsRatePerMille(Money(5), Money(400))).isEqualTo(13)
+        assertThat(ReportMath.savingsRatePerMille(Money(-5), Money(400))).isEqualTo(-13)
+    }
+
+    @Test
+    fun `savingsRatePerMille rounds to the nearest integer`() {
+        assertThat(ReportMath.savingsRatePerMille(Money(1), Money(3))).isEqualTo(333)
+        assertThat(ReportMath.savingsRatePerMille(Money(2), Money(3))).isEqualTo(667)
+        assertThat(ReportMath.savingsRatePerMille(Money(-2), Money(3))).isEqualTo(-667)
+    }
+
+    @Test
+    fun `savingsRatePerMille returns null when the income is zero or negative`() {
+        assertThat(ReportMath.savingsRatePerMille(Money(100), Money.ZERO)).isNull()
+        assertThat(ReportMath.savingsRatePerMille(Money.ZERO, Money.ZERO)).isNull()
+        assertThat(ReportMath.savingsRatePerMille(Money(-100), Money(-50))).isNull()
+    }
+
+    @Test
+    fun `savingsRatePerMille clamps to the Int range on overflow`() {
+        val huge = Money(Long.MAX_VALUE / 2000)
+        assertThat(ReportMath.savingsRatePerMille(huge, Money(1))).isEqualTo(Int.MAX_VALUE)
+        assertThat(ReportMath.savingsRatePerMille(-huge, Money(1))).isEqualTo(Int.MIN_VALUE)
+    }
+
+    @Test
+    fun `balancePoints accumulates the opening and the deltas up to each date`() {
+        val opening = Money(1000)
+        val daily =
+            mapOf(
+                LocalDate.of(2026, 9, 1) to Money(100),
+                LocalDate.of(2026, 9, 3) to Money(-40),
+            )
+        val dates =
+            listOf(
+                LocalDate.of(2026, 9, 1),
+                LocalDate.of(2026, 9, 2),
+                LocalDate.of(2026, 9, 3),
+            )
+
+        assertThat(ReportMath.balancePoints(opening, daily, dates))
+            .containsExactly(Money(1100), Money(1100), Money(1060))
+            .inOrder()
+    }
+
+    @Test
+    fun `balancePoints includes deltas of days absent from the requested dates`() {
+        val opening = Money(500)
+        val daily =
+            mapOf(
+                LocalDate.of(2026, 9, 10) to Money(100),
+                LocalDate.of(2026, 9, 20) to Money(50),
+            )
+        val dates = listOf(LocalDate.of(2026, 9, 30))
+
+        assertThat(ReportMath.balancePoints(opening, daily, dates))
+            .containsExactly(Money(650))
+    }
+
+    @Test
+    fun `balancePoints ignores deltas after the last date and keeps the opening when empty`() {
+        val opening = Money(500)
+
+        assertThat(
+            ReportMath.balancePoints(
+                opening,
+                mapOf(LocalDate.of(2026, 10, 1) to Money(100)),
+                listOf(LocalDate.of(2026, 9, 30)),
+            ),
+        ).containsExactly(Money(500))
+        assertThat(
+            ReportMath.balancePoints(
+                opening,
+                emptyMap(),
+                listOf(LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 2)),
+            ),
+        ).containsExactly(Money(500), Money(500)).inOrder()
+        assertThat(ReportMath.balancePoints(opening, emptyMap(), emptyList())).isEmpty()
+    }
+
     private fun daily(
         year: Int,
         month: Int,
