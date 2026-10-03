@@ -246,7 +246,6 @@
     <string name="reports_cd_bars">Bar chart. %1$s</string>
     <string name="reports_cd_line">Line chart. %1$s</string>
     <string name="reports_cd_item">%1$s %2$s</string>
-    <string name="reports_cd_bars_group">%1$s: %2$s, %3$s</string>
     <string name="reports_cd_change_up">up %1$s</string>
     <string name="reports_cd_change_down">down %1$s</string>
     <string name="reports_list_separator">,&#160;</string>
