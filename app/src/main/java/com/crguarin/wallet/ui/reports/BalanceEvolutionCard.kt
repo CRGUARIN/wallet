@@ -65,14 +65,8 @@ internal fun BalanceEvolutionCard(
             BalanceGranularity.DAILY -> uiState.yearMonth.lengthOfMonth()
             BalanceGranularity.MONTHLY -> 12
         }
-    val range =
-        remember(evolution) {
-            val balances = points.map { it.balance.minorUnits }
-            val min = minOf(evolution.opening.minorUnits, balances.minOrNull() ?: evolution.opening.minorUnits)
-            val max = maxOf(evolution.opening.minorUnits, balances.maxOrNull() ?: evolution.opening.minorUnits)
-            AxisMath.axisRange(min, max)
-        }
-    val values = remember(points, range) { points.map { range.fractionOf(it.balance.minorUnits) } }
+    val range = remember(evolution) { ReportsChartMapper.balanceAxisRange(evolution) }
+    val values = remember(points, range) { ReportsChartMapper.balancePositions(points, range) }
     val zeroFraction = if (range.minMinorUnits < 0L) range.fractionOf(0L) else null
     val xLabels =
         remember(evolution.granularity, uiState.yearMonth, locale) {

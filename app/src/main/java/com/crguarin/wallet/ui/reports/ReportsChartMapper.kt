@@ -46,34 +46,6 @@ object ReportsChartMapper {
             is SliceKey.Category, is SliceKey.ParentDirect -> slice.color?.let { Color(it) } ?: othersColor
         }
 
-    /** Fractions `0..1` of each bar: one `[income, expense]` pair per month. */
-    fun barFractions(
-        monthlyTotals: List<MonthTotals>,
-        axisMaxMinorUnits: Long,
-    ): List<List<Float>> =
-        monthlyTotals.map { month ->
-            listOf(
-                fraction(month.income.minorUnits, axisMaxMinorUnits),
-                fraction(month.expense.minorUnits, axisMaxMinorUnits),
-            )
-        }
-
-    /**
-     * Fraction of the dashed average-expense line: the average expense of the months up to
-     * [lastRelevantMonth] (future months are not counted). Null when there is nothing to average.
-     */
-    fun averageExpenseFraction(
-        monthlyTotals: List<MonthTotals>,
-        axisMaxMinorUnits: Long,
-        lastRelevantMonth: YearMonth,
-    ): Float? {
-        if (axisMaxMinorUnits <= 0L) return null
-        val relevant = monthlyTotals.filter { it.yearMonth <= lastRelevantMonth }
-        if (relevant.isEmpty()) return null
-        val average = relevant.sumOf { it.expense.minorUnits } / relevant.size
-        return fraction(average, axisMaxMinorUnits)
-    }
-
     /**
      * Normalizes [SpendingPace.current] and [SpendingPace.previous] over [axisMaxMinorUnits] (the
      * caller passes `AxisMath.axisScale(...).maxMinorUnits` of the maximum of both series, so the y labels line up

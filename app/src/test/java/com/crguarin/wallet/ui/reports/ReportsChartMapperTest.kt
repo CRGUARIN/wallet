@@ -22,8 +22,8 @@ class ReportsChartMapperTest {
                 ),
             )
         // 4.000.000 $ no longer rounds up to 5.000.000: the axis ends at 4 M with 4 segments.
-        assertThat(evolutionAxisScale(months).maxMinorUnits).isEqualTo(400_000_000L)
-        assertThat(evolutionAxisScale(emptyList()).maxMinorUnits).isEqualTo(0L)
+        assertThat(ReportsChartMapper.evolutionAxisRange(months).maxMinorUnits).isEqualTo(400_000_000L)
+        assertThat(ReportsChartMapper.evolutionAxisRange(emptyList()).maxMinorUnits).isEqualTo(0L)
     }
 
     private fun month(

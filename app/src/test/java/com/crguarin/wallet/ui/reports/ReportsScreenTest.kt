@@ -135,7 +135,6 @@ class ReportsScreenTest {
 
     private fun state(
         mode: ReportMode = ReportMode.MONTH,
-        type: TransactionType = TransactionType.EXPENSE,
         focus: ReportFocus = ReportFocus.EXPENSE,
         accountId: Long? = null,
         isLoading: Boolean = false,
@@ -151,7 +150,6 @@ class ReportsScreenTest {
         mode = mode,
         yearMonth = month,
         today = today,
-        type = type,
         accountId = accountId,
         selectedAccountName = null,
         accounts = emptyList(),
@@ -413,7 +411,7 @@ class ReportsScreenTest {
     fun `cards derive their axes from axisScale`() {
         val months = monthsWithData()
         val dataMax = months.maxOf { maxOf(it.income.minorUnits, it.expense.minorUnits) }
-        val evolution = evolutionAxisScale(months)
+        val evolution = ReportsChartMapper.evolutionAxisRange(months)
         assertThat(evolution).isEqualTo(AxisMath.axisRange(0L, dataMax))
         assertThat(evolution.minMinorUnits).isEqualTo(0L)
         assertThat(evolution.maxMinorUnits).isAtLeast(dataMax)

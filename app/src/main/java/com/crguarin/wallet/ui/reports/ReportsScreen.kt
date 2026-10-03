@@ -79,8 +79,7 @@ fun ReportsRoute(
         onModeChange = viewModel::setMode,
         onPreviousPeriod = viewModel::previousPeriod,
         onNextPeriod = viewModel::nextPeriod,
-        // TODO(lider): cambiar a viewModel::setFocus al integrar C.
-        onFocusChange = { focus -> viewModel.setType(focus.transactionType ?: TransactionType.EXPENSE) },
+        onFocusChange = viewModel::setFocus,
         onOpenAccountSheet = viewModel::openAccountSheet,
         onDismissAccountSheet = viewModel::dismissAccountSheet,
         onAccountSelected = viewModel::setAccount,
@@ -293,7 +292,7 @@ private fun previewState(): ReportsUiState {
         mode = ReportMode.MONTH,
         yearMonth = month,
         today = previewToday,
-        type = TransactionType.EXPENSE,
+        focus = ReportFocus.EXPENSE,
         accountId = 1L,
         selectedAccountName = "Efectivo",
         accounts =

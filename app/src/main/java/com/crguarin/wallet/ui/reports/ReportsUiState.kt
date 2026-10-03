@@ -47,58 +47,6 @@ data class ReportsUiState(
     val balanceSummary: BalanceSummary = BalanceSummary.EMPTY,
     val balanceEvolution: BalanceEvolution? = null,
 ) {
-    /**
-     * Temporary compatibility for callers that still pass the pre-Balance `type` argument
-     * (ReportsScreen preview, ReportsScreenTest). `type` maps to its [ReportFocus]. The owner of
-     * those files removes the `type` argument; then this constructor is deleted.
-     *
-     * TODO(tarea-14): delete after merging the "tarjetas y pantalla" branch.
-     */
-    constructor(
-        isLoading: Boolean = true,
-        hasError: Boolean = false,
-        mode: ReportMode = ReportMode.MONTH,
-        yearMonth: YearMonth = YearMonth.now(),
-        today: LocalDate = LocalDate.now(),
-        type: TransactionType,
-        accountId: Long? = null,
-        selectedAccountName: String? = null,
-        accounts: List<AccountWithBalance> = emptyList(),
-        showAccountSheet: Boolean = false,
-        summary: PeriodSummary = PeriodSummary(Money.ZERO, Money.ZERO, null, Money.ZERO),
-        breakdown: CategoryBreakdown = CategoryBreakdown(total = Money.ZERO, slices = emptyList(), parentId = null),
-        drillDownParent: CategorySlice? = null,
-        selectedSliceKey: SliceKey? = null,
-        monthlyTotals: List<MonthTotals> = emptyList(),
-        pace: SpendingPace? = null,
-        canGoNext: Boolean = false,
-        isRefreshing: Boolean = false,
-    ) : this(
-        isLoading = isLoading,
-        hasError = hasError,
-        mode = mode,
-        yearMonth = yearMonth,
-        today = today,
-        accountId = accountId,
-        selectedAccountName = selectedAccountName,
-        accounts = accounts,
-        showAccountSheet = showAccountSheet,
-        summary = summary,
-        breakdown = breakdown,
-        drillDownParent = drillDownParent,
-        selectedSliceKey = selectedSliceKey,
-        monthlyTotals = monthlyTotals,
-        pace = pace,
-        canGoNext = canGoNext,
-        isRefreshing = isRefreshing,
-        focus =
-            when (type) {
-                TransactionType.EXPENSE -> ReportFocus.EXPENSE
-                TransactionType.INCOME -> ReportFocus.INCOME
-                TransactionType.TRANSFER -> ReportFocus.EXPENSE
-            },
-    )
-
     /** Transaction type shown by [focus]; EXPENSE when the focus is BALANCE. */
     val type: TransactionType
         get() = focus.transactionType ?: TransactionType.EXPENSE

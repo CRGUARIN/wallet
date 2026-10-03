@@ -56,24 +56,15 @@ internal fun MonthlyEvolutionCard(
     val months = uiState.monthlyTotals
     val refreshing = uiState.isRefreshing
     val todayMonth = YearMonth.from(uiState.today)
-    // The range covers bars and nets; positions are computed inline via fractionOf.
-    val range = remember(months) { evolutionAxisScale(months) }
-    val fractions =
-        remember(months, range) {
-            months.map { month ->
-                listOf(range.fractionOf(month.income.minorUnits), range.fractionOf(month.expense.minorUnits))
-            }
-        }
+    // The range covers bars and nets; positions come from the chart mapper.
+    val range = remember(months) { ReportsChartMapper.evolutionAxisRange(months) }
+    val fractions = remember(months, range) { ReportsChartMapper.barPositions(months, range) }
     val baseline = range.fractionOf(0L)
+    // Future months are drawn empty and dimmed; they do not count for the average either.
+    val lastRelevantMonth = months.lastOrNull()?.yearMonth?.let { minOf(it, todayMonth) }
     val lineValues =
-        remember(months, range, todayMonth) {
-            months.map { month ->
-                if (month.yearMonth > todayMonth) {
-                    null
-                } else {
-                    range.fractionOf(month.income.minorUnits - month.expense.minorUnits)
-                }
-            }
+        remember(months, range, lastRelevantMonth) {
+            ReportsChartMapper.netLinePositions(months, range, lastRelevantMonth)
         }
     val linePointColors =
         remember(months, semanticColors) {
@@ -85,18 +76,9 @@ internal fun MonthlyEvolutionCard(
                 }
             }
         }
-    // Future months are drawn empty and dimmed; they do not count for the average either.
-    val lastRelevantMonth = months.lastOrNull()?.yearMonth?.let { minOf(it, todayMonth) }
     val average =
         remember(months, range, lastRelevantMonth) {
-            lastRelevantMonth?.let { last ->
-                val relevant = months.filter { it.yearMonth <= last }
-                if (relevant.isEmpty()) {
-                    null
-                } else {
-                    range.fractionOf(relevant.sumOf { it.expense.minorUnits } / relevant.size)
-                }
-            }
+            lastRelevantMonth?.let { ReportsChartMapper.averageExpensePosition(months, range, it) }
         }
     val (selectedIndex, dimmedFlags) =
         remember(months, uiState.mode, uiState.yearMonth, todayMonth) {
@@ -283,19 +265,6 @@ internal fun compactMoney(minorUnits: Long): String {
     return remember(minorUnits, locale, thousand, million, billion) {
         CompactMoneyFormatter.formatCompact(minorUnits, locale, thousand, million, billion)
     }
-}
-
-/**
- * Y axis range of the evolution bars, covering the largest income or expense bar and the monthly
- * nets (income − expense), which can be negative. The name is kept so existing callers compile;
- * the range generalizes the old scale.
- */
-internal fun evolutionAxisScale(months: List<MonthTotals>): AxisRange {
-    val nets = months.map { it.income.minorUnits - it.expense.minorUnits }
-    val minNet = nets.minOrNull() ?: 0L
-    val maxData = months.maxOfOrNull { maxOf(it.income.minorUnits, it.expense.minorUnits) } ?: 0L
-    val maxNet = nets.maxOrNull() ?: 0L
-    return AxisMath.axisRange(minOf(0L, minNet), maxOf(maxData, maxNet))
 }
 
 /** "oct" / "Oct": abbreviated month name with a capital first letter. */

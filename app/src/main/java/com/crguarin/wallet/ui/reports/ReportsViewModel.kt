@@ -294,16 +294,6 @@ class ReportsViewModel
             applySelection(selectionFlow.value.copy(focus = focus, drillDownParentId = null))
         }
 
-        /**
-         * Temporary compatibility for ReportsScreen until its owner migrates to [setFocus].
-         *
-         * TODO(tarea-14): delete after merging the "tarjetas y pantalla" branch.
-         */
-        fun setType(type: TransactionType) {
-            if (type == TransactionType.TRANSFER) return
-            setFocus(if (type == TransactionType.INCOME) ReportFocus.INCOME else ReportFocus.EXPENSE)
-        }
-
         fun setAccount(accountId: Long?) {
             applySelection(selectionFlow.value.copy(accountId = accountId, drillDownParentId = null))
             dismissAccountSheet()
