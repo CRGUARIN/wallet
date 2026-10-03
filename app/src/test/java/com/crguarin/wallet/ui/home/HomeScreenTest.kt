@@ -9,6 +9,7 @@ import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
@@ -18,6 +19,7 @@ import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionDetails
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -103,6 +105,7 @@ class HomeScreenTest {
                     onTransactionClick = {},
                     onViewAllTransactions = {},
                     onQuickAction = {},
+                    onViewReports = {},
                 )
             }
         }
@@ -114,6 +117,7 @@ class HomeScreenTest {
         composeRule.onNodeWithText("Ahorros").assertIsDisplayed()
         composeRule.onNodeWithText("Últimos movimientos").assertIsDisplayed()
         composeRule.onNodeWithText("Ver todos").assertIsDisplayed()
+        composeRule.onNodeWithText("Ver reportes").assertIsDisplayed()
         composeRule.onNodeWithText("Alimentación").assertIsDisplayed()
         composeRule.onNodeWithText("Salario").assertIsDisplayed()
     }
@@ -128,6 +132,7 @@ class HomeScreenTest {
                     onTransactionClick = {},
                     onViewAllTransactions = {},
                     onQuickAction = {},
+                    onViewReports = {},
                 )
             }
         }
@@ -147,6 +152,7 @@ class HomeScreenTest {
                     onTransactionClick = {},
                     onViewAllTransactions = {},
                     onQuickAction = {},
+                    onViewReports = {},
                 )
             }
         }
@@ -164,6 +170,7 @@ class HomeScreenTest {
                     onTransactionClick = {},
                     onViewAllTransactions = {},
                     onQuickAction = {},
+                    onViewReports = {},
                 )
             }
         }
@@ -183,6 +190,7 @@ class HomeScreenTest {
                     onTransactionClick = {},
                     onViewAllTransactions = {},
                     onQuickAction = {},
+                    onViewReports = {},
                 )
             }
         }
@@ -190,5 +198,26 @@ class HomeScreenTest {
         composeRule
             .onNode(hasText("Últimos movimientos") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun `the view reports button calls its callback`() {
+        var reportsClicks = 0
+        composeRule.setContent {
+            WalletTheme {
+                HomeScreen(
+                    uiState = state(accounts = emptyList(), transactions = emptyList()),
+                    onAccountClick = {},
+                    onTransactionClick = {},
+                    onViewAllTransactions = {},
+                    onQuickAction = {},
+                    onViewReports = { reportsClicks++ },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Ver reportes").performClick()
+
+        assertThat(reportsClicks).isEqualTo(1)
     }
 }

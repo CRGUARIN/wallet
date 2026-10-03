@@ -25,6 +25,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -78,6 +79,7 @@ fun HomeRoute(
     onTransactionClick: (Long) -> Unit,
     onViewAllTransactions: () -> Unit,
     onQuickAction: (TransactionType) -> Unit,
+    onViewReports: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel? = safeHiltViewModel(),
 ) {
@@ -88,6 +90,7 @@ fun HomeRoute(
             onTransactionClick = onTransactionClick,
             onViewAllTransactions = onViewAllTransactions,
             onQuickAction = onQuickAction,
+            onViewReports = onViewReports,
             modifier = modifier,
         )
         return
@@ -101,6 +104,7 @@ fun HomeRoute(
         onTransactionClick = onTransactionClick,
         onViewAllTransactions = onViewAllTransactions,
         onQuickAction = onQuickAction,
+        onViewReports = onViewReports,
         modifier = modifier,
     )
 }
@@ -113,6 +117,7 @@ fun HomeScreen(
     onTransactionClick: (Long) -> Unit,
     onViewAllTransactions: () -> Unit,
     onQuickAction: (TransactionType) -> Unit,
+    onViewReports: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Scaffold(
@@ -139,7 +144,10 @@ fun HomeScreen(
             }
 
             item(key = "month_summary") {
-                MonthSummaryCard(monthSummary = uiState.monthSummary)
+                MonthSummaryCard(
+                    monthSummary = uiState.monthSummary,
+                    onViewReports = onViewReports,
+                )
             }
 
             if (uiState.accounts.isNotEmpty()) {
@@ -234,7 +242,10 @@ private fun TotalBalanceCard(totalBalance: Money) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun MonthSummaryCard(monthSummary: MonthSummary) {
+private fun MonthSummaryCard(
+    monthSummary: MonthSummary,
+    onViewReports: () -> Unit,
+) {
     Card(
         colors =
             CardDefaults.cardColors(
@@ -273,6 +284,19 @@ private fun MonthSummaryCard(monthSummary: MonthSummary) {
                     label = stringResource(R.string.account_detail_net),
                     amount = monthSummary.net,
                 )
+            }
+            Spacer(modifier = Modifier.height(4.dp))
+            TextButton(
+                onClick = onViewReports,
+                modifier = Modifier.align(Alignment.End),
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PieChart,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(text = stringResource(R.string.home_view_reports))
             }
         }
     }
@@ -513,6 +537,7 @@ private fun HomeScreenPreviewLight() {
             onTransactionClick = {},
             onViewAllTransactions = {},
             onQuickAction = {},
+            onViewReports = {},
         )
     }
 }
@@ -527,6 +552,7 @@ private fun HomeScreenPreviewLargeFont() {
             onTransactionClick = {},
             onViewAllTransactions = {},
             onQuickAction = {},
+            onViewReports = {},
         )
     }
 }
@@ -541,6 +567,7 @@ private fun HomeScreenPreviewDark() {
             onTransactionClick = {},
             onViewAllTransactions = {},
             onQuickAction = {},
+            onViewReports = {},
         )
     }
 }

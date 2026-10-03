@@ -125,8 +125,8 @@ class TransactionsViewModel
         private val filterFlow: MutableStateFlow<FilterSelection> =
             MutableStateFlow(
                 FilterSelection(
-                    month = readMonth(savedStateHandle),
-                    type = readType(savedStateHandle),
+                    month = readMonth(savedStateHandle, route.month),
+                    type = readType(savedStateHandle, route.type),
                     accountId = readId(savedStateHandle, KEY_ACCOUNT, route.accountId),
                     categoryId = readId(savedStateHandle, KEY_CATEGORY, route.categoryId),
                 ),
@@ -315,16 +315,28 @@ class TransactionsViewModel
             categorySelectionFlow.value = CategorySelection(category = category, parent = parent)
         }
 
-        private fun readMonth(savedStateHandle: SavedStateHandle): YearMonth {
-            val stored = savedStateHandle.get<Long>(KEY_MONTH)
-            return stored?.let { YearMonth.from(LocalDate.ofEpochDay(it)) } ?: YearMonth.from(today)
+        private fun readMonth(
+            savedStateHandle: SavedStateHandle,
+            routeMonth: String?,
+        ): YearMonth {
+            savedStateHandle.get<Long>(KEY_MONTH)?.let { epochDay ->
+                return YearMonth.from(LocalDate.ofEpochDay(epochDay))
+            }
+            // The route carries ISO `yyyy-MM`. A malformed value is ignored: fall back to this month.
+            return routeMonth
+                ?.let { runCatching { YearMonth.parse(it) }.getOrNull() }
+                ?: YearMonth.from(today)
         }
 
-        private fun readType(savedStateHandle: SavedStateHandle): TransactionType? =
-            savedStateHandle
-                .get<String>(KEY_TYPE)
-                ?.takeIf { it != TYPE_NONE }
+        private fun readType(
+            savedStateHandle: SavedStateHandle,
+            routeType: TransactionType?,
+        ): TransactionType? {
+            val stored = savedStateHandle.get<String>(KEY_TYPE) ?: return routeType
+            return stored
+                .takeIf { it != TYPE_NONE }
                 ?.let { runCatching { TransactionType.valueOf(it) }.getOrNull() }
+        }
 
         private fun readId(
             savedStateHandle: SavedStateHandle,
