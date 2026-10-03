@@ -28,7 +28,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -56,22 +58,6 @@ private const val MONTHS_IN_YEAR = 12
 private val EMPTY_SUMMARY = PeriodSummary(Money.ZERO, Money.ZERO, null, Money.ZERO)
 private val EMPTY_BREAKDOWN = CategoryBreakdown(Money.ZERO, emptyList(), null)
 
-/** Rows combined from the four report use cases before being mapped to [ReportsUiState]. */
-private data class ReportData(
-    val summary: PeriodSummary,
-    val breakdown: CategoryBreakdown,
-    val monthlyTotals: List<MonthTotals>,
-    val pace: SpendingPace?,
-)
-
-private val EMPTY_REPORT_DATA =
-    ReportData(
-        summary = EMPTY_SUMMARY,
-        breakdown = EMPTY_BREAKDOWN,
-        monthlyTotals = emptyList(),
-        pace = null,
-    )
-
 /**
  * ViewModel of the Reports screen. The whole selection persists in [SavedStateHandle] with the
  * `reports_` keys, so rotating or recreating the screen keeps the mode, period, type, account and
@@ -92,9 +78,10 @@ class ReportsViewModel
         observePeriodSummaryUseCase: ObservePeriodSummaryUseCase,
         observeSpendingPaceUseCase: ObserveSpendingPaceUseCase,
         observeAccountsUseCase: ObserveAccountsUseCase,
-        timeProvider: TimeProvider,
+        private val timeProvider: TimeProvider,
     ) : ViewModel() {
-        private val today: LocalDate = timeProvider.today()
+        /** "Today", read fresh on every use so a date change is picked up without recreating. */
+        private fun today(): LocalDate = timeProvider.today()
 
         private val selectionFlow = MutableStateFlow(readSelection(savedStateHandle))
         private val selectedSliceFlow = MutableStateFlow<SliceKey?>(null)
@@ -108,29 +95,34 @@ class ReportsViewModel
 
         private val dataFlow: Flow<ReportData> =
             queryFlow.flatMapLatest { selection ->
-                errorFlow.value = false
-                // The pace query only runs in MONTH mode, where its card is visible.
-                val paceFlow: Flow<SpendingPace?> =
-                    if (selection.mode == ReportMode.MONTH) {
-                        observeSpendingPaceUseCase(selection.yearMonth, selection.type, selection.accountId, today)
-                    } else {
-                        flowOf(null)
-                    }
-                combine(
-                    observePeriodSummaryUseCase(selection.period(), selection.type, selection.accountId, today),
-                    observeCategoryBreakdownUseCase(
-                        period = selection.period(),
-                        type = selection.type,
-                        accountId = selection.accountId,
-                        parentId = selection.drillDownParentId,
-                    ),
-                    observeMonthlyTotalsUseCase(barMonths(selection), selection.accountId),
-                    paceFlow,
-                ) { summary, breakdown, monthlyTotals, pace ->
-                    ReportData(summary, breakdown, monthlyTotals, pace)
+                flow {
+                    errorFlow.value = false
+                    // The pace query only runs in MONTH mode, where its card is visible.
+                    val queryToday = today()
+                    val paceFlow: Flow<SpendingPace?> =
+                        if (selection.mode == ReportMode.MONTH) {
+                            observeSpendingPaceUseCase(selection.yearMonth, selection.type, selection.accountId, queryToday)
+                        } else {
+                            flowOf(null)
+                        }
+                    emitAll(
+                        combine(
+                            observePeriodSummaryUseCase(selection.period(), selection.type, selection.accountId, queryToday),
+                            observeCategoryBreakdownUseCase(
+                                period = selection.period(),
+                                type = selection.type,
+                                accountId = selection.accountId,
+                                parentId = selection.drillDownParentId,
+                            ),
+                            observeMonthlyTotalsUseCase(barMonths(selection), selection.accountId),
+                            paceFlow,
+                        ) { summary, breakdown, monthlyTotals, pace ->
+                            ReportData(selection, summary, breakdown, monthlyTotals, pace)
+                        },
+                    )
                 }.catch {
                     errorFlow.value = true
-                    emit(EMPTY_REPORT_DATA)
+                    emit(ReportData(selection, EMPTY_SUMMARY, EMPTY_BREAKDOWN, emptyList(), null))
                 }
             }
 
@@ -144,17 +136,21 @@ class ReportsViewModel
 
         val uiState: StateFlow<ReportsUiState> =
             combine(
-                combine(queryFlow, dataFlow) { selection, data -> selection to data },
+                queryFlow,
+                dataFlow,
                 accountsFlow,
                 panelFlow,
                 errorFlow,
-            ) { (selection, data), accounts, panel, hasError ->
+            ) { selection, data, accounts, panel, hasError ->
+                // The controls follow the new selection at once, while the data shown is still the
+                // previous complete snapshot until the new query emits (then isRefreshing is false).
+                val now = today()
                 ReportsUiState(
                     isLoading = false,
                     hasError = hasError,
                     mode = selection.mode,
                     yearMonth = selection.yearMonth,
-                    today = today,
+                    today = now,
                     type = selection.type,
                     accountId = selection.accountId,
                     selectedAccountName =
@@ -169,13 +165,27 @@ class ReportsViewModel
                     selectedSliceKey = panel.selectedSliceKey,
                     monthlyTotals = data.monthlyTotals,
                     pace = data.pace.takeIf { selection.mode == ReportMode.MONTH },
-                    canGoNext = canGoNext(selection),
+                    canGoNext = canGoNext(selection, now),
+                    isRefreshing = data.selection != selection,
                 )
             }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = ReportsUiState(isLoading = true, today = today),
+                initialValue = initialUiState(),
             )
+
+        /** Loading state shown before the first query emits; it already carries the restored selection. */
+        private fun initialUiState(): ReportsUiState {
+            val selection = selectionFlow.value
+            return ReportsUiState(
+                isLoading = true,
+                mode = selection.mode,
+                yearMonth = selection.yearMonth,
+                today = today(),
+                type = selection.type,
+                accountId = selection.accountId,
+            )
+        }
 
         init {
             selectionFlow.value.drillDownParentId?.let { parentId ->
@@ -252,7 +262,7 @@ class ReportsViewModel
 
         fun selectMonth(yearMonth: YearMonth) {
             // The bar chart must not navigate into the future (spec 1): ignore future months.
-            if (yearMonth > YearMonth.from(today)) return
+            if (yearMonth > YearMonth.from(today())) return
             applySelection(
                 selectionFlow.value.copy(
                     mode = ReportMode.MONTH,
@@ -269,10 +279,17 @@ class ReportsViewModel
         }
 
         private fun applySelection(selection: ReportsSelection) {
+            val clamped = clampToToday(selection)
             selectedSliceFlow.value = null
             parentSliceFlow.value = null
-            persist(selection)
-            selectionFlow.value = selection
+            persist(clamped)
+            selectionFlow.value = clamped
+        }
+
+        /** The selection can never point past the current month (no future periods). */
+        private fun clampToToday(selection: ReportsSelection): ReportsSelection {
+            val maxMonth = YearMonth.from(today())
+            return if (selection.yearMonth > maxMonth) selection.copy(yearMonth = maxMonth) else selection
         }
 
         private fun persist(selection: ReportsSelection) {
@@ -284,7 +301,12 @@ class ReportsViewModel
         }
 
         private suspend fun loadParentSlice(parentId: Long) {
-            val category = categoryRepository.getCategory(parentId) ?: return
+            val category = categoryRepository.getCategory(parentId)
+            if (category == null) {
+                // The drilled parent no longer exists: back out to the root instead of getting stuck.
+                drillUp()
+                return
+            }
             parentSliceFlow.value =
                 CategorySlice(
                     key = SliceKey.Category(parentId),
@@ -298,7 +320,10 @@ class ReportsViewModel
                 )
         }
 
-        private fun canGoNext(selection: ReportsSelection): Boolean =
+        private fun canGoNext(
+            selection: ReportsSelection,
+            today: LocalDate = today(),
+        ): Boolean =
             when (selection.mode) {
                 ReportMode.MONTH -> selection.yearMonth < YearMonth.from(today)
                 ReportMode.YEAR -> selection.yearMonth.year < today.year
@@ -322,7 +347,7 @@ class ReportsViewModel
                 handle
                     .get<Long>(KEY_MONTH)
                     ?.let { YearMonth.from(LocalDate.ofEpochDay(it)) }
-                    ?: YearMonth.from(today)
+                    ?: YearMonth.from(today())
             val type =
                 handle
                     .get<String>(KEY_TYPE)
@@ -331,12 +356,14 @@ class ReportsViewModel
                     ?: TransactionType.EXPENSE
             val accountId = handle.get<Long>(KEY_ACCOUNT)?.takeIf { it != NO_ACCOUNT }
             val drillDownParentId = handle.get<Long>(KEY_DRILL_PARENT)?.takeIf { it != NO_PARENT }
-            return ReportsSelection(
-                mode = mode,
-                yearMonth = yearMonth,
-                type = type,
-                accountId = accountId,
-                drillDownParentId = drillDownParentId,
+            return clampToToday(
+                ReportsSelection(
+                    mode = mode,
+                    yearMonth = yearMonth,
+                    type = type,
+                    accountId = accountId,
+                    drillDownParentId = drillDownParentId,
+                ),
             )
         }
 
@@ -353,6 +380,18 @@ class ReportsViewModel
                     ReportMode.YEAR -> ReportPeriod.Year(Year.of(yearMonth.year))
                 }
         }
+
+        /**
+         * Rows combined from the four report use cases. Each snapshot travels with the [ReportsSelection]
+         * it was queried for, so the UI never mixes a new selection with half-loaded data.
+         */
+        private data class ReportData(
+            val selection: ReportsSelection,
+            val summary: PeriodSummary,
+            val breakdown: CategoryBreakdown,
+            val monthlyTotals: List<MonthTotals>,
+            val pace: SpendingPace?,
+        )
 
         private data class PanelState(
             val selectedSliceKey: SliceKey?,
