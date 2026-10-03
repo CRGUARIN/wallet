@@ -83,8 +83,21 @@ object AxisMath {
      * Computes the [AxisRange] covering [minMinorUnits]..[maxMinorUnits], with 0 always inside the
      * range and as a tick.
      *
-     * Contract stub: without negatives it matches [axisScale]; with negatives the "ejes y gráficas"
-     * owner implements the final rounding.
+     * Without negatives (`min >= 0`) the result is exactly [axisScale] as a range, so charts
+     * without negative values do not change. With negatives the span `max - min` is split into 4
+     * "nice" segments (`step = niceAxisMax(ceil(span / 4))`) and both ends are rounded outwards to
+     * a multiple of the step (`floor` below, `ceil` above); when that yields more than 6 ticks the
+     * step grows to the next "nice" value until at most 6 remain. Every tick is a multiple of the
+     * step, so 0 is always one of them.
+     *
+     * Documented case: `(-3_200_000, 0)` (pesos, i.e. `(-320_000_000, 0)` minor units) gives
+     * `-4..0 M` with a 1 M step, not `-3,5..0 M`: `niceAxisMax(ceil(320 M / 4))` is 100 M minor
+     * units and `floor(-320 M / 100 M)` is `-4`. A `-3,5..0` range would need a 500 k step, which
+     * is below the "nice" minimum for that span.
+     *
+     * Overflow safety: the span saturates at [Long.MAX_VALUE] and both rounded ends saturate at
+     * [Long.MIN_VALUE]/[Long.MAX_VALUE], so inputs near the `Long` extremes never crash and the
+     * range still covers the data.
      */
     fun axisRange(
         minMinorUnits: Long,
@@ -94,6 +107,62 @@ object AxisMath {
             val scale = axisScale(maxMinorUnits)
             return AxisRange(0L, scale.maxMinorUnits, scale.ticksMinorUnits)
         }
-        return AxisRange(minMinorUnits, maxMinorUnits, listOf(minMinorUnits, maxMinorUnits))
+        val lo = minOf(minMinorUnits, 0L)
+        val hi = maxOf(maxMinorUnits, 0L)
+        val span =
+            try {
+                Math.subtractExact(hi, lo)
+            } catch (_: ArithmeticException) {
+                Long.MAX_VALUE
+            }
+        var step = niceAxisMax(ceilDiv4(span))
+        var lowerQuotient = Math.floorDiv(lo, step)
+        var upperQuotient = ceilDiv(hi, step)
+        while (quotientSpan(upperQuotient, lowerQuotient) > 5L) {
+            val next = nextNiceStep(step)
+            if (next <= step) break
+            step = next
+            lowerQuotient = Math.floorDiv(lo, step)
+            upperQuotient = ceilDiv(hi, step)
+        }
+        val ticks = (lowerQuotient..upperQuotient).map { quotient -> saturatingMultiply(quotient, step) }
+        return AxisRange(ticks.first(), ticks.last(), ticks)
     }
+
+    /** `ceil(span / 4)` for `span >= 0`, matching the quarter [axisScale] uses. */
+    private fun ceilDiv4(span: Long): Long = span / 4L + if (span % 4L == 0L) 0L else 1L
+
+    /**
+     * `ceil(a / b)` for `b > 0` without overflow. `Math.ceilDiv` is avoided on purpose: it needs
+     * API 34 (or core library desugaring) while this project targets API 26 without desugaring.
+     */
+    private fun ceilDiv(
+        a: Long,
+        b: Long,
+    ): Long = if (a >= 0L) a / b + if (a % b == 0L) 0L else 1L else a / b
+
+    /** `upper - lower` saturated at [Long.MAX_VALUE] (both are tick quotients, `upper >= lower`). */
+    private fun quotientSpan(
+        upper: Long,
+        lower: Long,
+    ): Long =
+        try {
+            Math.subtractExact(upper, lower)
+        } catch (_: ArithmeticException) {
+            Long.MAX_VALUE
+        }
+
+    /** Next `1`, `2` or `5` times a power of ten step above [step]. */
+    private fun nextNiceStep(step: Long): Long = if (step >= Long.MAX_VALUE) Long.MAX_VALUE else niceAxisMax(step + 1L)
+
+    /** `a * b` saturated at [Long.MIN_VALUE]/[Long.MAX_VALUE] (used with `b > 0`). */
+    private fun saturatingMultiply(
+        a: Long,
+        b: Long,
+    ): Long =
+        try {
+            Math.multiplyExact(a, b)
+        } catch (_: ArithmeticException) {
+            if (a < 0L) Long.MIN_VALUE else Long.MAX_VALUE
+        }
 }

@@ -83,6 +83,135 @@ class AxisMathTest {
     }
 
     @Test
+    fun `axisRange without negatives splits four million pesos like axisScale`() {
+        assertThat(AxisMath.axisRange(0L, 400_000_000L)).isEqualTo(
+            AxisRange(
+                0L,
+                400_000_000L,
+                listOf(0L, 100_000_000L, 200_000_000L, 300_000_000L, 400_000_000L),
+            ),
+        )
+    }
+
+    @Test
+    fun `axisRange from minus one to three million keeps both ends`() {
+        assertThat(AxisMath.axisRange(-100_000_000L, 300_000_000L)).isEqualTo(
+            AxisRange(
+                -100_000_000L,
+                300_000_000L,
+                listOf(-100_000_000L, 0L, 100_000_000L, 200_000_000L, 300_000_000L),
+            ),
+        )
+    }
+
+    @Test
+    fun `axisRange of minus 3_2 million to zero rounds down to minus four million`() {
+        // step = nice(ceil(320 M / 4)) = 100 M minor units, floor(-320 M / 100 M) = -4: the range
+        // is -4..0 M, never -3,5..0 M, which would need a 500 k step below the nice minimum.
+        assertThat(AxisMath.axisRange(-320_000_000L, 0L)).isEqualTo(
+            AxisRange(
+                -400_000_000L,
+                0L,
+                listOf(-400_000_000L, -300_000_000L, -200_000_000L, -100_000_000L, 0L),
+            ),
+        )
+    }
+
+    @Test
+    fun `axisRange of minus and plus 150 thousand pesos rounds to 200 thousand`() {
+        assertThat(AxisMath.axisRange(-15_000_000L, 15_000_000L)).isEqualTo(
+            AxisRange(
+                -20_000_000L,
+                20_000_000L,
+                listOf(-20_000_000L, -10_000_000L, 0L, 10_000_000L, 20_000_000L),
+            ),
+        )
+    }
+
+    @Test
+    fun `axisRange of zero to zero is a single zero tick`() {
+        assertThat(AxisMath.axisRange(0L, 0L)).isEqualTo(AxisRange(0L, 0L, listOf(0L)))
+    }
+
+    @Test
+    fun `axisRange with min above zero matches axisScale exactly`() {
+        val maxima = listOf(0L, 1L, 9L, 100L, 15_000_000L, 400_000_000L, Long.MAX_VALUE / 4L)
+        for (max in maxima) {
+            val scale = AxisMath.axisScale(max)
+            val expected = AxisRange(0L, scale.maxMinorUnits, scale.ticksMinorUnits)
+            assertThat(AxisMath.axisRange(0L, max)).isEqualTo(expected)
+            // A positive minimum is dropped: without negatives the range always starts at 0.
+            assertThat(AxisMath.axisRange(max / 2L, max)).isEqualTo(expected)
+        }
+    }
+
+    @Test
+    fun `axisRange near an eighth of Long MAX_VALUE covers the data with few ticks`() {
+        val eighth = Long.MAX_VALUE / 8L
+        for ((min, max) in listOf(-eighth to eighth, -eighth to 0L, -1L to eighth)) {
+            val range = AxisMath.axisRange(min, max)
+            assertThat(range.minMinorUnits).isAtMost(min)
+            assertThat(range.maxMinorUnits).isAtLeast(max)
+            assertThat(range.ticksMinorUnits).contains(0L)
+            assertThat(range.ticksMinorUnits).isInOrder()
+            assertThat(range.ticksMinorUnits.size).isAtMost(6)
+            assertThat(range.ticksMinorUnits.first()).isEqualTo(range.minMinorUnits)
+            assertThat(range.ticksMinorUnits.last()).isEqualTo(range.maxMinorUnits)
+        }
+    }
+
+    @Test
+    fun `axisRange of the full Long span saturates instead of overflowing`() {
+        val range = AxisMath.axisRange(Long.MIN_VALUE, Long.MAX_VALUE)
+        assertThat(range.minMinorUnits).isEqualTo(Long.MIN_VALUE)
+        assertThat(range.maxMinorUnits).isEqualTo(Long.MAX_VALUE)
+        assertThat(range.ticksMinorUnits).contains(0L)
+        assertThat(range.ticksMinorUnits).isInOrder()
+        assertThat(range.ticksMinorUnits.size).isAtMost(6)
+    }
+
+    @Test
+    fun `axisRange always covers the data with zero as a tick`() {
+        val samples =
+            listOf(
+                -1L to 0L,
+                -1L to 1L,
+                -7L to 3L,
+                -123_456_789L to 987_654L,
+                -320_000_000L to -100_000_000L,
+                -9L to 9L,
+                -400_000_000L to 400_000_000L,
+            )
+        for ((min, max) in samples) {
+            val range = AxisMath.axisRange(min, max)
+            assertThat(range.minMinorUnits).isAtMost(minOf(min, 0L))
+            assertThat(range.maxMinorUnits).isAtLeast(maxOf(max, 0L))
+            assertThat(range.ticksMinorUnits).contains(0L)
+            assertThat(range.ticksMinorUnits).isInOrder()
+            assertThat(range.ticksMinorUnits.size).isAtLeast(1)
+            assertThat(range.ticksMinorUnits.size).isAtMost(6)
+            assertThat(range.ticksMinorUnits.first()).isEqualTo(range.minMinorUnits)
+            assertThat(range.ticksMinorUnits.last()).isEqualTo(range.maxMinorUnits)
+        }
+    }
+
+    @Test
+    fun `fractionOf maps the ends to zero and one and clamps outside`() {
+        val range = AxisRange(-100_000_000L, 300_000_000L, listOf(-100_000_000L, 0L, 100_000_000L, 200_000_000L, 300_000_000L))
+        assertThat(range.fractionOf(-100_000_000L)).isEqualTo(0f)
+        assertThat(range.fractionOf(300_000_000L)).isEqualTo(1f)
+        assertThat(range.fractionOf(0L)).isWithin(1e-6f).of(0.25f)
+        assertThat(range.fractionOf(-999_999_999L)).isEqualTo(0f)
+        assertThat(range.fractionOf(999_999_999L)).isEqualTo(1f)
+    }
+
+    @Test
+    fun `fractionOf of a degenerate range is zero`() {
+        assertThat(AxisRange(0L, 0L, listOf(0L)).fractionOf(5L)).isEqualTo(0f)
+        assertThat(AxisRange(0L, 0L, listOf(0L)).fractionOf(0L)).isEqualTo(0f)
+    }
+
+    @Test
     fun `result is always of the form one two or five times a power of ten`() {
         val samples = listOf(1L, 3L, 7L, 11L, 21L, 99L, 101L, 1_234_567L, 88_888_888L, 99_999_999_999_999L)
         val pattern = Regex("[125]0*")

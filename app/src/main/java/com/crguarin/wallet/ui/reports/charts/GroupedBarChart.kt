@@ -23,6 +23,9 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
@@ -39,7 +42,8 @@ import kotlin.math.ceil
  * One column of a [GroupedBarChart]: a label plus one bar per series (for example income and
  * expense), with colors resolved by the caller.
  *
- * @param values bar heights as fractions of the axis maximum, `0..1`.
+ * @param values bar positions as fractions of the axis range, `0..1`: each bar goes from the
+ *   chart baseline to its value.
  * @param dimmed true for groups that are not meaningful yet (for example future months).
  */
 @Immutable
@@ -69,6 +73,20 @@ internal fun labelStride(
 }
 
 /**
+ * Start and end (ordered, `0..1`) of a bar from [baseline] to [value]: when the value is above
+ * the baseline the bar spans `baseline..value`, otherwise `value..baseline`. Both ends are
+ * clamped to `0..1`.
+ */
+internal fun barSpan(
+    value: Float,
+    baseline: Float,
+): Pair<Float, Float> {
+    val coercedValue = value.coerceIn(0f, 1f)
+    val coercedBaseline = baseline.coerceIn(0f, 1f)
+    return minOf(coercedValue, coercedBaseline) to maxOf(coercedValue, coercedBaseline)
+}
+
+/**
  * Stateless grouped bar chart: bars grow from the base with rounded top corners, horizontal guide
  * lines come from [yLabels] and the whole column of each group is tappable.
  *
@@ -80,17 +98,19 @@ internal fun labelStride(
  * [baselineFraction] to its value. With `baselineFraction = 0` this is identical to the previous
  * behavior (bars grow from the base).
  *
+ * Bars above the baseline keep the rounded top corners; bars below it are rounded at the bottom
+ * and flat at the base. When the baseline is above the base a stronger zero line is drawn over
+ * the guides. The optional overlay line joins the group centers point to point, breaking on null
+ * values, and shares the growth animation with the bars.
+ *
  * @param selectedIndex group drawn at full opacity when set; the rest are dimmed to 0.5.
- * @param averageFraction optional dashed line (0..1 of the axis maximum), for example the average
+ * @param averageFraction optional dashed line (0..1 of the axis range), for example the average
  *   expense of the drawn months.
  * @param baselineFraction y position (0..1) of the zero line; bars grow from it.
  * @param lineValues optional overlay line, one y position (0..1) per group; null = no point.
  * @param lineColor color of the overlay line.
  * @param linePointColors color of each point (e.g. by sign); defaults to [lineColor].
  * @param contentDescription accessibility summary resolved by the caller with `stringResource`.
- *
- * Contract note: [baselineFraction], [lineValues], [lineColor] and [linePointColors] are wired by
- * the "ejes y gráficas" owner; until then they are accepted and ignored.
  */
 @Composable
 fun GroupedBarChart(
@@ -110,6 +130,7 @@ fun GroupedBarChart(
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     val guideColor = MaterialTheme.colorScheme.outlineVariant
     val fallbackColor = MaterialTheme.colorScheme.outline
+    val zeroLineColor = MaterialTheme.colorScheme.outline
     val textMeasurer = rememberTextMeasurer()
     val yLayouts =
         remember(yLabels, labelStyle, textMeasurer) {
@@ -137,7 +158,10 @@ fun GroupedBarChart(
     val currentOnGroupClick by rememberUpdatedState(onGroupClick)
 
     val growth = remember { Animatable(0f) }
-    LaunchedEffect(groups) {
+    // Overlay line paths are reused across frames (rewound on every draw) instead of allocated.
+    val netLinePath = remember { Path() }
+    val netDimPath = remember { Path() }
+    LaunchedEffect(groups, lineValues, baselineFraction) {
         growth.snapTo(0f)
         growth.animateTo(
             targetValue = 1f,
@@ -193,6 +217,9 @@ fun GroupedBarChart(
         val innerPadding = 4.dp.toPx()
         val barGap = 2.dp.toPx()
         val radius = 4.dp.toPx()
+        val baseline = baselineFraction.coerceIn(0f, 1f)
+        val baselineY = plotBottom - baseline * plotHeight
+        val growthValue = growth.value
         for (groupIndex in groups.indices) {
             val group = groups[groupIndex]
             if (group.values.isEmpty()) continue
@@ -201,27 +228,42 @@ fun GroupedBarChart(
             val usable = (columnWidth - innerPadding * 2f).coerceAtLeast(1f)
             val barWidth = ((usable - barGap * (group.values.size - 1)) / group.values.size).coerceAtLeast(1f)
             for (valueIndex in group.values.indices) {
-                val fraction = group.values[valueIndex].coerceIn(0f, 1f)
-                val barHeight = fraction * plotHeight * growth.value
+                val target = group.values[valueIndex].coerceIn(0f, 1f)
+                val animated = baseline + (target - baseline) * growthValue
+                val (spanStart, spanEnd) = barSpan(animated, baseline)
+                val top = plotBottom - spanEnd * plotHeight
+                val bottom = plotBottom - spanStart * plotHeight
+                val barHeight = bottom - top
                 if (barHeight <= 0f) continue
                 val left = plotLeft + groupIndex * columnWidth + innerPadding + valueIndex * (barWidth + barGap)
-                val top = plotBottom - barHeight
                 val color = group.colors.getOrElse(valueIndex) { fallbackColor }
                 val corner = radius.coerceAtMost(barWidth / 2f).coerceAtMost(barHeight)
+                // Only the far end from the base is rounded; the base side stays flat.
+                val roundTop = target >= baseline
+                val farCorner = CornerRadius(corner)
                 val barPath =
                     Path().apply {
                         addRoundRect(
                             RoundRect(
                                 Rect(Offset(left, top), Size(barWidth, barHeight)),
-                                topLeft = CornerRadius(corner),
-                                topRight = CornerRadius(corner),
-                                bottomRight = CornerRadius.Zero,
-                                bottomLeft = CornerRadius.Zero,
+                                topLeft = if (roundTop) farCorner else CornerRadius.Zero,
+                                topRight = if (roundTop) farCorner else CornerRadius.Zero,
+                                bottomRight = if (roundTop) CornerRadius.Zero else farCorner,
+                                bottomLeft = if (roundTop) CornerRadius.Zero else farCorner,
                             ),
                         )
                     }
                 drawPath(path = barPath, color = color, alpha = alpha)
             }
+        }
+
+        if (baseline > 0f) {
+            drawLine(
+                color = zeroLineColor,
+                start = Offset(plotLeft, baselineY),
+                end = Offset(plotRight, baselineY),
+                strokeWidth = 1.5.dp.toPx(),
+            )
         }
 
         if (averageFraction != null) {
@@ -233,6 +275,44 @@ fun GroupedBarChart(
                 strokeWidth = 1.5.dp.toPx(),
                 pathEffect = averageDash,
             )
+        }
+
+        val overlayValues = lineValues
+        if (overlayValues != null && growthValue > 0f) {
+            val resolvedLineColor = if (lineColor == Color.Unspecified) fallbackColor else lineColor
+            netLinePath.rewind()
+            netDimPath.rewind()
+            val points = ArrayList<Triple<Offset, Color, Float>>(groups.size)
+            var previousPoint: Offset? = null
+            var previousDimmed = false
+            for (index in groups.indices) {
+                val value = overlayValues.getOrNull(index)
+                if (value == null) {
+                    previousPoint = null
+                    continue
+                }
+                val dimmed = groups[index].dimmed || (selectedIndex != null && selectedIndex != index)
+                val animated = baseline + (value.coerceIn(0f, 1f) - baseline) * growthValue
+                val point =
+                    Offset(
+                        plotLeft + index * columnWidth + columnWidth / 2f,
+                        plotBottom - animated * plotHeight,
+                    )
+                previousPoint?.let { start ->
+                    val target = if (dimmed || previousDimmed) netDimPath else netLinePath
+                    target.moveTo(start.x, start.y)
+                    target.lineTo(point.x, point.y)
+                }
+                previousPoint = point
+                previousDimmed = dimmed
+                points += Triple(point, linePointColors?.getOrNull(index) ?: resolvedLineColor, if (dimmed) 0.5f else 1f)
+            }
+            val lineStyle = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+            drawPath(path = netLinePath, color = resolvedLineColor, style = lineStyle)
+            drawPath(path = netDimPath, color = resolvedLineColor, alpha = 0.5f, style = lineStyle)
+            for ((center, color, alpha) in points) {
+                drawCircle(color = color, radius = 3.dp.toPx(), center = center, alpha = alpha)
+            }
         }
 
         val fullMaxWidth = xLayouts.maxOfOrNull { it.size.width }?.toFloat() ?: 0f
