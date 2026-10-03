@@ -376,4 +376,67 @@ class ReportsViewModelTest {
             assertThat(viewModel.uiState.value.isEmpty).isFalse()
             assertThat(viewModel.uiState.value.hasNoDataOfType).isTrue()
         }
+
+    @Test
+    fun `year mode next from a december carryover clamps to the current month`() =
+        runTest(testDispatcher) {
+            timeProvider.setDate(LocalDate.of(2026, 10, 3))
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+
+            repeat(10) { viewModel.previousPeriod() }
+            advanceUntilIdle()
+            assertThat(viewModel.uiState.value.yearMonth).isEqualTo(YearMonth.of(2025, 12))
+
+            viewModel.setMode(ReportMode.YEAR)
+            advanceUntilIdle()
+            viewModel.nextPeriod()
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertThat(state.yearMonth).isEqualTo(YearMonth.of(2026, 10))
+            assertThat(state.canGoNext).isFalse()
+
+            viewModel.setMode(ReportMode.MONTH)
+            advanceUntilIdle()
+            assertThat(viewModel.uiState.value.yearMonth).isEqualTo(YearMonth.of(2026, 10))
+        }
+
+    @Test
+    fun `a restored future month is clamped to the current month`() =
+        runTest(testDispatcher) {
+            timeProvider.setDate(LocalDate.of(2026, 10, 3))
+            // Keys mirror the private reports_* keys of ReportsViewModel.
+            val handle =
+                SavedStateHandle(
+                    mapOf(
+                        "reports_mode" to ReportMode.MONTH.name,
+                        "reports_month" to LocalDate.of(2026, 12, 1).toEpochDay(),
+                    ),
+                )
+            val viewModel = observeState(createViewModel(handle))
+            advanceUntilIdle()
+            assertThat(viewModel.uiState.value.yearMonth).isEqualTo(YearMonth.of(2026, 10))
+            assertThat(viewModel.uiState.value.canGoNext).isFalse()
+        }
+
+    @Test
+    fun `today is read fresh for navigation limits`() =
+        runTest(testDispatcher) {
+            // Noon UTC keeps the same date in any time zone west of UTC+12.
+            timeProvider.setTime(Instant.parse("2026-10-31T12:00:00Z"))
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+            assertThat(viewModel.uiState.value.yearMonth).isEqualTo(YearMonth.of(2026, 10))
+            assertThat(viewModel.uiState.value.canGoNext).isFalse()
+
+            timeProvider.setTime(Instant.parse("2026-11-01T12:00:00Z"))
+            viewModel.nextPeriod()
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertThat(state.yearMonth).isEqualTo(YearMonth.of(2026, 11))
+            assertThat(state.today).isEqualTo(LocalDate.of(2026, 11, 1))
+            assertThat(state.canGoNext).isFalse()
+        }
 }

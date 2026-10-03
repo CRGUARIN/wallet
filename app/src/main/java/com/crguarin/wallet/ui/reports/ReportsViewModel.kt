@@ -92,9 +92,10 @@ class ReportsViewModel
         observePeriodSummaryUseCase: ObservePeriodSummaryUseCase,
         observeSpendingPaceUseCase: ObserveSpendingPaceUseCase,
         observeAccountsUseCase: ObserveAccountsUseCase,
-        timeProvider: TimeProvider,
+        private val timeProvider: TimeProvider,
     ) : ViewModel() {
-        private val today: LocalDate = timeProvider.today()
+        /** "Today", read fresh on every use so a date change is picked up without recreating. */
+        private fun today(): LocalDate = timeProvider.today()
 
         private val selectionFlow = MutableStateFlow(readSelection(savedStateHandle))
         private val selectedSliceFlow = MutableStateFlow<SliceKey?>(null)
@@ -112,12 +113,12 @@ class ReportsViewModel
                 // The pace query only runs in MONTH mode, where its card is visible.
                 val paceFlow: Flow<SpendingPace?> =
                     if (selection.mode == ReportMode.MONTH) {
-                        observeSpendingPaceUseCase(selection.yearMonth, selection.type, selection.accountId, today)
+                        observeSpendingPaceUseCase(selection.yearMonth, selection.type, selection.accountId, today())
                     } else {
                         flowOf(null)
                     }
                 combine(
-                    observePeriodSummaryUseCase(selection.period(), selection.type, selection.accountId, today),
+                    observePeriodSummaryUseCase(selection.period(), selection.type, selection.accountId, today()),
                     observeCategoryBreakdownUseCase(
                         period = selection.period(),
                         type = selection.type,
@@ -154,7 +155,7 @@ class ReportsViewModel
                     hasError = hasError,
                     mode = selection.mode,
                     yearMonth = selection.yearMonth,
-                    today = today,
+                    today = today(),
                     type = selection.type,
                     accountId = selection.accountId,
                     selectedAccountName =
@@ -174,7 +175,7 @@ class ReportsViewModel
             }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = ReportsUiState(isLoading = true, today = today),
+                initialValue = ReportsUiState(isLoading = true, today = today()),
             )
 
         init {
@@ -252,7 +253,7 @@ class ReportsViewModel
 
         fun selectMonth(yearMonth: YearMonth) {
             // The bar chart must not navigate into the future (spec 1): ignore future months.
-            if (yearMonth > YearMonth.from(today)) return
+            if (yearMonth > YearMonth.from(today())) return
             applySelection(
                 selectionFlow.value.copy(
                     mode = ReportMode.MONTH,
@@ -269,10 +270,17 @@ class ReportsViewModel
         }
 
         private fun applySelection(selection: ReportsSelection) {
+            val clamped = clampToToday(selection)
             selectedSliceFlow.value = null
             parentSliceFlow.value = null
-            persist(selection)
-            selectionFlow.value = selection
+            persist(clamped)
+            selectionFlow.value = clamped
+        }
+
+        /** The selection can never point past the current month (no future periods). */
+        private fun clampToToday(selection: ReportsSelection): ReportsSelection {
+            val maxMonth = YearMonth.from(today())
+            return if (selection.yearMonth > maxMonth) selection.copy(yearMonth = maxMonth) else selection
         }
 
         private fun persist(selection: ReportsSelection) {
@@ -298,7 +306,10 @@ class ReportsViewModel
                 )
         }
 
-        private fun canGoNext(selection: ReportsSelection): Boolean =
+        private fun canGoNext(
+            selection: ReportsSelection,
+            today: LocalDate = today(),
+        ): Boolean =
             when (selection.mode) {
                 ReportMode.MONTH -> selection.yearMonth < YearMonth.from(today)
                 ReportMode.YEAR -> selection.yearMonth.year < today.year
@@ -322,7 +333,7 @@ class ReportsViewModel
                 handle
                     .get<Long>(KEY_MONTH)
                     ?.let { YearMonth.from(LocalDate.ofEpochDay(it)) }
-                    ?: YearMonth.from(today)
+                    ?: YearMonth.from(today())
             val type =
                 handle
                     .get<String>(KEY_TYPE)
@@ -331,12 +342,14 @@ class ReportsViewModel
                     ?: TransactionType.EXPENSE
             val accountId = handle.get<Long>(KEY_ACCOUNT)?.takeIf { it != NO_ACCOUNT }
             val drillDownParentId = handle.get<Long>(KEY_DRILL_PARENT)?.takeIf { it != NO_PARENT }
-            return ReportsSelection(
-                mode = mode,
-                yearMonth = yearMonth,
-                type = type,
-                accountId = accountId,
-                drillDownParentId = drillDownParentId,
+            return clampToToday(
+                ReportsSelection(
+                    mode = mode,
+                    yearMonth = yearMonth,
+                    type = type,
+                    accountId = accountId,
+                    drillDownParentId = drillDownParentId,
+                ),
             )
         }
 
