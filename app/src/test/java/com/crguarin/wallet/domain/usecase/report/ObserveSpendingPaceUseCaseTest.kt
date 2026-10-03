@@ -153,6 +153,22 @@ class ObserveSpendingPaceUseCaseTest {
         }
 
     @Test
+    fun `forwards the accountId to the repository`() =
+        runTest {
+            useCase(
+                yearMonth = YearMonth.of(2026, 9),
+                type = TransactionType.EXPENSE,
+                accountId = 7L,
+                today = LocalDate.of(2026, 9, 15),
+            ).test {
+                awaitItem()
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            assertThat(reportRepository.dailyAccountRequests).containsExactly(7L)
+        }
+
+    @Test
     fun `uses income instead of expense when the type is income`() =
         runTest {
             reportRepository.setInitialData(

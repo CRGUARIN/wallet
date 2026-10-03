@@ -4,11 +4,14 @@ import app.cash.turbine.test
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.fake.FakeReportRepository
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.report.CategorySlice
 import com.crguarin.wallet.domain.model.report.CategoryTotal
 import com.crguarin.wallet.domain.model.report.ReportPeriod
 import com.crguarin.wallet.domain.model.report.SliceKey
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertThrows
 import org.junit.Before
 import org.junit.Test
 import java.time.LocalDate
@@ -261,6 +264,144 @@ class ObserveCategoryBreakdownUseCaseTest {
             }
         }
 
+    @Test
+    fun `root slice of a system category keeps the parent fields when only a child has movements`() =
+        runTest {
+            reportRepository.setInitialData(
+                categoryTotals =
+                    listOf(
+                        total(
+                            categoryId = 2L,
+                            name = "Mercado",
+                            systemKey = "groceries",
+                            amount = 60L,
+                            color = GREEN,
+                            icon = "cart",
+                            parentId = 1L,
+                            parentName = null,
+                            parentSystemKey = "food",
+                            parentColor = RED,
+                            parentIcon = "food",
+                        ),
+                    ),
+            )
+
+            useCase(period, TransactionType.EXPENSE, accountId = null).test {
+                val breakdown = awaitItem()
+
+                assertThat(breakdown.slices).hasSize(1)
+                val slice = breakdown.slices.single()
+                assertThat(slice.key).isEqualTo(SliceKey.Category(1L))
+                assertThat(slice.name).isNull()
+                assertThat(slice.systemKey).isEqualTo("food")
+                assertThat(slice.color).isEqualTo(RED)
+                assertThat(slice.icon).isEqualTo("food")
+                assertThat(slice.amount).isEqualTo(Money(60L))
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `root slice of a system category is the same regardless of row order`() =
+        runTest {
+            val direct =
+                total(
+                    categoryId = 1L,
+                    name = null,
+                    systemKey = "food",
+                    amount = 10L,
+                    color = RED,
+                    icon = "food",
+                )
+            val child =
+                total(
+                    categoryId = 2L,
+                    name = "Mercado",
+                    systemKey = "groceries",
+                    amount = 60L,
+                    color = GREEN,
+                    icon = "cart",
+                    parentId = 1L,
+                    parentName = null,
+                    parentSystemKey = "food",
+                    parentColor = RED,
+                    parentIcon = "food",
+                )
+
+            val firstDirect = breakdownOf(listOf(direct, child))
+            val firstChild = breakdownOf(listOf(child, direct))
+
+            assertThat(firstChild.map { it.name }).isEqualTo(firstDirect.map { it.name })
+            assertThat(firstChild.map { it.systemKey }).isEqualTo(firstDirect.map { it.systemKey })
+            assertThat(firstChild.map { it.color }).isEqualTo(firstDirect.map { it.color })
+            assertThat(firstChild.map { it.icon }).isEqualTo(firstDirect.map { it.icon })
+            assertThat(firstDirect.single().systemKey).isEqualTo("food")
+            assertThat(firstDirect.single().name).isNull()
+        }
+
+    @Test
+    fun `groups exactly two smallest slices into Others with seven slices and maxSlices six`() =
+        runTest {
+            reportRepository.setInitialData(
+                categoryTotals =
+                    listOf(
+                        total(1L, "Cat 1", amount = 100L),
+                        total(2L, "Cat 2", amount = 80L),
+                        total(3L, "Cat 3", amount = 60L),
+                        total(4L, "Cat 4", amount = 50L),
+                        total(5L, "Cat 5", amount = 40L),
+                        total(6L, "Cat 6", amount = 30L),
+                        total(7L, "Cat 7", amount = 20L),
+                    ),
+            )
+
+            useCase(period, TransactionType.EXPENSE, accountId = null, maxSlices = 6).test {
+                val breakdown = awaitItem()
+
+                assertThat(breakdown.slices).hasSize(6)
+                assertThat(breakdown.slices.take(5).map { it.amount })
+                    .containsExactly(Money(100L), Money(80L), Money(60L), Money(50L), Money(40L))
+                    .inOrder()
+                val others = breakdown.slices.last()
+                assertThat(others.key).isEqualTo(SliceKey.Others)
+                assertThat(others.amount).isEqualTo(Money(50L))
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `forwards the accountId and type to the repository`() =
+        runTest {
+            reportRepository.setInitialData(
+                categoryTotalsByType =
+                    mapOf(
+                        TransactionType.EXPENSE to listOf(total(1L, "Cat 1", amount = 10L)),
+                        TransactionType.INCOME to listOf(total(2L, "Cat 2", amount = 20L)),
+                    ),
+            )
+
+            useCase(period, TransactionType.EXPENSE, accountId = 7L).test {
+                awaitItem()
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            assertThat(reportRepository.categoryTypeRequests)
+                .containsExactly(TransactionType.EXPENSE)
+            assertThat(reportRepository.categoryAccountRequests).containsExactly(7L)
+        }
+
+    @Test
+    fun `rejects transfers like the real repository`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            useCase(period, TransactionType.TRANSFER, accountId = null)
+        }
+    }
+
+    private suspend fun breakdownOf(rows: List<CategoryTotal>): List<CategorySlice> {
+        reportRepository.setInitialData(categoryTotals = rows)
+        return useCase(period, TransactionType.EXPENSE, accountId = null).first().slices
+    }
+
     private fun total(
         categoryId: Long?,
         name: String?,
@@ -269,19 +410,23 @@ class ObserveCategoryBreakdownUseCaseTest {
         parentName: String? = null,
         color: Int? = null,
         parentColor: Int? = null,
+        systemKey: String? = null,
+        icon: String? = null,
+        parentSystemKey: String? = null,
+        parentIcon: String? = null,
         transactionCount: Int = 1,
     ): CategoryTotal =
         CategoryTotal(
             categoryId = categoryId,
             name = name,
-            systemKey = null,
+            systemKey = systemKey,
             color = color,
-            icon = null,
+            icon = icon,
             parentId = parentId,
             parentName = parentName,
-            parentSystemKey = null,
+            parentSystemKey = parentSystemKey,
             parentColor = parentColor,
-            parentIcon = null,
+            parentIcon = parentIcon,
             total = Money(amount),
             transactionCount = transactionCount,
         )
@@ -289,5 +434,6 @@ class ObserveCategoryBreakdownUseCaseTest {
     private companion object {
         private const val RED = 0xFFFF0000.toInt()
         private const val BLUE = 0xFF0000FF.toInt()
+        private const val GREEN = 0xFF00FF00.toInt()
     }
 }

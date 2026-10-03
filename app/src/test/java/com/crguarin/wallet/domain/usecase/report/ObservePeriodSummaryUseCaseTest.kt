@@ -124,6 +124,44 @@ class ObservePeriodSummaryUseCaseTest {
         }
 
     @Test
+    fun `sums each period separately without mixing boundary days`() =
+        runTest {
+            reportRepository.setInitialData(
+                dailyIncomeExpense =
+                    listOf(
+                        daily(2026, 8, 31, expense = 400L),
+                        daily(2026, 9, 1, expense = 100L),
+                        daily(2026, 9, 30, expense = 700L),
+                        daily(2026, 10, 1, expense = 999L),
+                    ),
+            )
+
+            useCase(ReportPeriod.Month(YearMonth.of(2026, 9)), TransactionType.EXPENSE, accountId = null, today = today).test {
+                val summary = awaitItem()
+
+                assertThat(summary.total).isEqualTo(Money(800L))
+                assertThat(summary.previousTotal).isEqualTo(Money(400L))
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `forwards the accountId to the repository`() =
+        runTest {
+            useCase(
+                ReportPeriod.Month(YearMonth.of(2026, 9)),
+                TransactionType.EXPENSE,
+                accountId = 7L,
+                today = today,
+            ).test {
+                awaitItem()
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            assertThat(reportRepository.dailyAccountRequests).containsExactly(7L)
+        }
+
+    @Test
     fun `reports a null change when the previous period is zero`() =
         runTest {
             reportRepository.setInitialData(

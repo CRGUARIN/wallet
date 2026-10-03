@@ -24,8 +24,17 @@ class FakeReportRepository : ReportRepository {
     /** Inclusive date ranges received by [observeDailyIncomeExpense], in call order. */
     val dailyRangeRequests = mutableListOf<Pair<LocalDate, LocalDate>>()
 
+    /** Account ids received by [observeDailyIncomeExpense], in call order. */
+    val dailyAccountRequests = mutableListOf<Long?>()
+
     /** Inclusive date ranges received by [observeCategoryTotals], in call order. */
     val categoryRangeRequests = mutableListOf<Pair<LocalDate, LocalDate>>()
+
+    /** Transaction types received by [observeCategoryTotals], in call order. */
+    val categoryTypeRequests = mutableListOf<TransactionType>()
+
+    /** Account ids received by [observeCategoryTotals], in call order. */
+    val categoryAccountRequests = mutableListOf<Long?>()
 
     /** Replaces the whole in-memory dataset; both arguments default to empty. */
     fun setInitialData(
@@ -57,7 +66,10 @@ class FakeReportRepository : ReportRepository {
         type: TransactionType,
         accountId: Long?,
     ): Flow<List<CategoryTotal>> {
+        require(type != TransactionType.TRANSFER) { "Transfers have no category totals" }
         categoryRangeRequests += from to to
+        categoryTypeRequests += type
+        categoryAccountRequests += accountId
         return categoryTotalsByType.map { totals -> totals[type].orEmpty() }
     }
 
@@ -67,6 +79,7 @@ class FakeReportRepository : ReportRepository {
         accountId: Long?,
     ): Flow<List<DailyIncomeExpense>> {
         dailyRangeRequests += from to to
+        dailyAccountRequests += accountId
         return dailyIncomeExpense.map { rows ->
             rows.filter { it.date >= from && it.date <= to }
         }

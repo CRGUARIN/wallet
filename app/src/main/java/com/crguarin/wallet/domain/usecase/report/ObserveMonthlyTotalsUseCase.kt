@@ -23,8 +23,8 @@ class ObserveMonthlyTotalsUseCase
             accountId: Long?,
         ): Flow<List<MonthTotals>> {
             if (months.isEmpty()) return flowOf(emptyList())
-            val from = months.first().atDay(1)
-            val to = months.last().atEndOfMonth()
+            val from = months.min().atDay(1)
+            val to = months.max().atEndOfMonth()
             return reportRepository
                 .observeDailyIncomeExpense(from, to, accountId)
                 .map { rows -> ReportMath.aggregateByMonth(rows, months) }
