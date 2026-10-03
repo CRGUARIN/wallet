@@ -34,7 +34,7 @@ class ReportsChartMapperTest {
 
     @Test
     fun `evolutionAxisRange without deficits matches axisScale`() {
-        val months = listOf(month(9, 100_000_000L, 400_000_000L), month(10, 200_000_000L, 100_000_000L))
+        val months = listOf(month(9, 400_000_000L, 100_000_000L), month(10, 200_000_000L, 100_000_000L))
 
         val range = ReportsChartMapper.evolutionAxisRange(months)
         val scale = AxisMath.axisScale(400_000_000L)
@@ -162,9 +162,10 @@ class ReportsChartMapperTest {
             )
         val range = AxisMath.axisRange(-100_000_000L, 100_000_000L)
 
-        assertThat(ReportsChartMapper.balancePositions(points, range)).containsExactly(
-            range.fractionOf(100_000_000L),
-            range.fractionOf(-100_000_000L),
-        ).inOrder()
+        assertThat(ReportsChartMapper.balancePositions(points, range))
+            .containsExactly(
+                range.fractionOf(100_000_000L),
+                range.fractionOf(-100_000_000L),
+            ).inOrder()
     }
 }

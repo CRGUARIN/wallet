@@ -151,8 +151,7 @@ fun BalanceLineChart(
                             currentOnPointSelected(it)
                         }
                     }
-                }
-                .drawWithCache {
+                }.drawWithCache {
                     val chart =
                         buildBalanceChartGeometry(
                             size = size,

@@ -92,11 +92,14 @@ class BalanceLineChartTest {
     }
 
     @Test
-    fun `flat and zero lines render with selection`() {
+    fun `flat line renders with selection`() {
         setChart(values = List(11) { 0.5f }, selectedIndex = 10)
 
         composeRule.onNodeWithContentDescription("balance").assertExists()
+    }
 
+    @Test
+    fun `line on zero renders with selection`() {
         setChart(values = List(11) { 0.25f }, selectedIndex = 0)
 
         composeRule.onNodeWithContentDescription("balance").assertExists()

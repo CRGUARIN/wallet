@@ -188,7 +188,8 @@ class AxisMathTest {
             assertThat(range.maxMinorUnits).isAtLeast(maxOf(max, 0L))
             assertThat(range.ticksMinorUnits).contains(0L)
             assertThat(range.ticksMinorUnits).isInOrder()
-            assertThat(range.ticksMinorUnits.size).isInRange(1, 6)
+            assertThat(range.ticksMinorUnits.size).isAtLeast(1)
+            assertThat(range.ticksMinorUnits.size).isAtMost(6)
             assertThat(range.ticksMinorUnits.first()).isEqualTo(range.minMinorUnits)
             assertThat(range.ticksMinorUnits.last()).isEqualTo(range.maxMinorUnits)
         }
