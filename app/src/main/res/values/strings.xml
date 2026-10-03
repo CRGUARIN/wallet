@@ -254,6 +254,25 @@
     <string name="reports_cd_change_up">sube %1$s</string>
     <string name="reports_cd_change_down">baja %1$s</string>
     <string name="reports_list_separator">,&#160;</string>
+    <!-- "Ingresos"/"Gastos" se reutilizan de account_detail_income/account_detail_expense. -->
+    <string name="reports_focus_balance">Balance</string>
+    <string name="reports_net">Neto</string>
+    <string name="reports_savings_rate">Tasa de ahorro</string>
+    <string name="reports_savings_rate_none">Sin ingresos</string>
+    <string name="reports_net_vs_previous_month">Neto vs. mes anterior</string>
+    <string name="reports_net_vs_previous_year">Neto vs. año anterior</string>
+    <string name="reports_net_positive_hint">Ahorraste en este período</string>
+    <string name="reports_net_negative_hint">Gastaste más de lo que ganaste</string>
+    <string name="reports_balance_evolution">Evolución del saldo</string>
+    <string name="reports_balance_opening">Al inicio</string>
+    <string name="reports_balance_closing">Al cierre</string>
+    <string name="reports_balance_current">Hoy</string>
+    <string name="reports_balance_point">%1$s: %2$s</string>
+    <string name="reports_balance_scope_all">Cuentas incluidas en el saldo total</string>
+    <string name="reports_cd_net_change_up">el neto sube %1$s</string>
+    <string name="reports_cd_net_change_down">el neto baja %1$s</string>
+    <string name="reports_cd_balance_line">Gráfico del saldo. Al inicio %1$s, al cierre %2$s, mínimo %3$s, máximo %4$s</string>
+    <string name="reports_cd_bars_group_net">%1$s: %2$s, %3$s, %4$s</string>
 
     <!-- Errores de dominio -->
     <string name="error_name_empty">El nombre no puede estar vacío</string>

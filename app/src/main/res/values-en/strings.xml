@@ -250,6 +250,25 @@
     <string name="reports_cd_change_up">up %1$s</string>
     <string name="reports_cd_change_down">down %1$s</string>
     <string name="reports_list_separator">,&#160;</string>
+    <!-- "Income"/"Expenses" are reused from account_detail_income/account_detail_expense. -->
+    <string name="reports_focus_balance">Balance</string>
+    <string name="reports_net">Net</string>
+    <string name="reports_savings_rate">Savings rate</string>
+    <string name="reports_savings_rate_none">No income</string>
+    <string name="reports_net_vs_previous_month">Net vs. previous month</string>
+    <string name="reports_net_vs_previous_year">Net vs. previous year</string>
+    <string name="reports_net_positive_hint">You saved this period</string>
+    <string name="reports_net_negative_hint">You spent more than you earned</string>
+    <string name="reports_balance_evolution">Balance over time</string>
+    <string name="reports_balance_opening">Opening</string>
+    <string name="reports_balance_closing">Closing</string>
+    <string name="reports_balance_current">Today</string>
+    <string name="reports_balance_point">%1$s: %2$s</string>
+    <string name="reports_balance_scope_all">Accounts included in total balance</string>
+    <string name="reports_cd_net_change_up">net up %1$s</string>
+    <string name="reports_cd_net_change_down">net down %1$s</string>
+    <string name="reports_cd_balance_line">Balance chart. Opening %1$s, closing %2$s, minimum %3$s, maximum %4$s</string>
+    <string name="reports_cd_bars_group_net">%1$s: %2$s, %3$s, %4$s</string>
 
     <!-- Domain errors -->
     <string name="error_name_empty">Name cannot be empty</string>
