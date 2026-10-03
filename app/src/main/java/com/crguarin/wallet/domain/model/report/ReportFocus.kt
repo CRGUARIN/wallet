@@ -11,7 +11,8 @@ import com.crguarin.wallet.domain.model.TransactionType
 enum class ReportFocus {
     EXPENSE,
     INCOME,
-    BALANCE;
+    BALANCE,
+    ;
 
     /** Transaction type shown by this focus; null for BALANCE. */
     val transactionType: TransactionType?

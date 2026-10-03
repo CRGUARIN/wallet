@@ -41,24 +41,6 @@ object AxisMath {
      * Returns `AxisScale(0, [0])` for zero or negative input. Products that would overflow
      * saturate at [Long.MAX_VALUE].
      */
-    /**
-     * Computes the [AxisRange] covering [minMinorUnits]..[maxMinorUnits], with 0 always inside the
-     * range and as a tick.
-     *
-     * Contract stub: without negatives it matches [axisScale]; with negatives the "ejes y gráficas"
-     * owner implements the final rounding.
-     */
-    fun axisRange(
-        minMinorUnits: Long,
-        maxMinorUnits: Long,
-    ): AxisRange {
-        if (minMinorUnits >= 0L) {
-            val scale = axisScale(maxMinorUnits)
-            return AxisRange(0L, scale.maxMinorUnits, scale.ticksMinorUnits)
-        }
-        return AxisRange(minMinorUnits, maxMinorUnits, listOf(minMinorUnits, maxMinorUnits))
-    }
-
     fun axisScale(maxMinorUnits: Long): AxisScale {
         if (maxMinorUnits <= 0L) return AxisScale(0L, listOf(0L))
         val quarter = maxMinorUnits / 4L + if (maxMinorUnits % 4L == 0L) 0L else 1L
@@ -95,5 +77,23 @@ object AxisMath {
             magnitude <= Long.MAX_VALUE / 10L -> 10L * magnitude
             else -> Long.MAX_VALUE
         }
+    }
+
+    /**
+     * Computes the [AxisRange] covering [minMinorUnits]..[maxMinorUnits], with 0 always inside the
+     * range and as a tick.
+     *
+     * Contract stub: without negatives it matches [axisScale]; with negatives the "ejes y gráficas"
+     * owner implements the final rounding.
+     */
+    fun axisRange(
+        minMinorUnits: Long,
+        maxMinorUnits: Long,
+    ): AxisRange {
+        if (minMinorUnits >= 0L) {
+            val scale = axisScale(maxMinorUnits)
+            return AxisRange(0L, scale.maxMinorUnits, scale.ticksMinorUnits)
+        }
+        return AxisRange(minMinorUnits, maxMinorUnits, listOf(minMinorUnits, maxMinorUnits))
     }
 }
