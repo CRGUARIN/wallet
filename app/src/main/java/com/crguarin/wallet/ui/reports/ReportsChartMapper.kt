@@ -50,7 +50,7 @@ object ReportsChartMapper {
     /** Rounded-up y axis maximum (minor units) of the bars of [monthlyTotals]. */
     fun barAxisMaxMinorUnits(monthlyTotals: List<MonthTotals>): Long {
         val max = monthlyTotals.maxOfOrNull { maxOf(it.income.minorUnits, it.expense.minorUnits) } ?: 0L
-        return AxisMath.niceAxisMax(max)
+        return AxisMath.axisScale(max).maxMinorUnits
     }
 
     /** Fractions `0..1` of each bar: one `[income, expense]` pair per month. */
