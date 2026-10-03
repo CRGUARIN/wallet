@@ -703,6 +703,7 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 - [x] Tarea 11 — Ajustes y backup
 - [x] Tarea 12 — Pulido y release
 - [x] Tarea 13 — Reportes y gráficas
+  - Correcciones de revisión (F1–F29): porciones raíz con campos del padre; changePercent half-away-from-zero con tope Int; tope de mes futuro en modo Año; isRefreshing sin datos cruzados; estado inicial desde SavedStateHandle; drill-up si falta el padre; etiquetas compactas ("500 mil $", "$500K") y eje Y en números redondos; etiquetas de mes que no se pisan; centro de dona en 1 línea autoajustada; leyenda de ritmo; pestaña dueña en la barra inferior; SavedStateHandle sobre argumentos de ruta; nota de app debug.
 
 ---
 
@@ -727,6 +728,7 @@ El plan sirve para cualquier agente. Las reglas del proyecto viven en **`AGENTS.
   2. Implementar y ejecutar el comando de verificación hasta que pase.
   3. Opcional pero recomendado en tareas de UI: instalar en el emulador o teléfono (`./gradlew installDebug`) y comprobar la pantalla.
   4. Commits con Conventional Commits. Al terminar, **detenerse y avisar**: el dueño (o Claude) revisa la rama y la integra a `main`. No hacer push a `main` ni merge por cuenta propia.
+- Nota: el build debug se instala como `com.crguarin.wallet.debug` ("Wallet Debug"), junto a la release, y no comparte datos con ella.
 - No commitear `gradle/gradle-daemon-jvm.properties` (lo genera Android Studio y forzaría JDK 25 en CI/Jules), `.idea/`, ni carpetas propias del agente.
 
 ### 16.2 Jules (nube)

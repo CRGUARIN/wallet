@@ -39,6 +39,8 @@ Este comando debe pasar antes de cada cambio (es el mismo que ejecuta el CI). Pa
 ./gradlew installDebug
 ```
 
+La app de depuración se instala como `com.crguarin.wallet.debug` ("Wallet Debug"), junto a la release, y no comparte datos con ella.
+
 ## Release firmado
 
 `assembleRelease` genera un APK minificado (R8) en `app/build/outputs/apk/release/`. Sin configuración de firma se firma con la clave de depuración y Gradle muestra un aviso: sirve para probarlo en tu teléfono, **no** para publicarlo.
@@ -92,4 +94,4 @@ Licencia MIT; consulta el archivo [`LICENSE`](LICENSE).
 
 ## English summary
 
-Wallet is an offline, account-free personal finance app for Android (8.0+): multiple accounts, income/expense/transfer tracking, categories and subcategories, monthly transaction lists with filters, reports with a category donut, monthly evolution bars and month pace, JSON backup export/import, Spanish and English UI, and light/dark/dynamic themes. Build and verify with `./gradlew ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease` (JDK 17, Android SDK 37). See "Release firmado" above for signing the release build with `WALLET_KEYSTORE_*` environment variables or a git-ignored `keystore.properties`.
+Wallet is an offline, account-free personal finance app for Android (8.0+): multiple accounts, income/expense/transfer tracking, categories and subcategories, monthly transaction lists with filters, reports with a category donut, monthly evolution bars and month pace, JSON backup export/import, Spanish and English UI, and light/dark/dynamic themes. Build and verify with `./gradlew ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease` (JDK 17, Android SDK 37). See "Release firmado" above for signing the release build with `WALLET_KEYSTORE_*` environment variables or a git-ignored `keystore.properties`. The debug build installs as `com.crguarin.wallet.debug` ("Wallet Debug") alongside the release build and does not share data with it.
