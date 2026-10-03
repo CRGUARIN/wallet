@@ -1,6 +1,7 @@
 package com.crguarin.wallet.ui.reports
 
 import androidx.lifecycle.SavedStateHandle
+import app.cash.turbine.test
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.fake.FakeAccountRepository
 import com.crguarin.wallet.domain.fake.FakeCategoryRepository
@@ -438,5 +439,77 @@ class ReportsViewModelTest {
             assertThat(state.yearMonth).isEqualTo(YearMonth.of(2026, 11))
             assertThat(state.today).isEqualTo(LocalDate.of(2026, 11, 1))
             assertThat(state.canGoNext).isFalse()
+        }
+
+    @Test
+    fun `changing month never pairs new controls with old data unless refreshing`() =
+        runTest(testDispatcher) {
+            reportRepository.setInitialData(
+                dailyIncomeExpense =
+                    listOf(
+                        DailyIncomeExpense(LocalDate.of(2026, 8, 15), Money.ZERO, Money(8_000L)),
+                        DailyIncomeExpense(LocalDate.of(2026, 9, 10), Money.ZERO, Money(9_000L)),
+                    ),
+            )
+            val viewModel = createViewModel()
+            viewModel.uiState.test {
+                var current = awaitItem()
+                while (current.isLoading) current = awaitItem()
+                val loaded = current
+                assertThat(loaded.isLoading).isFalse()
+                assertThat(loaded.isRefreshing).isFalse()
+                assertThat(loaded.yearMonth).isEqualTo(YearMonth.of(2026, 9))
+                assertThat(loaded.summary.total).isEqualTo(Money(9_000L))
+
+                viewModel.previousPeriod()
+
+                val seen = mutableListOf<ReportsUiState>()
+                var settled: ReportsUiState? = null
+                while (settled == null) {
+                    val state = awaitItem()
+                    seen += state
+                    if (!state.isLoading && state.yearMonth == YearMonth.of(2026, 8) && !state.isRefreshing) {
+                        settled = state
+                    }
+                }
+                val done = checkNotNull(settled)
+                assertThat(done.summary.total).isEqualTo(Money(8_000L))
+                assertThat(done.monthlyTotals.last().yearMonth).isEqualTo(YearMonth.of(2026, 8))
+
+                val refreshing = seen.filter { it.isRefreshing }
+                assertThat(refreshing).isNotEmpty()
+                refreshing.forEach { state ->
+                    // New controls (August) over the previous complete snapshot (September).
+                    assertThat(state.isLoading).isFalse()
+                    assertThat(state.yearMonth).isEqualTo(YearMonth.of(2026, 8))
+                    assertThat(state.summary.total).isEqualTo(Money(9_000L))
+                    assertThat(state.monthlyTotals.last().yearMonth).isEqualTo(YearMonth.of(2026, 9))
+                }
+                seen.filter { !it.isLoading && !it.isRefreshing }.forEach { state ->
+                    val expected =
+                        if (state.yearMonth == YearMonth.of(2026, 8)) Money(8_000L) else Money(9_000L)
+                    assertThat(state.summary.total).isEqualTo(expected)
+                }
+            }
+        }
+
+    @Test
+    fun `initial loading state already carries the restored selection`() =
+        runTest(testDispatcher) {
+            // Keys mirror the private reports_* keys of ReportsViewModel.
+            val handle =
+                SavedStateHandle(
+                    mapOf(
+                        "reports_mode" to ReportMode.YEAR.name,
+                        "reports_month" to LocalDate.of(2024, 3, 1).toEpochDay(),
+                        "reports_type" to TransactionType.INCOME.name,
+                    ),
+                )
+            val viewModel = createViewModel(handle)
+            val first = viewModel.uiState.value
+            assertThat(first.isLoading).isTrue()
+            assertThat(first.mode).isEqualTo(ReportMode.YEAR)
+            assertThat(first.yearMonth).isEqualTo(YearMonth.of(2024, 3))
+            assertThat(first.type).isEqualTo(TransactionType.INCOME)
         }
 }

@@ -28,7 +28,9 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -55,22 +57,6 @@ private const val MONTHS_IN_YEAR = 12
 
 private val EMPTY_SUMMARY = PeriodSummary(Money.ZERO, Money.ZERO, null, Money.ZERO)
 private val EMPTY_BREAKDOWN = CategoryBreakdown(Money.ZERO, emptyList(), null)
-
-/** Rows combined from the four report use cases before being mapped to [ReportsUiState]. */
-private data class ReportData(
-    val summary: PeriodSummary,
-    val breakdown: CategoryBreakdown,
-    val monthlyTotals: List<MonthTotals>,
-    val pace: SpendingPace?,
-)
-
-private val EMPTY_REPORT_DATA =
-    ReportData(
-        summary = EMPTY_SUMMARY,
-        breakdown = EMPTY_BREAKDOWN,
-        monthlyTotals = emptyList(),
-        pace = null,
-    )
 
 /**
  * ViewModel of the Reports screen. The whole selection persists in [SavedStateHandle] with the
@@ -109,29 +95,34 @@ class ReportsViewModel
 
         private val dataFlow: Flow<ReportData> =
             queryFlow.flatMapLatest { selection ->
-                errorFlow.value = false
-                // The pace query only runs in MONTH mode, where its card is visible.
-                val paceFlow: Flow<SpendingPace?> =
-                    if (selection.mode == ReportMode.MONTH) {
-                        observeSpendingPaceUseCase(selection.yearMonth, selection.type, selection.accountId, today())
-                    } else {
-                        flowOf(null)
-                    }
-                combine(
-                    observePeriodSummaryUseCase(selection.period(), selection.type, selection.accountId, today()),
-                    observeCategoryBreakdownUseCase(
-                        period = selection.period(),
-                        type = selection.type,
-                        accountId = selection.accountId,
-                        parentId = selection.drillDownParentId,
-                    ),
-                    observeMonthlyTotalsUseCase(barMonths(selection), selection.accountId),
-                    paceFlow,
-                ) { summary, breakdown, monthlyTotals, pace ->
-                    ReportData(summary, breakdown, monthlyTotals, pace)
+                flow {
+                    errorFlow.value = false
+                    // The pace query only runs in MONTH mode, where its card is visible.
+                    val queryToday = today()
+                    val paceFlow: Flow<SpendingPace?> =
+                        if (selection.mode == ReportMode.MONTH) {
+                            observeSpendingPaceUseCase(selection.yearMonth, selection.type, selection.accountId, queryToday)
+                        } else {
+                            flowOf(null)
+                        }
+                    emitAll(
+                        combine(
+                            observePeriodSummaryUseCase(selection.period(), selection.type, selection.accountId, queryToday),
+                            observeCategoryBreakdownUseCase(
+                                period = selection.period(),
+                                type = selection.type,
+                                accountId = selection.accountId,
+                                parentId = selection.drillDownParentId,
+                            ),
+                            observeMonthlyTotalsUseCase(barMonths(selection), selection.accountId),
+                            paceFlow,
+                        ) { summary, breakdown, monthlyTotals, pace ->
+                            ReportData(selection, summary, breakdown, monthlyTotals, pace)
+                        },
+                    )
                 }.catch {
                     errorFlow.value = true
-                    emit(EMPTY_REPORT_DATA)
+                    emit(ReportData(selection, EMPTY_SUMMARY, EMPTY_BREAKDOWN, emptyList(), null))
                 }
             }
 
@@ -145,17 +136,21 @@ class ReportsViewModel
 
         val uiState: StateFlow<ReportsUiState> =
             combine(
-                combine(queryFlow, dataFlow) { selection, data -> selection to data },
+                queryFlow,
+                dataFlow,
                 accountsFlow,
                 panelFlow,
                 errorFlow,
-            ) { (selection, data), accounts, panel, hasError ->
+            ) { selection, data, accounts, panel, hasError ->
+                // The controls follow the new selection at once, while the data shown is still the
+                // previous complete snapshot until the new query emits (then isRefreshing is false).
+                val now = today()
                 ReportsUiState(
                     isLoading = false,
                     hasError = hasError,
                     mode = selection.mode,
                     yearMonth = selection.yearMonth,
-                    today = today(),
+                    today = now,
                     type = selection.type,
                     accountId = selection.accountId,
                     selectedAccountName =
@@ -170,13 +165,27 @@ class ReportsViewModel
                     selectedSliceKey = panel.selectedSliceKey,
                     monthlyTotals = data.monthlyTotals,
                     pace = data.pace.takeIf { selection.mode == ReportMode.MONTH },
-                    canGoNext = canGoNext(selection),
+                    canGoNext = canGoNext(selection, now),
+                    isRefreshing = data.selection != selection,
                 )
             }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = ReportsUiState(isLoading = true, today = today()),
+                initialValue = initialUiState(),
             )
+
+        /** Loading state shown before the first query emits; it already carries the restored selection. */
+        private fun initialUiState(): ReportsUiState {
+            val selection = selectionFlow.value
+            return ReportsUiState(
+                isLoading = true,
+                mode = selection.mode,
+                yearMonth = selection.yearMonth,
+                today = today(),
+                type = selection.type,
+                accountId = selection.accountId,
+            )
+        }
 
         init {
             selectionFlow.value.drillDownParentId?.let { parentId ->
@@ -366,6 +375,18 @@ class ReportsViewModel
                     ReportMode.YEAR -> ReportPeriod.Year(Year.of(yearMonth.year))
                 }
         }
+
+        /**
+         * Rows combined from the four report use cases. Each snapshot travels with the [ReportsSelection]
+         * it was queried for, so the UI never mixes a new selection with half-loaded data.
+         */
+        private data class ReportData(
+            val selection: ReportsSelection,
+            val summary: PeriodSummary,
+            val breakdown: CategoryBreakdown,
+            val monthlyTotals: List<MonthTotals>,
+            val pace: SpendingPace?,
+        )
 
         private data class PanelState(
             val selectedSliceKey: SliceKey?,
