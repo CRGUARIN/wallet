@@ -266,6 +266,30 @@ class NavigationTest {
         assertThat(navController.currentBackStackEntry?.destination?.hasRoute(Reports::class)).isTrue()
     }
 
+    @Test
+    @Config(qualifiers = "es")
+    fun `account transactions opened from home keep home selected and tapping transactions opens the tab`() {
+        setAppContent()
+
+        // Home -> account card -> "Ver todos", as the NavHost does
+        composeRule.runOnUiThread {
+            navController.navigate(AccountDetail(accountId = 42L))
+            navController.navigate(Transactions(accountId = 42L))
+        }
+        composeRule.waitForIdle()
+
+        // The filtered list belongs to Home's stack, not to the Movimientos tab
+        assertTabSelected("Inicio", selected = true)
+        assertTabSelected("Movimientos", selected = false)
+
+        // Tapping Movimientos opens the unfiltered tab
+        composeRule.onNodeWithContentDescription("Movimientos", useUnmergedTree = true).performClick()
+        composeRule.waitForIdle()
+        val route = navController.currentBackStackEntry?.toRoute<Transactions>()
+        assertThat(route?.accountId).isNull()
+        assertTabSelected("Movimientos", selected = true)
+    }
+
     private fun assertTabSelected(
         contentDescription: String,
         selected: Boolean,

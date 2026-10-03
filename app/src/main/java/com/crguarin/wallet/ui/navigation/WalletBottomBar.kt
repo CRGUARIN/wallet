@@ -64,19 +64,24 @@ enum class TopLevelDestination(
 }
 
 /**
- * Tab that owns the current back stack: the first tab destination after the initial one (Home),
- * or HOME when the stack holds no other tab. For example `[Home, Reports, Transactions]` belongs
- * to REPORTS, so the Transactions list opened from Reports keeps the Reports tab selected.
+ * Index of the back stack entry that roots the current tab, given the tab of each entry (null for
+ * screens that are not tabs), oldest first; -1 for an empty stack.
  *
- * [routeClasses] are the route classes of the back stack entries in order, oldest first.
- * Non-tab entries are ignored.
+ * The entry right above the start destination (Home) roots the stack when it is a tab: in
+ * `[Home, Reports, Transactions]` it is Reports, so the Transactions list opened from Reports keeps
+ * the Reports tab selected. Otherwise the start entry itself is the root: in
+ * `[Home, AccountDetail, Transactions]` (an account opened from Home) the stack belongs to Home.
  */
-fun ownerTopLevelDestination(routeClasses: List<KClass<*>>): TopLevelDestination {
-    val afterInitial = if (routeClasses.isEmpty()) emptyList() else routeClasses.drop(1)
-    return afterInitial.firstNotNullOfOrNull { routeClass ->
-        TopLevelDestination.entries.firstOrNull { it.routeClass == routeClass }
-    } ?: TopLevelDestination.HOME
-}
+fun ownerRootIndex(stackTabs: List<TopLevelDestination?>): Int =
+    when {
+        stackTabs.isEmpty() -> -1
+        stackTabs.first() == TopLevelDestination.HOME && stackTabs.getOrNull(1) != null -> 1
+        else -> 0
+    }
+
+/** Tab that owns the current back stack (see [ownerRootIndex]); HOME when the root is not a tab. */
+fun ownerTopLevelDestination(stackTabs: List<TopLevelDestination?>): TopLevelDestination =
+    stackTabs.getOrNull(ownerRootIndex(stackTabs)) ?: TopLevelDestination.HOME
 
 @Composable
 fun WalletBottomBar(
@@ -84,38 +89,32 @@ fun WalletBottomBar(
     modifier: Modifier = Modifier,
 ) {
     // NavController.currentBackStack is restricted; the public back stack of the composable
-    // destinations lives on ComposeNavigator ("composable" is its name; NAME is internal).
+    // destinations lives on ComposeNavigator.
     val composeNavigator =
         remember(navController) {
-            navController.navigatorProvider.getNavigator<ComposeNavigator>("composable")
+            navController.navigatorProvider.getNavigator(ComposeNavigator::class.java)
         }
     val backStack by composeNavigator.backStack.collectAsStateWithLifecycle()
-    val routeClasses =
-        backStack.mapNotNull { entry ->
-            TopLevelDestination.entries
-                .firstOrNull { entry.destination.hasRoute(it.routeClass) }
-                ?.routeClass
+    val stackTabs =
+        backStack.map { entry ->
+            TopLevelDestination.entries.firstOrNull { entry.destination.hasRoute(it.routeClass) }
         }
-    val ownerTab = ownerTopLevelDestination(routeClasses)
+    val rootIndex = ownerRootIndex(stackTabs)
+    val ownerTab = ownerTopLevelDestination(stackTabs)
 
     NavigationBar(modifier = modifier) {
         TopLevelDestination.entries.forEach { destination ->
             NavigationBarItem(
                 selected = destination == ownerTab,
                 onClick = {
-                    if (destination == ownerTab) {
+                    val rootEntry = backStack.getOrNull(rootIndex)
+                    if (destination == ownerTab && rootEntry != null) {
                         // Tapping the owning tab pops back to its root instead of restoring the
-                        // saved stack (which would show the nested screen again).
-                        val rootEntry =
-                            backStack.firstOrNull { entry ->
-                                entry.destination.hasRoute(destination.routeClass)
-                            }
-                        if (rootEntry != null && rootEntry != backStack.lastOrNull()) {
+                        // saved stack (which would show the nested screen again). Already at the
+                        // root: nothing to do.
+                        if (rootEntry != backStack.last()) {
                             navController.popBackStack(rootEntry.destination.id, inclusive = false)
-                        } else if (rootEntry == null) {
-                            navController.navigateToTopLevelDestination(destination.route)
                         }
-                        // Already at the tab root: nothing to do.
                     } else {
                         navController.navigateToTopLevelDestination(destination.route)
                     }
