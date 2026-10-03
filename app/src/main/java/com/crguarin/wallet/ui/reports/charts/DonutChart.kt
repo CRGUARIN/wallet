@@ -47,6 +47,23 @@ data class DonutSlice<T>(
 )
 
 /**
+ * Index of the slice covering [angleDegrees] (measured from the top, clockwise), or null when the
+ * angle falls past the last slice.
+ */
+internal fun sliceIndexAt(
+    fractions: List<Float>,
+    angleDegrees: Float,
+): Int? {
+    var cursor = 0f
+    for (index in fractions.indices) {
+        val sweep = fractions[index] * 360f
+        if (angleDegrees >= cursor && angleDegrees < cursor + sweep) return index
+        cursor += sweep
+    }
+    return null
+}
+
+/**
  * Stateless donut chart drawn with Compose primitives.
  *
  * Why no charting library (spec 5.3):
@@ -108,15 +125,8 @@ fun <T> DonutChart(
 
                             // Angle from the top, clockwise, matching the drawn arcs.
                             val angle = (Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())).toFloat() + 90f + 360f) % 360f
-                            var cursor = 0f
-                            for (slice in slices) {
-                                val sweep = slice.fraction * 360f
-                                if (angle >= cursor && angle < cursor + sweep) {
-                                    currentOnSliceClick(slice.key)
-                                    return@detectTapGestures
-                                }
-                                cursor += sweep
-                            }
+                            val index = sliceIndexAt(slices.map { it.fraction }, angle)
+                            if (index != null) currentOnSliceClick(slices[index].key)
                         }
                     },
         ) {

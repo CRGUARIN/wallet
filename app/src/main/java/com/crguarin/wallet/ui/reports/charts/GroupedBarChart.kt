@@ -44,6 +44,8 @@ data class BarGroup(
     val values: List<Float>,
     val colors: List<Color>,
     val dimmed: Boolean = false,
+    /** Short label (e.g. a single letter) the chart uses when [label] does not fit in the column. */
+    val narrowLabel: String = label,
 )
 
 /**

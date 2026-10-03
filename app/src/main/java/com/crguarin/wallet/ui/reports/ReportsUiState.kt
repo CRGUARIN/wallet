@@ -38,6 +38,8 @@ data class ReportsUiState(
     val monthlyTotals: List<MonthTotals> = emptyList(),
     val pace: SpendingPace? = null,
     val canGoNext: Boolean = false,
+    /** True mientras se cargan los datos de una selección nueva; los datos mostrados son de la selección anterior. */
+    val isRefreshing: Boolean = false,
 ) {
     /** No income and no expenses in the whole monthly evolution range. */
     val isEmpty: Boolean
