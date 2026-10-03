@@ -599,6 +599,22 @@ class ReportsViewModelTest {
         }
 
     @Test
+    fun `BALANCE queries balance deltas with the period accounts and today`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(listOf(cash, savings))
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+            reportRepository.balanceRequests.clear()
+
+            viewModel.setFocus(ReportFocus.BALANCE)
+            advanceUntilIdle()
+
+            assertThat(reportRepository.balanceRequests).containsExactly(
+                Triple(setOf(1L, 2L), LocalDate.of(2026, 9, 1), today),
+            )
+        }
+
+    @Test
     fun `BALANCE keeps the account filter`() =
         runTest(testDispatcher) {
             // Unknown account: the real evolution use case also answers EMPTY for it in MONTH mode.

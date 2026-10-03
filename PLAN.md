@@ -712,6 +712,7 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 - [x] Tarea 12 — Pulido y release
 - [x] Tarea 13 — Reportes y gráficas
   - Correcciones de revisión (F1–F29): porciones raíz con campos del padre; changePercent half-away-from-zero con tope Int; tope de mes futuro en modo Año; isRefreshing sin datos cruzados; estado inicial desde SavedStateHandle; drill-up si falta el padre; etiquetas compactas ("500 mil $", "$500K") y eje Y en números redondos; etiquetas de mes que no se pisan; centro de dona en 1 línea autoajustada; leyenda de ritmo; pestaña dueña en la barra inferior; SavedStateHandle sobre argumentos de ruta; nota de app debug.
+- [x] Tarea 14 — Balance en reportes
 
 ---
 
