@@ -1,12 +1,6 @@
 package com.crguarin.wallet.ui.reports
 
 /**
- * Pure helpers for chart axes.
- *
- * Lives in the UI layer on purpose: the domain's `ReportMath` must not duplicate [niceAxisMax];
- * axis ticks are a presentation concern.
- */
-/**
  * Y axis scale of a chart: the rounded-up maximum and the tick values (minor units), bottom to
  * top, used both to normalize the drawn series and to format the axis labels.
  */
@@ -15,6 +9,12 @@ data class AxisScale(
     val ticksMinorUnits: List<Long>,
 )
 
+/**
+ * Pure helpers for chart axes.
+ *
+ * Lives in the UI layer on purpose: the domain's `ReportMath` must not duplicate [niceAxisMax];
+ * axis ticks are a presentation concern.
+ */
 object AxisMath {
     /**
      * Computes the [AxisScale] for a data maximum. Temporary implementation: the previous
