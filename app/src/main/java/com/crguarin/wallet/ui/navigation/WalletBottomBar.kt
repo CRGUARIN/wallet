@@ -13,14 +13,15 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
-import androidx.navigation.NavGraph
 import androidx.navigation.NavHostController
+import androidx.navigation.compose.ComposeNavigator
 import com.crguarin.wallet.R
 import kotlin.reflect.KClass
 
@@ -67,8 +68,8 @@ enum class TopLevelDestination(
  * or HOME when the stack holds no other tab. For example `[Home, Reports, Transactions]` belongs
  * to REPORTS, so the Transactions list opened from Reports keeps the Reports tab selected.
  *
- * [routeClasses] are the route classes of the back stack entries in order, oldest first,
- * excluding navigation graphs. Non-tab entries are ignored.
+ * [routeClasses] are the route classes of the back stack entries in order, oldest first.
+ * Non-tab entries are ignored.
  */
 fun ownerTopLevelDestination(routeClasses: List<KClass<*>>): TopLevelDestination {
     val afterInitial = if (routeClasses.isEmpty()) emptyList() else routeClasses.drop(1)
@@ -82,17 +83,18 @@ fun WalletBottomBar(
     navController: NavHostController,
     modifier: Modifier = Modifier,
 ) {
-    val backStack by navController.currentBackStack.collectAsStateWithLifecycle()
+    // NavController.currentBackStack is restricted; the public back stack of the composable
+    // destinations lives on ComposeNavigator ("composable" is its name; NAME is internal).
+    val composeNavigator =
+        remember(navController) {
+            navController.navigatorProvider.getNavigator<ComposeNavigator>("composable")
+        }
+    val backStack by composeNavigator.backStack.collectAsStateWithLifecycle()
     val routeClasses =
         backStack.mapNotNull { entry ->
-            val destination = entry.destination
-            if (destination is NavGraph) {
-                null
-            } else {
-                TopLevelDestination.entries
-                    .firstOrNull { destination.hasRoute(it.routeClass) }
-                    ?.routeClass
-            }
+            TopLevelDestination.entries
+                .firstOrNull { entry.destination.hasRoute(it.routeClass) }
+                ?.routeClass
         }
     val ownerTab = ownerTopLevelDestination(routeClasses)
 
@@ -106,9 +108,7 @@ fun WalletBottomBar(
                         // saved stack (which would show the nested screen again).
                         val rootEntry =
                             backStack.firstOrNull { entry ->
-                                val entryDestination = entry.destination
-                                entryDestination !is NavGraph &&
-                                    entryDestination.hasRoute(destination.routeClass)
+                                entry.destination.hasRoute(destination.routeClass)
                             }
                         if (rootEntry != null && rootEntry != backStack.lastOrNull()) {
                             navController.popBackStack(rootEntry.destination.id, inclusive = false)
