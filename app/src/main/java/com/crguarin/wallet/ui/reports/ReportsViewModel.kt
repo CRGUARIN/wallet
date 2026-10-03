@@ -301,7 +301,12 @@ class ReportsViewModel
         }
 
         private suspend fun loadParentSlice(parentId: Long) {
-            val category = categoryRepository.getCategory(parentId) ?: return
+            val category = categoryRepository.getCategory(parentId)
+            if (category == null) {
+                // The drilled parent no longer exists: back out to the root instead of getting stuck.
+                drillUp()
+                return
+            }
             parentSliceFlow.value =
                 CategorySlice(
                     key = SliceKey.Category(parentId),

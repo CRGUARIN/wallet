@@ -16,6 +16,7 @@ import com.crguarin.wallet.domain.model.report.CategoryTotal
 import com.crguarin.wallet.domain.model.report.DailyIncomeExpense
 import com.crguarin.wallet.domain.model.report.ReportMode
 import com.crguarin.wallet.domain.model.report.SliceKey
+import com.crguarin.wallet.domain.repository.ReportRepository
 import com.crguarin.wallet.domain.usecase.ObserveAccountsUseCase
 import com.crguarin.wallet.domain.usecase.report.ObserveCategoryBreakdownUseCase
 import com.crguarin.wallet.domain.usecase.report.ObserveMonthlyTotalsUseCase
@@ -24,6 +25,8 @@ import com.crguarin.wallet.domain.usecase.report.ObserveSpendingPaceUseCase
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -80,17 +83,19 @@ class ReportsViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun createViewModel(handle: SavedStateHandle = SavedStateHandle()) =
-        ReportsViewModel(
-            savedStateHandle = handle,
-            categoryRepository = categoryRepository,
-            observeCategoryBreakdownUseCase = ObserveCategoryBreakdownUseCase(reportRepository),
-            observeMonthlyTotalsUseCase = ObserveMonthlyTotalsUseCase(reportRepository),
-            observePeriodSummaryUseCase = ObservePeriodSummaryUseCase(reportRepository),
-            observeSpendingPaceUseCase = ObserveSpendingPaceUseCase(reportRepository),
-            observeAccountsUseCase = ObserveAccountsUseCase(accountRepository),
-            timeProvider = timeProvider,
-        )
+    private fun createViewModel(
+        handle: SavedStateHandle = SavedStateHandle(),
+        report: ReportRepository = reportRepository,
+    ) = ReportsViewModel(
+        savedStateHandle = handle,
+        categoryRepository = categoryRepository,
+        observeCategoryBreakdownUseCase = ObserveCategoryBreakdownUseCase(report),
+        observeMonthlyTotalsUseCase = ObserveMonthlyTotalsUseCase(report),
+        observePeriodSummaryUseCase = ObservePeriodSummaryUseCase(report),
+        observeSpendingPaceUseCase = ObserveSpendingPaceUseCase(report),
+        observeAccountsUseCase = ObserveAccountsUseCase(accountRepository),
+        timeProvider = timeProvider,
+    )
 
     private fun TestScope.observeState(viewModel: ReportsViewModel): ReportsViewModel {
         backgroundScope.launch { viewModel.uiState.collect {} }
@@ -511,5 +516,71 @@ class ReportsViewModelTest {
             assertThat(first.mode).isEqualTo(ReportMode.YEAR)
             assertThat(first.yearMonth).isEqualTo(YearMonth.of(2024, 3))
             assertThat(first.type).isEqualTo(TransactionType.INCOME)
+        }
+
+    @Test
+    fun `drill into a deleted category backs out to the root`() =
+        runTest(testDispatcher) {
+            // Keys mirror the private reports_* keys of ReportsViewModel.
+            val handle = SavedStateHandle(mapOf("reports_drill_parent" to 10L))
+            val viewModel = observeState(createViewModel(handle))
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertThat(state.drillDownParent).isNull()
+            assertThat(state.breakdown.parentId).isNull()
+        }
+
+    @Test
+    fun `query error shows hasError and retry recovers`() =
+        runTest(testDispatcher) {
+            val flaky = FlakyReportRepository(reportRepository)
+            flaky.fail = true
+            val viewModel = observeState(createViewModel(report = flaky))
+            advanceUntilIdle()
+            assertThat(viewModel.uiState.value.hasError).isTrue()
+
+            flaky.fail = false
+            reportRepository.setInitialData(
+                dailyIncomeExpense = listOf(DailyIncomeExpense(today, Money(10_000L), Money(5_000L))),
+            )
+            viewModel.retry()
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertThat(state.hasError).isFalse()
+            assertThat(state.isRefreshing).isFalse()
+            assertThat(state.summary.total).isEqualTo(Money(5_000L))
+            assertThat(state.monthlyTotals).hasSize(6)
+        }
+}
+
+/** [ReportRepository] that throws on demand; used for the error and retry test. */
+private class FlakyReportRepository(
+    private val delegate: FakeReportRepository,
+) : ReportRepository by delegate {
+    var fail: Boolean = false
+
+    override fun observeCategoryTotals(
+        from: LocalDate,
+        to: LocalDate,
+        type: TransactionType,
+        accountId: Long?,
+    ): Flow<List<CategoryTotal>> =
+        if (fail) {
+            flow { throw IllegalStateException("reports query failed") }
+        } else {
+            delegate.observeCategoryTotals(from, to, type, accountId)
+        }
+
+    override fun observeDailyIncomeExpense(
+        from: LocalDate,
+        to: LocalDate,
+        accountId: Long?,
+    ): Flow<List<DailyIncomeExpense>> =
+        if (fail) {
+            flow { throw IllegalStateException("reports query failed") }
+        } else {
+            delegate.observeDailyIncomeExpense(from, to, accountId)
         }
 }
