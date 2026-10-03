@@ -6,16 +6,21 @@ import androidx.lifecycle.viewModelScope
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.core.time.TimeProvider
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.report.BalanceEvolution
+import com.crguarin.wallet.domain.model.report.BalanceSummary
 import com.crguarin.wallet.domain.model.report.CategoryBreakdown
 import com.crguarin.wallet.domain.model.report.CategorySlice
 import com.crguarin.wallet.domain.model.report.MonthTotals
 import com.crguarin.wallet.domain.model.report.PeriodSummary
+import com.crguarin.wallet.domain.model.report.ReportFocus
 import com.crguarin.wallet.domain.model.report.ReportMode
 import com.crguarin.wallet.domain.model.report.ReportPeriod
 import com.crguarin.wallet.domain.model.report.SliceKey
 import com.crguarin.wallet.domain.model.report.SpendingPace
 import com.crguarin.wallet.domain.repository.CategoryRepository
 import com.crguarin.wallet.domain.usecase.ObserveAccountsUseCase
+import com.crguarin.wallet.domain.usecase.report.ObserveBalanceEvolutionUseCase
+import com.crguarin.wallet.domain.usecase.report.ObserveBalanceSummaryUseCase
 import com.crguarin.wallet.domain.usecase.report.ObserveCategoryBreakdownUseCase
 import com.crguarin.wallet.domain.usecase.report.ObserveMonthlyTotalsUseCase
 import com.crguarin.wallet.domain.usecase.report.ObservePeriodSummaryUseCase
@@ -60,10 +65,10 @@ private val EMPTY_BREAKDOWN = CategoryBreakdown(Money.ZERO, emptyList(), null)
 
 /**
  * ViewModel of the Reports screen. The whole selection persists in [SavedStateHandle] with the
- * `reports_` keys, so rotating or recreating the screen keeps the mode, period, type, account and
+ * `reports_` keys, so rotating or recreating the screen keeps the mode, period, focus, account and
  * drill-down.
  *
- * Changing the period, type or account always clears the selected slice and the drill-down: it is
+ * Changing the period, focus or account always clears the selected slice and the drill-down: it is
  * the simplest behavior allowed by the spec and avoids showing a parent without data.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -73,10 +78,12 @@ class ReportsViewModel
     constructor(
         private val savedStateHandle: SavedStateHandle,
         private val categoryRepository: CategoryRepository,
-        observeCategoryBreakdownUseCase: ObserveCategoryBreakdownUseCase,
-        observeMonthlyTotalsUseCase: ObserveMonthlyTotalsUseCase,
-        observePeriodSummaryUseCase: ObservePeriodSummaryUseCase,
-        observeSpendingPaceUseCase: ObserveSpendingPaceUseCase,
+        private val observeCategoryBreakdownUseCase: ObserveCategoryBreakdownUseCase,
+        private val observeMonthlyTotalsUseCase: ObserveMonthlyTotalsUseCase,
+        private val observePeriodSummaryUseCase: ObservePeriodSummaryUseCase,
+        private val observeSpendingPaceUseCase: ObserveSpendingPaceUseCase,
+        private val observeBalanceSummaryUseCase: ObserveBalanceSummaryUseCase,
+        private val observeBalanceEvolutionUseCase: ObserveBalanceEvolutionUseCase,
         observeAccountsUseCase: ObserveAccountsUseCase,
         private val timeProvider: TimeProvider,
     ) : ViewModel() {
@@ -96,32 +103,94 @@ class ReportsViewModel
             queryFlow.flatMapLatest { query ->
                 val selection = query.selection
                 flow {
-                    // The pace query only runs in MONTH mode, where its card is visible.
                     val queryToday = today()
-                    val paceFlow: Flow<SpendingPace?> =
-                        if (selection.mode == ReportMode.MONTH) {
-                            observeSpendingPaceUseCase(selection.yearMonth, selection.type, selection.accountId, queryToday)
-                        } else {
-                            flowOf(null)
-                        }
-                    emitAll(
-                        combine(
-                            observePeriodSummaryUseCase(selection.period(), selection.type, selection.accountId, queryToday),
-                            observeCategoryBreakdownUseCase(
-                                period = selection.period(),
-                                type = selection.type,
-                                accountId = selection.accountId,
-                                parentId = selection.drillDownParentId,
-                            ),
-                            observeMonthlyTotalsUseCase(barMonths(selection), selection.accountId),
-                            paceFlow,
-                        ) { summary, breakdown, monthlyTotals, pace ->
-                            ReportData(query, queryToday, summary, breakdown, monthlyTotals, pace, hasError = false)
-                        },
-                    )
+                    val focusType = selection.focus.transactionType
+                    if (focusType != null) {
+                        emitAll(typeData(query, selection, focusType, queryToday))
+                    } else {
+                        emitAll(balanceData(query, selection, queryToday))
+                    }
                 }.catch {
-                    emit(ReportData(query, today(), EMPTY_SUMMARY, EMPTY_BREAKDOWN, emptyList(), null, hasError = true))
+                    emit(
+                        ReportData(
+                            query,
+                            today(),
+                            EMPTY_SUMMARY,
+                            EMPTY_BREAKDOWN,
+                            emptyList(),
+                            pace = null,
+                            BalanceSummary.EMPTY,
+                            balanceEvolution = null,
+                            hasError = true,
+                        ),
+                    )
                 }
+            }
+
+        /** EXPENSE/INCOME data: summary, breakdown, monthly totals and pace (MONTH mode only). */
+        private fun typeData(
+            query: ReportsQuery,
+            selection: ReportsSelection,
+            type: TransactionType,
+            queryToday: LocalDate,
+        ): Flow<ReportData> {
+            // The pace query only runs in MONTH mode, where its card is visible.
+            val paceFlow: Flow<SpendingPace?> =
+                if (selection.mode == ReportMode.MONTH) {
+                    observeSpendingPaceUseCase(selection.yearMonth, type, selection.accountId, queryToday)
+                } else {
+                    flowOf(null)
+                }
+            return combine(
+                observePeriodSummaryUseCase(selection.period(), type, selection.accountId, queryToday),
+                observeCategoryBreakdownUseCase(
+                    period = selection.period(),
+                    type = type,
+                    accountId = selection.accountId,
+                    parentId = selection.drillDownParentId,
+                ),
+                observeMonthlyTotalsUseCase(barMonths(selection), selection.accountId),
+                paceFlow,
+            ) { summary, breakdown, monthlyTotals, pace ->
+                ReportData(
+                    query,
+                    queryToday,
+                    summary,
+                    breakdown,
+                    monthlyTotals,
+                    pace,
+                    BalanceSummary.EMPTY,
+                    balanceEvolution = null,
+                    hasError = false,
+                )
+            }
+        }
+
+        /**
+         * BALANCE data: balance summary, balance evolution and monthly totals. Breakdown and pace
+         * are not queried: the balance view shows neither the donut nor the pace card.
+         */
+        private fun balanceData(
+            query: ReportsQuery,
+            selection: ReportsSelection,
+            queryToday: LocalDate,
+        ): Flow<ReportData> =
+            combine(
+                observeBalanceSummaryUseCase(selection.period(), selection.accountId, queryToday),
+                observeBalanceEvolutionUseCase(selection.period(), selection.accountId, queryToday),
+                observeMonthlyTotalsUseCase(barMonths(selection), selection.accountId),
+            ) { balanceSummary, balanceEvolution, monthlyTotals ->
+                ReportData(
+                    query,
+                    queryToday,
+                    EMPTY_SUMMARY,
+                    EMPTY_BREAKDOWN,
+                    monthlyTotals,
+                    pace = null,
+                    balanceSummary,
+                    balanceEvolution,
+                    hasError = false,
+                )
             }
 
         // Archived accounts are kept so their history can still be filtered, like in Movements.
@@ -150,7 +219,7 @@ class ReportsViewModel
                     mode = selection.mode,
                     yearMonth = selection.yearMonth,
                     today = data.today,
-                    type = selection.type,
+                    focus = selection.focus,
                     accountId = selection.accountId,
                     selectedAccountName =
                         selection.accountId?.let { id ->
@@ -166,6 +235,8 @@ class ReportsViewModel
                     pace = data.pace.takeIf { selection.mode == ReportMode.MONTH },
                     canGoNext = canGoNext(selection, today()),
                     isRefreshing = data.query != query,
+                    balanceSummary = data.balanceSummary,
+                    balanceEvolution = data.balanceEvolution,
                 )
             }.stateIn(
                 scope = viewModelScope,
@@ -181,7 +252,7 @@ class ReportsViewModel
                 mode = selection.mode,
                 yearMonth = selection.yearMonth,
                 today = today(),
-                type = selection.type,
+                focus = selection.focus,
                 accountId = selection.accountId,
             )
         }
@@ -219,9 +290,18 @@ class ReportsViewModel
             applySelection(selection.copy(yearMonth = yearMonth, drillDownParentId = null))
         }
 
+        fun setFocus(focus: ReportFocus) {
+            applySelection(selectionFlow.value.copy(focus = focus, drillDownParentId = null))
+        }
+
+        /**
+         * Temporary compatibility for ReportsScreen until its owner migrates to [setFocus].
+         *
+         * TODO(tarea-14): delete after merging the "tarjetas y pantalla" branch.
+         */
         fun setType(type: TransactionType) {
             if (type == TransactionType.TRANSFER) return
-            applySelection(selectionFlow.value.copy(type = type, drillDownParentId = null))
+            setFocus(if (type == TransactionType.INCOME) ReportFocus.INCOME else ReportFocus.EXPENSE)
         }
 
         fun setAccount(accountId: Long?) {
@@ -293,7 +373,7 @@ class ReportsViewModel
         private fun persist(selection: ReportsSelection) {
             savedStateHandle[KEY_MODE] = selection.mode.name
             savedStateHandle[KEY_MONTH] = selection.yearMonth.atDay(1).toEpochDay()
-            savedStateHandle[KEY_TYPE] = selection.type.name
+            savedStateHandle[KEY_TYPE] = selection.focus.name
             savedStateHandle[KEY_ACCOUNT] = selection.accountId ?: NO_ACCOUNT
             savedStateHandle[KEY_DRILL_PARENT] = selection.drillDownParentId ?: NO_PARENT
         }
@@ -348,19 +428,19 @@ class ReportsViewModel
                     .get<Long>(KEY_MONTH)
                     ?.let { YearMonth.from(LocalDate.ofEpochDay(it)) }
                     ?: YearMonth.from(today())
-            val type =
+            // The key keeps its "reports_type" name; the old EXPENSE/INCOME values still parse.
+            val focus =
                 handle
                     .get<String>(KEY_TYPE)
-                    ?.let { runCatching { TransactionType.valueOf(it) }.getOrNull() }
-                    ?.takeIf { it != TransactionType.TRANSFER }
-                    ?: TransactionType.EXPENSE
+                    ?.let { runCatching { ReportFocus.valueOf(it) }.getOrNull() }
+                    ?: ReportFocus.EXPENSE
             val accountId = handle.get<Long>(KEY_ACCOUNT)?.takeIf { it != NO_ACCOUNT }
             val drillDownParentId = handle.get<Long>(KEY_DRILL_PARENT)?.takeIf { it != NO_PARENT }
             return clampToToday(
                 ReportsSelection(
                     mode = mode,
                     yearMonth = yearMonth,
-                    type = type,
+                    focus = focus,
                     accountId = accountId,
                     drillDownParentId = drillDownParentId,
                 ),
@@ -370,7 +450,7 @@ class ReportsViewModel
         private data class ReportsSelection(
             val mode: ReportMode,
             val yearMonth: YearMonth,
-            val type: TransactionType,
+            val focus: ReportFocus,
             val accountId: Long?,
             val drillDownParentId: Long?,
         ) {
@@ -382,9 +462,11 @@ class ReportsViewModel
         }
 
         /**
-         * Rows combined from the four report use cases. Each snapshot travels with the [ReportsQuery]
+         * Rows combined from the report use cases. Each snapshot travels with the [ReportsQuery]
          * it was loaded for (and the "today" it used), so the UI never mixes a new selection with
-         * half-loaded data. [hasError] marks the placeholder emitted when the query failed.
+         * half-loaded data. [hasError] marks the placeholder emitted when the query failed. Only
+         * one side is populated: EXPENSE/INCOME fills summary/breakdown/pace, BALANCE fills the
+         * balance fields, and the other side holds its empty value.
          */
         private data class ReportData(
             val query: ReportsQuery,
@@ -393,6 +475,8 @@ class ReportsViewModel
             val breakdown: CategoryBreakdown,
             val monthlyTotals: List<MonthTotals>,
             val pace: SpendingPace?,
+            val balanceSummary: BalanceSummary,
+            val balanceEvolution: BalanceEvolution?,
             val hasError: Boolean,
         )
 
