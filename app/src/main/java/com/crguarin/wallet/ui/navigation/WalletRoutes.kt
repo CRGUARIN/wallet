@@ -16,6 +16,9 @@ data object Home
 data class Transactions(
     val accountId: Long? = null,
     val categoryId: Long? = null,
+    val type: TransactionType? = null,
+    /** Selected month in ISO `yyyy-MM` format; null means the current month. */
+    val month: String? = null,
 )
 
 @Serializable
@@ -24,6 +27,9 @@ data class TransactionEdit(
     val initialType: TransactionType = TransactionType.EXPENSE,
     val accountId: Long? = null,
 )
+
+@Serializable
+data object Reports
 
 @Serializable
 data object Accounts

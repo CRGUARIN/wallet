@@ -4,6 +4,7 @@
     <!-- Navegación -->
     <string name="nav_home">Inicio</string>
     <string name="nav_transactions">Movimientos</string>
+    <string name="nav_reports">Reportes</string>
     <string name="nav_accounts">Cuentas</string>
     <string name="nav_settings">Ajustes</string>
 
@@ -198,9 +199,55 @@
     <!-- Home -->
     <string name="home_recent_transactions">Últimos movimientos</string>
     <string name="home_view_all">Ver todos</string>
+    <string name="home_view_reports">Ver reportes</string>
     <string name="home_quick_actions">Acciones rápidas</string>
     <string name="home_empty_title">Aún no hay movimientos</string>
     <string name="home_empty_message">Registra tu primer ingreso o gasto para empezar.</string>
+
+    <!-- Reportes -->
+    <string name="reports_title">Reportes</string>
+    <string name="reports_mode_month">Mes</string>
+    <string name="reports_mode_year">Año</string>
+    <string name="reports_previous_year">Año anterior</string>
+    <string name="reports_next_year">Año siguiente</string>
+    <string name="reports_total">Total</string>
+    <string name="reports_vs_previous_month">vs. mes anterior</string>
+    <string name="reports_vs_previous_year">vs. año anterior</string>
+    <string name="reports_average_daily">Promedio diario</string>
+    <string name="reports_average_monthly">Promedio mensual</string>
+    <string name="reports_no_previous_data">Sin datos del período anterior</string>
+    <string name="reports_by_category">Por categoría</string>
+    <string name="reports_others">Otras</string>
+    <string name="reports_uncategorized">Sin categoría</string>
+    <string name="reports_parent_direct">%1$s (general)</string>
+    <string name="reports_drill_up">Volver a todas las categorías</string>
+    <string name="reports_view_subcategories">Ver subcategorías</string>
+    <string name="reports_view_transactions">Ver movimientos</string>
+    <string name="reports_monthly_evolution">Evolución mensual</string>
+    <string name="reports_average">Promedio</string>
+    <string name="reports_spending_pace">Ritmo del mes</string>
+    <string name="reports_pace_current_plain">A esta fecha llevas %1$s</string>
+    <string name="reports_pace_current_more">A esta fecha llevas %1$s, un %2$d %% más que el mes pasado</string>
+    <string name="reports_pace_current_less">A esta fecha llevas %1$s, un %2$d %% menos que el mes pasado</string>
+    <string name="reports_pace_past_plain">Terminaste el mes con %1$s</string>
+    <string name="reports_pace_past_more">Terminaste el mes con %1$s, un %2$d %% más que el mes anterior</string>
+    <string name="reports_pace_past_less">Terminaste el mes con %1$s, un %2$d %% menos que el mes anterior</string>
+    <string name="reports_compact_thousands">%1$s mil</string>
+    <string name="reports_compact_millions">%1$s M</string>
+    <!-- En español no se usa "B": a partir de mil millones se muestran millones ("1.200 M"). -->
+    <string name="reports_compact_billions">%1$s M</string>
+    <string name="reports_percent">%1$s %%</string>
+    <string name="reports_empty_period_title">No hay movimientos en este período</string>
+    <string name="reports_empty_period_message">Registra ingresos o gastos para ver tus reportes.</string>
+    <string name="reports_empty_expenses">No hay gastos en este período</string>
+    <string name="reports_empty_incomes">No hay ingresos en este período</string>
+    <string name="reports_load_error">No se pudieron cargar los reportes</string>
+    <string name="reports_cd_donut">Gráfico de dona. %1$s</string>
+    <string name="reports_cd_bars">Gráfico de barras. %1$s</string>
+    <string name="reports_cd_line">Gráfico de líneas. %1$s</string>
+    <string name="reports_cd_item">%1$s %2$s</string>
+    <string name="reports_cd_bars_group">%1$s: %2$s, %3$s</string>
+    <string name="reports_list_separator">,&#160;</string>
 
     <!-- Errores de dominio -->
     <string name="error_name_empty">El nombre no puede estar vacío</string>

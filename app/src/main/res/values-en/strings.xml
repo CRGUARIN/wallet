@@ -2,6 +2,7 @@
     <!-- Navigation -->
     <string name="nav_home">Home</string>
     <string name="nav_transactions">Transactions</string>
+    <string name="nav_reports">Reports</string>
     <string name="nav_accounts">Accounts</string>
     <string name="nav_settings">Settings</string>
 
@@ -196,9 +197,54 @@
     <!-- Home -->
     <string name="home_recent_transactions">Recent transactions</string>
     <string name="home_view_all">View all</string>
+    <string name="home_view_reports">View reports</string>
     <string name="home_quick_actions">Quick actions</string>
     <string name="home_empty_title">No transactions yet</string>
     <string name="home_empty_message">Record your first income or expense to get started.</string>
+
+    <!-- Reports -->
+    <string name="reports_title">Reports</string>
+    <string name="reports_mode_month">Month</string>
+    <string name="reports_mode_year">Year</string>
+    <string name="reports_previous_year">Previous year</string>
+    <string name="reports_next_year">Next year</string>
+    <string name="reports_total">Total</string>
+    <string name="reports_vs_previous_month">vs. previous month</string>
+    <string name="reports_vs_previous_year">vs. previous year</string>
+    <string name="reports_average_daily">Daily average</string>
+    <string name="reports_average_monthly">Monthly average</string>
+    <string name="reports_no_previous_data">No data for the previous period</string>
+    <string name="reports_by_category">By category</string>
+    <string name="reports_others">Others</string>
+    <string name="reports_uncategorized">Uncategorized</string>
+    <string name="reports_parent_direct">%1$s (general)</string>
+    <string name="reports_drill_up">Back to all categories</string>
+    <string name="reports_view_subcategories">View subcategories</string>
+    <string name="reports_view_transactions">View transactions</string>
+    <string name="reports_monthly_evolution">Monthly evolution</string>
+    <string name="reports_average">Average</string>
+    <string name="reports_spending_pace">Month pace</string>
+    <string name="reports_pace_current_plain">So far you have %1$s</string>
+    <string name="reports_pace_current_more">So far you have %1$s, %2$d%% more than last month</string>
+    <string name="reports_pace_current_less">So far you have %1$s, %2$d%% less than last month</string>
+    <string name="reports_pace_past_plain">You ended the month with %1$s</string>
+    <string name="reports_pace_past_more">You ended the month with %1$s, %2$d%% more than the previous month</string>
+    <string name="reports_pace_past_less">You ended the month with %1$s, %2$d%% less than the previous month</string>
+    <string name="reports_compact_thousands">%1$sK</string>
+    <string name="reports_compact_millions">%1$sM</string>
+    <string name="reports_compact_billions">%1$sB</string>
+    <string name="reports_percent">%1$s%%</string>
+    <string name="reports_empty_period_title">No movements in this period</string>
+    <string name="reports_empty_period_message">Add income or expenses to see your reports.</string>
+    <string name="reports_empty_expenses">No expenses in this period</string>
+    <string name="reports_empty_incomes">No income in this period</string>
+    <string name="reports_load_error">Couldn\'t load the reports</string>
+    <string name="reports_cd_donut">Donut chart. %1$s</string>
+    <string name="reports_cd_bars">Bar chart. %1$s</string>
+    <string name="reports_cd_line">Line chart. %1$s</string>
+    <string name="reports_cd_item">%1$s %2$s</string>
+    <string name="reports_cd_bars_group">%1$s: %2$s, %3$s</string>
+    <string name="reports_list_separator">,&#160;</string>
 
     <!-- Domain errors -->
     <string name="error_name_empty">Name cannot be empty</string>
