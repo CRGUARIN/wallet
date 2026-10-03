@@ -12,12 +12,20 @@ import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.report.BalanceEvolution
+import com.crguarin.wallet.domain.model.report.BalanceGranularity
+import com.crguarin.wallet.domain.model.report.BalancePoint
+import com.crguarin.wallet.domain.model.report.BalanceSummary
 import com.crguarin.wallet.domain.model.report.CategoryTotal
 import com.crguarin.wallet.domain.model.report.DailyIncomeExpense
+import com.crguarin.wallet.domain.model.report.MonthTotals
+import com.crguarin.wallet.domain.model.report.ReportFocus
 import com.crguarin.wallet.domain.model.report.ReportMode
 import com.crguarin.wallet.domain.model.report.SliceKey
 import com.crguarin.wallet.domain.repository.ReportRepository
 import com.crguarin.wallet.domain.usecase.ObserveAccountsUseCase
+import com.crguarin.wallet.domain.usecase.report.ObserveBalanceEvolutionUseCase
+import com.crguarin.wallet.domain.usecase.report.ObserveBalanceSummaryUseCase
 import com.crguarin.wallet.domain.usecase.report.ObserveCategoryBreakdownUseCase
 import com.crguarin.wallet.domain.usecase.report.ObserveMonthlyTotalsUseCase
 import com.crguarin.wallet.domain.usecase.report.ObservePeriodSummaryUseCase
@@ -93,6 +101,8 @@ class ReportsViewModelTest {
         observeMonthlyTotalsUseCase = ObserveMonthlyTotalsUseCase(report),
         observePeriodSummaryUseCase = ObservePeriodSummaryUseCase(report),
         observeSpendingPaceUseCase = ObserveSpendingPaceUseCase(report),
+        observeBalanceSummaryUseCase = ObserveBalanceSummaryUseCase(report),
+        observeBalanceEvolutionUseCase = ObserveBalanceEvolutionUseCase(report, accountRepository),
         observeAccountsUseCase = ObserveAccountsUseCase(accountRepository),
         timeProvider = timeProvider,
     )
@@ -140,6 +150,7 @@ class ReportsViewModelTest {
             assertThat(state.mode).isEqualTo(ReportMode.MONTH)
             assertThat(state.yearMonth).isEqualTo(YearMonth.of(2026, 9))
             assertThat(state.today).isEqualTo(today)
+            assertThat(state.focus).isEqualTo(ReportFocus.EXPENSE)
             assertThat(state.type).isEqualTo(TransactionType.EXPENSE)
             assertThat(state.accountId).isNull()
             assertThat(state.accounts).hasSize(2)
@@ -264,7 +275,7 @@ class ReportsViewModelTest {
         }
 
     @Test
-    fun `changing the type clears the selection and the drill down`() =
+    fun `changing the focus clears the selection and the drill down`() =
         runTest(testDispatcher) {
             categoryRepository.setInitialData(listOf(food))
             val viewModel = observeState(createViewModel())
@@ -274,10 +285,11 @@ class ReportsViewModelTest {
             viewModel.selectSlice(SliceKey.Category(10L))
             advanceUntilIdle()
 
-            viewModel.setType(TransactionType.INCOME)
+            viewModel.setFocus(ReportFocus.INCOME)
             advanceUntilIdle()
 
             val state = viewModel.uiState.value
+            assertThat(state.focus).isEqualTo(ReportFocus.INCOME)
             assertThat(state.type).isEqualTo(TransactionType.INCOME)
             assertThat(state.selectedSliceKey).isNull()
             assertThat(state.drillDownParent).isNull()
@@ -324,7 +336,7 @@ class ReportsViewModelTest {
 
             first.setMode(ReportMode.YEAR)
             first.previousPeriod()
-            first.setType(TransactionType.INCOME)
+            first.setFocus(ReportFocus.INCOME)
             first.setAccount(2L)
             advanceUntilIdle()
 
@@ -334,6 +346,7 @@ class ReportsViewModelTest {
             val state = recreated.uiState.value
             assertThat(state.mode).isEqualTo(ReportMode.YEAR)
             assertThat(state.yearMonth).isEqualTo(YearMonth.of(2025, 9))
+            assertThat(state.focus).isEqualTo(ReportFocus.INCOME)
             assertThat(state.type).isEqualTo(TransactionType.INCOME)
             assertThat(state.accountId).isEqualTo(2L)
             assertThat(state.selectedAccountName).isEqualTo("Ahorros")
@@ -377,7 +390,7 @@ class ReportsViewModelTest {
             assertThat(viewModel.uiState.value.isEmpty).isFalse()
             assertThat(viewModel.uiState.value.hasNoDataOfType).isFalse()
 
-            viewModel.setType(TransactionType.INCOME)
+            viewModel.setFocus(ReportFocus.INCOME)
             advanceUntilIdle()
             assertThat(viewModel.uiState.value.isEmpty).isFalse()
             assertThat(viewModel.uiState.value.hasNoDataOfType).isTrue()
@@ -515,6 +528,7 @@ class ReportsViewModelTest {
             assertThat(first.isLoading).isTrue()
             assertThat(first.mode).isEqualTo(ReportMode.YEAR)
             assertThat(first.yearMonth).isEqualTo(YearMonth.of(2024, 3))
+            assertThat(first.focus).isEqualTo(ReportFocus.INCOME)
             assertThat(first.type).isEqualTo(TransactionType.INCOME)
         }
 
@@ -558,6 +572,224 @@ class ReportsViewModelTest {
             assertThat(state.summary.total).isEqualTo(Money(5_000L))
             assertThat(state.monthlyTotals).hasSize(6)
         }
+
+    @Test
+    fun `BALANCE loads balance data without breakdown or pace`() =
+        runTest(testDispatcher) {
+            // No accounts and no rows: the real use cases also answer EMPTY here.
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+            reportRepository.categoryRangeRequests.clear()
+
+            viewModel.setFocus(ReportFocus.BALANCE)
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertThat(state.focus).isEqualTo(ReportFocus.BALANCE)
+            assertThat(state.type).isEqualTo(TransactionType.EXPENSE)
+            assertThat(state.balanceSummary).isEqualTo(BalanceSummary.EMPTY)
+            assertThat(state.balanceEvolution).isEqualTo(BalanceEvolution.EMPTY)
+            assertThat(state.monthlyTotals).hasSize(6)
+            assertThat(state.monthlyTotals.all { it.income.isZero && it.expense.isZero }).isTrue()
+            assertThat(state.breakdown.total.isZero).isTrue()
+            assertThat(state.breakdown.slices).isEmpty()
+            assertThat(state.pace).isNull()
+            assertThat(state.isEmpty).isTrue()
+            assertThat(reportRepository.categoryRangeRequests).isEmpty()
+        }
+
+    @Test
+    fun `BALANCE keeps the account filter`() =
+        runTest(testDispatcher) {
+            // Unknown account: the real evolution use case also answers EMPTY for it in MONTH mode.
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+            viewModel.setAccount(99L)
+            viewModel.setFocus(ReportFocus.BALANCE)
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertThat(state.focus).isEqualTo(ReportFocus.BALANCE)
+            assertThat(state.accountId).isEqualTo(99L)
+            assertThat(state.balanceSummary).isEqualTo(BalanceSummary.EMPTY)
+            assertThat(state.balanceEvolution).isEqualTo(BalanceEvolution.EMPTY)
+            assertThat(state.monthlyTotals).hasSize(6)
+            assertThat(reportRepository.dailyAccountRequests).contains(99L)
+        }
+
+    @Test
+    fun `back to EXPENSE restores expenses and clears balance data`() =
+        runTest(testDispatcher) {
+            reportRepository.setInitialData(
+                categoryTotalsByType =
+                    mapOf(
+                        TransactionType.EXPENSE to listOf(categoryRow(10L, "Alimentación", null, null, 700L)),
+                    ),
+                dailyIncomeExpense = listOf(DailyIncomeExpense(today, Money.ZERO, Money(700L))),
+            )
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+
+            viewModel.setFocus(ReportFocus.BALANCE)
+            advanceUntilIdle()
+            viewModel.setFocus(ReportFocus.EXPENSE)
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertThat(state.focus).isEqualTo(ReportFocus.EXPENSE)
+            assertThat(state.summary.total).isEqualTo(Money(700L))
+            assertThat(state.breakdown.total).isEqualTo(Money(700L))
+            assertThat(state.pace).isNotNull()
+            assertThat(state.balanceSummary).isEqualTo(BalanceSummary.EMPTY)
+            assertThat(state.balanceEvolution).isNull()
+            assertThat(state.isEmpty).isFalse()
+        }
+
+    @Test
+    fun `BALANCE focus is restored from saved state`() =
+        runTest(testDispatcher) {
+            // Keys mirror the private reports_* keys of ReportsViewModel.
+            val handle = SavedStateHandle(mapOf("reports_type" to ReportFocus.BALANCE.name))
+            val viewModel = createViewModel(handle)
+            assertThat(viewModel.uiState.value.focus).isEqualTo(ReportFocus.BALANCE)
+
+            observeState(viewModel)
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertThat(state.focus).isEqualTo(ReportFocus.BALANCE)
+            assertThat(state.balanceSummary).isEqualTo(BalanceSummary.EMPTY)
+            assertThat(state.balanceEvolution).isEqualTo(BalanceEvolution.EMPTY)
+            assertThat(state.monthlyTotals).hasSize(6)
+        }
+
+    @Test
+    fun `unknown saved focus falls back to EXPENSE`() =
+        runTest(testDispatcher) {
+            listOf("GASTOS", TransactionType.TRANSFER.name).forEach { raw ->
+                // Keys mirror the private reports_* keys of ReportsViewModel.
+                val handle = SavedStateHandle(mapOf("reports_type" to raw))
+                val viewModel = observeState(createViewModel(handle))
+                advanceUntilIdle()
+                assertThat(viewModel.uiState.value.focus).isEqualTo(ReportFocus.EXPENSE)
+            }
+        }
+
+    @Test
+    fun `switching year to month keeps the BALANCE focus`() =
+        runTest(testDispatcher) {
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+
+            viewModel.setFocus(ReportFocus.BALANCE)
+            viewModel.setMode(ReportMode.YEAR)
+            advanceUntilIdle()
+            assertThat(viewModel.uiState.value.focus).isEqualTo(ReportFocus.BALANCE)
+            assertThat(viewModel.uiState.value.balanceSummary).isEqualTo(BalanceSummary.EMPTY)
+            assertThat(viewModel.uiState.value.monthlyTotals).hasSize(12)
+
+            viewModel.setMode(ReportMode.MONTH)
+            advanceUntilIdle()
+            val state = viewModel.uiState.value
+            assertThat(state.focus).isEqualTo(ReportFocus.BALANCE)
+            assertThat(state.balanceSummary).isEqualTo(BalanceSummary.EMPTY)
+            assertThat(state.balanceEvolution).isEqualTo(BalanceEvolution.EMPTY)
+            assertThat(state.monthlyTotals).hasSize(6)
+        }
+
+    @Test
+    fun `changing focus never pairs new controls with old data unless refreshing`() =
+        runTest(testDispatcher) {
+            reportRepository.setInitialData(
+                dailyIncomeExpense = listOf(DailyIncomeExpense(today, Money(10_000L), Money(9_000L))),
+            )
+            val viewModel = createViewModel()
+            viewModel.uiState.test {
+                var current = awaitItem()
+                while (current.isLoading) current = awaitItem()
+                val loaded = current
+                assertThat(loaded.isLoading).isFalse()
+                assertThat(loaded.isRefreshing).isFalse()
+                assertThat(loaded.focus).isEqualTo(ReportFocus.EXPENSE)
+                assertThat(loaded.summary.total).isEqualTo(Money(9_000L))
+
+                viewModel.setFocus(ReportFocus.BALANCE)
+
+                val seen = mutableListOf<ReportsUiState>()
+                var settled: ReportsUiState? = null
+                while (settled == null) {
+                    val state = awaitItem()
+                    seen += state
+                    if (!state.isLoading && state.focus == ReportFocus.BALANCE && !state.isRefreshing) {
+                        settled = state
+                    }
+                }
+                val done = checkNotNull(settled)
+                assertThat(done.summary.total).isEqualTo(Money.ZERO)
+                assertThat(done.breakdown.total.isZero).isTrue()
+                assertThat(done.pace).isNull()
+                assertThat(done.monthlyTotals).hasSize(6)
+
+                val refreshing = seen.filter { it.isRefreshing }
+                assertThat(refreshing).isNotEmpty()
+                refreshing.forEach { state ->
+                    // New controls (BALANCE) over the previous complete snapshot (EXPENSE).
+                    assertThat(state.isLoading).isFalse()
+                    assertThat(state.focus).isEqualTo(ReportFocus.BALANCE)
+                    assertThat(state.summary.total).isEqualTo(Money(9_000L))
+                }
+            }
+        }
+
+    @Test
+    fun `BALANCE isEmpty needs zero months and a still evolution`() {
+        val zeroMonths = listOf(MonthTotals(YearMonth.of(2026, 9), Money.ZERO, Money.ZERO))
+        val movingMonths = listOf(MonthTotals(YearMonth.of(2026, 9), Money(1_000L), Money.ZERO))
+        val flatZero =
+            BalanceEvolution(
+                granularity = BalanceGranularity.DAILY,
+                opening = Money.ZERO,
+                points = listOf(BalancePoint(LocalDate.of(2026, 9, 28), Money.ZERO)),
+            )
+        // Initial balance without movements: a flat non-zero line is shown, not the empty state.
+        val flatNonZero =
+            BalanceEvolution(
+                granularity = BalanceGranularity.DAILY,
+                opening = Money(5_000L),
+                points =
+                    listOf(
+                        BalancePoint(LocalDate.of(2026, 9, 27), Money(5_000L)),
+                        BalancePoint(LocalDate.of(2026, 9, 28), Money(5_000L)),
+                    ),
+            )
+        val moving =
+            BalanceEvolution(
+                granularity = BalanceGranularity.DAILY,
+                opening = Money.ZERO,
+                points =
+                    listOf(
+                        BalancePoint(LocalDate.of(2026, 9, 27), Money.ZERO),
+                        BalancePoint(LocalDate.of(2026, 9, 28), Money(1_000L)),
+                    ),
+            )
+
+        fun emptyOf(
+            focus: ReportFocus,
+            monthlyTotals: List<MonthTotals>,
+            evolution: BalanceEvolution?,
+        ) = ReportsUiState(isLoading = false, focus = focus, monthlyTotals = monthlyTotals, balanceEvolution = evolution).isEmpty
+
+        assertThat(emptyOf(ReportFocus.BALANCE, zeroMonths, BalanceEvolution.EMPTY)).isTrue()
+        assertThat(emptyOf(ReportFocus.BALANCE, zeroMonths, flatZero)).isTrue()
+        assertThat(emptyOf(ReportFocus.BALANCE, zeroMonths, null)).isTrue()
+        assertThat(emptyOf(ReportFocus.BALANCE, zeroMonths, flatNonZero)).isFalse()
+        assertThat(emptyOf(ReportFocus.BALANCE, zeroMonths, moving)).isFalse()
+        assertThat(emptyOf(ReportFocus.BALANCE, movingMonths, BalanceEvolution.EMPTY)).isFalse()
+        assertThat(emptyOf(ReportFocus.EXPENSE, zeroMonths, null)).isTrue()
+        assertThat(emptyOf(ReportFocus.EXPENSE, movingMonths, null)).isFalse()
+        assertThat(ReportsUiState(isLoading = true, focus = ReportFocus.BALANCE).isEmpty).isFalse()
+        assertThat(ReportsUiState(isLoading = false, hasError = true, focus = ReportFocus.BALANCE).isEmpty).isFalse()
+    }
 }
 
 /** [ReportRepository] that throws on demand; used for the error and retry test. */
