@@ -661,6 +661,14 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 - Consultas agregadas nuevas en `TransactionDao` (sin cambios de esquema), `ReportRepository`, modelos y matemática de reportes en dominio (`ReportMath`), y enlace "Ver reportes" desde Home.
 - **Aceptación**: la verificación completa (`ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease`) pasa y la pantalla se probó en dispositivo real.
 
+### Tarea 14 — Balance en reportes
+- Tercer foco en Reportes: **Gasto | Ingreso | Balance**. La vista Balance muestra el resumen (ingresos, gastos, neto, tasa de ahorro y cambio del neto frente al período anterior), la evolución del saldo (línea día a día en modo Mes, al cierre de cada mes en modo Año, con el filtro de cuenta) y la evolución mensual; sin dona por categoría ni ritmo del mes.
+- La tarjeta de evolución mensual gana una **línea de neto** (ingresos − gastos, puede ser negativa) en las tres vistas, con un eje que admite negativos y la leyenda "Neto".
+- Reglas de cálculo: ingresos, gastos y neto solo cuentan `INCOME`/`EXPENSE` (las `TRANSFER` no, ni siquiera con filtro de cuenta); el saldo sí cuenta transferencias (resta en origen, suma en destino, solo para cuentas del conjunto: `includeInTotal && !isArchived` sin filtro, o la cuenta filtrada aunque esté archivada o excluida); saldo a fecha D = Σ `initialBalance` + Σ efectos con `date <= D`; nunca se calcula ni muestra más allá de hoy, y una transacción futura no cuenta hasta su fecha (el último punto puede diferir del "Saldo total" de Inicio).
+- Tasa de ahorro en por mil (`neto × 1000 / ingresos`, redondeo half away from zero, un decimal, `null` sin ingresos, puede ser negativa).
+- Decisión: el **cambio del neto se muestra en dinero** (neto actual − neto anterior), no en porcentaje, porque un porcentaje sobre una base negativa o cercana a cero no tiene sentido; `null` si el período anterior no tiene ingresos ni gastos.
+- **Aceptación**: la verificación completa (`ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease`) pasa y la pantalla se probó en dispositivo real.
+
 ---
 
 ## 13. Convenciones de código
