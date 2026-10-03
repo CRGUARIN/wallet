@@ -213,6 +213,8 @@
     <string name="reports_total">Total</string>
     <string name="reports_vs_previous_month">vs. mes anterior</string>
     <string name="reports_vs_previous_year">vs. año anterior</string>
+    <string name="reports_change_up">▲</string>
+    <string name="reports_change_down">▼</string>
     <string name="reports_average_daily">Promedio diario</string>
     <string name="reports_average_monthly">Promedio mensual</string>
     <string name="reports_no_previous_data">Sin datos del período anterior</string>
