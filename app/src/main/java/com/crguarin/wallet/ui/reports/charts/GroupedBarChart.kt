@@ -17,8 +17,11 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -30,6 +33,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.theme.walletSemanticColors
+import kotlin.math.ceil
 
 /**
  * One column of a [GroupedBarChart]: a label plus one bar per series (for example income and
@@ -47,6 +51,22 @@ data class BarGroup(
     /** Short label (e.g. a single letter) the chart uses when [label] does not fit in the column. */
     val narrowLabel: String = label,
 )
+
+/**
+ * Draws one out of every [labelStride] x-axis labels, starting with the first, so crowded labels
+ * (for example month names in year mode or very large fonts) never overlap.
+ *
+ * @param maxLabelWidthPx width of the widest label to draw, in pixels.
+ * @param columnWidthPx width of one group column, in pixels.
+ */
+internal fun labelStride(
+    maxLabelWidthPx: Float,
+    columnWidthPx: Float,
+): Int {
+    if (maxLabelWidthPx <= 0f) return 1
+    if (columnWidthPx <= 0f) return Int.MAX_VALUE
+    return maxOf(1, ceil(maxLabelWidthPx / columnWidthPx).toInt())
+}
 
 /**
  * Stateless grouped bar chart: bars grow from the base with rounded top corners, horizontal guide
@@ -84,7 +104,12 @@ fun GroupedBarChart(
         remember(groups, labelStyle, textMeasurer) {
             groups.map { textMeasurer.measure(it.label, labelStyle) }
         }
+    val narrowLayouts =
+        remember(groups, labelStyle, textMeasurer) {
+            groups.map { textMeasurer.measure(it.narrowLabel, labelStyle) }
+        }
     val density = LocalDensity.current
+    val averageDash = remember(density) { with(density) { PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx())) } }
     val yAxisWidth =
         with(density) {
             ((yLayouts.maxOfOrNull { it.size.width } ?: 0) + 6.dp.roundToPx()).toFloat()
@@ -104,7 +129,6 @@ fun GroupedBarChart(
             animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing),
         )
     }
-    val growthValue = growth.value
 
     Canvas(
         modifier =
@@ -163,28 +187,25 @@ fun GroupedBarChart(
             val barWidth = ((usable - barGap * (group.values.size - 1)) / group.values.size).coerceAtLeast(1f)
             for (valueIndex in group.values.indices) {
                 val fraction = group.values[valueIndex].coerceIn(0f, 1f)
-                val barHeight = fraction * plotHeight * growthValue
+                val barHeight = fraction * plotHeight * growth.value
                 if (barHeight <= 0f) continue
                 val left = plotLeft + groupIndex * columnWidth + innerPadding + valueIndex * (barWidth + barGap)
                 val top = plotBottom - barHeight
                 val color = group.colors.getOrElse(valueIndex) { fallbackColor }
                 val corner = radius.coerceAtMost(barWidth / 2f).coerceAtMost(barHeight)
-                drawRoundRect(
-                    color = color,
-                    topLeft = Offset(left, top),
-                    size = Size(barWidth, barHeight),
-                    cornerRadius = CornerRadius(corner, corner),
-                    alpha = alpha,
-                )
-                if (barHeight > corner) {
-                    // Cover the bottom corners so only the top ones stay rounded.
-                    drawRect(
-                        color = color,
-                        topLeft = Offset(left, top + barHeight - corner),
-                        size = Size(barWidth, corner),
-                        alpha = alpha,
-                    )
-                }
+                val barPath =
+                    Path().apply {
+                        addRoundRect(
+                            RoundRect(
+                                Rect(Offset(left, top), Size(barWidth, barHeight)),
+                                topLeft = CornerRadius(corner),
+                                topRight = CornerRadius(corner),
+                                bottomRight = CornerRadius.Zero,
+                                bottomLeft = CornerRadius.Zero,
+                            ),
+                        )
+                    }
+                drawPath(path = barPath, color = color, alpha = alpha)
             }
         }
 
@@ -195,11 +216,17 @@ fun GroupedBarChart(
                 start = Offset(plotLeft, y),
                 end = Offset(plotRight, y),
                 strokeWidth = 1.5.dp.toPx(),
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx())),
+                pathEffect = averageDash,
             )
         }
 
-        xLayouts.forEachIndexed { index, layout ->
+        val fullMaxWidth = xLayouts.maxOfOrNull { it.size.width }?.toFloat() ?: 0f
+        val useNarrow = fullMaxWidth > columnWidth - 2.dp.toPx()
+        val activeLayouts = if (useNarrow) narrowLayouts else xLayouts
+        val activeMaxWidth = activeLayouts.maxOfOrNull { it.size.width }?.toFloat() ?: 0f
+        val stride = labelStride(activeMaxWidth, columnWidth)
+        activeLayouts.forEachIndexed { index, layout ->
+            if (index % stride != 0) return@forEachIndexed
             val columnCenter = plotLeft + index * columnWidth + columnWidth / 2f
             val left = (columnCenter - layout.size.width / 2f).coerceIn(0f, (size.width - layout.size.width).coerceAtLeast(0f))
             drawText(
