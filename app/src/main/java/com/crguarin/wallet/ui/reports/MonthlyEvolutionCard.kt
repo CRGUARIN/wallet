@@ -55,15 +55,48 @@ internal fun MonthlyEvolutionCard(
     val semanticColors = MaterialTheme.walletSemanticColors
     val months = uiState.monthlyTotals
     val refreshing = uiState.isRefreshing
-    val axisScale = remember(months) { evolutionAxisScale(months) }
-    val axisMax = axisScale.maxMinorUnits
-    val fractions = remember(months, axisMax) { ReportsChartMapper.barFractions(months, axisMax) }
     val todayMonth = YearMonth.from(uiState.today)
+    // The range covers bars and nets; positions are computed inline via fractionOf.
+    val range = remember(months) { evolutionAxisScale(months) }
+    val fractions =
+        remember(months, range) {
+            months.map { month ->
+                listOf(range.fractionOf(month.income.minorUnits), range.fractionOf(month.expense.minorUnits))
+            }
+        }
+    val baseline = range.fractionOf(0L)
+    val lineValues =
+        remember(months, range, todayMonth) {
+            months.map { month ->
+                if (month.yearMonth > todayMonth) {
+                    null
+                } else {
+                    range.fractionOf(month.income.minorUnits - month.expense.minorUnits)
+                }
+            }
+        }
+    val linePointColors =
+        remember(months, semanticColors) {
+            months.map { month ->
+                if (month.income.minorUnits - month.expense.minorUnits < 0L) {
+                    semanticColors.expense
+                } else {
+                    semanticColors.income
+                }
+            }
+        }
     // Future months are drawn empty and dimmed; they do not count for the average either.
     val lastRelevantMonth = months.lastOrNull()?.yearMonth?.let { minOf(it, todayMonth) }
     val average =
-        remember(months, axisMax, lastRelevantMonth) {
-            lastRelevantMonth?.let { ReportsChartMapper.averageExpenseFraction(months, axisMax, it) }
+        remember(months, range, lastRelevantMonth) {
+            lastRelevantMonth?.let { last ->
+                val relevant = months.filter { it.yearMonth <= last }
+                if (relevant.isEmpty()) {
+                    null
+                } else {
+                    range.fractionOf(relevant.sumOf { it.expense.minorUnits } / relevant.size)
+                }
+            }
         }
     val (selectedIndex, dimmedFlags) =
         remember(months, uiState.mode, uiState.yearMonth, todayMonth) {
@@ -99,13 +132,18 @@ internal fun MonthlyEvolutionCard(
             MonthlyLegend(
                 incomeColor = semanticColors.income,
                 expenseColor = semanticColors.expense,
+                netColor = MaterialTheme.colorScheme.onSurface,
             )
             Spacer(modifier = Modifier.height(12.dp))
             GroupedBarChart(
                 groups = groups,
                 selectedIndex = selectedIndex,
                 averageFraction = average,
-                yLabels = axisScale.ticksMinorUnits.map { compactMoney(it) },
+                yLabels = range.ticksMinorUnits.map { compactMoney(it) },
+                baselineFraction = baseline,
+                lineValues = lineValues,
+                lineColor = MaterialTheme.colorScheme.onSurface,
+                linePointColors = linePointColors,
                 onGroupClick = { index ->
                     if (!refreshing) {
                         months
@@ -128,6 +166,7 @@ internal fun MonthlyEvolutionCard(
 private fun MonthlyLegend(
     incomeColor: Color,
     expenseColor: Color,
+    netColor: Color,
 ) {
     Row(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -135,6 +174,33 @@ private fun MonthlyLegend(
     ) {
         LegendDot(color = incomeColor, label = stringResource(R.string.account_detail_income))
         LegendDot(color = expenseColor, label = stringResource(R.string.account_detail_expense))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier.width(16.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .height(2.dp)
+                            .background(netColor),
+                )
+                Box(
+                    modifier =
+                        Modifier
+                            .size(6.dp)
+                            .clip(CircleShape)
+                            .background(netColor),
+                )
+            }
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = stringResource(R.string.reports_net),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 modifier =
@@ -175,7 +241,7 @@ private fun LegendDot(
     }
 }
 
-/** Accessibility summary of the bar chart, one entry per month. */
+/** Accessibility summary of the bar chart, one entry per month, with the signed net. */
 @Composable
 private fun barsDescription(
     months: List<MonthTotals>,
@@ -184,16 +250,24 @@ private fun barsDescription(
     val separator = stringResource(R.string.reports_list_separator)
     val incomeLabel = stringResource(R.string.account_detail_income)
     val expenseLabel = stringResource(R.string.account_detail_expense)
+    val netLabel = stringResource(R.string.reports_net)
     val parts = ArrayList<String>(months.size)
     for (month in months) {
         val income = stringResource(R.string.reports_cd_item, incomeLabel, formattedMoney(month.income, locale))
         val expense = stringResource(R.string.reports_cd_item, expenseLabel, formattedMoney(month.expense, locale))
+        val net =
+            stringResource(
+                R.string.reports_cd_item,
+                netLabel,
+                signedMoney(month.income.minorUnits - month.expense.minorUnits, locale),
+            )
         parts +=
             stringResource(
-                R.string.reports_cd_bars_group,
+                R.string.reports_cd_bars_group_net,
                 monthFullName(month.yearMonth, locale),
                 income,
                 expense,
+                net,
             )
     }
     return stringResource(R.string.reports_cd_bars, parts.joinToString(separator))
@@ -211,10 +285,17 @@ internal fun compactMoney(minorUnits: Long): String {
     }
 }
 
-/** Y axis scale of the evolution bars, covering the largest income or expense bar. */
-internal fun evolutionAxisScale(months: List<MonthTotals>): AxisScale {
-    val max = months.maxOfOrNull { maxOf(it.income.minorUnits, it.expense.minorUnits) } ?: 0L
-    return AxisMath.axisScale(max)
+/**
+ * Y axis range of the evolution bars, covering the largest income or expense bar and the monthly
+ * nets (income − expense), which can be negative. The name is kept so existing callers compile;
+ * the range generalizes the old scale.
+ */
+internal fun evolutionAxisScale(months: List<MonthTotals>): AxisRange {
+    val nets = months.map { it.income.minorUnits - it.expense.minorUnits }
+    val minNet = nets.minOrNull() ?: 0L
+    val maxData = months.maxOfOrNull { maxOf(it.income.minorUnits, it.expense.minorUnits) } ?: 0L
+    val maxNet = nets.maxOrNull() ?: 0L
+    return AxisMath.axisRange(minOf(0L, minNet), maxOf(maxData, maxNet))
 }
 
 /** "oct" / "Oct": abbreviated month name with a capital first letter. */
@@ -270,3 +351,19 @@ internal fun formattedMoney(
         .format(money, locale)
         .replace('\u00A0', ' ')
         .replace('\u202F', ' ')
+
+/**
+ * Signed amount for accessibility text ("+ $ 6.000" / "− $ 2.000"), with the same minus sign
+ * [com.crguarin.wallet.ui.components.MoneyText] uses. Zero has no sign.
+ */
+internal fun signedMoney(
+    minorUnits: Long,
+    locale: Locale,
+): String {
+    val formatted = formattedMoney(Money(kotlin.math.abs(minorUnits)), locale)
+    return when {
+        minorUnits > 0L -> "+ $formatted"
+        minorUnits < 0L -> "− $formatted"
+        else -> formatted
+    }
+}

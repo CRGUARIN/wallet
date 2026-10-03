@@ -15,6 +15,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -375,7 +376,8 @@ class ReportsScreenTest {
         val months = monthsWithData()
         val dataMax = months.maxOf { maxOf(it.income.minorUnits, it.expense.minorUnits) }
         val evolution = evolutionAxisScale(months)
-        assertThat(evolution).isEqualTo(AxisMath.axisScale(dataMax))
+        assertThat(evolution).isEqualTo(AxisMath.axisRange(0L, dataMax))
+        assertThat(evolution.minMinorUnits).isEqualTo(0L)
         assertThat(evolution.maxMinorUnits).isAtLeast(dataMax)
         assertThat(evolution.ticksMinorUnits.first()).isEqualTo(0L)
         assertThat(evolution.ticksMinorUnits.last()).isEqualTo(evolution.maxMinorUnits)
@@ -534,5 +536,21 @@ class ReportsScreenTest {
         clickDonutTop()
 
         assertThat(selected).isEqualTo(SliceKey.Category(10L))
+    }
+
+    @Test
+    fun `monthly evolution legend shows the net entry`() {
+        setScreen(state())
+
+        composeRule.onAllNodesWithText("Neto").assertCountEquals(1)
+    }
+
+    @Test
+    fun `signed money carries an explicit sign`() {
+        val locale = Locale("es", "CO")
+
+        assertThat(signedMoney(600_000_000L, locale)).isEqualTo("+ $ 6.000.000")
+        assertThat(signedMoney(-200_000_000L, locale)).isEqualTo("− $ 2.000.000")
+        assertThat(signedMoney(0L, locale)).isEqualTo("$ 0")
     }
 }
