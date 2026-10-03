@@ -64,6 +64,17 @@ class ReportMathTest {
     }
 
     @Test
+    fun `changePercent rounds ties away from zero`() {
+        assertThat(ReportMath.changePercent(Money(205), Money(200))).isEqualTo(3)
+        assertThat(ReportMath.changePercent(Money(195), Money(200))).isEqualTo(-3)
+    }
+
+    @Test
+    fun `changePercent clamps to Int MAX_VALUE on overflow instead of going negative`() {
+        assertThat(ReportMath.changePercent(Money(3_000_000_000), Money(100))).isEqualTo(Int.MAX_VALUE)
+    }
+
+    @Test
     fun `changePercent rounds to the nearest integer including negatives`() {
         assertThat(ReportMath.changePercent(Money(5), Money(3))).isEqualTo(67)
         assertThat(ReportMath.changePercent(Money(4), Money(3))).isEqualTo(33)

@@ -42,8 +42,9 @@ object ReportMath {
     }
 
     /**
-     * Percentage change from [previous] to [current], rounded to the nearest integer, or null when
-     * [previous] is zero.
+     * Percentage change from [previous] to [current], rounded to the nearest integer with ties
+     * [half away from zero][roundedDiv], or null when [previous] is zero. The result is clamped to
+     * the [Int] range instead of truncating on overflow.
      *
      * `Money.MAX_MINOR_UNITS * 100` is about 1e17, well below `Long.MAX_VALUE` (about 9.2e18), so
      * the multiplication cannot overflow.
@@ -54,7 +55,9 @@ object ReportMath {
     ): Int? {
         if (previous.isZero) return null
         val numerator = (current.minorUnits - previous.minorUnits) * 100L
-        return roundedDiv(numerator, previous.minorUnits).toInt()
+        return roundedDiv(numerator, previous.minorUnits)
+            .coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong())
+            .toInt()
     }
 
     /**
@@ -105,14 +108,17 @@ object ReportMath {
         return result
     }
 
-    /** Integer division rounded to the nearest unit (ties toward positive infinity). */
+    /**
+     * Integer division rounded to the nearest unit, half away from zero: the magnitude is
+     * `(abs(numerator) + abs(denominator) / 2) / abs(denominator)` and the sign follows the
+     * quotient, so +2.5 rounds to 3 and −2.5 rounds to −3.
+     */
     private fun roundedDiv(
         numerator: Long,
         denominator: Long,
-    ): Long =
-        if (denominator > 0) {
-            Math.floorDiv(numerator + denominator / 2, denominator)
-        } else {
-            Math.floorDiv(-numerator + -denominator / 2, -denominator)
-        }
+    ): Long {
+        val sign = if ((numerator < 0) != (denominator < 0)) -1L else 1L
+        val magnitude = (Math.abs(numerator) + Math.abs(denominator) / 2) / Math.abs(denominator)
+        return sign * magnitude
+    }
 }
