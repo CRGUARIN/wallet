@@ -114,10 +114,14 @@ class TransactionsViewModelTest {
     private fun defaultHandle(
         accountId: Long? = null,
         categoryId: Long? = null,
+        type: TransactionType? = null,
+        month: String? = null,
     ) = SavedStateHandle(
         mapOf(
             "accountId" to accountId,
             "categoryId" to categoryId,
+            "type" to type,
+            "month" to month,
         ),
     )
 
@@ -192,6 +196,44 @@ class TransactionsViewModelTest {
             assertThat(state.categoryId).isEqualTo(10L)
             assertThat(state.selectedCategory).isEqualTo(food)
             assertThat(state.hasActiveFilters).isTrue()
+        }
+
+    @Test
+    fun `route type argument preloads the type filter`() =
+        runTest(testDispatcher) {
+            val viewModel = observeState(createViewModel(defaultHandle(type = TransactionType.INCOME)))
+            advanceUntilIdle()
+
+            val state = viewModel.uiState.value
+            assertThat(state.type).isEqualTo(TransactionType.INCOME)
+            assertThat(state.hasActiveFilters).isTrue()
+        }
+
+    @Test
+    fun `route month argument preloads the selected month and the paged filter`() =
+        runTest(testDispatcher) {
+            val viewModel = createViewModel(defaultHandle(month = "2026-05"))
+            backgroundScope.launch { viewModel.uiState.collect {} }
+            backgroundScope.launch { viewModel.pagingData.collect {} }
+            advanceUntilIdle()
+
+            assertThat(viewModel.uiState.value.month).isEqualTo(YearMonth.of(2026, 5))
+            assertThat(transactionRepository.lastPagedFilter?.startDate).isEqualTo(LocalDate.of(2026, 5, 1))
+            assertThat(transactionRepository.lastPagedFilter?.endDate).isEqualTo(LocalDate.of(2026, 5, 31))
+        }
+
+    @Test
+    fun `a malformed route month falls back to the current month`() =
+        runTest(testDispatcher) {
+            val viewModel = createViewModel(defaultHandle(month = "not-a-month"))
+            backgroundScope.launch { viewModel.uiState.collect {} }
+            backgroundScope.launch { viewModel.pagingData.collect {} }
+            advanceUntilIdle()
+
+            assertThat(viewModel.uiState.value.month).isEqualTo(YearMonth.of(2026, 9))
+            assertThat(transactionRepository.lastPagedFilter?.startDate).isEqualTo(today.withDayOfMonth(1))
+            assertThat(transactionRepository.lastPagedFilter?.endDate)
+                .isEqualTo(today.withDayOfMonth(today.lengthOfMonth()))
         }
 
     @Test
