@@ -49,12 +49,21 @@ class ReportRepositoryImpl
                 .map { rows -> rows.map { it.toDomain() } }
                 .flowOn(ioDispatcher)
 
-        /** Contract stub: the body is implemented by the "datos y dominio" owner. */
         override fun observeBalanceDeltas(
             accountIds: Set<Long>,
             from: LocalDate,
             to: LocalDate,
-        ): Flow<BalanceDeltas> = flowOf(BalanceDeltas.EMPTY)
+        ): Flow<BalanceDeltas> {
+            if (accountIds.isEmpty()) return flowOf(BalanceDeltas.EMPTY)
+            return transactionDao
+                .observeBalanceDeltas(accountIds.toList(), from, to, from.minusDays(1))
+                .map { rows ->
+                    BalanceDeltas(
+                        openingDelta = Money(rows.filter { it.date < from }.sumOf { it.delta }),
+                        daily = rows.filter { it.date >= from }.associate { it.date to Money(it.delta) },
+                    )
+                }.flowOn(ioDispatcher)
+        }
     }
 
 private fun CategoryTotalRow.toDomain(): CategoryTotal =

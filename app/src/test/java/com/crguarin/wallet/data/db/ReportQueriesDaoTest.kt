@@ -297,6 +297,163 @@ class ReportQueriesDaoTest {
             assertThat(all.map { it.expense }).containsExactly(10L, 30L, 20L).inOrder()
         }
 
+    @Test
+    fun observeBalanceDeltas_combinesIncomeExpenseAndTransferSides() =
+        runTest {
+            insertTx(type = TransactionType.INCOME, amount = 100L, date = LocalDate.of(2026, 9, 5))
+            insertTx(type = TransactionType.EXPENSE, amount = 30L, date = LocalDate.of(2026, 9, 5))
+            insertTx(
+                type = TransactionType.TRANSFER,
+                amount = 50L,
+                toAccountId = accountSavingsId,
+                date = LocalDate.of(2026, 9, 6),
+            )
+            insertTx(
+                type = TransactionType.TRANSFER,
+                amount = 20L,
+                accountId = accountSavingsId,
+                toAccountId = accountCashId,
+                date = LocalDate.of(2026, 9, 7),
+            )
+
+            val rows =
+                transactionDao
+                    .observeBalanceDeltas(
+                        listOf(accountCashId),
+                        SEP_START,
+                        SEP_END,
+                        SEP_START.minusDays(1),
+                    ).first()
+
+            assertThat(rows)
+                .containsExactly(
+                    BalanceDeltaRow(LocalDate.of(2026, 9, 5), 70L),
+                    BalanceDeltaRow(LocalDate.of(2026, 9, 6), -50L),
+                    BalanceDeltaRow(LocalDate.of(2026, 9, 7), 20L),
+                ).inOrder()
+        }
+
+    @Test
+    fun observeBalanceDeltas_transferBetweenSetAccountsNetsToZero() =
+        runTest {
+            insertTx(type = TransactionType.INCOME, amount = 100L, date = LocalDate.of(2026, 9, 10))
+            insertTx(
+                type = TransactionType.TRANSFER,
+                amount = 50L,
+                toAccountId = accountSavingsId,
+                date = LocalDate.of(2026, 9, 10),
+            )
+
+            val rows =
+                transactionDao
+                    .observeBalanceDeltas(
+                        listOf(accountCashId, accountSavingsId),
+                        SEP_START,
+                        SEP_END,
+                        SEP_START.minusDays(1),
+                    ).first()
+
+            assertThat(rows).containsExactly(BalanceDeltaRow(LocalDate.of(2026, 9, 10), 100L))
+        }
+
+    @Test
+    fun observeBalanceDeltas_transferFromOutsideOnlyCountsTheDestinationSide() =
+        runTest {
+            insertTx(
+                type = TransactionType.TRANSFER,
+                amount = 50L,
+                toAccountId = accountSavingsId,
+                date = LocalDate.of(2026, 9, 10),
+            )
+            insertTx(type = TransactionType.EXPENSE, amount = 10L, date = LocalDate.of(2026, 9, 10))
+
+            val rows =
+                transactionDao
+                    .observeBalanceDeltas(
+                        listOf(accountSavingsId),
+                        SEP_START,
+                        SEP_END,
+                        SEP_START.minusDays(1),
+                    ).first()
+
+            // The cash expense is outside the set, so only the incoming +50 remains.
+            assertThat(rows).containsExactly(BalanceDeltaRow(LocalDate.of(2026, 9, 10), 50L))
+        }
+
+    @Test
+    fun observeBalanceDeltas_groupsMovementsBeforeFromIntoTheOpeningDate() =
+        runTest {
+            insertTx(type = TransactionType.INCOME, amount = 100L, date = LocalDate.of(2026, 8, 20))
+            insertTx(type = TransactionType.EXPENSE, amount = 30L, date = SEP_START)
+            insertTx(type = TransactionType.EXPENSE, amount = 5L, date = LocalDate.of(2026, 9, 5))
+
+            val from = LocalDate.of(2026, 9, 2)
+            val rows =
+                transactionDao
+                    .observeBalanceDeltas(
+                        listOf(accountCashId),
+                        from,
+                        SEP_END,
+                        from.minusDays(1),
+                    ).first()
+
+            assertThat(rows)
+                .containsExactly(
+                    BalanceDeltaRow(LocalDate.of(2026, 9, 1), 70L),
+                    BalanceDeltaRow(LocalDate.of(2026, 9, 5), -5L),
+                ).inOrder()
+        }
+
+    @Test
+    fun observeBalanceDeltas_toIsInclusiveAndLaterMovementsAreExcluded() =
+        runTest {
+            insertTx(type = TransactionType.EXPENSE, amount = 10L, date = SEP_END)
+            insertTx(type = TransactionType.INCOME, amount = 999L, date = SEP_END.plusDays(1))
+
+            val rows =
+                transactionDao
+                    .observeBalanceDeltas(
+                        listOf(accountCashId),
+                        SEP_START,
+                        SEP_END,
+                        SEP_START.minusDays(1),
+                    ).first()
+
+            assertThat(rows).containsExactly(BalanceDeltaRow(SEP_END, -10L))
+        }
+
+    @Test
+    fun observeBalanceDeltas_singleAccountSetIgnoresOtherAccounts() =
+        runTest {
+            insertTx(type = TransactionType.EXPENSE, amount = 10L, date = LocalDate.of(2026, 9, 10))
+            insertTx(
+                type = TransactionType.EXPENSE,
+                amount = 999L,
+                accountId = accountSavingsId,
+                date = LocalDate.of(2026, 9, 10),
+            )
+
+            val cash =
+                transactionDao
+                    .observeBalanceDeltas(
+                        listOf(accountCashId),
+                        SEP_START,
+                        SEP_END,
+                        SEP_START.minusDays(1),
+                    ).first()
+            val both =
+                transactionDao
+                    .observeBalanceDeltas(
+                        listOf(accountCashId, accountSavingsId),
+                        SEP_START,
+                        SEP_END,
+                        SEP_START.minusDays(1),
+                    ).first()
+
+            assertThat(cash).containsExactly(BalanceDeltaRow(LocalDate.of(2026, 9, 10), -10L))
+            assertThat(both).containsExactly(BalanceDeltaRow(LocalDate.of(2026, 9, 10), -1009L))
+        }
+
     private suspend fun insertTx(
         type: TransactionType,
         amount: Long,
