@@ -1,6 +1,7 @@
 package com.crguarin.wallet.domain.usecase
 
 import com.crguarin.wallet.core.money.Money
+import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.card.BalanceWarning
@@ -9,8 +10,12 @@ import com.crguarin.wallet.domain.repository.TransactionRepository
 import javax.inject.Inject
 
 /**
- * Returns [BalanceWarning.NEGATIVE_BALANCE] when saving [transaction] as an EXPENSE would leave
- * its account with a negative balance. INCOME transactions never produce a negative balance.
+ * Warning shown before saving [transaction].
+ *
+ * On a credit card the balance is normally negative, so instead of warning about that,
+ * it warns with [BalanceWarning.OVER_CREDIT_LIMIT] when the resulting balance drops below
+ * the negated credit limit (the debt exceeds the limit). Other accounts keep the
+ * [BalanceWarning.NEGATIVE_BALANCE] rule.
  *
  * When editing, the effect of the original transaction on the current balance is
  * discounted first, so re-saving without changes does not warn. Changing the
@@ -26,8 +31,8 @@ class CheckNegativeBalanceUseCase
             if (transaction.type != TransactionType.EXPENSE && transaction.type != TransactionType.TRANSFER) {
                 return BalanceWarning.NONE
             }
-            val currentBalance =
-                accountRepository.getAccountWithBalance(transaction.accountId)?.balance ?: Money.ZERO
+            val accountWithBalance = accountRepository.getAccountWithBalance(transaction.accountId)
+            val currentBalance = accountWithBalance?.balance ?: Money.ZERO
             val baselineBalance =
                 if (transaction.id != 0L) {
                     val existing = transactionRepository.getTransaction(transaction.id)
@@ -39,7 +44,17 @@ class CheckNegativeBalanceUseCase
                 } else {
                     currentBalance
                 }
-            return if ((baselineBalance - transaction.amount).isNegative) {
+            val resultingBalance = baselineBalance - transaction.amount
+            val account = accountWithBalance?.account
+            if (account?.type == AccountType.CREDIT_CARD) {
+                val creditLimit = account.creditLimit ?: return BalanceWarning.NONE
+                return if (resultingBalance < -creditLimit) {
+                    BalanceWarning.OVER_CREDIT_LIMIT
+                } else {
+                    BalanceWarning.NONE
+                }
+            }
+            return if (resultingBalance.isNegative) {
                 BalanceWarning.NEGATIVE_BALANCE
             } else {
                 BalanceWarning.NONE

@@ -28,6 +28,8 @@ fun DomainError.asStringRes(): Int =
         is DomainError.CategoryArchived -> R.string.error_category_archived
         is DomainError.SameCategoryReassignment -> R.string.error_same_category_reassignment
         is DomainError.InvalidTransaction -> R.string.error_invalid_transaction
+        is DomainError.CardDayInvalid -> R.string.card_error_day_invalid
+        is DomainError.AccountTypeChangeNotAllowed -> R.string.error_account_type_change_not_allowed
         is DomainError.BackupInvalid -> R.string.error_backup_invalid
         is DomainError.BackupVersionUnsupported -> R.string.error_backup_version_unsupported
         is DomainError.BackupFailed -> R.string.error_backup_failed

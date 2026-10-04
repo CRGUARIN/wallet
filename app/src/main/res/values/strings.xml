@@ -297,6 +297,7 @@
     <string name="error_backup_invalid">El archivo no es un backup válido de Wallet</string>
     <string name="error_backup_version_unsupported">Versión de copia de seguridad no soportada</string>
     <string name="error_backup_failed">No se pudo completar la operación de backup. Tus datos actuales no se modificaron.</string>
+    <string name="error_account_type_change_not_allowed">No se puede cambiar el tipo de una cuenta con movimientos</string>
 
     <!-- Categorías del sistema - Gastos -->
     <string name="category_food">Alimentación</string>
