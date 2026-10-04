@@ -413,7 +413,7 @@ class BackupRepositoryImplTest {
 
             val result = repository(target).importBackup(parser.encode(card))
 
-            assertThat(result).isEqualTo(DomainResult.Success(BackupSummary(3, 5, 5)))
+            assertThat(result).isEqualTo(DomainResult.Success(BackupSummary(3, 5, 5, cardStatements = 2)))
             val exported = (repository(target).exportBackup() as DomainResult.Success).value
             val decoded = (parser.decode(exported) as DomainResult.Success).value
             assertThat(decoded.copy(exportedAt = card.exportedAt, appVersion = card.appVersion)).isEqualTo(card)

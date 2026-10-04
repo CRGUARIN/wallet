@@ -348,6 +348,7 @@
     <string name="backup_import_confirm_action">Importar</string>
     <string name="backup_import_warning">Esto reemplazará todos tus datos actuales</string>
     <string name="backup_summary_format">%1$s, %2$s, %3$s</string>
+    <string name="backup_summary_format_with_statements">%1$s, %2$s, %3$s, %4$s</string>
     <plurals name="backup_summary_accounts">
         <item quantity="one">%d cuenta</item>
         <item quantity="other">%d cuentas</item>
@@ -359,6 +360,10 @@
     <plurals name="backup_summary_transactions">
         <item quantity="one">%d movimiento</item>
         <item quantity="other">%d movimientos</item>
+    </plurals>
+    <plurals name="backup_summary_statements">
+        <item quantity="one">%d extracto</item>
+        <item quantity="other">%d extractos</item>
     </plurals>
     <string name="cd_loading">Cargando</string>
     <string name="a11y_amount_income">Ingreso, %1$s</string>

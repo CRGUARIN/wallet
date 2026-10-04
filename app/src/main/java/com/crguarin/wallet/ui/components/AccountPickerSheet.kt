@@ -161,6 +161,7 @@ fun AccountPickerSheet(
                                 CardRowBalance(
                                     overview = cardOverview,
                                     today = today,
+                                    horizontalAlignment = Alignment.Start,
                                 )
                             } else {
                                 MoneyText(

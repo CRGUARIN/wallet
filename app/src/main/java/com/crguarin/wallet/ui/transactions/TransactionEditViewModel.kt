@@ -20,6 +20,7 @@ import com.crguarin.wallet.domain.model.DomainLimits
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.card.BalanceWarning
+import com.crguarin.wallet.domain.model.card.CardOverview
 import com.crguarin.wallet.domain.repository.AccountRepository
 import com.crguarin.wallet.domain.repository.CategoryRepository
 import com.crguarin.wallet.domain.repository.PreferencesRepository
@@ -29,6 +30,7 @@ import com.crguarin.wallet.domain.usecase.DeleteTransactionUseCase
 import com.crguarin.wallet.domain.usecase.ObserveAccountsUseCase
 import com.crguarin.wallet.domain.usecase.ObserveCategoryTreeUseCase
 import com.crguarin.wallet.domain.usecase.SaveTransactionUseCase
+import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewsUseCase
 import com.crguarin.wallet.ui.navigation.NEW_CATEGORY_RESULT_KEY
 import com.crguarin.wallet.ui.navigation.TransactionEdit
 import com.crguarin.wallet.ui.util.asStringRes
@@ -89,6 +91,9 @@ data class TransactionEditUiState(
     val isSaving: Boolean = false,
     /** Warning that triggered the confirmation dialog; NONE when the dialog is not about balance. */
     val balanceWarning: BalanceWarning = BalanceWarning.NONE,
+    /** Card debt and available credit, shown for cards in the account pickers. */
+    val cardOverviews: Map<Long, CardOverview> = emptyMap(),
+    val today: LocalDate = LocalDate.now(),
     /** Number of installments for a card purchase; 1 means a single payment (saved as null). */
     val installments: Int = 1,
     val showNegativeBalanceDialog: Boolean = false,
@@ -178,6 +183,7 @@ class TransactionEditViewModel
         private val deleteTransactionUseCase: DeleteTransactionUseCase,
         private val checkNegativeBalanceUseCase: CheckNegativeBalanceUseCase,
         private val timeProvider: TimeProvider,
+        private val observeCardOverviewsUseCase: ObserveCardOverviewsUseCase,
     ) : ViewModel() {
         private val route: TransactionEdit = savedStateHandle.toRoute<TransactionEdit>()
         val targetTransactionId: Long? = route.transactionId
@@ -202,6 +208,7 @@ class TransactionEditViewModel
             selectedTypeFlow = MutableStateFlow(defaultType)
             _uiState.value =
                 TransactionEditUiState(
+                    today = today,
                     selectedType = defaultType,
                     amountText = savedStateHandle.get<String>(KEY_AMOUNT).orEmpty(),
                     accountId = savedStateHandle.get<Long>(KEY_ACCOUNT),
@@ -216,6 +223,11 @@ class TransactionEditViewModel
 
             viewModelScope.launch {
                 loadInitialData(today)
+            }
+            viewModelScope.launch {
+                observeCardOverviewsUseCase().collect { overviews ->
+                    _uiState.update { it.copy(cardOverviews = overviews) }
+                }
             }
             viewModelScope.launch {
                 observeAccountsUseCase(false).collect { accounts ->

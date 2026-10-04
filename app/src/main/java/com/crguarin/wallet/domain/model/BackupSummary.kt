@@ -7,6 +7,8 @@ data class BackupSummary(
     val accounts: Int,
     val categories: Int,
     val transactions: Int,
+    /** Credit card statements; only backups from schema 2 have them. */
+    val cardStatements: Int = 0,
 )
 
 /**

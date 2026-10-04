@@ -120,13 +120,23 @@ private fun BusyIndicator(isBusy: Boolean) {
 }
 
 @Composable
-private fun summaryText(summary: BackupSummary): String =
-    stringResource(
-        R.string.backup_summary_format,
-        pluralStringResource(R.plurals.backup_summary_accounts, summary.accounts, summary.accounts),
-        pluralStringResource(R.plurals.backup_summary_categories, summary.categories, summary.categories),
-        pluralStringResource(R.plurals.backup_summary_transactions, summary.transactions, summary.transactions),
-    )
+private fun summaryText(summary: BackupSummary): String {
+    val accounts = pluralStringResource(R.plurals.backup_summary_accounts, summary.accounts, summary.accounts)
+    val categories = pluralStringResource(R.plurals.backup_summary_categories, summary.categories, summary.categories)
+    val transactions =
+        pluralStringResource(R.plurals.backup_summary_transactions, summary.transactions, summary.transactions)
+    return if (summary.cardStatements > 0) {
+        stringResource(
+            R.string.backup_summary_format_with_statements,
+            accounts,
+            categories,
+            transactions,
+            pluralStringResource(R.plurals.backup_summary_statements, summary.cardStatements, summary.cardStatements),
+        )
+    } else {
+        stringResource(R.string.backup_summary_format, accounts, categories, transactions)
+    }
+}
 
 @Composable
 private fun SectionHeader(text: String) {

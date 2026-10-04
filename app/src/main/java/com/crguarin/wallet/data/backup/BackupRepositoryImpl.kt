@@ -96,7 +96,7 @@ class BackupRepositoryImpl
             }
         }
 
-        private fun BackupDto.toSummary() = BackupSummary(accounts.size, categories.size, transactions.size)
+        private fun BackupDto.toSummary() = BackupSummary(accounts.size, categories.size, transactions.size, cardStatements.size)
 
         private inline fun <T> guarded(block: () -> DomainResult<T>): DomainResult<T> =
             try {

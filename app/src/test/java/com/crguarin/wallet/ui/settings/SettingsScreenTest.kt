@@ -204,6 +204,15 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun `summary counts card statements when the backup has them`() {
+        show(SettingsUiState(pendingImport = BackupSummary(3, 21, 11, cardStatements = 2)))
+
+        composeRule
+            .onNodeWithText("3 cuentas, 21 categorías, 11 movimientos, 2 extractos", substring = true)
+            .assertIsDisplayed()
+    }
+
+    @Test
     @Config(qualifiers = "en")
     fun `confirmation dialog is translated`() {
         show(SettingsUiState(pendingImport = BackupSummary(2, 4, 6)))

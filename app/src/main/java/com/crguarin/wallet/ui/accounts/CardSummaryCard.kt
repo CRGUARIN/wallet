@@ -84,7 +84,7 @@ fun PaymentReminderChip(
 }
 
 /**
- * Right-side amounts for a card row: debt (or credit in favor) with its label, available below,
+ * Amounts for a card row: debt (or credit in favor) with its label, available below,
  * and the payment reminder chip when it applies.
  */
 @Composable
@@ -92,11 +92,13 @@ fun CardRowBalance(
     overview: CardOverview,
     today: LocalDate,
     modifier: Modifier = Modifier,
+    // End for the trailing side of list rows; Start where the block sits under the account name.
+    horizontalAlignment: Alignment.Horizontal = Alignment.End,
 ) {
     val inFavor = overview.debt < Money.ZERO
     val displayAmount = if (inFavor) -overview.debt else overview.debt
     Column(
-        horizontalAlignment = Alignment.End,
+        horizontalAlignment = horizontalAlignment,
         modifier = modifier,
     ) {
         Text(

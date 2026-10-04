@@ -326,6 +326,8 @@ fun TransactionEditScreen(
             accounts = uiState.accounts.filter { it.account.id != uiState.toAccountId },
             selectedAccountId = uiState.accountId,
             onAccountSelected = { onAccountSelected(it.account.id) },
+            cardOverviews = uiState.cardOverviews,
+            today = uiState.today,
             onDismissRequest = onDismissAccountSheet,
         )
     }
@@ -335,6 +337,8 @@ fun TransactionEditScreen(
             accounts = uiState.accounts.filter { it.account.id != uiState.accountId },
             selectedAccountId = uiState.toAccountId,
             onAccountSelected = { onToAccountSelected(it.account.id) },
+            cardOverviews = uiState.cardOverviews,
+            today = uiState.today,
             onDismissRequest = onDismissToAccountSheet,
         )
     }

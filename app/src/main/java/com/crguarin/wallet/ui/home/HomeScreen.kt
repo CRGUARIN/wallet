@@ -1,15 +1,18 @@
 package com.crguarin.wallet.ui.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,8 +20,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -348,15 +351,24 @@ internal fun AccountsRow(
     cardOverviews: Map<Long, CardOverview> = emptyMap(),
     today: LocalDate = LocalDate.now(),
 ) {
-    LazyRow(
+    // A plain scrollable Row (few accounts) so every tile takes the height of the tallest one:
+    // card tiles show an extra "available" line.
+    Row(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier =
+            Modifier
+                .horizontalScroll(rememberScrollState())
+                .height(IntrinsicSize.Min),
     ) {
-        items(items = accounts, key = { it.account.id }) { item ->
+        accounts.forEach { item ->
             val cardOverview = cardOverviews[item.account.id]
             OutlinedCard(
                 onClick = { onAccountClick(item.account.id) },
                 shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.width(170.dp),
+                modifier =
+                    Modifier
+                        .width(170.dp)
+                        .fillMaxHeight(),
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Box(
@@ -387,6 +399,7 @@ internal fun AccountsRow(
                         CardRowBalance(
                             overview = cardOverview,
                             today = today,
+                            horizontalAlignment = Alignment.Start,
                         )
                     } else {
                         MoneyText(

@@ -5,6 +5,7 @@ import app.cash.turbine.test
 import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.fake.FakeAccountRepository
+import com.crguarin.wallet.domain.fake.FakeCardStatementRepository
 import com.crguarin.wallet.domain.fake.FakeCategoryRepository
 import com.crguarin.wallet.domain.fake.FakePreferencesRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
@@ -22,6 +23,8 @@ import com.crguarin.wallet.domain.usecase.DeleteTransactionUseCase
 import com.crguarin.wallet.domain.usecase.ObserveAccountsUseCase
 import com.crguarin.wallet.domain.usecase.ObserveCategoryTreeUseCase
 import com.crguarin.wallet.domain.usecase.SaveTransactionUseCase
+import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewUseCase
+import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewsUseCase
 import com.crguarin.wallet.ui.navigation.NEW_CATEGORY_RESULT_KEY
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
@@ -141,6 +144,11 @@ class TransactionEditViewModelTest {
             deleteTransactionUseCase = deleteTransactionUseCase,
             checkNegativeBalanceUseCase = checkNegativeBalanceUseCase,
             timeProvider = timeProvider,
+            observeCardOverviewsUseCase =
+                ObserveCardOverviewsUseCase(
+                    accountRepository,
+                    ObserveCardOverviewUseCase(accountRepository, FakeCardStatementRepository(), timeProvider),
+                ),
         )
 
     private fun creationHandle(

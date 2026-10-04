@@ -344,6 +344,7 @@
     <string name="backup_import_confirm_action">Import</string>
     <string name="backup_import_warning">This will replace all your current data</string>
     <string name="backup_summary_format">%1$s, %2$s, %3$s</string>
+    <string name="backup_summary_format_with_statements">%1$s, %2$s, %3$s, %4$s</string>
     <plurals name="backup_summary_accounts">
         <item quantity="one">%d account</item>
         <item quantity="other">%d accounts</item>
@@ -355,6 +356,10 @@
     <plurals name="backup_summary_transactions">
         <item quantity="one">%d transaction</item>
         <item quantity="other">%d transactions</item>
+    </plurals>
+    <plurals name="backup_summary_statements">
+        <item quantity="one">%d statement</item>
+        <item quantity="other">%d statements</item>
     </plurals>
     <string name="cd_loading">Loading</string>
     <string name="a11y_amount_income">Income, %1$s</string>
