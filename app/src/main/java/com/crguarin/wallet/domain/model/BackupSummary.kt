@@ -9,6 +9,8 @@ data class BackupSummary(
     val transactions: Int,
     /** Credit card statements; only backups from schema 2 have them. */
     val cardStatements: Int = 0,
+    /** Recurring payments; only backups from schema 3 have them. */
+    val recurringPayments: Int = 0,
 )
 
 /**

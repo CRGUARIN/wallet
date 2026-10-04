@@ -20,4 +20,9 @@ data class Transaction(
      * account; informational only (it does not change the amount, the debt or reports).
      */
     val installments: Int? = null,
+    /**
+     * Id of the recurring payment that generated this transaction; null when it was
+     * recorded by hand or when the rule was deleted.
+     */
+    val recurringId: Long? = null,
 )

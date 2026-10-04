@@ -13,6 +13,8 @@ import com.crguarin.wallet.ui.categories.CategoriesRoute
 import com.crguarin.wallet.ui.categories.CategoryEditRoute
 import com.crguarin.wallet.ui.home.HomeRoute
 import com.crguarin.wallet.ui.onboarding.OnboardingRoute
+import com.crguarin.wallet.ui.recurring.RecurringEditRoute
+import com.crguarin.wallet.ui.recurring.RecurringListRoute
 import com.crguarin.wallet.ui.reports.ReportsRoute
 import com.crguarin.wallet.ui.settings.SettingsRoute
 import com.crguarin.wallet.ui.transactions.TransactionEditRoute
@@ -185,6 +187,20 @@ fun WalletNavHost(
                 onReviewTransactions = { accountId, month ->
                     navController.navigate(Transactions(accountId = accountId, month = month))
                 },
+            )
+        }
+        composable<RecurringList> {
+            RecurringListRoute(
+                onNavigateBack = { navController.popBackStack() },
+                onAddClick = { navController.navigate(RecurringEdit()) },
+                onPaymentClick = { paymentId ->
+                    navController.navigate(RecurringEdit(paymentId = paymentId))
+                },
+            )
+        }
+        composable<RecurringEdit> {
+            RecurringEditRoute(
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     }

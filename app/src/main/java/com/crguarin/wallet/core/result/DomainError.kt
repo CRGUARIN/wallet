@@ -42,6 +42,16 @@ sealed interface DomainError {
 
     data object InvalidTransaction : DomainError
 
+    data object RecurringDateInPast : DomainError
+
+    data object RecurringEndBeforeStart : DomainError
+
+    data object RecurringIntervalInvalid : DomainError
+
+    data object AccountHasRecurring : DomainError
+
+    data object CategoryHasRecurring : DomainError
+
     data object CardDayInvalid : DomainError
 
     data object AccountTypeChangeNotAllowed : DomainError

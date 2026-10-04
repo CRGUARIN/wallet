@@ -64,6 +64,14 @@ data class CardReconcile(
 )
 
 @Serializable
+data object RecurringList
+
+@Serializable
+data class RecurringEdit(
+    val paymentId: Long? = null,
+)
+
+@Serializable
 data object Settings
 
 /**

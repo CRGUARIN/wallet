@@ -9,12 +9,15 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.crguarin.wallet.domain.model.ThemeMode
 import com.crguarin.wallet.domain.model.UserPreferences
+import com.crguarin.wallet.domain.model.notifications.NotificationSettings
 import com.crguarin.wallet.domain.repository.PreferencesRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import java.io.IOException
+import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -80,5 +83,20 @@ class PreferencesRepositoryImpl
                     preferences.remove(PreferencesKeys.LAST_USED_ACCOUNT_ID)
                 }
             }
+        }
+
+        // Provisional stubs: Task 16 (data) persists them in DataStore.
+        override fun observeNotificationSettings(): Flow<NotificationSettings> = flowOf(NotificationSettings())
+
+        override suspend fun getNotificationSettings(): NotificationSettings = NotificationSettings()
+
+        override suspend fun updateNotificationSettings(transform: (NotificationSettings) -> NotificationSettings) {
+            // No-op until the DataStore implementation lands.
+        }
+
+        override suspend fun getLastNotificationRunDate(): LocalDate? = null
+
+        override suspend fun setLastNotificationRunDate(date: LocalDate) {
+            // No-op until the DataStore implementation lands.
         }
     }

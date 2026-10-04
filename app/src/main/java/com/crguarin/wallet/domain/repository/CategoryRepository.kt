@@ -26,6 +26,10 @@ interface CategoryRepository {
 
     suspend fun countTransactions(categoryId: Long): Int
 
+    /**
+     * Moves every transaction and every recurring payment from one category to another of the
+     * same type, then deletes the source category, in a single transaction.
+     */
     suspend fun reassignAndDelete(
         fromCategoryId: Long,
         toCategoryId: Long,

@@ -28,6 +28,11 @@ fun DomainError.asStringRes(): Int =
         is DomainError.CategoryArchived -> R.string.error_category_archived
         is DomainError.SameCategoryReassignment -> R.string.error_same_category_reassignment
         is DomainError.InvalidTransaction -> R.string.error_invalid_transaction
+        is DomainError.RecurringDateInPast -> R.string.error_recurring_date_past
+        is DomainError.RecurringEndBeforeStart -> R.string.error_recurring_end_before_start
+        is DomainError.RecurringIntervalInvalid -> R.string.error_recurring_interval
+        is DomainError.AccountHasRecurring -> R.string.error_account_has_recurring
+        is DomainError.CategoryHasRecurring -> R.string.error_category_has_recurring
         is DomainError.CardDayInvalid -> R.string.card_error_day_invalid
         is DomainError.AccountTypeChangeNotAllowed -> R.string.error_account_type_change_not_allowed
         is DomainError.BackupInvalid -> R.string.error_backup_invalid
