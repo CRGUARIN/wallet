@@ -1,12 +1,16 @@
 package com.crguarin.wallet.domain.usecase.recurring
 
+import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.core.time.TimeProvider
+import com.crguarin.wallet.domain.model.recurring.RecurrenceMath
 import com.crguarin.wallet.domain.repository.RecurringRepository
 import javax.inject.Inject
 
 /**
- * Provisional stub: Task 16 (domain) implements pause/resume with nextDueDate recalculation.
+ * Pauses (`active = false`) or resumes a recurring payment. Resuming sets
+ * `nextDueDate = firstOnOrAfter(today)`, so paused periods are never caught
+ * up. A finished payment cannot resume without changing its `endDate`.
  */
 class SetRecurringActiveUseCase
     @Inject
@@ -17,5 +21,17 @@ class SetRecurringActiveUseCase
         suspend operator fun invoke(
             id: Long,
             active: Boolean,
-        ): DomainResult<Unit> = error("not implemented")
+        ): DomainResult<Unit> {
+            val payment =
+                recurringRepository.get(id)
+                    ?: return DomainResult.Failure(DomainError.NotFound)
+            if (!active) {
+                recurringRepository.save(payment.copy(isActive = false, updatedAt = timeProvider.now()))
+                return DomainResult.Success(Unit)
+            }
+            if (payment.isFinished) return DomainResult.Failure(DomainError.InvalidTransaction)
+            val nextDueDate = RecurrenceMath.firstOnOrAfter(payment, timeProvider.today())
+            recurringRepository.save(payment.copy(isActive = true, nextDueDate = nextDueDate, updatedAt = timeProvider.now()))
+            return DomainResult.Success(Unit)
+        }
     }

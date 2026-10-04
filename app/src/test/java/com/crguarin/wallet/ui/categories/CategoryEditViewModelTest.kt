@@ -3,6 +3,7 @@ package com.crguarin.wallet.ui.categories
 import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import com.crguarin.wallet.domain.fake.FakeCategoryRepository
+import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeSystemCategoryNames
 import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryNameMatcher
@@ -67,7 +68,7 @@ class CategoryEditViewModelTest {
                 currentNamesMap = mapOf("food" to "Alimentación"),
             )
         saveCategoryUseCase = SaveCategoryUseCase(categoryRepository, CategoryNameMatcher(systemCategoryNames))
-        deleteCategoryUseCase = DeleteCategoryUseCase(categoryRepository)
+        deleteCategoryUseCase = DeleteCategoryUseCase(categoryRepository, FakeRecurringRepository())
         reassignAndDeleteCategoryUseCase = ReassignAndDeleteCategoryUseCase(categoryRepository)
         archiveCategoryUseCase = ArchiveCategoryUseCase(categoryRepository)
 
