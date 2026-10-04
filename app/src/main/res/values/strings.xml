@@ -163,6 +163,7 @@
     <string name="account_edit_icon_label">Ícono</string>
     <string name="account_edit_include_in_total_title">Incluir en saldo total</string>
     <string name="account_edit_include_in_total_subtitle">Sumar el saldo de esta cuenta al total general</string>
+    <string name="account_edit_type_locked_message">El tipo no se puede cambiar porque la cuenta tiene movimientos</string>
 
     <!-- Componentes comunes -->
     <string name="account_picker_title">Seleccionar cuenta</string>

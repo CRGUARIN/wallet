@@ -22,6 +22,42 @@ class AccountFormRulesTest {
     }
 
     @Test
+    fun `selecting a card swaps the default icons for credit_card`() {
+        assertThat(iconAfterTypeChange(AccountType.CREDIT_CARD, "wallet")).isEqualTo("credit_card")
+        assertThat(iconAfterTypeChange(AccountType.CREDIT_CARD, "savings")).isEqualTo("credit_card")
+        assertThat(iconAfterTypeChange(AccountType.CREDIT_CARD, "credit_card")).isEqualTo("credit_card")
+    }
+
+    @Test
+    fun `leaving a card restores the default icon of the new type`() {
+        assertThat(iconAfterTypeChange(AccountType.CASH, "credit_card")).isEqualTo("wallet")
+        assertThat(iconAfterTypeChange(AccountType.SAVINGS, "credit_card")).isEqualTo("savings")
+    }
+
+    @Test
+    fun `custom icons survive card type changes`() {
+        assertThat(iconAfterTypeChange(AccountType.CREDIT_CARD, "bank")).isEqualTo("bank")
+        assertThat(iconAfterTypeChange(AccountType.CASH, "bank")).isEqualTo("bank")
+    }
+
+    @Test
+    fun `parseCardDay accepts 1 to 31`() {
+        assertThat(parseCardDay("1")).isEqualTo(1)
+        assertThat(parseCardDay("15")).isEqualTo(15)
+        assertThat(parseCardDay("31")).isEqualTo(31)
+        assertThat(parseCardDay(" 7 ")).isEqualTo(7)
+    }
+
+    @Test
+    fun `parseCardDay rejects out of range and non numeric input`() {
+        assertThat(parseCardDay("0")).isNull()
+        assertThat(parseCardDay("32")).isNull()
+        assertThat(parseCardDay("-5")).isNull()
+        assertThat(parseCardDay("")).isNull()
+        assertThat(parseCardDay("abc")).isNull()
+    }
+
+    @Test
     fun `name input error covers too long and blank names`() {
         assertThat(accountNameInputError("a".repeat(DomainLimits.NAME_MAX_LENGTH + 1)))
             .isEqualTo(DomainError.NameTooLong.asStringRes())

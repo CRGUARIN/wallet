@@ -16,10 +16,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material3.Button
@@ -49,6 +51,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -107,6 +110,9 @@ fun AccountEditRoute(
         onNameChanged = viewModel::setName,
         onTypeChanged = viewModel::setType,
         onInitialBalanceChanged = viewModel::setInitialBalanceText,
+        onCreditLimitChanged = viewModel::setCreditLimitText,
+        onStatementDayChanged = viewModel::setStatementDayText,
+        onPaymentDueDayChanged = viewModel::setPaymentDueDayText,
         onColorSelected = viewModel::setColor,
         onIconSelected = viewModel::setIcon,
         onIncludeInTotalChanged = viewModel::setIncludeInTotal,
@@ -130,6 +136,9 @@ fun AccountEditScreen(
     onSaveClick: () -> Unit,
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    onCreditLimitChanged: (String) -> Unit = {},
+    onStatementDayChanged: (String) -> Unit = {},
+    onPaymentDueDayChanged: (String) -> Unit = {},
 ) {
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -198,7 +207,7 @@ fun AccountEditScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            // Account Type Selector
+            // Account Type Selector: a column of full-width options so labels fit at fontScale 2.
             Text(
                 text = stringResource(R.string.account_edit_type_label),
                 style = MaterialTheme.typography.titleSmall,
@@ -206,34 +215,54 @@ fun AccountEditScreen(
                 modifier = Modifier.semantics { heading() },
             )
 
-            Row(
+            Column(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 AccountTypeEditOption(
                     type = AccountType.CASH,
                     isSelected = uiState.type == AccountType.CASH,
+                    enabled = !uiState.isTypeLocked,
                     onClick = { onTypeChanged(AccountType.CASH) },
                     icon = Icons.Default.AccountBalanceWallet,
                     label = stringResource(R.string.account_type_cash),
-                    modifier = Modifier.weight(1f),
                 )
                 AccountTypeEditOption(
                     type = AccountType.SAVINGS,
                     isSelected = uiState.type == AccountType.SAVINGS,
+                    enabled = !uiState.isTypeLocked,
                     onClick = { onTypeChanged(AccountType.SAVINGS) },
                     icon = Icons.Default.Savings,
                     label = stringResource(R.string.account_type_savings),
-                    modifier = Modifier.weight(1f),
+                )
+                AccountTypeEditOption(
+                    type = AccountType.CREDIT_CARD,
+                    isSelected = uiState.type == AccountType.CREDIT_CARD,
+                    enabled = !uiState.isTypeLocked,
+                    onClick = { onTypeChanged(AccountType.CREDIT_CARD) },
+                    icon = Icons.Default.CreditCard,
+                    label = stringResource(R.string.account_type_credit_card),
+                )
+            }
+            if (uiState.isTypeLocked) {
+                Text(
+                    text = stringResource(R.string.account_edit_type_locked_message),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
-            // Initial Balance Field
+            // Initial Balance Field (current debt for cards)
             Column {
                 AmountTextField(
                     value = uiState.initialBalanceText,
                     onValueChange = onInitialBalanceChanged,
-                    label = stringResource(R.string.account_edit_initial_balance_label),
+                    label =
+                        if (uiState.isCreditCard) {
+                            stringResource(R.string.card_current_debt_label)
+                        } else {
+                            stringResource(R.string.account_edit_initial_balance_label)
+                        },
                     errorMessage = uiState.amountErrorRes?.let { stringResource(it) },
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -267,6 +296,48 @@ fun AccountEditScreen(
                         }
                     }
                 }
+            }
+
+            if (uiState.isCreditCard) {
+                AmountTextField(
+                    value = uiState.creditLimitText,
+                    onValueChange = onCreditLimitChanged,
+                    label = stringResource(R.string.card_credit_limit_label),
+                    errorMessage = uiState.creditLimitErrorRes?.let { stringResource(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = uiState.statementDayText,
+                    onValueChange = onStatementDayChanged,
+                    label = { Text(text = stringResource(R.string.card_statement_day_label)) },
+                    supportingText = {
+                        Text(
+                            text =
+                                uiState.statementDayErrorRes?.let { stringResource(it) }
+                                    ?: stringResource(R.string.card_day_hint),
+                        )
+                    },
+                    isError = uiState.statementDayErrorRes != null,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = uiState.paymentDueDayText,
+                    onValueChange = onPaymentDueDayChanged,
+                    label = { Text(text = stringResource(R.string.card_payment_due_day_label)) },
+                    supportingText = {
+                        Text(
+                            text =
+                                uiState.paymentDueDayErrorRes?.let { stringResource(it) }
+                                    ?: stringResource(R.string.card_day_hint),
+                        )
+                    },
+                    isError = uiState.paymentDueDayErrorRes != null,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
 
             // Color Picker
@@ -379,9 +450,11 @@ private fun AccountTypeEditOption(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     label: String,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     OutlinedCard(
         onClick = onClick,
+        enabled = enabled,
         shape = RoundedCornerShape(12.dp),
         border =
             if (isSelected) {
@@ -398,14 +471,14 @@ private fun AccountTypeEditOption(
                         MaterialTheme.colorScheme.surface
                     },
             ),
-        modifier = modifier,
+        modifier = modifier.fillMaxWidth(),
     ) {
-        Column(
+        Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
                 imageVector = icon,
@@ -416,14 +489,14 @@ private fun AccountTypeEditOption(
                     } else {
                         MaterialTheme.colorScheme.onSurfaceVariant
                     },
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(28.dp),
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             Text(
                 text = label,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyLarge,
                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                textAlign = TextAlign.Center,
+                modifier = Modifier.weight(1f),
             )
         }
     }
