@@ -441,6 +441,7 @@
     <string name="recurring_settings_subtitle">Suscripciones, servicios y cobros periódicos</string>
     <string name="recurring_new">Nuevo pago recurrente</string>
     <string name="recurring_edit">Editar pago recurrente</string>
+    <string name="recurring_add">Agregar</string>
     <string name="recurring_empty_title">Sin pagos recurrentes</string>
     <string name="recurring_empty_message">Agrega tus suscripciones y servicios para que se registren solos.</string>
     <string name="recurring_section_pending">Por confirmar</string>
@@ -449,6 +450,7 @@
     <string name="recurring_monthly_expense">Gastos recurrentes al mes</string>
     <string name="recurring_monthly_income">Ingresos recurrentes al mes</string>
     <string name="recurring_monthly_note">Equivalente mensual aproximado</string>
+    <string name="recurring_name_label">Nombre</string>
     <string name="recurring_name_hint">Ej.: Netflix, arriendo, gimnasio</string>
     <string name="recurring_frequency_label">Frecuencia</string>
     <string name="recurring_frequency_weekly">Semanal</string>

@@ -194,7 +194,7 @@ fun RecurringListScreen(
             FloatingActionButton(onClick = onAddClick) {
                 Icon(
                     imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(R.string.action_add),
+                    contentDescription = stringResource(R.string.recurring_add),
                 )
             }
         },
@@ -212,7 +212,7 @@ fun RecurringListScreen(
                 icon = Icons.Default.Repeat,
                 title = stringResource(R.string.recurring_empty_title),
                 message = stringResource(R.string.recurring_empty_message),
-                actionLabel = stringResource(R.string.action_add),
+                actionLabel = stringResource(R.string.recurring_add),
                 onActionClick = onAddClick,
                 modifier = Modifier.padding(innerPadding),
             )

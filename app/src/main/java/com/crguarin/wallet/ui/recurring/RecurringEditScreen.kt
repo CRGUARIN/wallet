@@ -268,7 +268,7 @@ fun RecurringEditScreen(
                     OutlinedTextField(
                         value = uiState.name,
                         onValueChange = onNameChanged,
-                        label = { Text(text = stringResource(R.string.category_name_label)) },
+                        label = { Text(text = stringResource(R.string.recurring_name_label)) },
                         placeholder = { Text(text = stringResource(R.string.recurring_name_hint)) },
                         isError = uiState.nameErrorRes != null,
                         supportingText =

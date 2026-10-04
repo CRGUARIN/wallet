@@ -437,6 +437,7 @@
     <string name="recurring_settings_subtitle">Subscriptions, bills and periodic charges</string>
     <string name="recurring_new">New recurring payment</string>
     <string name="recurring_edit">Edit recurring payment</string>
+    <string name="recurring_add">Add</string>
     <string name="recurring_empty_title">No recurring payments</string>
     <string name="recurring_empty_message">Add your subscriptions and bills so they are recorded automatically.</string>
     <string name="recurring_section_pending">To confirm</string>
@@ -445,6 +446,7 @@
     <string name="recurring_monthly_expense">Recurring expenses per month</string>
     <string name="recurring_monthly_income">Recurring income per month</string>
     <string name="recurring_monthly_note">Approximate monthly equivalent</string>
+    <string name="recurring_name_label">Name</string>
     <string name="recurring_name_hint">E.g. Netflix, rent, gym</string>
     <string name="recurring_frequency_label">Frequency</string>
     <string name="recurring_frequency_weekly">Weekly</string>
