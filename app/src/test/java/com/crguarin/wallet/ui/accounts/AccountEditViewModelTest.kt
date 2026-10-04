@@ -360,4 +360,34 @@ class AccountEditViewModelTest {
             assertThat(state.statementDayErrorRes).isEqualTo(R.string.card_error_day_invalid)
             assertThat(accountRepository.getAllAccounts()).isEmpty()
         }
+
+    @Test
+    fun `saving a card stores negated debt limit and billing days`() =
+        runTest(testDispatcher) {
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to null))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+
+            viewModel.setName("RappiCard")
+            viewModel.setType(AccountType.CREDIT_CARD)
+            viewModel.setInitialBalanceText("2500")
+            viewModel.setCreditLimitText("500000")
+            viewModel.setStatementDayText("15")
+            viewModel.setPaymentDueDayText("5")
+
+            viewModel.events.test {
+                viewModel.saveAccount()
+                assertThat(awaitItem()).isEqualTo(AccountEditEvent.NavigateBack)
+
+                val accounts = accountRepository.getAllAccounts()
+                assertThat(accounts).hasSize(1)
+                val saved = accounts.first()
+                assertThat(saved.type).isEqualTo(AccountType.CREDIT_CARD)
+                assertThat(saved.initialBalance).isEqualTo(Money(-250_000L))
+                assertThat(saved.creditLimit).isEqualTo(Money(50_000_000L))
+                assertThat(saved.statementDay).isEqualTo(15)
+                assertThat(saved.paymentDueDay).isEqualTo(5)
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
 }
