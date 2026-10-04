@@ -9,8 +9,12 @@ import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
+import com.crguarin.wallet.domain.model.Category
+import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.recurring.RecurrenceFrequency
+import com.crguarin.wallet.domain.model.recurring.RecurringPayment
 import com.crguarin.wallet.domain.usecase.ObserveAccountsUseCase
 import com.crguarin.wallet.domain.usecase.ObserveMonthSummaryUseCase
 import com.crguarin.wallet.domain.usecase.ObserveTotalBalanceUseCase
@@ -42,6 +46,8 @@ class HomeViewModelTest {
     private lateinit var accountRepository: FakeAccountRepository
     private lateinit var transactionRepository: FakeTransactionRepository
     private lateinit var cardStatementRepository: FakeCardStatementRepository
+    private lateinit var categoryRepository: FakeCategoryRepository
+    private lateinit var recurringRepository: FakeRecurringRepository
     private lateinit var timeProvider: FakeTimeProvider
 
     private val cash =
@@ -73,6 +79,8 @@ class HomeViewModelTest {
         accountRepository = FakeAccountRepository()
         transactionRepository = FakeTransactionRepository()
         cardStatementRepository = FakeCardStatementRepository()
+        categoryRepository = FakeCategoryRepository()
+        recurringRepository = FakeRecurringRepository()
         timeProvider = FakeTimeProvider(baseInstant)
     }
 
@@ -95,9 +103,9 @@ class HomeViewModelTest {
                 ),
             observeUpcomingPaymentsUseCase =
                 ObserveUpcomingPaymentsUseCase(
-                    FakeRecurringRepository(),
+                    recurringRepository,
                     accountRepository,
-                    FakeCategoryRepository(),
+                    categoryRepository,
                     ObserveCardOverviewsUseCase(
                         accountRepository,
                         ObserveCardOverviewUseCase(accountRepository, cardStatementRepository, timeProvider),
@@ -237,5 +245,40 @@ class HomeViewModelTest {
             assertThat(overview).isNotNull()
             assertThat(overview?.debt).isEqualTo(Money(250_000L))
             assertThat(overview?.available).isEqualTo(Money(250_000L))
+        }
+
+    @Test
+    fun `upcoming payments from the domain reach the home state`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(listOf(cash, savings))
+            categoryRepository.setInitialData(
+                listOf(
+                    Category(id = 10L, name = "Suscripciones", type = CategoryType.EXPENSE, color = 1, icon = "repeat"),
+                ),
+            )
+            recurringRepository.setInitialData(
+                listOf(
+                    RecurringPayment(
+                        id = 5L,
+                        name = "Netflix",
+                        type = TransactionType.EXPENSE,
+                        amount = Money(45_900L),
+                        accountId = 1L,
+                        categoryId = 10L,
+                        frequency = RecurrenceFrequency.MONTHLY,
+                        startDate = today,
+                        nextDueDate = today,
+                        createdAt = baseInstant,
+                        updatedAt = baseInstant,
+                    ),
+                ),
+            )
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+
+            val upcoming = viewModel.uiState.value.upcomingPayments
+            assertThat(upcoming.map { it.title }).containsExactly("Netflix")
+            assertThat(upcoming.single().date).isEqualTo(today)
+            assertThat(upcoming.single().accountName).isEqualTo("Efectivo")
         }
 }

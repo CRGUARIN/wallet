@@ -361,6 +361,11 @@ class SettingsScreenTest {
             .onNode(isToggleable() and hasText("Avisar cuando se registre un cobro"))
             .performScrollTo()
             .assertIsNotEnabled()
+        composeRule
+            .onNode(isToggleable() and hasText("Avisar cuando haya un cobro por confirmar"))
+            .performScrollTo()
+            .assertIsNotEnabled()
+        composeRule.onNodeWithText("Hora de los avisos").performScrollTo().assertIsNotEnabled()
         composeRule.onNodeWithText("Enviar notificación de prueba").performScrollTo().assertIsNotEnabled()
     }
 
