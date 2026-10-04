@@ -44,7 +44,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
@@ -107,7 +107,7 @@ fun RecurringListRoute(
     }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val permission = permissionState ?: rememberNotificationPermissionState()
     val notificationsBlocked = !permission.granted && hasNotifiablePayments(uiState.overview)
 
@@ -115,7 +115,7 @@ fun RecurringListRoute(
         viewModel.events.collect { event ->
             when (event) {
                 is RecurringListEvent.ShowMessage -> {
-                    snackbarHostState.showSnackbar(context.getString(event.messageRes))
+                    snackbarHostState.showSnackbar(resources.getString(event.messageRes))
                 }
             }
         }
@@ -418,7 +418,7 @@ private fun PendingRow(
     onSkipClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val resources = LocalContext.current.resources
+    val resources = LocalResources.current
     Card(modifier = modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -475,12 +475,12 @@ private fun ActiveRow(
     modifier: Modifier = Modifier,
 ) {
     val payment = item.payment
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val locale = LocalConfiguration.current.locales[0]
     val schedule =
         remember(payment.frequency, payment.interval, payment.startDate, locale) {
             scheduleText(
-                resources = context.resources,
+                resources = resources,
                 frequency = payment.frequency,
                 interval = payment.interval,
                 startDate = payment.startDate,

@@ -38,7 +38,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
@@ -114,7 +114,7 @@ fun RecurringEditRoute(
     }
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    val context = LocalContext.current
+    val resources = LocalResources.current
     val permission = permissionState ?: rememberNotificationPermissionState()
 
     LaunchedEffect(viewModel) {
@@ -124,7 +124,7 @@ fun RecurringEditRoute(
                     if (event.needsPermissionRequest && !permission.granted) {
                         permission.request()
                     }
-                    snackbarHostState.showSnackbar(context.getString(R.string.recurring_saved))
+                    snackbarHostState.showSnackbar(resources.getString(R.string.recurring_saved))
                     onNavigateBack()
                 }
                 is RecurringEditEvent.Deleted -> onNavigateBack()
@@ -539,7 +539,7 @@ private fun FrequencySelector(
     onFrequencySelected: (RecurrenceFrequency) -> Unit,
     onIntervalChanged: (String) -> Unit,
 ) {
-    val resources = LocalContext.current.resources
+    val resources = LocalResources.current
     Column(modifier = Modifier.fillMaxWidth()) {
         FieldLabel(text = stringResource(R.string.recurring_frequency_label))
         Spacer(modifier = Modifier.height(4.dp))
@@ -721,7 +721,7 @@ private fun ReminderSelector(
     selected: Int?,
     onReminderSelected: (Int?) -> Unit,
 ) {
-    val resources = LocalContext.current.resources
+    val resources = LocalResources.current
     Column(modifier = Modifier.fillMaxWidth()) {
         FieldLabel(text = stringResource(R.string.recurring_reminder_label))
         Spacer(modifier = Modifier.height(4.dp))
