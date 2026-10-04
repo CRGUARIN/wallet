@@ -39,13 +39,21 @@ class WorkManagerDailySchedulerTest {
     }
 
     @Test
-    fun `schedule twice without replace keeps a single job`() {
+    fun `schedule twice without replace keeps the original job`() {
         scheduler.schedule(8, 0, replace = false)
+        val before =
+            workManager
+                .getWorkInfosForUniqueWork(WORK_NAME)
+                .get()
+                .single()
+                .id
+
         scheduler.schedule(9, 30, replace = false)
 
         val infos = workManager.getWorkInfosForUniqueWork(WORK_NAME).get()
-
         assertThat(infos).hasSize(1)
+        // KEEP must preserve the pending work: re-enqueuing on every app start must not reset the timer.
+        assertThat(infos.single().id).isEqualTo(before)
     }
 
     @Test

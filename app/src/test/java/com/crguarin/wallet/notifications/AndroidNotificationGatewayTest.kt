@@ -4,8 +4,10 @@ import android.Manifest
 import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
+import android.content.Intent
 import androidx.core.os.LocaleListCompat
 import androidx.test.core.app.ApplicationProvider
+import com.crguarin.wallet.MainActivity
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.core.money.MoneyFormatter
 import com.crguarin.wallet.domain.model.TransactionType
@@ -296,6 +298,125 @@ class AndroidNotificationGatewayTest {
     }
 
     @Test
+    fun `posted notifications carry the deep link and flags in their content intent`() {
+        useAppLocale("es")
+        val recurringEvent = upcoming()
+        val cardEvent =
+            NotificationEvent.CardClosing(
+                key = "card-close-42-2026-10-04",
+                accountId = 42,
+                cardName = "Visa",
+                closingDate = LocalDate.of(2026, 10, 4),
+                daysUntil = 0,
+            )
+
+        gateway.show(listOf(recurringEvent, cardEvent))
+
+        val recurringIntent = savedIntentOf(posted(recurringEvent))
+        assertThat(recurringIntent.action).isEqualTo(Intent.ACTION_VIEW)
+        assertThat(recurringIntent.component?.className).isEqualTo(MainActivity::class.java.name)
+        assertThat(recurringIntent.data.toString()).isEqualTo("wallet://recurring")
+        assertThat(recurringIntent.flags and Intent.FLAG_ACTIVITY_NEW_TASK)
+            .isEqualTo(Intent.FLAG_ACTIVITY_NEW_TASK)
+        assertThat(recurringIntent.flags and Intent.FLAG_ACTIVITY_CLEAR_TASK)
+            .isEqualTo(Intent.FLAG_ACTIVITY_CLEAR_TASK)
+
+        val cardIntent = savedIntentOf(posted(cardEvent))
+        assertThat(cardIntent.data.toString()).isEqualTo("wallet://account/42")
+
+        // One PendingIntent per event: the request code is the notification id.
+        val recurringPending = posted(recurringEvent).contentIntent
+        val cardPending = posted(cardEvent).contentIntent
+        assertThat(Shadows.shadowOf(recurringPending).requestCode).isEqualTo(recurringEvent.key.hashCode())
+        assertThat(Shadows.shadowOf(cardPending).requestCode).isEqualTo(cardEvent.key.hashCode())
+        assertThat(Shadows.shadowOf(recurringPending).requestCode)
+            .isNotEqualTo(Shadows.shadowOf(cardPending).requestCode)
+    }
+
+    @Test
+    fun `every event type resolves english texts when the app locale is english`() {
+        useAppLocale("en")
+        val date = LocalDate.of(2026, 10, 12)
+        val pending =
+            NotificationEvent.RecurringPending(
+                key = "rec-pend-en-1-2026-10-12",
+                paymentId = 1,
+                name = "Netflix",
+                type = TransactionType.EXPENSE,
+                amount = Money(1_590_000),
+                date = date,
+            )
+        val postedSingle =
+            NotificationEvent.RecurringPosted(
+                key = "rec-posted-en-1-2026-10-12",
+                occurrences = listOf(postedOccurrence(name = "Netflix", amount = Money(1_590_000), account = "Ahorros")),
+            )
+        val postedMany =
+            NotificationEvent.RecurringPosted(
+                key = "rec-posted-en-many-2026-10-12",
+                occurrences =
+                    listOf(
+                        postedOccurrence(name = "Netflix", amount = Money(1_590_000), account = "Ahorros"),
+                        postedOccurrence(name = "Spotify", amount = Money(999_000), account = "Nequi"),
+                        postedOccurrence(name = "Gimnasio", amount = Money(8_990_000), account = "Ahorros"),
+                    ),
+            )
+        val closing =
+            NotificationEvent.CardClosing(
+                key = "card-close-en-7-2026-10-12",
+                accountId = 7,
+                cardName = "Visa",
+                closingDate = date,
+                daysUntil = 2,
+            )
+        val dueToday =
+            NotificationEvent.CardPaymentDue(
+                key = "card-due-en-7-2026-10-12",
+                accountId = 7,
+                cardName = "Visa",
+                dueDate = date,
+                daysUntil = 0,
+                amount = Money(45_900_000),
+            )
+        val dueUnknown =
+            NotificationEvent.CardPaymentDue(
+                key = "card-due-en-8-2026-10-12",
+                accountId = 8,
+                cardName = "Master",
+                dueDate = date,
+                daysUntil = 3,
+                amount = null,
+            )
+        val overdue =
+            NotificationEvent.CardOverdue(
+                key = "card-over-en-7-2026-10-13",
+                accountId = 7,
+                cardName = "Visa",
+                dueDate = date,
+                amount = Money(45_900_000),
+            )
+
+        gateway.show(listOf(pending, postedSingle, postedMany, closing, dueToday, dueUnknown, overdue))
+        gateway.showTest()
+
+        assertThat(titleOf(posted(pending))).isEqualTo("Did you pay Netflix?")
+        assertThat(titleOf(posted(postedSingle))).isEqualTo("Netflix recorded")
+        assertThat(titleOf(posted(postedMany))).isEqualTo("3 recurring payments recorded")
+        assertThat(posted(postedMany).extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)).hasLength(3)
+        assertThat(titleOf(posted(closing))).isEqualTo("Visa statement closes in 2 days")
+        assertThat(titleOf(posted(dueToday))).isEqualTo("Visa payment is due today")
+        assertThat(textOf(posted(dueToday))).contains("Amount due:")
+        assertThat(textOf(posted(dueUnknown))).isEqualTo("Reconcile the statement to know how much to pay.")
+        assertThat(titleOf(posted(overdue))).isEqualTo("Visa payment is overdue")
+        val testNotification =
+            Shadows
+                .shadowOf(notificationManager())
+                .getNotification(AndroidNotificationGateway.TEST_KEY.hashCode())
+        assertThat(testNotification).isNotNull()
+        assertThat(titleOf(testNotification!!)).isEqualTo("Notifications work")
+    }
+
+    @Test
     fun `channels exist with localized names after notifying`() {
         useAppLocale("es")
 
@@ -367,6 +488,8 @@ class AndroidNotificationGatewayTest {
     private fun titleOf(notification: Notification): String = notification.extras.getString(Notification.EXTRA_TITLE).orEmpty()
 
     private fun textOf(notification: Notification): String = notification.extras.getString(Notification.EXTRA_TEXT).orEmpty()
+
+    private fun savedIntentOf(notification: Notification): Intent = Shadows.shadowOf(notification.contentIntent).savedIntent
 
     private fun LocalDate.formatMedium(locale: Locale): String =
         DateTimeFormatter.ofLocalizedDate(FormatStyle.MEDIUM).withLocale(locale).format(this)
