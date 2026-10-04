@@ -210,7 +210,6 @@ fun TransactionEditScreen(
     onTodayClick: () -> Unit,
     onYesterdayClick: () -> Unit,
     onNoteChanged: (String) -> Unit,
-    onInstallmentsChanged: (Int) -> Unit = {},
     onSaveClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onDismissDeleteDialog: () -> Unit,
@@ -219,6 +218,7 @@ fun TransactionEditScreen(
     onDismissNegativeBalance: () -> Unit,
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    onInstallmentsChanged: (Int) -> Unit = {},
 ) {
     Scaffold(
         modifier = modifier.fillMaxSize(),

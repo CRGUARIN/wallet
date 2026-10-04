@@ -383,7 +383,6 @@
     <string name="card_credit_in_favor">Credit balance</string>
     <string name="card_available">Available</string>
     <string name="card_used_of_limit">%1$s of %2$s used</string>
-    <string name="card_next_closing">Next statement: %1$s</string>
     <string name="card_closing_today">Statement closes today</string>
     <plurals name="card_closing_in_days">
         <item quantity="one">Statement in %d day</item>

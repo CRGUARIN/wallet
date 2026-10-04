@@ -387,7 +387,6 @@
     <string name="card_credit_in_favor">Saldo a favor</string>
     <string name="card_available">Disponible</string>
     <string name="card_used_of_limit">%1$s de %2$s usados</string>
-    <string name="card_next_closing">Próximo corte: %1$s</string>
     <string name="card_closing_today">Corte hoy</string>
     <plurals name="card_closing_in_days">
         <item quantity="one">Corte en %d día</item>
