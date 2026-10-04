@@ -533,12 +533,15 @@ class RecurringEditViewModel
             val interval = state.intervalText.toIntOrNull()
             val intervalError =
                 if (interval !in 1..12) DomainError.RecurringIntervalInvalid.asStringRes() else null
+            val original = originalPayment
             val nextDate = state.nextDate
+            // On edition the date field shows `nextDueDate`; picking a different date moves the
+            // calendar anchor, and the use case recalculates the next occurrence from today.
+            val dateIsNew = original == null || nextDate != original.nextDueDate
             val dateError =
                 when {
                     nextDate == null -> DomainError.RecurringDateInPast.asStringRes()
-                    state.isEditMode.not() && nextDate < state.today ->
-                        DomainError.RecurringDateInPast.asStringRes()
+                    dateIsNew && nextDate < state.today -> DomainError.RecurringDateInPast.asStringRes()
                     else -> null
                 }
             val endDate = if (state.endNever) null else state.endDate
@@ -575,7 +578,6 @@ class RecurringEditViewModel
             checkNotNull(nextDate)
             checkNotNull(interval)
             val now = timeProvider.now()
-            val original = originalPayment
             val payment =
                 RecurringPayment(
                     id = original?.id ?: 0L,
@@ -587,9 +589,9 @@ class RecurringEditViewModel
                     note = state.note.ifBlank { null },
                     frequency = state.frequency,
                     interval = interval,
-                    startDate = original?.startDate ?: nextDate,
+                    startDate = if (dateIsNew) nextDate else requireNotNull(original).startDate,
                     endDate = endDate,
-                    nextDueDate = original?.nextDueDate ?: nextDate,
+                    nextDueDate = if (dateIsNew) nextDate else requireNotNull(original).nextDueDate,
                     mode = state.mode,
                     reminderDaysBefore = state.reminderDaysBefore,
                     isActive = state.isActive,
