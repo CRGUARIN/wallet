@@ -1,13 +1,17 @@
 package com.crguarin.wallet.data.prefs
 
 import android.content.Context
+import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
 import com.crguarin.wallet.domain.model.ThemeMode
 import com.crguarin.wallet.domain.model.notifications.NotificationSettings
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -24,6 +28,7 @@ import java.time.LocalDate
 @Config(sdk = [35])
 class PreferencesRepositoryImplTest {
     private lateinit var repository: PreferencesRepositoryImpl
+    private lateinit var dataStore: DataStore<Preferences>
     private val testDispatcher = UnconfinedTestDispatcher()
     private val testScope = TestScope(testDispatcher)
 
@@ -31,7 +36,7 @@ class PreferencesRepositoryImplTest {
     fun setUp() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val testFile = File(context.filesDir, "datastore/test_prefs_${System.currentTimeMillis()}.preferences_pb")
-        val dataStore =
+        dataStore =
             PreferenceDataStoreFactory.create(
                 scope = testScope,
                 produceFile = { testFile },
@@ -135,5 +140,7 @@ class PreferencesRepositoryImplTest {
             repository.setLastNotificationRunDate(today)
 
             assertThat(repository.getLastNotificationRunDate()).isEqualTo(today)
+            val raw = dataStore.data.first()[stringPreferencesKey("last_notification_run_date")]
+            assertThat(raw).isEqualTo("2026-10-04")
         }
 }
