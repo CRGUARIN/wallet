@@ -42,6 +42,10 @@ sealed interface DomainError {
 
     data object InvalidTransaction : DomainError
 
+    data object CardDayInvalid : DomainError
+
+    data object AccountTypeChangeNotAllowed : DomainError
+
     data class BackupInvalid(
         val reason: String,
     ) : DomainError

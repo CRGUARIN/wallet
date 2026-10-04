@@ -292,6 +292,7 @@
     <string name="error_backup_invalid">The file is not a valid Wallet backup</string>
     <string name="error_backup_version_unsupported">Unsupported backup version</string>
     <string name="error_backup_failed">The backup operation could not be completed. Your current data was not changed.</string>
+    <string name="error_account_type_change_not_allowed">Cannot change the type of an account with transactions</string>
 
     <!-- System Categories - Expense -->
     <string name="category_food">Food</string>
