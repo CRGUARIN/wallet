@@ -1,26 +1,41 @@
 package com.crguarin.wallet.di
 
+import android.content.Context
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.work.WorkManager
 import com.crguarin.wallet.domain.repository.DailyWorkScheduler
 import com.crguarin.wallet.domain.repository.NotificationGateway
-import com.crguarin.wallet.notifications.NoopDailyWorkScheduler
-import com.crguarin.wallet.notifications.NoopNotificationGateway
+import com.crguarin.wallet.notifications.AndroidNotificationGateway
+import com.crguarin.wallet.notifications.AppLocaleSource
+import com.crguarin.wallet.notifications.WorkManagerDailyScheduler
 import dagger.Binds
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
-/**
- * Provisional bindings: Task 16 (platform) replaces the no-ops with real implementations.
- */
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class NotificationsModule {
     @Binds
     @Singleton
-    abstract fun bindNotificationGateway(impl: NoopNotificationGateway): NotificationGateway
+    abstract fun bindNotificationGateway(impl: AndroidNotificationGateway): NotificationGateway
 
     @Binds
     @Singleton
-    abstract fun bindDailyWorkScheduler(impl: NoopDailyWorkScheduler): DailyWorkScheduler
+    abstract fun bindDailyWorkScheduler(impl: WorkManagerDailyScheduler): DailyWorkScheduler
+
+    companion object {
+        @Provides
+        @Singleton
+        fun provideWorkManager(
+            @ApplicationContext context: Context,
+        ): WorkManager = WorkManager.getInstance(context)
+
+        @Provides
+        @Singleton
+        fun provideAppLocaleSource(): AppLocaleSource = AppLocaleSource { AppCompatDelegate.getApplicationLocales() }
+    }
 }
