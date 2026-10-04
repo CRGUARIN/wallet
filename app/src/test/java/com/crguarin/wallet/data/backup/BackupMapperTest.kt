@@ -1,6 +1,7 @@
 package com.crguarin.wallet.data.backup
 
 import com.crguarin.wallet.core.money.Money
+import com.crguarin.wallet.data.db.RecurringPaymentEntity
 import com.crguarin.wallet.data.db.TransactionEntity
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.TransactionType
@@ -128,6 +129,52 @@ class BackupMapperTest {
         assertThat(dto.reminderDaysBefore).isNull()
         assertThat(dto.mode).isEqualTo(RecurringMode.CONFIRM)
         assertThat(dto.toDomain().endDate).isEqualTo(LocalDate.of(2028, 1, 10))
+    }
+
+    @Test
+    fun `recurring payment dto round trips through the entity`() {
+        val dtos = validRecurringBackupDto().recurringPayments
+
+        assertThat(dtos.map { it.toEntity().toBackupDto() }).isEqualTo(dtos)
+    }
+
+    @Test
+    fun `recurring entity keeps all fields`() {
+        val entity = validRecurringBackupDto().recurringPayments.single { it.id == 2L }.toEntity()
+
+        assertThat(entity).isEqualTo(
+            RecurringPaymentEntity(
+                id = 2,
+                name = "SOAT",
+                type = TransactionType.EXPENSE,
+                amount = 30_000_000,
+                accountId = 2,
+                categoryId = 1,
+                note = "Moto",
+                frequency = RecurrenceFrequency.YEARLY,
+                interval = 1,
+                startDate = LocalDate.of(2026, 1, 10),
+                nextDueDate = LocalDate.of(2027, 1, 10),
+                endDate = LocalDate.of(2028, 1, 10),
+                mode = RecurringMode.CONFIRM,
+                reminderDaysBefore = null,
+                isActive = true,
+                createdAt = Instant.ofEpochMilli(1_790_000_000_000L),
+                updatedAt = Instant.ofEpochMilli(1_790_000_000_000L),
+            ),
+        )
+    }
+
+    @Test
+    fun `transaction recurring id round trips through the entity in both directions`() {
+        val generated = validRecurringBackupDto().transactions.single { it.id == 6L }
+
+        assertThat(generated.toEntity().recurringId).isEqualTo(1L)
+        assertThat(generated.toEntity().toBackupDto()).isEqualTo(generated)
+
+        val manual = validBackupDto().transactions.single { it.id == 1L }
+        assertThat(manual.toEntity().recurringId).isNull()
+        assertThat(manual.toEntity().toBackupDto()).isEqualTo(manual)
     }
 
     @Test
