@@ -44,6 +44,7 @@
 | Preferencias | **DataStore (Preferences)** | Tema, onboarding completado, etc. |
 | Asincronía | **Coroutines + Flow** | `StateFlow` en ViewModels; `collectAsStateWithLifecycle()` en Compose. |
 | Navegación | **Navigation Compose** con rutas type-safe (`@Serializable`) | |
+| Trabajo en segundo plano | **WorkManager** (desde la Tarea 16) | Revisión diaria de pagos recurrentes y notificaciones. |
 | Serialización | **kotlinx.serialization** | Rutas de navegación y backup JSON. |
 | Fechas | **java.time** (`LocalDate`, `Instant`, `ZoneId`) | minSdk 26 lo soporta sin desugaring. |
 | Idiomas | `strings.xml` (ES por defecto, EN en `values-en`) + **per-app language** (`AppCompatDelegate.setApplicationLocales`, `locales_config.xml`) | Requiere `androidx.appcompat` (se agrega en la Tarea 5). |
@@ -269,11 +270,35 @@ Una cuenta `CREDIT_CARD` tiene además cupo total (`creditLimit`), día de corte
 - **Aviso al guardar:** en tarjetas avisa si se supera el cupo (saldo < −`creditLimit`); en las demás cuentas, si el saldo queda negativo.
 - **Reportes:** no cambian (las compras ya son gastos, los pagos son transferencias). La vista Balance incluye la tarjeta y la deuda baja la línea del saldo.
 
+### 5.8 Pagos recurrentes (desde la Tarea 16)
+Un `RecurringPayment` registra UNA vez una suscripción, servicio o ingreso fijo, y la app genera los movimientos sola en cada periodo.
+| Campo | Tipo | Regla |
+|---|---|---|
+| name | String | obligatorio, 1–40 chars; se permiten repetidos |
+| type | TransactionType | EXPENSE o INCOME (nunca TRANSFER) |
+| amount | Money | > 0, ≤ `Money.MAX` |
+| accountId | Long | cuenta no archivada (puede ser tarjeta: el cobro sube la deuda como una compra) |
+| categoryId | Long | obligatoria, del mismo tipo, no archivada |
+| note | String? | máx. 200 chars |
+| frequency | WEEKLY / MONTHLY / YEARLY | con `interval` 1..12 ("cada N…") |
+| startDate | LocalDate | primer cobro y ANCLA del calendario |
+| endDate | LocalDate? | inclusiva; null = sin fin |
+| nextDueDate | LocalDate | próximo cobro aún no registrado ni omitido |
+| mode | AUTO / CONFIRM | AUTO se registra solo; CONFIRM pide Registrar/Omitir |
+| reminderDaysBefore | Int? | null o 1..7 días antes |
+| isActive | Boolean | pausar (`false`) congela el registro |
+- **Calendario anclado** (`RecurrenceMath`, puro): la ocurrencia k se calcula siempre desde `startDate` (semanas: `+7·interval·k` días; meses: mismo día o último del mes; años: mismo día+mes o 28 de febrero). Sin deriva.
+- **Registro idempotente con catch-up** (`ProcessDueRecurringUseCase`): mientras `nextDueDate ≤ hoy` inserta el movimiento (nota = `note ?: name`, `recurringId` = regla) y avanza `nextDueDate` en UNA transacción con control optimista; si el teléfono estuvo apagado registra los atrasados con su fecha real (tope 120/ejecución). Sin avisos de saldo: el cobro ya ocurrió.
+- **Pausar/reanudar**: pausar congela; reanudar pone `nextDueDate = firstOnOrAfter(hoy)` (los periodos de la pausa no se cobran).
+- **Bloqueos**: con cuenta o categoría archivada no se registra (motivo visible); al desarchivar, catch-up normal. Borrar cuenta/categoría con pagos falla; reasignar categoría mueve también los pagos.
+- **Borrado**: borrar la regla conserva los movimientos generados (`recurring_id` → NULL en la misma transacción).
+- **Notificaciones** (Ajustes > Notificaciones, en DataStore, NO en el backup): interruptor general, hora diaria del aviso (08:00), recordatorios previos, "se registró", "por confirmar", corte/pago/vencido de tarjetas con anticipación configurable. Permiso `POST_NOTIFICATIONS` pedido en contexto (Android 13+).
+
 ---
 
 ## 6. Base de datos (Room)
 
-`WalletDatabase` versión 2, `exportSchema = true` (migración 1→2 en la Tarea 15, con test).
+`WalletDatabase` versión 3, `exportSchema = true` (migración 1→2 en la Tarea 15 y 2→3 en la Tarea 16, ambas con test).
 
 ### 6.1 Tablas
 ```sql
@@ -318,9 +343,10 @@ transactions(
   note TEXT,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL,
-  installments INTEGER              -- v2, only EXPENSE on a card
+  installments INTEGER,             -- v2, only EXPENSE on a card
+  recurring_id INTEGER              -- v3, NO foreign key (see 6.3)
 )
-INDEX(account_id), INDEX(to_account_id), INDEX(category_id), INDEX(date)
+INDEX(account_id), INDEX(to_account_id), INDEX(category_id), INDEX(date), INDEX(recurring_id)
 
 card_statements(                    -- v2
   id INTEGER PK AUTOINCREMENT,
@@ -334,6 +360,27 @@ card_statements(                    -- v2
   created_at INTEGER NOT NULL
 )
 UNIQUE(account_id, closing_date), INDEX(adjustment_transaction_id)
+
+recurring_payments(               -- v3
+  id INTEGER PK AUTOINCREMENT,
+  name TEXT NOT NULL,
+  type TEXT NOT NULL,               -- 'INCOME' | 'EXPENSE'
+  amount INTEGER NOT NULL,          -- > 0
+  account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE RESTRICT,
+  category_id INTEGER NOT NULL REFERENCES categories(id) ON DELETE RESTRICT,
+  note TEXT,
+  frequency TEXT NOT NULL,          -- 'WEEKLY' | 'MONTHLY' | 'YEARLY'
+  interval INTEGER NOT NULL,        -- 1..12
+  start_date INTEGER NOT NULL,      -- LocalDate.toEpochDay()
+  end_date INTEGER,                 -- inclusive, null = endless
+  next_due_date INTEGER NOT NULL,
+  mode TEXT NOT NULL,               -- 'AUTO' | 'CONFIRM'
+  reminder_days_before INTEGER,     -- null or 1..7
+  is_active INTEGER NOT NULL DEFAULT 1,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+)
+INDEX(account_id), INDEX(category_id), INDEX(next_due_date)
 ```
 - `TypeConverters` para enums (por `name`), `LocalDate` (epochDay) e `Instant` (epochMillis).
 - Foreign keys **RESTRICT**: la lógica de borrado vive en los casos de uso; la BD es la última barrera.
@@ -364,6 +411,7 @@ UNIQUE(account_id, closing_date), INDEX(adjustment_transaction_id)
 ### 6.3 Migraciones
 - v1 es la base. Toda migración futura debe tener `Migration` explícita **y** test con `MigrationTestHelper`. **Prohibido** `fallbackToDestructiveMigration()` en release.
 - Migración 1→2 (Tarea 15): agrega las 3 columnas de tarjeta a `accounts`, `installments` a `transactions` y crea `card_statements`; conserva todos los datos. Test con `MigrationTestHelper` (nota: en AGP 9 los assets del source set `test` no llegan al test, así que `app/schemas` se registra como assets del source set `debug`).
+- Migración 2→3 (Tarea 16): agrega `recurring_id` a `transactions` y crea `recurring_payments` con sus índices; conserva todos los datos (el dueño tiene datos reales en v2). `recurring_id` NO tiene foreign key a propósito: agregarla obligaría a reconstruir la tabla de transacciones con los datos reales; la consistencia la garantiza `RecurringRepository.delete`, que pone a NULL los `recurring_id` en la misma transacción. Test con `MigrationTestHelper`, incluida la cadena 1→2→3.
 
 ### 6.4 Seed inicial
 En el primer arranque (`RoomDatabase.Callback.onCreate` o, mejor, un `DefaultCategoriesSeeder` invocado por el onboarding) se crean las categorías por defecto con `systemKey`:
@@ -453,8 +501,12 @@ AccountDetail(accountId: Long)
 AccountEdit(accountId: Long? = null)
 Categories(type: CategoryType = EXPENSE)
 CategoryEdit(categoryId: Long? = null, parentId: Long? = null, type: CategoryType)
+CardReconcile(accountId: Long)
+RecurringList
+RecurringEdit(paymentId: Long? = null)
 Settings
 ```
+Deep links de notificaciones (Tarea 16, explícitos a `MainActivity`, sin intent-filters): `wallet://recurring` → `RecurringList`, `wallet://account/{accountId}` → `AccountDetail`. Se manejan una vez desde el intent de arranque y se ignoran si el onboarding no está completo.
 
 ### 8.3 Pantallas
 
@@ -522,14 +574,26 @@ Settings
 - Idioma: Sistema / Español / English (per-app language).
 - Tema: Sistema / Claro / Oscuro; Dynamic color on/off.
 - Categorías → pantalla Categorías.
-- Backup: **Exportar** / **Importar**.
+- Datos → **Pagos recurrentes** (la barra inferior no cambia: sigue con 5 destinos).
+- **Notificaciones**: interruptor general (pide `POST_NOTIFICATIONS` en Android 13+), hora diaria de los avisos, interruptores de recordatorios/cobros registrados/por confirmar y de corte/pago/vencido de tarjetas (estos últimos solo si hay tarjetas), botón de notificación de prueba.
+- Backup: **Exportar** / **Importar** (el resumen incluye los pagos recurrentes).
 - Acerca de: versión de la app.
+
+**Pagos recurrentes (lista)**
+- Resumen de equivalente mensual (gastos y, si hay, ingresos) + aviso para activar notificaciones si están bloqueadas y hay recordatorios o modos CONFIRM.
+- Secciones: **Por confirmar** (con botones Registrar/Omitir y diálogos), **Activos** (calendario, próximo cobro, cuenta, insignia de modo, motivo de bloqueo) y **Pausados y finalizados**. FAB para agregar; estado vacío amigable.
+
+**Pago recurrente (formulario)**
+- Tipo Gasto/Ingreso, nombre, monto, cuenta (sin archivadas, con tarjetas), categoría del tipo, frecuencia + "repetir cada N", próximo cobro (con ayuda), fin (nunca/fecha), modo (automático/preguntarme con descripción), recordatorio y nota. En edición: interruptor Activo, eliminar con confirmación y últimos 6 registros generados.
+
+**Inicio: tarjeta "Próximos pagos"**
+- Lo de los próximos 7 días por fecha (máx. 5 filas): ocurrencias AUTO, por confirmar (con etiqueta) y el pago pendiente de cada tarjeta. Solo visible si hay algo; "Ver todos" abre la lista de recurrentes.
 
 ---
 
 ## 9. Backup (exportar / importar)
 
-- Formato JSON con kotlinx.serialization (`schemaVersion = 2` desde la Tarea 15; se acepta importar v1 y v2):
+- Formato JSON con kotlinx.serialization (`schemaVersion = 3` desde la Tarea 16; se acepta importar v1, v2 y v3):
 ```json
 {
   "schemaVersion": 2,
@@ -542,7 +606,8 @@ Settings
   "cardStatements": [ { "id": 1, "accountId": 2, "closingDate": "2026-09-30", "dueDate": "2026-10-15", "statementBalance": 25000000, "minimumPayment": null, "statedInterestAndFees": null, "adjustmentTransactionId": null, "createdAt": 1790000000000 } ]
 }
 ```
-- En v2, `AccountDto` agrega `creditLimit`, `statementDay` y `paymentDueDay`; `TransactionDto` agrega `installments`; y el documento agrega `cardStatements`. Un backup v1 se importa con los defaults (sin tarjetas ni extractos). La exportación siempre escribe v2 (una versión vieja de la app no puede importar un v2).
+- En v2, `AccountDto` agrega `creditLimit`, `statementDay` y `paymentDueDay`; `TransactionDto` agrega `installments`; y el documento agrega `cardStatements`. Un backup v1 se importa con los defaults (sin tarjetas ni extractos).
+- En v3 (Tarea 16), `TransactionDto` agrega `recurringId` y el documento agrega `recurringPayments` (todos los campos de la regla: fechas `YYYY-MM-DD`, enums por nombre, instantes en millis). v1 y v2 se importan sin recurrentes. La configuración de notificaciones NO va en el backup (como el tema). La exportación siempre escribe la versión actual, v3 (una app 1.1.0 no puede importar un v3).
 - **Exportar**: Storage Access Framework `ActivityResultContracts.CreateDocument("application/json")`, nombre sugerido `wallet-backup-YYYYMMDD-HHmm.json`. Sin permisos de almacenamiento.
 - **Importar**: `OpenDocument(arrayOf("application/json"))`.
   1. Parsear y **validar completamente** antes de tocar la BD: `schemaVersion` soportado, ids únicos, referencias válidas (accountId, toAccountId, categoryId, parentId existen), reglas de 5.4 (montos > 0, transferencias con destino ≠ origen, tipo de categoría coherente, máx. 2 niveles).
@@ -713,6 +778,13 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 - Backup v2 (compatible con v1).
 - **Aceptación**: la verificación completa (`ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease`) pasa, la migración conserva los datos y la tarjeta se probó en dispositivo real.
 
+### Tarea 16 — Pagos recurrentes y notificaciones
+- Pagos recurrentes (`RecurringPayment`): suscripciones, servicios e ingresos fijos que se registran solos (AUTO) o pidiendo confirmación (CONFIRM), con calendario anclado a `startDate`, catch-up idempotente, pausa, bloqueos por archivo y borrado que conserva los movimientos.
+- Notificaciones configurables (Ajustes > Notificaciones): recordatorios previos, cobros registrados, cobros por confirmar y corte/pago/vencido de tarjetas; revisión diaria con WorkManager a la hora elegida + procesamiento al abrir la app; permiso `POST_NOTIFICATIONS` pedido en contexto.
+- Inicio: tarjeta "Próximos pagos" (7 días). Deep links `wallet://recurring` y `wallet://account/{id}` desde las notificaciones.
+- Migración de BD 2→3 (tabla `recurring_payments` + `transactions.recurring_id` sin FK) y backup v3 (compatible con v1 y v2).
+- **Aceptación**: la verificación completa (`ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease`) pasa, la migración conserva los datos reales de la v2 y los flujos se probaron en dispositivo real.
+
 ---
 
 ## 13. Convenciones de código
@@ -729,14 +801,13 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 
 ## 14. Roadmap futuro (no implementar en v1)
 1. Presupuestos mensuales por categoría con alertas.
-2. Transacciones recurrentes (WorkManager).
-3. Comisión en transferencias (gasto vinculado).
-4. Más tipos de cuenta: corriente, inversión.
-5. Multi-moneda con tasas de cambio.
-6. Bloqueo con biometría.
-7. Backup automático (Google Drive / carpeta local programada).
-8. Exportar CSV.
-9. Widgets de pantalla de inicio.
+2. Comisión en transferencias (gasto vinculado).
+3. Más tipos de cuenta: corriente, inversión.
+4. Multi-moneda con tasas de cambio.
+5. Bloqueo con biometría.
+6. Backup automático (Google Drive / carpeta local programada).
+7. Exportar CSV.
+8. Widgets de pantalla de inicio.
 
 ---
 
@@ -758,6 +829,7 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
   - Correcciones de revisión (F1–F29): porciones raíz con campos del padre; changePercent half-away-from-zero con tope Int; tope de mes futuro en modo Año; isRefreshing sin datos cruzados; estado inicial desde SavedStateHandle; drill-up si falta el padre; etiquetas compactas ("500 mil $", "$500K") y eje Y en números redondos; etiquetas de mes que no se pisan; centro de dona en 1 línea autoajustada; leyenda de ritmo; pestaña dueña en la barra inferior; SavedStateHandle sobre argumentos de ruta; nota de app debug.
 - [x] Tarea 14 — Balance en reportes
 - [x] Tarea 15 — Tarjetas de crédito
+- [x] Tarea 16 — Pagos recurrentes y notificaciones
 
 ---
 

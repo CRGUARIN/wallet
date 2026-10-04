@@ -23,6 +23,14 @@ Moneda única: COP. El dinero se maneja como enteros en centavos, nunca como dec
 - Paga con una transferencia desde otra cuenta hacia la tarjeta (no es un gasto nuevo); una devolución del comercio es un ingreso en la tarjeta.
 - Cuando llegue el extracto, usa "Conciliar extracto": copia el saldo del banco y la app registra la diferencia como intereses y comisiones. La app no calcula intereses, los toma de tu extracto.
 
+## Pagos recurrentes y notificaciones
+
+- Crea una suscripción o servicio desde Ajustes > Datos > Pagos recurrentes: nombre, monto, cuenta (puede ser una tarjeta), categoría, cada cuánto se repite y el próximo cobro.
+- **Automático** lo descuenta solo en cada periodo; **Preguntarme antes** te avisa para que confirmes el valor y la fecha (útil si cambia, como los servicios) u omitas ese cobro.
+- Si el teléfono estuvo apagado, al abrir la app se registran los cobros pendientes con su fecha real, cada uno como un movimiento normal.
+- En Ajustes > Notificaciones eliges la hora de los avisos y qué te avisa: recordatorios antes del cobro, cobros registrados, cobros por confirmar, y de cada tarjeta el corte, la fecha límite de pago y si quedó vencido.
+- Los cobros se registran aunque las notificaciones estén apagadas; en Android 13+ la app pide el permiso solo cuando activas los avisos.
+
 ## Capturas
 
 <!-- TODO: agregar capturas en docs/screenshots/ (tomadas desde un dispositivo o emulador) y enlazarlas aquí. -->
@@ -106,3 +114,7 @@ Wallet is an offline, account-free personal finance app for Android (8.0+): mult
 ### Credit cards
 
 Create your card under Accounts with its credit limit, statement day and payment due day to see the debt, available credit and next statement. Record each purchase as an expense on the card, with installments when you pay in monthly payments (installments are informational: the expense counts on the purchase day). Pay with a transfer from another account to the card (not a new expense); a merchant refund is income on the card. When the statement arrives, use "Reconcile statement": copy the bank balance and the app records the difference as interest and fees. The app does not calculate interest, it takes it from your statement.
+
+### Recurring payments and notifications
+
+Create a subscription or bill under Settings > Data > Recurring payments: name, amount, account (it can be a card), category, how often it repeats and the next charge. **Automatic** deducts it on its own each period; **Ask me first** notifies you so you confirm the amount and date (useful when it changes, like utility bills) or skip that charge. If the phone was off, pending charges are recorded with their real date when you open the app, each as a normal transaction. Under Settings > Notifications you choose the daily reminder time and what to be notified about: reminders before the charge, recorded charges, charges to confirm, and per card the statement date, the payment due date and whether it is overdue. Charges are recorded even with notifications off; on Android 13+ the app asks for the permission only when you enable reminders.
