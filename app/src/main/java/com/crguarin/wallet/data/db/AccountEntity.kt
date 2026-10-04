@@ -31,4 +31,10 @@ data class AccountEntity(
     val sortOrder: Int = 0,
     @ColumnInfo(name = "created_at")
     val createdAt: Instant,
+    @ColumnInfo(name = "credit_limit")
+    val creditLimit: Long? = null,
+    @ColumnInfo(name = "statement_day")
+    val statementDay: Int? = null,
+    @ColumnInfo(name = "payment_due_day")
+    val paymentDueDay: Int? = null,
 )

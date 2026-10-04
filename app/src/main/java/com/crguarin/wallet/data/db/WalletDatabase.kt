@@ -9,8 +9,9 @@ import androidx.room.TypeConverters
         AccountEntity::class,
         CategoryEntity::class,
         TransactionEntity::class,
+        CardStatementEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -20,6 +21,8 @@ abstract class WalletDatabase : RoomDatabase() {
     abstract fun categoryDao(): CategoryDao
 
     abstract fun transactionDao(): TransactionDao
+
+    abstract fun cardStatementDao(): CardStatementDao
 
     abstract fun backupDao(): BackupDao
 }

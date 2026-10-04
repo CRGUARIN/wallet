@@ -98,6 +98,14 @@ android {
     testOptions {
         unitTests.isIncludeAndroidResources = true
     }
+    // Room schemas for MigrationTestHelper (Robolectric reads android_merged_assets, which is
+    // mergeDebugAssets, and AGP no longer packages `test` source-set assets there): debug-only,
+    // so release APKs are unaffected.
+    sourceSets {
+        getByName("debug") {
+            assets.srcDir("$projectDir/schemas")
+        }
+    }
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
