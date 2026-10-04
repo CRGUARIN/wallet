@@ -42,9 +42,11 @@ import androidx.compose.material3.TimePickerDialog
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -100,6 +102,15 @@ fun SettingsScreen(
     permissionState: NotificationPermissionState? = null,
 ) {
     val permission = permissionState ?: rememberNotificationPermissionState()
+    // The test notification is sent right away when allowed; otherwise it waits for the permission
+    // result (or for the user to enable notifications in system settings) before sending.
+    var pendingTestNotification by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(permission.granted) {
+        if (pendingTestNotification && permission.granted) {
+            pendingTestNotification = false
+            onSendTestNotification()
+        }
+    }
     Scaffold(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0),
@@ -140,8 +151,12 @@ fun SettingsScreen(
                     onCardPaymentDaysChanged = onCardPaymentDaysChanged,
                     onCardOverdueChanged = onCardOverdueChanged,
                     onSendTestNotification = {
-                        if (!permission.granted) permission.request()
-                        onSendTestNotification()
+                        if (permission.granted) {
+                            onSendTestNotification()
+                        } else {
+                            pendingTestNotification = true
+                            permission.request()
+                        }
                     },
                 )
                 BackupSection(uiState.isBusy, onExportClick, onImportClick)

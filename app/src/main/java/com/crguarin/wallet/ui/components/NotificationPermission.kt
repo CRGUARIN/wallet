@@ -59,9 +59,11 @@ fun rememberNotificationPermissionState(): NotificationPermissionState {
     val permissionLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
             askedOnce = true
-            state.update(
-                isGranted && NotificationManagerCompat.from(context).areNotificationsEnabled(),
-            )
+            val grantedNow = isGranted && NotificationManagerCompat.from(context).areNotificationsEnabled()
+            state.update(grantedNow)
+            if (shouldOpenSettingsAfterRequest(Build.VERSION.SDK_INT, grantedNow, shouldShowRationale(context))) {
+                openSystemNotificationSettings(context)
+            }
         }
 
     state.requester = {
@@ -100,12 +102,30 @@ private fun isPermanentlyDenied(
     askedOnce: Boolean,
 ): Boolean {
     if (!askedOnce) return false
+    return !shouldShowRationale(context)
+}
+
+private fun shouldShowRationale(context: Context): Boolean {
     val activity = context.findActivity() ?: return false
-    return !ActivityCompat.shouldShowRequestPermissionRationale(
+    return ActivityCompat.shouldShowRequestPermissionRationale(
         activity,
         Manifest.permission.POST_NOTIFICATIONS,
     )
 }
+
+/**
+ * On API 33+, a denied request may mean the system will not show the permission dialog again
+ * (for example after the app was restarted, when no "asked once" flag is available). Opening the
+ * system notification settings is then the only way to enable notifications.
+ */
+internal fun shouldOpenSettingsAfterRequest(
+    sdkInt: Int,
+    granted: Boolean,
+    shouldShowRequestPermissionRationale: Boolean,
+): Boolean =
+    sdkInt >= Build.VERSION_CODES.TIRAMISU &&
+        !granted &&
+        !shouldShowRequestPermissionRationale
 
 private fun openSystemNotificationSettings(context: Context) {
     val intent =

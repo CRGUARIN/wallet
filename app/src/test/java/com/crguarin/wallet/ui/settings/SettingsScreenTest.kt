@@ -64,7 +64,7 @@ class SettingsScreenTest {
         calls: Calls = Calls(),
         dynamicColorSupported: Boolean = true,
         permissionGranted: Boolean = true,
-    ) {
+    ): NotificationPermissionState {
         val permission = NotificationPermissionState(permissionGranted)
         permission.requester = { calls.permissionRequests++ }
         composeRule.setContent {
@@ -97,6 +97,7 @@ class SettingsScreenTest {
                 )
             }
         }
+        return permission
     }
 
     private fun option(text: String) = composeRule.onNode(isSelectable() and hasText(text))
@@ -418,13 +419,31 @@ class SettingsScreenTest {
     }
 
     @Test
-    fun `test button sends the test notification and requests permission first when missing`() {
+    fun `test button requests permission and sends the notification once granted`() {
         val calls = Calls()
-        show(SettingsUiState(notificationSettings = NotificationSettings()), calls, permissionGranted = false)
+        val permission =
+            show(SettingsUiState(notificationSettings = NotificationSettings()), calls, permissionGranted = false)
 
         composeRule.onNodeWithText("Enviar notificación de prueba").performScrollTo().performClick()
 
+        // While blocked nothing is sent: it waits for the permission result.
         assertThat(calls.permissionRequests).isEqualTo(1)
+        assertThat(calls.test).isEqualTo(0)
+
+        permission.update(true)
+        composeRule.waitForIdle()
+
+        assertThat(calls.test).isEqualTo(1)
+    }
+
+    @Test
+    fun `test button sends the notification right away when permission is granted`() {
+        val calls = Calls()
+        show(SettingsUiState(notificationSettings = NotificationSettings()), calls, permissionGranted = true)
+
+        composeRule.onNodeWithText("Enviar notificación de prueba").performScrollTo().performClick()
+
+        assertThat(calls.permissionRequests).isEqualTo(0)
         assertThat(calls.test).isEqualTo(1)
     }
 
