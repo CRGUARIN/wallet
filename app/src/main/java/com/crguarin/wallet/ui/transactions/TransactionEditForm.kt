@@ -127,6 +127,14 @@ internal fun TransactionEditForm(
                     .focusRequester(focusRequester),
         )
 
+        if (uiState.recurringSourceName != null) {
+            Text(
+                text = stringResource(R.string.recurring_generated_by, uiState.recurringSourceName),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
         if (isTransfer) {
             SelectorField(
                 label = stringResource(R.string.transaction_edit_from_label),

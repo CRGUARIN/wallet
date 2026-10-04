@@ -243,4 +243,25 @@ class TransactionEditScreenTest {
 
         assertThat(confirmed).isTrue()
     }
+
+    @Test
+    fun `generated movement shows the rule that recorded it`() {
+        setScreen(
+            validExpenseState().copy(isEditMode = true, recurringSourceName = "Netflix"),
+        )
+
+        composeRule
+            .onNodeWithText("Registrado automáticamente por «Netflix»")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun `manual movement shows no generated-by line`() {
+        setScreen(validExpenseState().copy(isEditMode = true))
+
+        composeRule
+            .onNodeWithText("Registrado automáticamente por", substring = true)
+            .assertDoesNotExist()
+    }
 }
