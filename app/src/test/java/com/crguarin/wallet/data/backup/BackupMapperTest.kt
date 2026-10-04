@@ -1,8 +1,12 @@
 package com.crguarin.wallet.data.backup
 
+import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.data.db.TransactionEntity
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.recurring.RecurrenceFrequency
+import com.crguarin.wallet.domain.model.recurring.RecurringMode
+import com.crguarin.wallet.domain.model.recurring.RecurringPayment
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import java.time.Instant
@@ -83,6 +87,50 @@ class BackupMapperTest {
     }
 
     @Test
+    fun `recurring payment dto round trips through the domain`() {
+        val dtos = validRecurringBackupDto().recurringPayments
+
+        assertThat(dtos.map { it.toDomain().toBackupDto() }).isEqualTo(dtos)
+    }
+
+    @Test
+    fun `recurring domain round trips through the dto`() {
+        val payments = listOf(autoMonthly(), confirmYearly())
+
+        assertThat(payments.map { it.toBackupDto().toDomain() }).isEqualTo(payments)
+    }
+
+    @Test
+    fun `recurring fields map to minor units ISO dates epoch millis and enum names`() {
+        val dto = autoMonthly().toBackupDto()
+
+        assertThat(dto.amount).isEqualTo(4_590_000L)
+        assertThat(dto.startDate).isEqualTo("2026-09-15")
+        assertThat(dto.endDate).isNull()
+        assertThat(dto.nextDueDate).isEqualTo("2026-10-15")
+        assertThat(dto.createdAt).isEqualTo(1_790_000_000_000L)
+        assertThat(dto.frequency).isEqualTo(RecurrenceFrequency.MONTHLY)
+        assertThat(dto.mode).isEqualTo(RecurringMode.AUTO)
+
+        val back = dto.toDomain()
+        assertThat(back.amount).isEqualTo(Money(4_590_000L))
+        assertThat(back.startDate).isEqualTo(LocalDate.of(2026, 9, 15))
+        assertThat(back.endDate).isNull()
+        assertThat(back.createdAt).isEqualTo(Instant.ofEpochMilli(1_790_000_000_000L))
+    }
+
+    @Test
+    fun `confirm yearly payment keeps its end date note and reminder`() {
+        val dto = confirmYearly().toBackupDto()
+
+        assertThat(dto.endDate).isEqualTo("2028-01-10")
+        assertThat(dto.note).isEqualTo("Moto")
+        assertThat(dto.reminderDaysBefore).isNull()
+        assertThat(dto.mode).isEqualTo(RecurringMode.CONFIRM)
+        assertThat(dto.toDomain().endDate).isEqualTo(LocalDate.of(2028, 1, 10))
+    }
+
+    @Test
     fun `transaction date is written as an ISO date and read back`() {
         val entity =
             TransactionEntity(
@@ -100,4 +148,46 @@ class BackupMapperTest {
         assertThat(exported.date).isEqualTo("2026-01-05")
         assertThat(exported.toEntity()).isEqualTo(entity)
     }
+
+    private fun autoMonthly() =
+        RecurringPayment(
+            id = 1,
+            name = "Netflix",
+            type = TransactionType.EXPENSE,
+            amount = Money(4_590_000L),
+            accountId = 3,
+            categoryId = 1,
+            note = null,
+            frequency = RecurrenceFrequency.MONTHLY,
+            interval = 1,
+            startDate = LocalDate.of(2026, 9, 15),
+            endDate = null,
+            nextDueDate = LocalDate.of(2026, 10, 15),
+            mode = RecurringMode.AUTO,
+            reminderDaysBefore = 3,
+            isActive = true,
+            createdAt = Instant.ofEpochMilli(1_790_000_000_000L),
+            updatedAt = Instant.ofEpochMilli(1_790_000_000_000L),
+        )
+
+    private fun confirmYearly() =
+        RecurringPayment(
+            id = 2,
+            name = "SOAT",
+            type = TransactionType.EXPENSE,
+            amount = Money(30_000_000L),
+            accountId = 2,
+            categoryId = 1,
+            note = "Moto",
+            frequency = RecurrenceFrequency.YEARLY,
+            interval = 1,
+            startDate = LocalDate.of(2026, 1, 10),
+            endDate = LocalDate.of(2028, 1, 10),
+            nextDueDate = LocalDate.of(2027, 1, 10),
+            mode = RecurringMode.CONFIRM,
+            reminderDaysBefore = null,
+            isActive = true,
+            createdAt = Instant.ofEpochMilli(1_790_000_000_000L),
+            updatedAt = Instant.ofEpochMilli(1_790_000_000_000L),
+        )
 }

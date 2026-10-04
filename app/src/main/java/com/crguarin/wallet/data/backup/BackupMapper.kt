@@ -1,9 +1,11 @@
 package com.crguarin.wallet.data.backup
 
+import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.data.db.AccountEntity
 import com.crguarin.wallet.data.db.CardStatementEntity
 import com.crguarin.wallet.data.db.CategoryEntity
 import com.crguarin.wallet.data.db.TransactionEntity
+import com.crguarin.wallet.domain.model.recurring.RecurringPayment
 import java.time.Instant
 import java.time.LocalDate
 
@@ -125,4 +127,47 @@ fun CardStatementDto.toEntity(): CardStatementEntity =
         statedInterestFees = statedInterestAndFees,
         adjustmentTransactionId = adjustmentTransactionId,
         createdAt = Instant.ofEpochMilli(createdAt),
+    )
+
+fun RecurringPayment.toBackupDto(): RecurringPaymentDto =
+    RecurringPaymentDto(
+        id = id,
+        name = name,
+        type = type,
+        amount = amount.minorUnits,
+        accountId = accountId,
+        categoryId = categoryId,
+        note = note,
+        frequency = frequency,
+        interval = interval,
+        startDate = startDate.toString(),
+        endDate = endDate?.toString(),
+        nextDueDate = nextDueDate.toString(),
+        mode = mode,
+        reminderDaysBefore = reminderDaysBefore,
+        isActive = isActive,
+        createdAt = createdAt.toEpochMilli(),
+        updatedAt = updatedAt.toEpochMilli(),
+    )
+
+/** Assumes the dates of [RecurringPaymentDto] were already validated by [BackupValidator]. */
+fun RecurringPaymentDto.toDomain(): RecurringPayment =
+    RecurringPayment(
+        id = id,
+        name = name,
+        type = type,
+        amount = Money(amount),
+        accountId = accountId,
+        categoryId = categoryId,
+        note = note,
+        frequency = frequency,
+        interval = interval,
+        startDate = LocalDate.parse(startDate),
+        endDate = endDate?.let(LocalDate::parse),
+        nextDueDate = LocalDate.parse(nextDueDate),
+        mode = mode,
+        reminderDaysBefore = reminderDaysBefore,
+        isActive = isActive,
+        createdAt = Instant.ofEpochMilli(createdAt),
+        updatedAt = Instant.ofEpochMilli(updatedAt),
     )
