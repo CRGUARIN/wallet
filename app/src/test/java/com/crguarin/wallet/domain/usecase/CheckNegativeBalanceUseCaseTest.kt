@@ -6,8 +6,8 @@ import com.crguarin.wallet.domain.fake.FakeTransactionRepository
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.Transaction
-import com.crguarin.wallet.domain.model.card.BalanceWarning
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.card.BalanceWarning
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
