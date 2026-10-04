@@ -70,7 +70,8 @@ data class AccountEditUiState(
         get() {
             if (!isEditMode) return false
             val parsed = MoneyParser.parseNonNegative(initialBalanceText) ?: return false
-            return parsed != originalInitialBalance
+            val effective = if (isCreditCard) cardInitialBalanceToSave(parsed, originalInitialBalance) else parsed
+            return effective != originalInitialBalance
         }
 
     val isSaveEnabled: Boolean
@@ -281,7 +282,12 @@ class AccountEditViewModel
                         type = state.type,
                         currencyCode = APP_CURRENCY,
                         // Cards ask for the current debt (>= 0) and store it negated.
-                        initialBalance = if (isCard) -balance else balance,
+                        initialBalance =
+                            if (isCard) {
+                                cardInitialBalanceToSave(balance, state.originalInitialBalance)
+                            } else {
+                                balance
+                            },
                         color = state.color,
                         icon = state.icon,
                         includeInTotal = state.includeInTotal,
@@ -308,6 +314,21 @@ class AccountEditViewModel
                 }
             }
         }
+    }
+
+/**
+ * Initial balance to save for a card from the entered [debt]: the debt negated, except an
+ * existing credit in favor (positive initial) is preserved while the debt stays zero, since the
+ * form has no field to enter it. For new cards the original is zero, so it always stores `-debt`.
+ */
+private fun cardInitialBalanceToSave(
+    debt: Money,
+    originalInitialBalance: Money,
+): Money =
+    if (debt.isZero && originalInitialBalance.isPositive) {
+        originalInitialBalance
+    } else {
+        -debt
     }
 
 private fun creditLimitError(text: String): Int? {

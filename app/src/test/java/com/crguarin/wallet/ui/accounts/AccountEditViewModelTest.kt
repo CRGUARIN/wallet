@@ -390,4 +390,62 @@ class AccountEditViewModelTest {
                 cancelAndIgnoreRemainingEvents()
             }
         }
+
+    @Test
+    fun `editing a card with credit in favor preserves it when debt stays zero`() =
+        runTest(testDispatcher) {
+            val card =
+                existingAccount.copy(
+                    id = 12L,
+                    name = "RappiCard",
+                    type = AccountType.CREDIT_CARD,
+                    initialBalance = Money(30_000L),
+                    icon = "credit_card",
+                    creditLimit = Money(500_000_00L),
+                    statementDay = 15,
+                    paymentDueDay = 5,
+                )
+            accountRepository.setInitialData(listOf(card))
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to 12L))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+
+            assertThat(viewModel.uiState.value.initialBalanceText).isEmpty()
+            assertThat(viewModel.uiState.value.showInitialBalanceWarning).isFalse()
+
+            viewModel.events.test {
+                viewModel.saveAccount()
+                assertThat(awaitItem()).isEqualTo(AccountEditEvent.NavigateBack)
+                assertThat(accountRepository.getAccount(12L)?.initialBalance).isEqualTo(Money(30_000L))
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `editing a card with credit in favor stores negated debt when entered`() =
+        runTest(testDispatcher) {
+            val card =
+                existingAccount.copy(
+                    id = 12L,
+                    name = "RappiCard",
+                    type = AccountType.CREDIT_CARD,
+                    initialBalance = Money(30_000L),
+                    icon = "credit_card",
+                    creditLimit = Money(500_000_00L),
+                    statementDay = 15,
+                    paymentDueDay = 5,
+                )
+            accountRepository.setInitialData(listOf(card))
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to 12L))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+
+            viewModel.setInitialBalanceText("2500")
+            assertThat(viewModel.uiState.value.showInitialBalanceWarning).isTrue()
+
+            viewModel.events.test {
+                viewModel.saveAccount()
+                assertThat(awaitItem()).isEqualTo(AccountEditEvent.NavigateBack)
+                assertThat(accountRepository.getAccount(12L)?.initialBalance).isEqualTo(Money(-250_000L))
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
 }
