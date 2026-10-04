@@ -116,6 +116,7 @@
     <!-- Tipos de cuenta -->
     <string name="account_type_cash">Efectivo</string>
     <string name="account_type_savings">Cuenta de ahorros</string>
+    <string name="account_type_credit_card">Tarjeta de crédito</string>
     <string name="account_default_cash_name">Efectivo</string>
 
     <!-- Pantalla Cuentas -->
@@ -312,6 +313,7 @@
     <string name="category_entertainment">Entretenimiento</string>
     <string name="category_shopping">Compras</string>
     <string name="category_other_expense">Otros gastos</string>
+    <string name="category_card_interest_fees">Intereses y comisiones</string>
 
     <!-- Categorías del sistema - Ingresos -->
     <string name="category_salary">Salario</string>
@@ -319,6 +321,7 @@
     <string name="category_gifts">Regalos</string>
     <string name="category_interest">Intereses</string>
     <string name="category_other_income">Otros ingresos</string>
+    <string name="category_card_adjustment">Ajustes de tarjeta</string>
 
     <!-- Ajustes y backup -->
     <string name="settings_section_language">Idioma</string>
@@ -369,4 +372,60 @@
     <string name="accounts_no_active_message">Crea una cuenta nueva o desarchiva una de las existentes.</string>
     <string name="account_detail_not_found">Esta cuenta ya no existe</string>
     <string name="transaction_edit_not_found">Este movimiento ya no existe</string>
+
+    <!-- Tarjetas de crédito -->
+    <string name="card_credit_limit_label">Cupo total</string>
+    <string name="card_statement_day_label">Día de corte</string>
+    <string name="card_payment_due_day_label">Día límite de pago</string>
+    <string name="card_day_hint">Del 1 al 31. Si el mes es más corto, se usa su último día.</string>
+    <string name="card_current_debt_label">Deuda actual</string>
+    <string name="card_error_limit_required">Ingresa el cupo de la tarjeta</string>
+    <string name="card_error_day_invalid">Ingresa un día entre 1 y 31</string>
+    <string name="card_debt">Deuda</string>
+    <string name="card_credit_in_favor">Saldo a favor</string>
+    <string name="card_available">Disponible</string>
+    <string name="card_used_of_limit">%1$s de %2$s usados</string>
+    <string name="card_next_closing">Próximo corte: %1$s</string>
+    <string name="card_closing_today">Corte hoy</string>
+    <plurals name="card_closing_in_days">
+        <item quantity="one">Corte en %d día</item>
+        <item quantity="other">Corte en %d días</item>
+    </plurals>
+    <string name="card_pay_before">Pagar antes del %1$s</string>
+    <string name="card_paid">Extracto pagado</string>
+    <string name="card_overdue">Pago vencido</string>
+    <string name="card_statement_pending">Por pagar del extracto</string>
+    <string name="card_next_statement_estimate">Cuotas del próximo extracto</string>
+    <string name="card_estimate_note">Estimado, sin intereses</string>
+    <string name="card_installments_title">Compras a cuotas</string>
+    <string name="card_installment_progress">Cuota %1$d de %2$d · faltan %3$s</string>
+    <string name="card_installments_label">Cuotas</string>
+    <string name="card_installments_hint">Informativo: no cambia el valor de la compra</string>
+    <string name="card_action_pay">Pagar tarjeta</string>
+    <string name="card_action_reconcile">Conciliar extracto</string>
+    <string name="card_reconcile_title">Conciliar extracto</string>
+    <string name="card_reconcile_intro">Copia los datos de tu extracto. La app calcula la diferencia con lo que anotaste.</string>
+    <string name="card_reconcile_closing_date">Fecha de corte</string>
+    <string name="card_reconcile_due_date">Fecha límite de pago</string>
+    <string name="card_reconcile_statement_balance">Saldo total del extracto</string>
+    <string name="card_reconcile_minimum_payment">Pago mínimo (opcional)</string>
+    <string name="card_reconcile_interest">Intereses y cargos (opcional)</string>
+    <string name="card_reconcile_calculate">Calcular diferencia</string>
+    <string name="card_reconcile_app_debt">Deuda según la app al corte</string>
+    <string name="card_reconcile_difference">Diferencia</string>
+    <string name="card_reconcile_matches">¡Cuadra con el banco!</string>
+    <string name="card_reconcile_positive">Se registrará %1$s como intereses y comisiones del %2$s.</string>
+    <string name="card_reconcile_negative">La app registra %1$s más de deuda que el banco. Revisa si falta anotar un pago, una devolución o un cashback.</string>
+    <string name="card_reconcile_force_adjust">Ajustar de todos modos</string>
+    <string name="card_reconcile_review_transactions">Revisar movimientos del ciclo</string>
+    <string name="card_reconcile_mismatch">La diferencia (%1$s) no coincide con los intereses del extracto (%2$s): puede faltar algún movimiento.</string>
+    <string name="card_reconcile_confirm">Guardar conciliación</string>
+    <string name="card_reconcile_note">Extracto %1$s</string>
+    <string name="card_reconcile_saved">Extracto conciliado</string>
+    <string name="card_statements_history">Extractos</string>
+    <string name="card_statement_row">Corte %1$s · %2$s</string>
+    <string name="card_statement_adjusted">ajuste de %1$s</string>
+    <string name="card_statement_matched">cuadró</string>
+    <string name="card_over_limit_title">Superas el cupo</string>
+    <string name="card_over_limit_message">Con este movimiento la deuda de la tarjeta supera su cupo. ¿Guardar de todos modos?</string>
 </resources>

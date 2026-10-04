@@ -114,6 +114,7 @@
     <!-- Account types -->
     <string name="account_type_cash">Cash</string>
     <string name="account_type_savings">Savings account</string>
+    <string name="account_type_credit_card">Credit card</string>
     <string name="account_default_cash_name">Cash</string>
 
     <!-- Accounts screen -->
@@ -308,6 +309,7 @@
     <string name="category_entertainment">Entertainment</string>
     <string name="category_shopping">Shopping</string>
     <string name="category_other_expense">Other expenses</string>
+    <string name="category_card_interest_fees">Interest and fees</string>
 
     <!-- System Categories - Income -->
     <string name="category_salary">Salary</string>
@@ -315,6 +317,7 @@
     <string name="category_gifts">Gifts</string>
     <string name="category_interest">Interest</string>
     <string name="category_other_income">Other income</string>
+    <string name="category_card_adjustment">Card adjustments</string>
 
     <!-- Settings and backup -->
     <string name="settings_section_language">Language</string>
@@ -365,4 +368,60 @@
     <string name="accounts_no_active_message">Create a new account or unarchive an existing one.</string>
     <string name="account_detail_not_found">This account no longer exists</string>
     <string name="transaction_edit_not_found">This transaction no longer exists</string>
+
+    <!-- Credit cards -->
+    <string name="card_credit_limit_label">Credit limit</string>
+    <string name="card_statement_day_label">Statement day</string>
+    <string name="card_payment_due_day_label">Payment due day</string>
+    <string name="card_day_hint">From 1 to 31. In shorter months, the last day is used.</string>
+    <string name="card_current_debt_label">Current debt</string>
+    <string name="card_error_limit_required">Enter the credit limit</string>
+    <string name="card_error_day_invalid">Enter a day between 1 and 31</string>
+    <string name="card_debt">Debt</string>
+    <string name="card_credit_in_favor">Credit balance</string>
+    <string name="card_available">Available</string>
+    <string name="card_used_of_limit">%1$s of %2$s used</string>
+    <string name="card_next_closing">Next statement: %1$s</string>
+    <string name="card_closing_today">Statement closes today</string>
+    <plurals name="card_closing_in_days">
+        <item quantity="one">Statement in %d day</item>
+        <item quantity="other">Statement in %d days</item>
+    </plurals>
+    <string name="card_pay_before">Pay before %1$s</string>
+    <string name="card_paid">Statement paid</string>
+    <string name="card_overdue">Payment overdue</string>
+    <string name="card_statement_pending">Statement balance due</string>
+    <string name="card_next_statement_estimate">Installments in next statement</string>
+    <string name="card_estimate_note">Estimate, without interest</string>
+    <string name="card_installments_title">Installment purchases</string>
+    <string name="card_installment_progress">Installment %1$d of %2$d · %3$s left</string>
+    <string name="card_installments_label">Installments</string>
+    <string name="card_installments_hint">Informational: does not change the purchase amount</string>
+    <string name="card_action_pay">Pay card</string>
+    <string name="card_action_reconcile">Reconcile statement</string>
+    <string name="card_reconcile_title">Reconcile statement</string>
+    <string name="card_reconcile_intro">Copy the figures from your statement. The app compares them with what you recorded.</string>
+    <string name="card_reconcile_closing_date">Statement date</string>
+    <string name="card_reconcile_due_date">Payment due date</string>
+    <string name="card_reconcile_statement_balance">Statement balance</string>
+    <string name="card_reconcile_minimum_payment">Minimum payment (optional)</string>
+    <string name="card_reconcile_interest">Interest and fees (optional)</string>
+    <string name="card_reconcile_calculate">Calculate difference</string>
+    <string name="card_reconcile_app_debt">Debt in the app at statement date</string>
+    <string name="card_reconcile_difference">Difference</string>
+    <string name="card_reconcile_matches">It matches your bank!</string>
+    <string name="card_reconcile_positive">%1$s will be recorded as interest and fees on %2$s.</string>
+    <string name="card_reconcile_negative">The app shows %1$s more debt than your bank. Check for a missing payment, refund or cashback.</string>
+    <string name="card_reconcile_force_adjust">Adjust anyway</string>
+    <string name="card_reconcile_review_transactions">Review cycle transactions</string>
+    <string name="card_reconcile_mismatch">The difference (%1$s) does not match the statement interest (%2$s): a transaction may be missing.</string>
+    <string name="card_reconcile_confirm">Save reconciliation</string>
+    <string name="card_reconcile_note">Statement %1$s</string>
+    <string name="card_reconcile_saved">Statement reconciled</string>
+    <string name="card_statements_history">Statements</string>
+    <string name="card_statement_row">Statement %1$s · %2$s</string>
+    <string name="card_statement_adjusted">adjusted by %1$s</string>
+    <string name="card_statement_matched">matched</string>
+    <string name="card_over_limit_title">Over credit limit</string>
+    <string name="card_over_limit_message">This transaction takes the card debt over its limit. Save anyway?</string>
 </resources>
