@@ -16,8 +16,9 @@ import org.robolectric.annotation.Config
 import java.time.LocalDate
 
 /**
- * Verifies that [MIGRATION_1_2] preserves every row of a version-1 database and that the
- * migrated database opens normally with Room.
+ * Verifies that [MIGRATION_1_2] and [MIGRATION_2_3] preserve every row of the version-1 and
+ * version-2 databases, that the full 1→2→3 chain works, and that the migrated databases open
+ * normally with Room.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
