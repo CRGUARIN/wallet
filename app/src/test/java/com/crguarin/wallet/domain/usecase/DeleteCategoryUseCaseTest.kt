@@ -2,21 +2,26 @@ package com.crguarin.wallet.domain.usecase
 
 import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.domain.fake.FakeCategoryRepository
+import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryType
+import com.crguarin.wallet.domain.model.recurring.testPayment
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
 import org.junit.Test
+import java.time.LocalDate
 
 class DeleteCategoryUseCaseTest {
     private lateinit var categoryRepository: FakeCategoryRepository
+    private lateinit var recurringRepository: FakeRecurringRepository
     private lateinit var deleteCategoryUseCase: DeleteCategoryUseCase
 
     @Before
     fun setUp() {
         categoryRepository = FakeCategoryRepository()
-        deleteCategoryUseCase = DeleteCategoryUseCase(categoryRepository)
+        recurringRepository = FakeRecurringRepository()
+        deleteCategoryUseCase = DeleteCategoryUseCase(categoryRepository, recurringRepository)
     }
 
     @Test
@@ -87,5 +92,26 @@ class DeleteCategoryUseCaseTest {
             val result = deleteCategoryUseCase(1L)
             assertThat(result.isSuccess).isTrue()
             assertThat(categoryRepository.getCategory(1L)).isNull()
+        }
+
+    @Test
+    fun `fails when category has recurring payments`() =
+        runTest {
+            val cat =
+                Category(
+                    id = 1L,
+                    name = "Restaurantes",
+                    type = CategoryType.EXPENSE,
+                    color = 1,
+                    icon = "restaurant",
+                )
+            categoryRepository.setInitialData(listOf(cat), txCounts = mapOf(1L to 0))
+            recurringRepository.setInitialData(
+                listOf(testPayment(id = 1L, startDate = LocalDate.of(2026, 9, 28))),
+            )
+
+            val result = deleteCategoryUseCase(1L)
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.CategoryHasRecurring)
+            assertThat(categoryRepository.getCategory(1L)).isNotNull()
         }
 }

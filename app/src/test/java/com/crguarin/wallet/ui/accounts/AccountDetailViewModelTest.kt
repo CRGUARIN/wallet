@@ -7,6 +7,7 @@ import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.fake.FakeAccountRepository
 import com.crguarin.wallet.domain.fake.FakeCardStatementRepository
 import com.crguarin.wallet.domain.fake.FakePreferencesRepository
+import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
 import com.crguarin.wallet.domain.model.Account
@@ -83,7 +84,7 @@ class AccountDetailViewModelTest {
         observeMonthSummaryUseCase = ObserveMonthSummaryUseCase(transactionRepository)
         archiveAccountUseCase = ArchiveAccountUseCase(accountRepository)
         unarchiveAccountUseCase = UnarchiveAccountUseCase(accountRepository)
-        deleteAccountUseCase = DeleteAccountUseCase(accountRepository)
+        deleteAccountUseCase = DeleteAccountUseCase(accountRepository, FakeRecurringRepository())
 
         // Mock savedStateHandle for SavedStateHandle.toRoute<AccountDetail>()
         savedStateHandle = SavedStateHandle(mapOf("accountId" to 42L))
