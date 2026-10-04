@@ -127,6 +127,19 @@ fun WalletNavHost(
                 onViewAllTransactions = { accountId ->
                     navController.navigate(Transactions(accountId = accountId))
                 },
+                onPayCardClick = { fromAccountId, toAccountId, initialAmountMinor ->
+                    navController.navigate(
+                        TransactionEdit(
+                            initialType = com.crguarin.wallet.domain.model.TransactionType.TRANSFER,
+                            accountId = fromAccountId,
+                            toAccountId = toAccountId,
+                            initialAmountMinor = initialAmountMinor,
+                        ),
+                    )
+                },
+                onReconcileClick = { accountId ->
+                    navController.navigate(CardReconcile(accountId = accountId))
+                },
             )
         }
         composable<AccountEdit> {
@@ -169,6 +182,9 @@ fun WalletNavHost(
         composable<CardReconcile> {
             CardReconcileRoute(
                 onNavigateBack = { navController.popBackStack() },
+                onReviewTransactions = { accountId, month ->
+                    navController.navigate(Transactions(accountId = accountId, month = month))
+                },
             )
         }
     }

@@ -290,6 +290,54 @@ class NavigationTest {
         assertTabSelected("Movimientos", selected = true)
     }
 
+    @Test
+    @Config(qualifiers = "es")
+    fun `reconcile action from card detail opens the reconciliation screen`() {
+        setAppContent()
+
+        // Open a card detail (inspection mode renders it without data, so the
+        // "Conciliar extracto" button is followed as the NavHost wires it).
+        composeRule.runOnUiThread {
+            navController.navigate(AccountDetail(accountId = 7L))
+        }
+        composeRule.onNodeWithText("Detalle de cuenta").assertIsDisplayed()
+
+        composeRule.runOnUiThread {
+            navController.navigate(CardReconcile(accountId = 7L))
+        }
+
+        val route = navController.currentBackStackEntry?.toRoute<CardReconcile>()
+        assertThat(route?.accountId).isEqualTo(7L)
+        composeRule.onNodeWithText("Conciliar extracto").assertIsDisplayed()
+        composeRule.onNodeWithText("Calcular diferencia").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "es")
+    fun `pay card action opens a transfer editor with destination and prefilled amount`() {
+        setAppContent()
+
+        // Open the editor as the NavHost wires onPayCardClick: a transfer from another
+        // account to the card, prefilled with the pending statement amount.
+        composeRule.runOnUiThread {
+            navController.navigate(
+                TransactionEdit(
+                    initialType = TransactionType.TRANSFER,
+                    accountId = 1L,
+                    toAccountId = 7L,
+                    initialAmountMinor = 150_050L,
+                ),
+            )
+        }
+
+        val route = navController.currentBackStackEntry?.toRoute<TransactionEdit>()
+        assertThat(route?.initialType).isEqualTo(TransactionType.TRANSFER)
+        assertThat(route?.accountId).isEqualTo(1L)
+        assertThat(route?.toAccountId).isEqualTo(7L)
+        assertThat(route?.initialAmountMinor).isEqualTo(150_050L)
+        composeRule.onNodeWithText("Nuevo movimiento").assertIsDisplayed()
+    }
+
     private fun assertTabSelected(
         contentDescription: String,
         selected: Boolean,
