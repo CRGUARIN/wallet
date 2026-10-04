@@ -36,7 +36,8 @@ class ProcessDueRecurringUseCase
         suspend operator fun invoke(): List<PostedOccurrence> {
             val today = timeProvider.today()
             val posted = mutableListOf<PostedOccurrence>()
-            for (payment in recurringRepository.getAll()) {
+            val payments = runCatching { recurringRepository.getAll() }.getOrDefault(emptyList())
+            for (payment in payments) {
                 runCatching { processPayment(payment.id, today, posted) }
             }
             return posted

@@ -10,6 +10,7 @@ import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.recurring.OccurrenceResult
 import com.crguarin.wallet.domain.model.recurring.RecurrenceFrequency
 import com.crguarin.wallet.domain.model.recurring.RecurringMode
+import com.crguarin.wallet.domain.model.recurring.RecurringPayment
 import com.crguarin.wallet.domain.model.recurring.testAccount
 import com.crguarin.wallet.domain.model.recurring.testCardAccount
 import com.crguarin.wallet.domain.model.recurring.testCategory
@@ -30,6 +31,7 @@ class ProcessDueRecurringUseCaseTest {
     private lateinit var categoryRepository: FakeCategoryRepository
     private lateinit var transactionRepository: FakeTransactionRepository
     private lateinit var timeProvider: FakeTimeProvider
+    private lateinit var saveTransactionUseCase: SaveTransactionUseCase
     private lateinit var processDueRecurringUseCase: ProcessDueRecurringUseCase
 
     private val today = LocalDate.of(2026, 10, 5)
@@ -43,7 +45,7 @@ class ProcessDueRecurringUseCaseTest {
         timeProvider = FakeTimeProvider(currentInstant = Instant.parse("2026-10-05T12:00:00Z"))
         accountRepository.setInitialData(listOf(testAccount(), testCardAccount()))
         categoryRepository.setInitialData(listOf(testCategory()))
-        val saveTransactionUseCase =
+        saveTransactionUseCase =
             SaveTransactionUseCase(
                 transactionRepository,
                 accountRepository,
@@ -191,13 +193,35 @@ class ProcessDueRecurringUseCaseTest {
                     blocking,
                     accountRepository,
                     categoryRepository,
-                    SaveTransactionUseCase(
-                        transactionRepository,
-                        accountRepository,
-                        categoryRepository,
-                        timeProvider,
-                        CheckNegativeBalanceUseCase(accountRepository, transactionRepository),
-                    ),
+                    saveTransactionUseCase,
+                    timeProvider,
+                )
+            assertThat(useCase()).isEmpty()
+        }
+
+    @Test
+    fun `running twice records each occurrence once`() =
+        runTest {
+            recurringRepository.setInitialData(listOf(testPayment(id = 1L, startDate = today, nextDueDate = today)))
+            assertThat(processDueRecurringUseCase()).hasSize(1)
+            assertThat(processDueRecurringUseCase()).isEmpty()
+            assertThat(recurringRepository.completedTransactions).hasSize(1)
+            assertThat(recurringRepository.get(1L)?.nextDueDate).isEqualTo(LocalDate.of(2026, 11, 5))
+        }
+
+    @Test
+    fun `a repository failure returns empty and never throws`() =
+        runTest {
+            val throwingRepository: RecurringRepository =
+                object : RecurringRepository by recurringRepository {
+                    override suspend fun getAll(): List<RecurringPayment> = throw IllegalStateException("db down")
+                }
+            val useCase =
+                ProcessDueRecurringUseCase(
+                    throwingRepository,
+                    accountRepository,
+                    categoryRepository,
+                    saveTransactionUseCase,
                     timeProvider,
                 )
             assertThat(useCase()).isEmpty()
