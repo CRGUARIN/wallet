@@ -20,11 +20,17 @@ class FakeRecurringRepository : RecurringRepository {
     private val payments = mutableMapOf<Long, RecurringPayment>()
     private val paymentsFlow = MutableStateFlow<List<RecurringPayment>>(emptyList())
     private var nextId: Long = 1L
+    private var nextTransactionId: Long = 1L
 
     var generatedTransactions: List<TransactionDetails> = emptyList()
 
+    /** Every non-null transaction passed to [completeOccurrence], in order. */
+    val completedTransactions = mutableListOf<Transaction>()
+
     fun setInitialData(paymentList: List<RecurringPayment>) {
         payments.clear()
+        completedTransactions.clear()
+        nextTransactionId = 1L
         paymentList.forEach { payment ->
             payments[payment.id] = payment
             if (payment.id >= nextId) nextId = payment.id + 1
@@ -69,7 +75,9 @@ class FakeRecurringRepository : RecurringRepository {
         return if (transaction == null) {
             OccurrenceResult.Skipped
         } else {
-            OccurrenceResult.Recorded(transactionId = transaction.id)
+            completedTransactions.add(transaction)
+            val transactionId = transaction.id.takeIf { it != 0L } ?: nextTransactionId++
+            OccurrenceResult.Recorded(transactionId = transactionId)
         }
     }
 
