@@ -184,6 +184,40 @@ class BackupParserTest {
     }
 
     @Test
+    fun `version 3 writes recurring dates enums and instants with the documented format`() {
+        val root = Json.parseToJsonElement(parser.encode(validRecurringBackupDto())).jsonObject
+        val payments = root["recurringPayments"]!!.jsonArray
+
+        assertThat(payments).hasSize(2)
+        val auto = payments.first().jsonObject
+        assertThat(auto["startDate"]!!.jsonPrimitive.content).isEqualTo("2026-09-15")
+        assertThat(auto["nextDueDate"]!!.jsonPrimitive.content).isEqualTo("2026-10-15")
+        assertThat(auto["endDate"]).isEqualTo(JsonNull)
+        assertThat(auto["frequency"]!!.jsonPrimitive.content).isEqualTo("MONTHLY")
+        assertThat(auto["mode"]!!.jsonPrimitive.content).isEqualTo("AUTO")
+        assertThat(auto["createdAt"]!!.jsonPrimitive.isString).isFalse()
+        assertThat(auto["createdAt"]!!.jsonPrimitive.content).isEqualTo("1790000000000")
+
+        val yearly = payments.last().jsonObject
+        assertThat(yearly["endDate"]!!.jsonPrimitive.content).isEqualTo("2028-01-10")
+        assertThat(yearly["frequency"]!!.jsonPrimitive.content).isEqualTo("YEARLY")
+        assertThat(yearly["mode"]!!.jsonPrimitive.content).isEqualTo("CONFIRM")
+
+        val generated = root["transactions"]!!.jsonArray.single { it.jsonObject["id"]!!.jsonPrimitive.content == "6" }
+        assertThat(generated.jsonObject["recurringId"]!!.jsonPrimitive.content).isEqualTo("1")
+    }
+
+    @Test
+    fun `unknown recurring frequency or mode is invalid`() {
+        val encoded = parser.encode(validRecurringBackupDto())
+
+        assertThat(error(encoded.replace("\"frequency\": \"MONTHLY\"", "\"frequency\": \"DAILY\"")))
+            .isInstanceOf(DomainError.BackupInvalid::class.java)
+        assertThat(error(encoded.replace("\"mode\": \"AUTO\"", "\"mode\": \"MANUAL\"")))
+            .isInstanceOf(DomainError.BackupInvalid::class.java)
+    }
+
+    @Test
     fun `schema versions 1 2 and 3 are accepted`() {
         assertThat(parser.decode(planSample).isSuccess).isTrue()
         assertThat(parser.decode(parser.encode(validCardBackupDto().copy(schemaVersion = 2))).isSuccess).isTrue()
