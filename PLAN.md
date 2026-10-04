@@ -171,7 +171,7 @@ Tests obligatorios: formateo ES/EN, parseo con/sin decimales, separadores, valor
 
 ### 5.1 Enums
 ```kotlin
-enum class AccountType { CASH, SAVINGS }           // v1. Futuro: CHECKING, CREDIT_CARD, ...
+enum class AccountType { CASH, SAVINGS, CREDIT_CARD }  // CREDIT_CARD desde la Tarea 15. Futuro: CHECKING, ...
 enum class CategoryType { INCOME, EXPENSE }
 enum class TransactionType { INCOME, EXPENSE, TRANSFER }
 ```
@@ -183,13 +183,16 @@ enum class TransactionType { INCOME, EXPENSE, TRANSFER }
 | name | String | obligatorio, 1–40 chars, trim, único entre cuentas no archivadas (case-insensitive) |
 | type | AccountType | obligatorio |
 | currencyCode | String | "COP" en v1 |
-| initialBalance | Money | **≥ 0** en v1 |
+| initialBalance | Money | **≥ 0**, salvo tarjetas (ver 5.7) |
 | color | Int (ARGB) | de una paleta predefinida |
 | icon | String | clave de un set de íconos predefinido (ver 5.6) |
 | includeInTotal | Boolean | default `true` |
 | isArchived | Boolean | default `false` |
 | sortOrder | Int | para ordenar manualmente |
 | createdAt | Instant | |
+| creditLimit | Money? | solo `CREDIT_CARD`: cupo total, > 0, obligatorio |
+| statementDay | Int? | solo `CREDIT_CARD`: día de corte, 1..31, obligatorio |
+| paymentDueDay | Int? | solo `CREDIT_CARD`: día límite de pago, 1..31, obligatorio |
 
 **Saldo actual** (no se guarda, se calcula):
 ```
@@ -199,7 +202,8 @@ saldo = initialBalance
       − Σ TRANSFER donde accountId = cuenta        (sale)
       + Σ TRANSFER donde toAccountId = cuenta      (entra)
 ```
-**Saldo total** = suma de saldos de cuentas con `includeInTotal = true` y `isArchived = false`.
+La MISMA fórmula aplica a las tarjetas: su saldo normal es negativo y **deuda = −saldo** (ver 5.7).
+**Saldo total** = suma de saldos de cuentas con `includeInTotal = true` y `isArchived = false` (las tarjetas restan su deuda).
 
 ### 5.3 Category
 | Campo | Tipo | Regla |
@@ -234,6 +238,7 @@ Reglas:
 | note | String? | máx. 200 chars |
 | createdAt | Instant | |
 | updatedAt | Instant | |
+| installments | Int? | cuotas (1..48); solo en EXPENSE de una tarjeta; informativo (ver 5.7) |
 
 Decisión de diseño: **una transferencia es una sola fila** con `accountId` (origen) y `toAccountId` (destino). Esto garantiza consistencia (no puede existir "media transferencia") y simplifica edición/borrado.
 
@@ -252,26 +257,41 @@ Decisión de diseño: **una transferencia es una sola fila** con `accountId` (or
 - Paleta de ~12 colores fija (definida en `ui/theme/WalletPalette.kt`).
 - Set de íconos: mapa `String -> ImageVector` en `ui/components/IconCatalog.kt` usando Material Icons Extended (p. ej. `"wallet"`, `"savings"`, `"restaurant"`, `"directions_bus"`, `"home"`, `"bolt"`, `"medical"`, `"school"`, `"movie"`, `"shopping_cart"`, `"work"`, `"card_giftcard"`, `"trending_up"`, `"more_horiz"`, …, ~40 íconos). Se guarda la **clave** en la BD, nunca el recurso.
 
+### 5.7 Tarjetas de crédito (desde la Tarea 15)
+Una cuenta `CREDIT_CARD` tiene además cupo total (`creditLimit`), día de corte (`statementDay`) y día límite de pago (`paymentDueDay`).
+- **Deuda = −saldo.** El saldo usa la misma fórmula de 5.2 y lo normal es que sea negativo (un saldo positivo es "saldo a favor"). **Cupo disponible** = `creditLimit + saldo`.
+- **Deuda inicial:** el formulario pide "Deuda actual" (≥ 0) y guarda `initialBalance = −deuda`. Solo las tarjetas pueden tener `initialBalance` negativo.
+- **Compra:** es un `EXPENSE` en la tarjeta (cuenta como gasto el día de la compra). Puede tener `installments` (1..48), INFORMATIVAS: no cambian monto, deuda ni reportes; solo el plan de pagos.
+- **Devolución/abono del comercio:** es un `INCOME` en la tarjeta (baja la deuda).
+- **Pago:** es una `TRANSFER` desde otra cuenta HACIA la tarjeta. No es gasto (el gasto ya se contó al comprar). Un avance es una `TRANSFER` DESDE la tarjeta (sube la deuda).
+- **Ciclo de facturación:** corte del mes = `month.atDay(min(statementDay, largo))`; el ciclo de un corte C cubre transacciones con fecha en (corte anterior, C]. Funciones puras en `CardMath`.
+- **Conciliación con el extracto:** el extracto es la fuente de verdad (la app NO calcula intereses). Se guarda un `CardStatement` (cuenta, corte, límite, saldo del extracto, pago mínimo e intereses opcionales) y, si la deuda del banco supera la de la app, se crea un `EXPENSE` de ajuste con la categoría de sistema `card_interest_fees`; si es al revés, se puede crear un `INCOME` con `card_adjustment`. Todo en una sola transacción de BD.
+- **Aviso al guardar:** en tarjetas avisa si se supera el cupo (saldo < −`creditLimit`); en las demás cuentas, si el saldo queda negativo.
+- **Reportes:** no cambian (las compras ya son gastos, los pagos son transferencias). La vista Balance incluye la tarjeta y la deuda baja la línea del saldo.
+
 ---
 
 ## 6. Base de datos (Room)
 
-`WalletDatabase` versión 1, `exportSchema = true`.
+`WalletDatabase` versión 2, `exportSchema = true` (migración 1→2 en la Tarea 15, con test).
 
 ### 6.1 Tablas
 ```sql
 accounts(
   id INTEGER PK AUTOINCREMENT,
   name TEXT NOT NULL,
-  type TEXT NOT NULL,               -- 'CASH' | 'SAVINGS'
+  type TEXT NOT NULL,               -- 'CASH' | 'SAVINGS' | 'CREDIT_CARD'
   currency_code TEXT NOT NULL,
-  initial_balance INTEGER NOT NULL, -- minor units
+  initial_balance INTEGER NOT NULL, -- minor units (negative allowed only for cards)
   color INTEGER NOT NULL,
   icon TEXT NOT NULL,
   include_in_total INTEGER NOT NULL DEFAULT 1,
   is_archived INTEGER NOT NULL DEFAULT 0,
   sort_order INTEGER NOT NULL DEFAULT 0,
-  created_at INTEGER NOT NULL       -- epoch millis
+  created_at INTEGER NOT NULL,      -- epoch millis
+  credit_limit INTEGER,             -- v2, only CREDIT_CARD
+  statement_day INTEGER,            -- v2, only CREDIT_CARD
+  payment_due_day INTEGER           -- v2, only CREDIT_CARD
 )
 
 categories(
@@ -297,9 +317,23 @@ transactions(
   date INTEGER NOT NULL,            -- LocalDate.toEpochDay()
   note TEXT,
   created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
+  updated_at INTEGER NOT NULL,
+  installments INTEGER              -- v2, only EXPENSE on a card
 )
 INDEX(account_id), INDEX(to_account_id), INDEX(category_id), INDEX(date)
+
+card_statements(                    -- v2
+  id INTEGER PK AUTOINCREMENT,
+  account_id INTEGER NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  closing_date INTEGER NOT NULL,    -- LocalDate.toEpochDay()
+  due_date INTEGER NOT NULL,
+  statement_balance INTEGER NOT NULL,
+  minimum_payment INTEGER,
+  stated_interest_fees INTEGER,
+  adjustment_transaction_id INTEGER REFERENCES transactions(id) ON DELETE SET NULL,
+  created_at INTEGER NOT NULL
+)
+UNIQUE(account_id, closing_date), INDEX(adjustment_transaction_id)
 ```
 - `TypeConverters` para enums (por `name`), `LocalDate` (epochDay) e `Instant` (epochMillis).
 - Foreign keys **RESTRICT**: la lógica de borrado vive en los casos de uso; la BD es la última barrera.
@@ -329,6 +363,7 @@ INDEX(account_id), INDEX(to_account_id), INDEX(category_id), INDEX(date)
 
 ### 6.3 Migraciones
 - v1 es la base. Toda migración futura debe tener `Migration` explícita **y** test con `MigrationTestHelper`. **Prohibido** `fallbackToDestructiveMigration()` en release.
+- Migración 1→2 (Tarea 15): agrega las 3 columnas de tarjeta a `accounts`, `installments` a `transactions` y crea `card_statements`; conserva todos los datos. Test con `MigrationTestHelper`.
 
 ### 6.4 Seed inicial
 En el primer arranque (`RoomDatabase.Callback.onCreate` o, mejor, un `DefaultCategoriesSeeder` invocado por el onboarding) se crean las categorías por defecto con `systemKey`:
@@ -494,18 +529,20 @@ Settings
 
 ## 9. Backup (exportar / importar)
 
-- Formato JSON con kotlinx.serialization:
+- Formato JSON con kotlinx.serialization (`schemaVersion = 2` desde la Tarea 15; se acepta importar v1 y v2):
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "appVersion": "1.0.0",
   "exportedAt": "2026-09-28T15:00:00Z",
   "currency": "COP",
   "accounts": [ { "id": 1, "name": "Efectivo", "type": "CASH", "currencyCode": "COP", "initialBalance": 5000000, "color": -16711936, "icon": "wallet", "includeInTotal": true, "isArchived": false, "sortOrder": 0, "createdAt": 1790000000000 } ],
   "categories": [ { "id": 1, "name": null, "systemKey": "food", "type": "EXPENSE", "parentId": null, "color": -65536, "icon": "restaurant", "isArchived": false, "sortOrder": 0 } ],
-  "transactions": [ { "id": 1, "type": "EXPENSE", "amount": 1500000, "accountId": 1, "toAccountId": null, "categoryId": 1, "date": "2026-09-27", "note": "Almuerzo", "createdAt": 1790000000000, "updatedAt": 1790000000000 } ]
+  "transactions": [ { "id": 1, "type": "EXPENSE", "amount": 1500000, "accountId": 1, "toAccountId": null, "categoryId": 1, "date": "2026-09-27", "note": "Almuerzo", "createdAt": 1790000000000, "updatedAt": 1790000000000 } ],
+  "cardStatements": [ { "id": 1, "accountId": 2, "closingDate": "2026-09-30", "dueDate": "2026-10-15", "statementBalance": 25000000, "minimumPayment": null, "statedInterestAndFees": null, "adjustmentTransactionId": null, "createdAt": 1790000000000 } ]
 }
 ```
+- En v2, `AccountDto` agrega `creditLimit`, `statementDay` y `paymentDueDay`; `TransactionDto` agrega `installments`; y el documento agrega `cardStatements`. Un backup v1 se importa con los defaults (sin tarjetas ni extractos). La exportación siempre escribe v2 (una versión vieja de la app no puede importar un v2).
 - **Exportar**: Storage Access Framework `ActivityResultContracts.CreateDocument("application/json")`, nombre sugerido `wallet-backup-YYYYMMDD-HHmm.json`. Sin permisos de almacenamiento.
 - **Importar**: `OpenDocument(arrayOf("application/json"))`.
   1. Parsear y **validar completamente** antes de tocar la BD: `schemaVersion` soportado, ids únicos, referencias válidas (accountId, toAccountId, categoryId, parentId existen), reglas de 5.4 (montos > 0, transferencias con destino ≠ origen, tipo de categoría coherente, máx. 2 niveles).
@@ -669,6 +706,13 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 - Decisión: el **cambio del neto se muestra en dinero** (neto actual − neto anterior), no en porcentaje, porque un porcentaje sobre una base negativa o cercana a cero no tiene sentido; `null` si el período anterior no tiene ingresos ni gastos.
 - **Aceptación**: la verificación completa (`ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease`) pasa y la pantalla se probó en dispositivo real.
 
+### Tarea 15 — Tarjetas de crédito
+- Tipo de cuenta `CREDIT_CARD` con cupo, día de corte y día límite de pago; deuda = −saldo y cupo disponible.
+- Compras (gastos, con cuotas informativas), devoluciones (ingresos), pagos y avances (transferencias).
+- Ciclo de facturación (`CardMath`), plan de cuotas, resumen de tarjeta y conciliación con el extracto (tabla `card_statements`, migración 1→2, ajuste como movimiento).
+- Backup v2 (compatible con v1).
+- **Aceptación**: la verificación completa (`ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease`) pasa, la migración conserva los datos y la tarjeta se probó en dispositivo real.
+
 ---
 
 ## 13. Convenciones de código
@@ -687,7 +731,7 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 1. Presupuestos mensuales por categoría con alertas.
 2. Transacciones recurrentes (WorkManager).
 3. Comisión en transferencias (gasto vinculado).
-4. Más tipos de cuenta: corriente, tarjeta de crédito, inversión.
+4. Más tipos de cuenta: corriente, inversión.
 5. Multi-moneda con tasas de cambio.
 6. Bloqueo con biometría.
 7. Backup automático (Google Drive / carpeta local programada).
@@ -713,6 +757,7 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 - [x] Tarea 13 — Reportes y gráficas
   - Correcciones de revisión (F1–F29): porciones raíz con campos del padre; changePercent half-away-from-zero con tope Int; tope de mes futuro en modo Año; isRefreshing sin datos cruzados; estado inicial desde SavedStateHandle; drill-up si falta el padre; etiquetas compactas ("500 mil $", "$500K") y eje Y en números redondos; etiquetas de mes que no se pisan; centro de dona en 1 línea autoajustada; leyenda de ritmo; pestaña dueña en la barra inferior; SavedStateHandle sobre argumentos de ruta; nota de app debug.
 - [x] Tarea 14 — Balance en reportes
+- [x] Tarea 15 — Tarjetas de crédito
 
 ---
 

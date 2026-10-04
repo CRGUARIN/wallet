@@ -16,6 +16,13 @@ Wallet es una app Android de finanzas personales que funciona **sin conexión y 
 
 Moneda única: COP. El dinero se maneja como enteros en centavos, nunca como decimales.
 
+## Tarjetas de crédito
+
+- Crea tu tarjeta desde Cuentas con su cupo total, día de corte y día límite de pago. Verás la deuda, el cupo disponible y el próximo corte.
+- Registra cada compra como un gasto en la tarjeta, con sus cuotas si la pagas a plazos (las cuotas son informativas: el gasto cuenta el día de la compra).
+- Paga con una transferencia desde otra cuenta hacia la tarjeta (no es un gasto nuevo); una devolución del comercio es un ingreso en la tarjeta.
+- Cuando llegue el extracto, usa "Conciliar extracto": copia el saldo del banco y la app registra la diferencia como intereses y comisiones. La app no calcula intereses, los toma de tu extracto.
+
 ## Capturas
 
 <!-- TODO: agregar capturas en docs/screenshots/ (tomadas desde un dispositivo o emulador) y enlazarlas aquí. -->
@@ -95,3 +102,7 @@ Licencia MIT; consulta el archivo [`LICENSE`](LICENSE).
 ## English summary
 
 Wallet is an offline, account-free personal finance app for Android (8.0+): multiple accounts, income/expense/transfer tracking, categories and subcategories, monthly transaction lists with filters, reports with a category donut, monthly evolution bars and month pace, balance view with net, savings rate and balance over time, JSON backup export/import, Spanish and English UI, and light/dark/dynamic themes. Build and verify with `./gradlew ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease` (JDK 17, Android SDK 37). See "Release firmado" above for signing the release build with `WALLET_KEYSTORE_*` environment variables or a git-ignored `keystore.properties`. The debug build installs as `com.crguarin.wallet.debug` ("Wallet Debug") alongside the release build and does not share data with it.
+
+### Credit cards
+
+Create your card under Accounts with its credit limit, statement day and payment due day to see the debt, available credit and next statement. Record each purchase as an expense on the card, with installments when you pay in monthly payments (installments are informational: the expense counts on the purchase day). Pay with a transfer from another account to the card (not a new expense); a merchant refund is income on the card. When the statement arrives, use "Reconcile statement": copy the bank balance and the app records the difference as interest and fees. The app does not calculate interest, it takes it from your statement.
