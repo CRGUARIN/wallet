@@ -19,6 +19,9 @@ fun AccountEntity.toDomain(): Account =
         isArchived = isArchived,
         sortOrder = sortOrder,
         createdAt = createdAt,
+        creditLimit = creditLimit?.let { Money(it) },
+        statementDay = statementDay,
+        paymentDueDay = paymentDueDay,
     )
 
 fun Account.toEntity(): AccountEntity =
@@ -34,6 +37,9 @@ fun Account.toEntity(): AccountEntity =
         isArchived = isArchived,
         sortOrder = sortOrder,
         createdAt = createdAt,
+        creditLimit = creditLimit?.minorUnits,
+        statementDay = statementDay,
+        paymentDueDay = paymentDueDay,
     )
 
 fun DbAccountWithBalance.toDomain(): AccountWithBalance =

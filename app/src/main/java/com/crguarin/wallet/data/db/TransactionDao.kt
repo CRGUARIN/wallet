@@ -220,6 +220,37 @@ interface TransactionDao {
         accountId: Long? = null,
     ): Flow<List<DailyIncomeExpenseRow>>
 
+    @Query(
+        """
+        SELECT * FROM transactions
+        WHERE (account_id = :accountId OR to_account_id = :accountId)
+          AND date >= :from
+        ORDER BY date, id
+        """,
+    )
+    fun observeCardTransactions(
+        accountId: Long,
+        from: LocalDate,
+    ): Flow<List<TransactionEntity>>
+
+    /**
+     * Signed sum of balance effects of [accountId] with date <= [date], without the
+     * initial balance: INCOME (+), EXPENSE (−), outgoing TRANSFER (−), incoming TRANSFER (+).
+     */
+    @Query(
+        """
+        SELECT
+            COALESCE((SELECT SUM(amount) FROM transactions WHERE account_id = :accountId AND type = 'INCOME' AND date <= :date), 0)
+            - COALESCE((SELECT SUM(amount) FROM transactions WHERE account_id = :accountId AND type = 'EXPENSE' AND date <= :date), 0)
+            - COALESCE((SELECT SUM(amount) FROM transactions WHERE account_id = :accountId AND type = 'TRANSFER' AND date <= :date), 0)
+            + COALESCE((SELECT SUM(amount) FROM transactions WHERE to_account_id = :accountId AND type = 'TRANSFER' AND date <= :date), 0)
+        """,
+    )
+    suspend fun getAccountEffectUpTo(
+        accountId: Long,
+        date: LocalDate,
+    ): Long
+
     /**
      * Signed balance effects per date for [accountIds], up to [to] (inclusive).
      *

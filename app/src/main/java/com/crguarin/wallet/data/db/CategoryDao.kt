@@ -44,6 +44,12 @@ interface CategoryDao {
     @Query("SELECT * FROM categories WHERE id = :id")
     suspend fun getById(id: Long): CategoryEntity?
 
+    @Query("SELECT * FROM categories WHERE system_key = :systemKey LIMIT 1")
+    suspend fun getBySystemKey(systemKey: String): CategoryEntity?
+
+    @Query("SELECT COALESCE(MAX(sort_order), -1) + 1 FROM categories WHERE parent_id IS NULL")
+    suspend fun nextRootSortOrder(): Int
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(category: CategoryEntity): Long
 
