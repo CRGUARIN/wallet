@@ -27,6 +27,10 @@ fun WalletNavHost(
     modifier: Modifier = Modifier,
     startDestination: Any = Home,
 ) {
+    // Notification deep links are only registered once onboarding is complete. The NavController
+    // handles the hosting Activity's intent automatically when the graph is created
+    // (checkDeepLinkHandled), so registering them during onboarding would skip it.
+    val deepLinksEnabled = startDestination != Onboarding
     NavHost(
         navController = navController,
         startDestination = startDestination,
@@ -123,7 +127,12 @@ fun WalletNavHost(
             )
         }
         composable<AccountDetail>(
-            deepLinks = listOf(navDeepLink<AccountDetail>(basePath = "wallet://account")),
+            deepLinks =
+                if (deepLinksEnabled) {
+                    listOf(navDeepLink<AccountDetail>(basePath = "wallet://account"))
+                } else {
+                    emptyList()
+                },
         ) {
             AccountDetailRoute(
                 onNavigateBack = { navController.popBackStack() },
@@ -208,7 +217,12 @@ fun WalletNavHost(
             )
         }
         composable<RecurringList>(
-            deepLinks = listOf(navDeepLink<RecurringList>(basePath = "wallet://recurring")),
+            deepLinks =
+                if (deepLinksEnabled) {
+                    listOf(navDeepLink<RecurringList>(basePath = "wallet://recurring"))
+                } else {
+                    emptyList()
+                },
         ) {
             RecurringListRoute(
                 onNavigateBack = { navController.popBackStack() },

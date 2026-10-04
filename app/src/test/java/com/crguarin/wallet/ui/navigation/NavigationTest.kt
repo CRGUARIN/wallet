@@ -2,13 +2,14 @@ package com.crguarin.wallet.ui.navigation
 
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.ComponentActivity
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.semantics.SemanticsNode
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -33,7 +34,7 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35])
 class NavigationTest {
     @get:Rule
-    val composeRule = createComposeRule()
+    val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     private lateinit var navController: NavHostController
 
@@ -57,6 +58,25 @@ class NavigationTest {
     }
 
     private fun deepLinkIntent(uri: String): Intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri))
+
+    /**
+     * Runs [block] with [intent] as the hosting Activity's intent, as when a notification opens
+     * the app. The original intent is restored afterwards: ActivityScenario finds its Activity by
+     * intent, so leaving the deep link in place makes closing the scenario hang forever.
+     */
+    private fun withActivityIntent(
+        intent: Intent,
+        block: () -> Unit,
+    ) {
+        val activity = composeRule.activity
+        val original = activity.intent
+        activity.intent = intent
+        try {
+            block()
+        } finally {
+            activity.intent = original
+        }
+    }
 
     @Test
     @Config(qualifiers = "es")
@@ -380,6 +400,34 @@ class NavigationTest {
 
         composeRule.onNodeWithText("Bienvenido a Wallet").assertIsDisplayed()
         assertThat(navController.currentBackStackEntry?.destination?.hasRoute(Onboarding::class)).isTrue()
+    }
+
+    @Test
+    @Config(qualifiers = "es")
+    fun `notification intent deep links when onboarding is complete`() {
+        // Production path: navigation itself handles the hosting Activity's intent when the
+        // NavHost sets the graph.
+        withActivityIntent(deepLinkIntent("wallet://account/7")) {
+            setAppContent()
+
+            composeRule.waitForIdle()
+
+            val route = navController.currentBackStackEntry?.toRoute<AccountDetail>()
+            assertThat(route?.accountId).isEqualTo(7L)
+        }
+    }
+
+    @Test
+    @Config(qualifiers = "es")
+    fun `notification intent does not bypass onboarding`() {
+        withActivityIntent(deepLinkIntent("wallet://recurring")) {
+            setAppContent(startDestination = Onboarding)
+
+            composeRule.waitForIdle()
+
+            composeRule.onNodeWithText("Bienvenido a Wallet").assertIsDisplayed()
+            assertThat(navController.currentBackStackEntry?.destination?.hasRoute(Onboarding::class)).isTrue()
+        }
     }
 
     @Test
