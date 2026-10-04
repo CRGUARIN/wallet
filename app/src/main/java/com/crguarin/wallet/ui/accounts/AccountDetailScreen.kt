@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
@@ -290,6 +291,7 @@ fun AccountDetailScreen(
                         CardSummaryCard(
                             overview = cardOverview,
                             today = uiState.today,
+                            account = account,
                         )
                     }
                     item(key = "card_actions") {
@@ -322,7 +324,8 @@ fun AccountDetailScreen(
                         }
                         items(
                             items = cardOverview.activeInstallments,
-                            key = { it.transactionId },
+                            // Prefixed: the same transaction also appears in the movements list below.
+                            key = { "installment_${it.transactionId}" },
                         ) { installment ->
                             InstallmentRow(
                                 installment = installment,
@@ -341,7 +344,7 @@ fun AccountDetailScreen(
                         }
                         items(
                             items = uiState.statements,
-                            key = { it.id },
+                            key = { "statement_${it.id}" },
                         ) { statement ->
                             StatementRow(
                                 statement = statement,
@@ -499,23 +502,34 @@ private fun InstallmentRow(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = modifier.fillMaxWidth(),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = installment.note?.takeIf { it.isNotBlank() } ?: installment.date.formatMedium(),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text =
+                        stringResource(
+                            R.string.card_installment_progress,
+                            // The installment billed next: plans are listed only while unfinished.
+                            (installment.billedInstallments + 1).coerceAtMost(installment.installments),
+                            installment.installments,
+                            MoneyFormatter.format(installment.remainingAmount, locale),
+                        ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Spacer(modifier = Modifier.width(12.dp))
             Text(
-                text = installment.note?.takeIf { it.isNotBlank() } ?: installment.date.formatMedium(),
+                text = MoneyFormatter.format(installment.amount, locale),
                 style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text =
-                    stringResource(
-                        R.string.card_installment_progress,
-                        installment.billedInstallments,
-                        installment.installments,
-                        MoneyFormatter.format(installment.remainingAmount, locale),
-                    ),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

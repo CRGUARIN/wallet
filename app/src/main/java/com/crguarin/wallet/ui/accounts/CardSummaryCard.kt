@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.core.money.MoneyFormatter
+import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.card.CardOverview
 import com.crguarin.wallet.domain.model.card.StatementPaymentStatus
@@ -138,6 +139,7 @@ fun CardSummaryCard(
     overview: CardOverview,
     today: LocalDate,
     modifier: Modifier = Modifier,
+    account: Account? = null,
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val inFavor = overview.debt < Money.ZERO
@@ -149,6 +151,10 @@ fun CardSummaryCard(
         modifier = modifier.fillMaxWidth(),
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
+            if (account != null) {
+                AccountIdentityRow(account = account)
+                Spacer(modifier = Modifier.height(20.dp))
+            }
             Text(
                 text =
                     if (inFavor) {

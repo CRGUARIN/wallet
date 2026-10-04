@@ -14,6 +14,10 @@ import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.MonthSummary
+import com.crguarin.wallet.domain.model.Transaction
+import com.crguarin.wallet.domain.model.TransactionDetails
+import com.crguarin.wallet.domain.model.TransactionListEntry
+import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.transactions.rememberEntriesPagingItems
 import com.google.common.truth.Truth.assertThat
@@ -63,11 +67,12 @@ class AccountDetailScreenTest {
         onTransactionClick: (Long) -> Unit = {},
         onPayCardClick: () -> Unit = {},
         onReconcileClick: () -> Unit = {},
+        entries: List<TransactionListEntry> = emptyList(),
     ) {
         WalletTheme {
             AccountDetailScreen(
                 uiState = uiState,
-                pagingItems = rememberEntriesPagingItems(emptyList()),
+                pagingItems = rememberEntriesPagingItems(entries),
                 onNavigateBack = {},
                 onEditClick = onEditClick,
                 onTransferClick = onTransferClick,
@@ -120,15 +125,51 @@ class AccountDetailScreenTest {
             TestScreen(uiState = cardState())
         }
 
+        composeRule.onNodeWithText("RappiCard").assertIsDisplayed()
+        composeRule.onNodeWithText("Tarjeta de crédito").assertIsDisplayed()
         composeRule.onNodeWithText("Deuda").assertIsDisplayed()
         composeRule.onNodeWithText("Pagar tarjeta").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Conciliar extracto").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Compras a cuotas").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Portátil").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Cuota 1 de 3", substring = true).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Cuota 2 de 3", substring = true).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Extractos").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("cuadró", substring = true).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("ajuste de", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "es-w1000dp-h3000dp")
+    fun `card detail lists a purchase both as installment plan and as movement`() {
+        // Transaction 11 is the installment plan; transaction 1 shares its id with statement 1.
+        val entries =
+            listOf(11L, 1L).map { id ->
+                TransactionListEntry.Item(
+                    TransactionDetails(
+                        transaction =
+                            Transaction(
+                                id = id,
+                                type = TransactionType.EXPENSE,
+                                amount = Money(100_000L),
+                                accountId = 7L,
+                                date = LocalDate.of(2026, 9, 20),
+                                note = "Movimiento $id",
+                                createdAt = Instant.EPOCH,
+                                updatedAt = Instant.EPOCH,
+                            ),
+                        accountName = "RappiCard",
+                        accountColor = 0,
+                        accountIcon = "credit_card",
+                    ),
+                )
+            }
+        composeRule.setContent {
+            TestScreen(uiState = cardState(), entries = entries)
+        }
+
+        composeRule.onNodeWithText("Portátil").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Movimiento 11").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Movimiento 1").performScrollTo().assertIsDisplayed()
     }
 
     @Test

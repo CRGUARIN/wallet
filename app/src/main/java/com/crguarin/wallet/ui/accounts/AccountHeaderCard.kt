@@ -54,59 +54,7 @@ internal fun AccountHeaderCard(
         Column(
             modifier = Modifier.padding(20.dp),
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Box(
-                    modifier =
-                        Modifier
-                            .size(52.dp)
-                            .clip(CircleShape)
-                            .background(Color(account.color)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        imageVector = IconCatalog.get(account.icon),
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(28.dp),
-                    )
-                }
-                Spacer(modifier = Modifier.width(16.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = account.name,
-                        style = MaterialTheme.typography.headlineSmall,
-                        fontWeight = FontWeight.Bold,
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    val typeText =
-                        when (account.type) {
-                            AccountType.CASH -> stringResource(R.string.account_type_cash)
-                            AccountType.SAVINGS -> stringResource(R.string.account_type_savings)
-                            AccountType.CREDIT_CARD -> stringResource(R.string.account_type_credit_card)
-                        }
-                    Text(
-                        text = typeText,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                if (account.isArchived) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.padding(start = 8.dp),
-                    ) {
-                        Text(
-                            text = stringResource(R.string.account_detail_archived_badge),
-                            style = MaterialTheme.typography.labelMedium,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        )
-                    }
-                }
-            }
+            AccountIdentityRow(account = account)
 
             Spacer(modifier = Modifier.height(20.dp))
 
@@ -173,5 +121,63 @@ private fun SummaryAmount(
             type = type,
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
         )
+    }
+}
+
+/** Icon, name, type and archived badge of [account]; shared by the account and card headers. */
+@Composable
+internal fun AccountIdentityRow(account: Account) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(52.dp)
+                    .clip(CircleShape)
+                    .background(Color(account.color)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = IconCatalog.get(account.icon),
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(28.dp),
+            )
+        }
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = account.name,
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold,
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            val typeText =
+                when (account.type) {
+                    AccountType.CASH -> stringResource(R.string.account_type_cash)
+                    AccountType.SAVINGS -> stringResource(R.string.account_type_savings)
+                    AccountType.CREDIT_CARD -> stringResource(R.string.account_type_credit_card)
+                }
+            Text(
+                text = typeText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (account.isArchived) {
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.padding(start = 8.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.account_detail_archived_badge),
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                )
+            }
+        }
     }
 }
