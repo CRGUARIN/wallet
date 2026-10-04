@@ -3,6 +3,8 @@ package com.crguarin.wallet.data.backup
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.recurring.RecurrenceFrequency
+import com.crguarin.wallet.domain.model.recurring.RecurringMode
 import kotlinx.serialization.Serializable
 
 /**
@@ -11,8 +13,10 @@ import kotlinx.serialization.Serializable
  *
  * Version 2 adds credit card fields ([AccountDto.creditLimit], [AccountDto.statementDay],
  * [AccountDto.paymentDueDay], [TransactionDto.installments]) and [BackupDto.cardStatements].
- * An older app version (schema 1) cannot import a version 2 backup: its parser reports
- * `BackupVersionUnsupported` for any version other than 1.
+ * Version 3 adds recurring payments ([BackupDto.recurringPayments] and
+ * [TransactionDto.recurringId]).
+ * An older app version (schema 1 or 2, e.g. app 1.1.0) cannot import a version 3 backup: its
+ * parser reports `BackupVersionUnsupported` for any version other than the ones it knows.
  */
 @Serializable
 data class BackupDto(
@@ -24,9 +28,10 @@ data class BackupDto(
     val categories: List<CategoryDto>,
     val transactions: List<TransactionDto>,
     val cardStatements: List<CardStatementDto> = emptyList(),
+    val recurringPayments: List<RecurringPaymentDto> = emptyList(),
 ) {
     companion object {
-        const val SCHEMA_VERSION = 2
+        const val SCHEMA_VERSION = 3
     }
 }
 
@@ -74,6 +79,28 @@ data class TransactionDto(
     val createdAt: Long,
     val updatedAt: Long,
     val installments: Int? = null,
+    val recurringId: Long? = null,
+)
+
+@Serializable
+data class RecurringPaymentDto(
+    val id: Long,
+    val name: String,
+    val type: TransactionType,
+    val amount: Long,
+    val accountId: Long,
+    val categoryId: Long,
+    val note: String? = null,
+    val frequency: RecurrenceFrequency,
+    val interval: Int = 1,
+    val startDate: String,
+    val endDate: String? = null,
+    val nextDueDate: String,
+    val mode: RecurringMode = RecurringMode.AUTO,
+    val reminderDaysBefore: Int? = null,
+    val isActive: Boolean = true,
+    val createdAt: Long,
+    val updatedAt: Long,
 )
 
 @Serializable

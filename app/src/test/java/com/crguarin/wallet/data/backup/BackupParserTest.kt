@@ -68,7 +68,7 @@ class BackupParserTest {
 
         assertThat(root.keys)
             .containsAtLeast("schemaVersion", "appVersion", "exportedAt", "currency", "accounts", "categories", "transactions")
-        assertThat(root["schemaVersion"]!!.jsonPrimitive.content).isEqualTo("2")
+        assertThat(root["schemaVersion"]!!.jsonPrimitive.content).isEqualTo("3")
         assertThat(root["currency"]!!.jsonPrimitive.content).isEqualTo("COP")
         assertThat(root["exportedAt"]!!.jsonPrimitive.content).isEqualTo("2026-09-28T15:00:00Z")
 
@@ -114,7 +114,7 @@ class BackupParserTest {
 
     @Test
     fun `output is pretty printed`() {
-        assertThat(parser.encode(validBackupDto())).contains("\n    \"schemaVersion\": 2")
+        assertThat(parser.encode(validBackupDto())).contains("\n    \"schemaVersion\": 3")
     }
 
     @Test
@@ -131,12 +131,71 @@ class BackupParserTest {
 
     @Test
     fun `a version 2 backup with card data parses`() {
-        val dto = decodeToDto(parser.encode(validCardBackupDto()))
+        val dto = decodeToDto(parser.encode(validCardBackupDto().copy(schemaVersion = 2)))
 
         assertThat(dto.schemaVersion).isEqualTo(2)
         assertThat(dto.accounts.single { it.type == AccountType.CREDIT_CARD }.creditLimit).isEqualTo(10_000_000L)
         assertThat(dto.transactions.single { it.id == 4L }.installments).isEqualTo(3)
         assertThat(dto.cardStatements).hasSize(2)
+        assertThat(dto.recurringPayments).isEmpty()
+    }
+
+    @Test
+    fun `a version 2 file without the new keys is accepted`() {
+        val root = Json.parseToJsonElement(parser.encode(validCardBackupDto())).jsonObject
+        val withoutNewKeys =
+            buildJsonObject {
+                root.forEach { (key, value) ->
+                    when (key) {
+                        "recurringPayments" -> Unit
+                        "transactions" ->
+                            put(
+                                key,
+                                JsonArray(
+                                    value.jsonArray.map { tx ->
+                                        buildJsonObject {
+                                            tx.jsonObject.forEach { (txKey, txValue) ->
+                                                if (txKey != "recurringId") put(txKey, txValue)
+                                            }
+                                        }
+                                    },
+                                ),
+                            )
+                        else -> put(key, value)
+                    }
+                }
+                put("schemaVersion", 2)
+            }.toString()
+        val dto = decodeToDto(withoutNewKeys)
+
+        assertThat(dto.schemaVersion).isEqualTo(2)
+        assertThat(dto.recurringPayments).isEmpty()
+        assertThat(dto.transactions.single { it.id == 4L }.recurringId).isNull()
+    }
+
+    @Test
+    fun `a version 3 backup with recurring payments parses`() {
+        val dto = decodeToDto(parser.encode(validRecurringBackupDto()))
+
+        assertThat(dto.schemaVersion).isEqualTo(3)
+        assertThat(dto.recurringPayments).hasSize(2)
+        assertThat(dto.recurringPayments.single { it.id == 1L }.name).isEqualTo("Netflix")
+        assertThat(dto.transactions.single { it.id == 6L }.recurringId).isEqualTo(1L)
+    }
+
+    @Test
+    fun `schema versions 1 2 and 3 are accepted`() {
+        assertThat(parser.decode(planSample).isSuccess).isTrue()
+        assertThat(parser.decode(parser.encode(validCardBackupDto().copy(schemaVersion = 2))).isSuccess).isTrue()
+        assertThat(parser.decode(parser.encode(validRecurringBackupDto())).isSuccess).isTrue()
+    }
+
+    @Test
+    fun `schema versions other than 1 2 and 3 are unsupported`() {
+        for (version in listOf(0, 4, 7, -1)) {
+            assertThat(error(planSample.replace("\"schemaVersion\": 1", "\"schemaVersion\": $version")))
+                .isEqualTo(DomainError.BackupVersionUnsupported)
+        }
     }
 
     @Test
@@ -170,7 +229,7 @@ class BackupParserTest {
     fun `a different schema version is unsupported even if the rest has another shape`() {
         val future: JsonObject =
             buildJsonObject {
-                put("schemaVersion", 3)
+                put("schemaVersion", 4)
                 put("data", JsonArray(listOf(JsonPrimitive("something else"))))
             }
         assertThat(error(future.toString())).isEqualTo(DomainError.BackupVersionUnsupported)

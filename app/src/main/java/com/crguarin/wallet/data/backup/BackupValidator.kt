@@ -13,13 +13,14 @@ import java.time.LocalDate
  * Pure validation of a decoded [BackupDto]. Runs before the database is touched, so it must
  * reject anything that would violate a business rule or a foreign key on insert.
  *
- * Accepts schema versions 1 and 2: a version 1 backup carries no card fields and is imported
- * with the defaults (no credit cards, no statements).
+ * Accepts schema versions 1, 2 and 3: a version 1 backup carries no card fields and is
+ * imported with the defaults (no credit cards, no statements); versions 1 and 2 carry no
+ * recurring payments and are imported without them.
  */
 object BackupValidator {
     /** Returns null when [dto] is valid, or the [DomainError] to report otherwise. */
     fun validate(dto: BackupDto): DomainError? {
-        if (dto.schemaVersion != 1 && dto.schemaVersion != BackupDto.SCHEMA_VERSION) {
+        if (dto.schemaVersion != 1 && dto.schemaVersion != 2 && dto.schemaVersion != BackupDto.SCHEMA_VERSION) {
             return DomainError.BackupVersionUnsupported
         }
         return firstReason(dto)?.let { DomainError.BackupInvalid(it) }

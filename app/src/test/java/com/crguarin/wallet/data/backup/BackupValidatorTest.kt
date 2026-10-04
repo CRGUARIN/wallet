@@ -44,15 +44,17 @@ class BackupValidatorTest {
 
     @Test
     fun `unsupported schema version is reported as such`() {
-        assertThat(BackupValidator.validate(valid.copy(schemaVersion = 3))).isEqualTo(DomainError.BackupVersionUnsupported)
+        assertThat(BackupValidator.validate(valid.copy(schemaVersion = 4))).isEqualTo(DomainError.BackupVersionUnsupported)
         assertThat(BackupValidator.validate(valid.copy(schemaVersion = 0))).isEqualTo(DomainError.BackupVersionUnsupported)
     }
 
     @Test
-    fun `schema versions 1 and 2 are accepted`() {
+    fun `schema versions 1 2 and 3 are accepted`() {
         assertThat(BackupValidator.validate(valid.copy(schemaVersion = 1))).isNull()
         assertThat(BackupValidator.validate(valid.copy(schemaVersion = 2))).isNull()
+        assertThat(BackupValidator.validate(valid.copy(schemaVersion = 3))).isNull()
         assertThat(BackupValidator.validate(validCardBackupDto())).isNull()
+        assertThat(BackupValidator.validate(validRecurringBackupDto())).isNull()
     }
 
     @Test

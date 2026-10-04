@@ -238,7 +238,7 @@ class BackupRepositoryImplTest {
             val exported = (repository(source).exportBackup() as DomainResult.Success).value
             val dto = (parser.decode(exported) as DomainResult.Success).value
 
-            assertThat(dto.schemaVersion).isEqualTo(2)
+            assertThat(dto.schemaVersion).isEqualTo(3)
             assertThat(dto.appVersion).isEqualTo("1.0.0")
             assertThat(dto.currency).isEqualTo("COP")
             assertThat(dto.exportedAt).isEqualTo("2026-09-28T15:00:00Z")
@@ -279,7 +279,7 @@ class BackupRepositoryImplTest {
             populate(target)
             val before = snapshot(target)
 
-            val result = repository(target).importBackup(parser.encode(validBackupDto().copy(schemaVersion = 3)))
+            val result = repository(target).importBackup(parser.encode(validBackupDto().copy(schemaVersion = 4)))
 
             assertThat(result.errorOrNull()).isEqualTo(DomainError.BackupVersionUnsupported)
             assertThat(snapshot(target)).isEqualTo(before)
