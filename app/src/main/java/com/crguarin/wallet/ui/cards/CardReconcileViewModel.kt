@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.MoneyParser
 import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
@@ -248,6 +249,36 @@ class CardReconcileViewModel
             }
             _uiState.update { it.copy(isSaving = true, generalErrorRes = null) }
             viewModelScope.launch {
+                // The cycle may have changed since the preview (e.g. after "review transactions"):
+                // recompute it and never save an adjustment based on a stale difference.
+                val current =
+                    when (
+                        val refreshed =
+                            previewReconciliationUseCase(
+                                accountId = accountId,
+                                closingDate = preview.closingDate,
+                                statementBalance = preview.statementBalance,
+                                statedInterestAndFees = interest,
+                            )
+                    ) {
+                        is DomainResult.Success -> refreshed.value
+                        is DomainResult.Failure -> {
+                            _uiState.update {
+                                it.copy(isSaving = false, generalErrorRes = refreshed.error.asStringRes())
+                            }
+                            return@launch
+                        }
+                    }
+                if (current != preview) {
+                    _uiState.update {
+                        it.copy(
+                            isSaving = false,
+                            preview = current,
+                            generalErrorRes = R.string.card_reconcile_recalculated,
+                        )
+                    }
+                    return@launch
+                }
                 when (
                     val result =
                         applyReconciliationUseCase(

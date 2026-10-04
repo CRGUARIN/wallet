@@ -36,7 +36,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -50,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.R
 import com.crguarin.wallet.domain.model.DomainLimits
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.usecase.SaveTransactionUseCase
 import com.crguarin.wallet.ui.components.AmountTextField
 import com.crguarin.wallet.ui.components.categoryFullDisplayName
 import com.crguarin.wallet.ui.util.formatMedium
@@ -183,10 +187,17 @@ internal fun TransactionEditForm(
         }
 
         if (uiState.showInstallments) {
+            // Local text so the field can be emptied while typing; an empty field means 1.
+            var installmentsText by rememberSaveable { mutableStateOf(uiState.installments.toString()) }
             OutlinedTextField(
-                value = uiState.installments.toString(),
+                value = installmentsText,
                 onValueChange = { text ->
-                    text.toIntOrNull()?.let { onInstallmentsChanged(it) }
+                    val digits = text.filter(Char::isDigit)
+                    val parsed = digits.toIntOrNull()
+                    if (digits.isEmpty() || (parsed != null && parsed in 1..SaveTransactionUseCase.MAX_INSTALLMENTS)) {
+                        installmentsText = parsed?.toString().orEmpty()
+                        onInstallmentsChanged(parsed ?: 1)
+                    }
                 },
                 label = { Text(text = stringResource(R.string.card_installments_label)) },
                 supportingText = { Text(text = stringResource(R.string.card_installments_hint)) },

@@ -6,6 +6,7 @@ import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.fake.FakeAccountRepository
 import com.crguarin.wallet.domain.fake.FakeCardStatementRepository
+import com.crguarin.wallet.domain.fake.FakePreferencesRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
 import com.crguarin.wallet.domain.model.Account
@@ -47,6 +48,7 @@ class AccountDetailViewModelTest {
     private lateinit var accountRepository: FakeAccountRepository
     private lateinit var transactionRepository: FakeTransactionRepository
     private lateinit var cardStatementRepository: FakeCardStatementRepository
+    private lateinit var preferencesRepository: FakePreferencesRepository
     private lateinit var timeProvider: FakeTimeProvider
     private lateinit var observeMonthSummaryUseCase: ObserveMonthSummaryUseCase
     private lateinit var archiveAccountUseCase: ArchiveAccountUseCase
@@ -76,6 +78,7 @@ class AccountDetailViewModelTest {
         accountRepository = FakeAccountRepository()
         transactionRepository = FakeTransactionRepository()
         cardStatementRepository = FakeCardStatementRepository()
+        preferencesRepository = FakePreferencesRepository()
         timeProvider = FakeTimeProvider(Instant.parse("2026-09-28T12:00:00Z"))
         observeMonthSummaryUseCase = ObserveMonthSummaryUseCase(transactionRepository)
         archiveAccountUseCase = ArchiveAccountUseCase(accountRepository)
@@ -105,6 +108,7 @@ class AccountDetailViewModelTest {
                     ObserveCardOverviewUseCase(accountRepository, cardStatementRepository, timeProvider),
                 cardStatementRepository = cardStatementRepository,
                 transactionRepository = transactionRepository,
+                preferencesRepository = preferencesRepository,
             )
     }
 
@@ -280,7 +284,7 @@ class AccountDetailViewModelTest {
     )
 
     @Test
-    fun `card fields default to empty and pay source resolves the last non-card account`() =
+    fun `card fields default to empty and pay source falls back to the first non-card account`() =
         runTest(testDispatcher) {
             accountRepository.setInitialData(
                 accountList =
@@ -303,8 +307,35 @@ class AccountDetailViewModelTest {
                 assertThat(state.cardOverview).isNull()
                 assertThat(state.statements).isEmpty()
                 assertThat(state.adjustmentAmounts).isEmpty()
-                assertThat(state.payFromAccountId).isEqualTo(2L)
+                assertThat(state.payFromAccountId).isEqualTo(1L)
                 assertThat(state.payAmountMinor).isNull()
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `pay source prefers the last used account unless it is a card`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                accountList =
+                    listOf(
+                        activeAccount(id = 1L, name = "Efectivo").copy(type = AccountType.CASH, sortOrder = 0),
+                        activeAccount(id = 2L, name = "Ahorros").copy(sortOrder = 1),
+                        activeAccount(id = 7L, name = "RappiCard").copy(
+                            type = AccountType.CREDIT_CARD,
+                            icon = "credit_card",
+                            sortOrder = 2,
+                        ),
+                    ),
+            )
+            preferencesRepository.setLastUsedAccountId(2L)
+
+            viewModel.uiState.test {
+                assertThat(awaitItem().payFromAccountId).isEqualTo(2L)
+
+                preferencesRepository.setLastUsedAccountId(7L)
+                assertThat(awaitItem().payFromAccountId).isEqualTo(1L)
 
                 cancelAndIgnoreRemainingEvents()
             }

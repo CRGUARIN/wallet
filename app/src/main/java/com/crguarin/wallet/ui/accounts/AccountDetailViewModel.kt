@@ -24,6 +24,7 @@ import com.crguarin.wallet.domain.model.card.CardOverview
 import com.crguarin.wallet.domain.model.card.CardStatement
 import com.crguarin.wallet.domain.repository.AccountRepository
 import com.crguarin.wallet.domain.repository.CardStatementRepository
+import com.crguarin.wallet.domain.repository.PreferencesRepository
 import com.crguarin.wallet.domain.repository.TransactionRepository
 import com.crguarin.wallet.domain.usecase.ArchiveAccountUseCase
 import com.crguarin.wallet.domain.usecase.DeleteAccountUseCase
@@ -70,7 +71,7 @@ data class AccountDetailUiState(
     val statements: List<CardStatement> = emptyList(),
     /** Adjustment movement amount per statement id, for statements that have one. */
     val adjustmentAmounts: Map<Long, Money> = emptyMap(),
-    /** Default source account for "pay card": the last active non-card account, if any. */
+    /** Default source account for "pay card": the last used non-card account, or the first one. */
     val payFromAccountId: Long? = null,
     /** Pending statement amount in minor units, or null when there is nothing to pay. */
     val payAmountMinor: Long? = null,
@@ -100,6 +101,7 @@ class AccountDetailViewModel
         observeCardOverviewUseCase: ObserveCardOverviewUseCase,
         cardStatementRepository: CardStatementRepository,
         private val transactionRepository: TransactionRepository,
+        preferencesRepository: PreferencesRepository,
     ) : ViewModel() {
         val accountId: Long = savedStateHandle.toRoute<AccountDetail>().accountId
 
@@ -153,14 +155,15 @@ class AccountDetailViewModel
                 combine(
                     observeCardOverviewUseCase(accountId),
                     cardStatementRepository.observeStatements(accountId),
-                ) { overview, statements -> overview to statements },
+                    preferencesRepository.observeUserPreferences(),
+                ) { overview, statements, preferences -> Triple(overview, statements, preferences.lastUsedAccountId) },
             ) { activeAccounts, dailyTotals, cardDetail -> Triple(activeAccounts, dailyTotals, cardDetail) }
 
         val uiState: StateFlow<AccountDetailUiState> =
             combine(headerFlow, listsFlow) { header, lists ->
                 val (account, monthSummary, dialogState) = header
                 val (activeAccounts, dailyTotals, cardDetail) = lists
-                val (cardOverview, statements) = cardDetail
+                val (cardOverview, statements, lastUsedAccountId) = cardDetail
                 val recentStatements = statements.take(CARD_DETAIL_STATEMENTS_LIMIT)
                 val adjustmentAmounts =
                     recentStatements
@@ -182,12 +185,7 @@ class AccountDetailViewModel
                     cardOverview = cardOverview,
                     statements = recentStatements,
                     adjustmentAmounts = adjustmentAmounts,
-                    payFromAccountId =
-                        activeAccounts
-                            .filter { it.account.type != AccountType.CREDIT_CARD }
-                            .lastOrNull()
-                            ?.account
-                            ?.id,
+                    payFromAccountId = payFromAccountIdOf(activeAccounts, lastUsedAccountId),
                     payAmountMinor = pending?.takeIf { it > Money.ZERO }?.minorUnits,
                 )
             }.stateIn(
@@ -255,3 +253,16 @@ class AccountDetailViewModel
             }
         }
     }
+
+/**
+ * Default source account for paying a card: the last used account when it is an active
+ * non-card account, otherwise the first active non-card account in the user's order.
+ */
+private fun payFromAccountIdOf(
+    activeAccounts: List<AccountWithBalance>,
+    lastUsedAccountId: Long?,
+): Long? {
+    val candidates = activeAccounts.map { it.account }.filter { it.type != AccountType.CREDIT_CARD }
+    return candidates.firstOrNull { it.id == lastUsedAccountId }?.id
+        ?: candidates.minByOrNull { it.sortOrder }?.id
+}

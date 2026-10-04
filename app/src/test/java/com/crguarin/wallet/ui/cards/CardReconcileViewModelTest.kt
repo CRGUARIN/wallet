@@ -2,6 +2,7 @@ package com.crguarin.wallet.ui.cards
 
 import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
+import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.fake.FakeAccountRepository
 import com.crguarin.wallet.domain.fake.FakeCardStatementRepository
@@ -257,6 +258,38 @@ class CardReconcileViewModelTest {
 
             cardStatementRepository.observeStatements(1L).test {
                 assertThat(awaitItem()).hasSize(1)
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `saving recalculates a stale preview instead of saving the old difference`() =
+        runTest(testDispatcher) {
+            cardStatementRepository.setInitialData(emptyList(), listOf(purchase()))
+            val viewModel = createViewModel()
+            viewModel.setStatementBalanceText("9000")
+            viewModel.calculatePreview()
+            assertThat(
+                viewModel.uiState.value.preview
+                    ?.difference,
+            ).isEqualTo(Money(-100_000L))
+
+            // While reviewing the cycle, the user records the missing refund.
+            val refund =
+                purchase(id = 21L, amount = Money(100_000L), date = LocalDate.of(2026, 9, 12))
+                    .copy(type = TransactionType.INCOME, categoryId = null)
+            cardStatementRepository.setInitialData(emptyList(), listOf(purchase(), refund))
+
+            viewModel.events.test {
+                viewModel.save("Extracto 15 sep", true)
+                expectNoEvents()
+            }
+            val state = viewModel.uiState.value
+            assertThat(state.preview?.difference).isEqualTo(Money.ZERO)
+            assertThat(state.generalErrorRes).isEqualTo(R.string.card_reconcile_recalculated)
+            assertThat(state.isSaving).isFalse()
+            cardStatementRepository.observeStatements(1L).test {
+                assertThat(awaitItem()).isEmpty()
                 cancelAndIgnoreRemainingEvents()
             }
         }

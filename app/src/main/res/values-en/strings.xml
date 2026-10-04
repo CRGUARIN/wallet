@@ -419,6 +419,7 @@
     <string name="card_reconcile_confirm">Save reconciliation</string>
     <string name="card_reconcile_note">Statement %1$s</string>
     <string name="card_reconcile_saved">Statement reconciled</string>
+    <string name="card_reconcile_recalculated">The card transactions changed. Check the updated difference before saving.</string>
     <string name="card_statements_history">Statements</string>
     <string name="card_statement_row">Statement %1$s · %2$s</string>
     <string name="card_statement_adjusted">adjusted by %1$s</string>

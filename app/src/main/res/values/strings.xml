@@ -423,6 +423,7 @@
     <string name="card_reconcile_confirm">Guardar conciliación</string>
     <string name="card_reconcile_note">Extracto %1$s</string>
     <string name="card_reconcile_saved">Extracto conciliado</string>
+    <string name="card_reconcile_recalculated">Los movimientos de la tarjeta cambiaron. Revisa la diferencia actualizada antes de guardar.</string>
     <string name="card_statements_history">Extractos</string>
     <string name="card_statement_row">Corte %1$s · %2$s</string>
     <string name="card_statement_adjusted">ajuste de %1$s</string>

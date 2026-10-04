@@ -1,10 +1,14 @@
 package com.crguarin.wallet.ui.transactions
 
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextClearance
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.Account
@@ -157,6 +161,20 @@ class TransactionEditCardScreenTest {
         composeRule.onNodeWithText("1").performScrollTo().performTextReplacement("12")
 
         assertThat(installments).isEqualTo(12)
+    }
+
+    @Test
+    fun `installments field can be cleared and rejects values out of range`() {
+        val received = mutableListOf<Int>()
+        setScreen(cardExpenseState(), onInstallmentsChanged = { received += it })
+        val field = composeRule.onNodeWithText("Cuotas").performScrollTo()
+
+        field.performTextClearance()
+        field.performTextInput("3")
+        field.performTextReplacement("60")
+
+        assertThat(received).containsExactly(1, 3).inOrder()
+        field.assert(hasText("3"))
     }
 
     @Test
