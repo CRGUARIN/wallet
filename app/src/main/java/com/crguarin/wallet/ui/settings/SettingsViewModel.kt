@@ -6,8 +6,13 @@ import androidx.lifecycle.viewModelScope
 import com.crguarin.wallet.R
 import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.core.time.TimeProvider
+import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.BackupSummary
 import com.crguarin.wallet.domain.model.ThemeMode
+import com.crguarin.wallet.domain.model.notifications.NotificationSettings
+import com.crguarin.wallet.domain.repository.AccountRepository
+import com.crguarin.wallet.domain.repository.DailyWorkScheduler
+import com.crguarin.wallet.domain.repository.NotificationGateway
 import com.crguarin.wallet.domain.repository.PreferencesRepository
 import com.crguarin.wallet.domain.usecase.ExportBackupUseCase
 import com.crguarin.wallet.domain.usecase.ImportBackupUseCase
@@ -34,6 +39,9 @@ data class SettingsUiState(
     val isBusy: Boolean = false,
     /** Summary of a validated backup waiting for the user's confirmation to replace their data. */
     val pendingImport: BackupSummary? = null,
+    val notificationSettings: NotificationSettings = NotificationSettings(),
+    /** True when at least one credit card exists: shows the card notification controls. */
+    val hasCreditCard: Boolean = false,
 )
 
 sealed interface SettingsEvent {
@@ -52,6 +60,9 @@ class SettingsViewModel
         private val previewBackupUseCase: PreviewBackupUseCase,
         private val importBackupUseCase: ImportBackupUseCase,
         private val timeProvider: TimeProvider,
+        private val accountRepository: AccountRepository,
+        private val dailyWorkScheduler: DailyWorkScheduler,
+        private val notificationGateway: NotificationGateway,
     ) : ViewModel() {
         private val _uiState = MutableStateFlow(SettingsUiState(language = languageController.current()))
         val uiState: StateFlow<SettingsUiState> = _uiState.asStateFlow()
@@ -70,6 +81,18 @@ class SettingsViewModel
                     }
                 }
             }
+            viewModelScope.launch {
+                preferencesRepository.observeNotificationSettings().collect { settings ->
+                    _uiState.update { it.copy(notificationSettings = settings) }
+                }
+            }
+            viewModelScope.launch {
+                accountRepository.observeAllAccounts().collect { accounts ->
+                    _uiState.update {
+                        it.copy(hasCreditCard = accounts.any { account -> account.type == AccountType.CREDIT_CARD })
+                    }
+                }
+            }
         }
 
         fun setLanguage(language: AppLanguage) {
@@ -83,6 +106,77 @@ class SettingsViewModel
 
         fun setDynamicColor(enabled: Boolean) {
             viewModelScope.launch { preferencesRepository.setDynamicColor(enabled) }
+        }
+
+        fun setNotificationsEnabled(enabled: Boolean) {
+            viewModelScope.launch {
+                preferencesRepository.updateNotificationSettings { it.copy(enabled = enabled) }
+            }
+        }
+
+        fun setNotificationTime(
+            hour: Int,
+            minute: Int,
+        ) {
+            viewModelScope.launch {
+                preferencesRepository.updateNotificationSettings { it.copy(hour = hour, minute = minute) }
+                dailyWorkScheduler.schedule(hour, minute, replace = true)
+            }
+        }
+
+        fun setRecurringReminders(enabled: Boolean) {
+            viewModelScope.launch {
+                preferencesRepository.updateNotificationSettings { it.copy(recurringReminders = enabled) }
+            }
+        }
+
+        fun setRecurringPosted(enabled: Boolean) {
+            viewModelScope.launch {
+                preferencesRepository.updateNotificationSettings { it.copy(recurringPosted = enabled) }
+            }
+        }
+
+        fun setRecurringPendingConfirm(enabled: Boolean) {
+            viewModelScope.launch {
+                preferencesRepository.updateNotificationSettings { it.copy(recurringPendingConfirm = enabled) }
+            }
+        }
+
+        fun setCardClosing(enabled: Boolean) {
+            viewModelScope.launch {
+                preferencesRepository.updateNotificationSettings { it.copy(cardClosing = enabled) }
+            }
+        }
+
+        fun setCardClosingDaysBefore(days: Int) {
+            viewModelScope.launch {
+                preferencesRepository.updateNotificationSettings { it.copy(cardClosingDaysBefore = days) }
+            }
+        }
+
+        fun setCardPayment(enabled: Boolean) {
+            viewModelScope.launch {
+                preferencesRepository.updateNotificationSettings { it.copy(cardPayment = enabled) }
+            }
+        }
+
+        fun setCardPaymentDaysBefore(days: Int) {
+            viewModelScope.launch {
+                preferencesRepository.updateNotificationSettings { it.copy(cardPaymentDaysBefore = days) }
+            }
+        }
+
+        fun setCardOverdue(enabled: Boolean) {
+            viewModelScope.launch {
+                preferencesRepository.updateNotificationSettings { it.copy(cardOverdue = enabled) }
+            }
+        }
+
+        fun sendTestNotification() {
+            viewModelScope.launch {
+                notificationGateway.showTest()
+                _events.send(SettingsEvent.ShowSnackbar(R.string.settings_notifications_test_sent))
+            }
         }
 
         fun suggestedBackupFileName(): String = backupFileName(timeProvider.now())

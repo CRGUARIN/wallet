@@ -2,6 +2,7 @@ package com.crguarin.wallet.ui.settings
 
 import android.os.Build
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
@@ -19,6 +20,10 @@ import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Repeat
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -31,10 +36,18 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.TimePickerDialog
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -46,9 +59,15 @@ import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.R
 import com.crguarin.wallet.domain.model.BackupSummary
 import com.crguarin.wallet.domain.model.ThemeMode
+import com.crguarin.wallet.domain.model.notifications.NotificationSettings
 import com.crguarin.wallet.ui.components.ConfirmDialog
+import com.crguarin.wallet.ui.components.NotificationPermissionState
+import com.crguarin.wallet.ui.components.rememberNotificationPermissionState
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.util.AppLanguage
+import java.time.LocalTime
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -66,7 +85,21 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
     dynamicColorSupported: Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    onRecurringClick: () -> Unit = {},
+    onNotificationsEnabledChanged: (Boolean) -> Unit = {},
+    onNotificationTimeChanged: (Int, Int) -> Unit = { _, _ -> },
+    onRecurringRemindersChanged: (Boolean) -> Unit = {},
+    onRecurringPostedChanged: (Boolean) -> Unit = {},
+    onRecurringPendingChanged: (Boolean) -> Unit = {},
+    onCardClosingChanged: (Boolean) -> Unit = {},
+    onCardClosingDaysChanged: (Int) -> Unit = {},
+    onCardPaymentChanged: (Boolean) -> Unit = {},
+    onCardPaymentDaysChanged: (Int) -> Unit = {},
+    onCardOverdueChanged: (Boolean) -> Unit = {},
+    onSendTestNotification: () -> Unit = {},
+    permissionState: NotificationPermissionState? = null,
 ) {
+    val permission = permissionState ?: rememberNotificationPermissionState()
     Scaffold(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0),
@@ -87,7 +120,30 @@ fun SettingsScreen(
             Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                 LanguageSection(uiState.language, onLanguageSelected)
                 ThemeSection(uiState, dynamicColorSupported, onThemeSelected, onDynamicColorChanged)
-                DataSection(onCategoriesClick)
+                DataSection(onCategoriesClick, onRecurringClick)
+                NotificationsSection(
+                    settings = uiState.notificationSettings,
+                    hasCreditCard = uiState.hasCreditCard,
+                    permissionGranted = permission.granted,
+                    onRequestPermission = permission::request,
+                    onEnabledChanged = {
+                        if (it && !permission.granted) permission.request()
+                        onNotificationsEnabledChanged(it)
+                    },
+                    onTimeChanged = onNotificationTimeChanged,
+                    onRecurringRemindersChanged = onRecurringRemindersChanged,
+                    onRecurringPostedChanged = onRecurringPostedChanged,
+                    onRecurringPendingChanged = onRecurringPendingChanged,
+                    onCardClosingChanged = onCardClosingChanged,
+                    onCardClosingDaysChanged = onCardClosingDaysChanged,
+                    onCardPaymentChanged = onCardPaymentChanged,
+                    onCardPaymentDaysChanged = onCardPaymentDaysChanged,
+                    onCardOverdueChanged = onCardOverdueChanged,
+                    onSendTestNotification = {
+                        if (!permission.granted) permission.request()
+                        onSendTestNotification()
+                    },
+                )
                 BackupSection(uiState.isBusy, onExportClick, onImportClick)
                 AboutSection(appVersion)
             }
@@ -125,16 +181,49 @@ private fun summaryText(summary: BackupSummary): String {
     val categories = pluralStringResource(R.plurals.backup_summary_categories, summary.categories, summary.categories)
     val transactions =
         pluralStringResource(R.plurals.backup_summary_transactions, summary.transactions, summary.transactions)
-    return if (summary.cardStatements > 0) {
-        stringResource(
-            R.string.backup_summary_format_with_statements,
-            accounts,
-            categories,
-            transactions,
-            pluralStringResource(R.plurals.backup_summary_statements, summary.cardStatements, summary.cardStatements),
+    val statements =
+        pluralStringResource(R.plurals.backup_summary_statements, summary.cardStatements, summary.cardStatements)
+    val recurring =
+        pluralStringResource(
+            R.plurals.backup_summary_recurring,
+            summary.recurringPayments,
+            summary.recurringPayments,
         )
-    } else {
-        stringResource(R.string.backup_summary_format, accounts, categories, transactions)
+    return when {
+        summary.cardStatements > 0 && summary.recurringPayments > 0 -> {
+            stringResource(
+                R.string.backup_summary_format_with_statements_recurring,
+                accounts,
+                categories,
+                transactions,
+                statements,
+                recurring,
+            )
+        }
+
+        summary.cardStatements > 0 -> {
+            stringResource(
+                R.string.backup_summary_format_with_statements,
+                accounts,
+                categories,
+                transactions,
+                statements,
+            )
+        }
+
+        summary.recurringPayments > 0 -> {
+            stringResource(
+                R.string.backup_summary_format_with_recurring,
+                accounts,
+                categories,
+                transactions,
+                recurring,
+            )
+        }
+
+        else -> {
+            stringResource(R.string.backup_summary_format, accounts, categories, transactions)
+        }
     }
 }
 
@@ -192,7 +281,10 @@ private fun ThemeSection(
 }
 
 @Composable
-private fun DataSection(onCategoriesClick: () -> Unit) {
+private fun DataSection(
+    onCategoriesClick: () -> Unit,
+    onRecurringClick: () -> Unit = {},
+) {
     SectionHeader(stringResource(R.string.settings_section_data))
     ListItem(
         headlineContent = { Text(text = stringResource(R.string.settings_item_categories)) },
@@ -207,7 +299,247 @@ private fun DataSection(onCategoriesClick: () -> Unit) {
         },
         modifier = Modifier.clickable(onClick = onCategoriesClick),
     )
+    ListItem(
+        headlineContent = { Text(text = stringResource(R.string.settings_item_recurring)) },
+        supportingContent = { Text(text = stringResource(R.string.recurring_settings_subtitle)) },
+        leadingContent = { Icon(imageVector = Icons.Default.Repeat, contentDescription = null) },
+        trailingContent = {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+            )
+        },
+        modifier = Modifier.clickable(onClick = onRecurringClick),
+    )
     HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+}
+
+private val CARD_LEAD_DAY_OPTIONS = listOf(0, 1, 2, 3, 5, 7)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NotificationsSection(
+    settings: NotificationSettings,
+    hasCreditCard: Boolean,
+    permissionGranted: Boolean,
+    onRequestPermission: () -> Unit,
+    onEnabledChanged: (Boolean) -> Unit,
+    onTimeChanged: (Int, Int) -> Unit,
+    onRecurringRemindersChanged: (Boolean) -> Unit,
+    onRecurringPostedChanged: (Boolean) -> Unit,
+    onRecurringPendingChanged: (Boolean) -> Unit,
+    onCardClosingChanged: (Boolean) -> Unit,
+    onCardClosingDaysChanged: (Int) -> Unit,
+    onCardPaymentChanged: (Boolean) -> Unit,
+    onCardPaymentDaysChanged: (Int) -> Unit,
+    onCardOverdueChanged: (Boolean) -> Unit,
+    onSendTestNotification: () -> Unit,
+) {
+    var showTimePicker by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val is24Hour =
+        android.text.format.DateFormat
+            .is24HourFormat(context)
+    val timeText =
+        LocalTime.of(settings.hour, settings.minute).format(
+            DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT),
+        )
+
+    SectionHeader(stringResource(R.string.settings_section_notifications))
+    SwitchRow(
+        title = stringResource(R.string.settings_notifications_enabled),
+        checked = settings.enabled,
+        enabled = true,
+        onCheckedChange = onEnabledChanged,
+    )
+    if (settings.enabled && !permissionGranted) {
+        ListItem(
+            headlineContent = { Text(text = stringResource(R.string.settings_notifications_blocked)) },
+            supportingContent = {
+                TextButton(onClick = onRequestPermission) {
+                    Text(text = stringResource(R.string.settings_notifications_open_system))
+                }
+            },
+        )
+    }
+    val controlsEnabled = settings.enabled
+    ListItem(
+        headlineContent = { Text(text = stringResource(R.string.settings_notifications_time)) },
+        supportingContent = {
+            Text(text = stringResource(R.string.settings_notifications_time_value, timeText))
+        },
+        leadingContent = { Icon(imageVector = Icons.Default.Schedule, contentDescription = null) },
+        trailingContent = {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+            )
+        },
+        modifier = Modifier.clickable(enabled = controlsEnabled, role = Role.Button) { showTimePicker = true },
+    )
+    SectionHeader(stringResource(R.string.settings_notifications_recurring_header))
+    SwitchRow(
+        title = stringResource(R.string.settings_notif_recurring_reminders),
+        subtitle = stringResource(R.string.settings_notif_recurring_reminders_desc),
+        checked = settings.recurringReminders,
+        enabled = controlsEnabled,
+        onCheckedChange = onRecurringRemindersChanged,
+    )
+    SwitchRow(
+        title = stringResource(R.string.settings_notif_recurring_posted),
+        checked = settings.recurringPosted,
+        enabled = controlsEnabled,
+        onCheckedChange = onRecurringPostedChanged,
+    )
+    SwitchRow(
+        title = stringResource(R.string.settings_notif_recurring_pending),
+        checked = settings.recurringPendingConfirm,
+        enabled = controlsEnabled,
+        onCheckedChange = onRecurringPendingChanged,
+    )
+    if (hasCreditCard) {
+        SectionHeader(stringResource(R.string.settings_notifications_cards_header))
+        SwitchRow(
+            title = stringResource(R.string.settings_notif_card_closing),
+            checked = settings.cardClosing,
+            enabled = controlsEnabled,
+            onCheckedChange = onCardClosingChanged,
+        )
+        LeadDaysSelector(
+            selectedDays = settings.cardClosingDaysBefore,
+            enabled = controlsEnabled && settings.cardClosing,
+            onSelected = onCardClosingDaysChanged,
+        )
+        SwitchRow(
+            title = stringResource(R.string.settings_notif_card_payment),
+            checked = settings.cardPayment,
+            enabled = controlsEnabled,
+            onCheckedChange = onCardPaymentChanged,
+        )
+        LeadDaysSelector(
+            selectedDays = settings.cardPaymentDaysBefore,
+            enabled = controlsEnabled && settings.cardPayment,
+            onSelected = onCardPaymentDaysChanged,
+        )
+        SwitchRow(
+            title = stringResource(R.string.settings_notif_card_overdue),
+            checked = settings.cardOverdue,
+            enabled = controlsEnabled,
+            onCheckedChange = onCardOverdueChanged,
+        )
+    }
+    ListItem(
+        headlineContent = { Text(text = stringResource(R.string.settings_notifications_test)) },
+        modifier =
+            Modifier.clickable(
+                enabled = controlsEnabled,
+                role = Role.Button,
+                onClick = onSendTestNotification,
+            ),
+    )
+    HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+
+    if (showTimePicker) {
+        val timePickerState =
+            rememberTimePickerState(
+                initialHour = settings.hour,
+                initialMinute = settings.minute,
+                is24Hour = is24Hour,
+            )
+        TimePickerDialog(
+            title = { Text(text = stringResource(R.string.settings_notifications_time)) },
+            onDismissRequest = { showTimePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showTimePicker = false
+                        onTimeChanged(timePickerState.hour, timePickerState.minute)
+                    },
+                ) {
+                    Text(text = stringResource(R.string.action_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTimePicker = false }) {
+                    Text(text = stringResource(R.string.action_cancel))
+                }
+            },
+        ) {
+            TimePicker(state = timePickerState)
+        }
+    }
+}
+
+@Composable
+private fun SwitchRow(
+    title: String,
+    checked: Boolean,
+    enabled: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    subtitle: String? = null,
+) {
+    ListItem(
+        headlineContent = { Text(text = title) },
+        supportingContent = subtitle?.let { { Text(text = it) } },
+        trailingContent = { Switch(checked = checked, enabled = enabled, onCheckedChange = null) },
+        modifier =
+            Modifier.toggleable(
+                value = checked,
+                enabled = enabled,
+                role = Role.Switch,
+                onValueChange = onCheckedChange,
+            ),
+    )
+}
+
+@Composable
+private fun LeadDaysSelector(
+    selectedDays: Int,
+    enabled: Boolean,
+    onSelected: (Int) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val selectedLabel =
+        if (selectedDays == 0) {
+            stringResource(R.string.settings_notif_same_day)
+        } else {
+            pluralStringResource(R.plurals.settings_notif_days_before, selectedDays, selectedDays)
+        }
+    Box {
+        ListItem(
+            headlineContent = { Text(text = selectedLabel) },
+            trailingContent = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+            },
+            modifier = Modifier.clickable(enabled = enabled, role = Role.Button) { expanded = true },
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            CARD_LEAD_DAY_OPTIONS.forEach { days ->
+                val label =
+                    if (days == 0) {
+                        stringResource(R.string.settings_notif_same_day)
+                    } else {
+                        pluralStringResource(R.plurals.settings_notif_days_before, days, days)
+                    }
+                DropdownMenuItem(
+                    text = { Text(text = label) },
+                    onClick = {
+                        expanded = false
+                        onSelected(days)
+                    },
+                )
+            }
+        }
+    }
 }
 
 @Composable

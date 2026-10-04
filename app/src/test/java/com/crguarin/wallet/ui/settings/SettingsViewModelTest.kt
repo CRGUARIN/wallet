@@ -2,13 +2,19 @@ package com.crguarin.wallet.ui.settings
 
 import app.cash.turbine.test
 import com.crguarin.wallet.R
+import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
+import com.crguarin.wallet.domain.fake.FakeAccountRepository
 import com.crguarin.wallet.domain.fake.FakeAppLanguageController
 import com.crguarin.wallet.domain.fake.FakeBackupDocumentStore
 import com.crguarin.wallet.domain.fake.FakeBackupRepository
+import com.crguarin.wallet.domain.fake.FakeDailyWorkScheduler
+import com.crguarin.wallet.domain.fake.FakeNotificationGateway
 import com.crguarin.wallet.domain.fake.FakePreferencesRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
+import com.crguarin.wallet.domain.model.Account
+import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.BackupSummary
 import com.crguarin.wallet.domain.model.ThemeMode
 import com.crguarin.wallet.domain.model.UserPreferences
@@ -39,6 +45,9 @@ class SettingsViewModelTest {
     private lateinit var language: FakeAppLanguageController
     private lateinit var backupRepository: FakeBackupRepository
     private lateinit var store: FakeBackupDocumentStore
+    private lateinit var accounts: FakeAccountRepository
+    private lateinit var scheduler: FakeDailyWorkScheduler
+    private lateinit var gateway: FakeNotificationGateway
     private lateinit var viewModel: SettingsViewModel
 
     private val summary = BackupSummary(accounts = 3, categories = 25, transactions = 480)
@@ -51,6 +60,9 @@ class SettingsViewModelTest {
         language = FakeAppLanguageController(AppLanguage.SPANISH)
         backupRepository = FakeBackupRepository()
         store = FakeBackupDocumentStore()
+        accounts = FakeAccountRepository()
+        scheduler = FakeDailyWorkScheduler()
+        gateway = FakeNotificationGateway()
         viewModel =
             SettingsViewModel(
                 preferencesRepository = preferences,
@@ -59,6 +71,9 @@ class SettingsViewModelTest {
                 previewBackupUseCase = PreviewBackupUseCase(backupRepository, store),
                 importBackupUseCase = ImportBackupUseCase(backupRepository),
                 timeProvider = FakeTimeProvider(Instant.parse("2026-09-28T15:30:00Z")),
+                accountRepository = accounts,
+                dailyWorkScheduler = scheduler,
+                notificationGateway = gateway,
             )
     }
 
@@ -281,5 +296,94 @@ class SettingsViewModelTest {
             gate.complete(Unit)
 
             assertThat(store.readUris).containsExactly("content://in/1")
+        }
+
+    @Test
+    fun `notification settings start with defaults and follow the repository`() =
+        runTest {
+            assertThat(viewModel.uiState.value.notificationSettings.enabled).isTrue()
+            assertThat(viewModel.uiState.value.hasCreditCard).isFalse()
+
+            preferences.updateNotificationSettings { it.copy(enabled = false) }
+
+            assertThat(viewModel.uiState.value.notificationSettings.enabled).isFalse()
+        }
+
+    @Test
+    fun `disabling notifications persists the setting`() =
+        runTest {
+            viewModel.setNotificationsEnabled(false)
+
+            assertThat(preferences.getNotificationSettings().enabled).isFalse()
+            assertThat(viewModel.uiState.value.notificationSettings.enabled).isFalse()
+        }
+
+    @Test
+    fun `changing the notification time persists and reschedules with replace`() =
+        runTest {
+            viewModel.setNotificationTime(21, 30)
+
+            assertThat(preferences.getNotificationSettings().hour).isEqualTo(21)
+            assertThat(preferences.getNotificationSettings().minute).isEqualTo(30)
+            assertThat(scheduler.calls).containsExactly(
+                FakeDailyWorkScheduler.ScheduleCall(hour = 21, minute = 30, replace = true),
+            )
+        }
+
+    @Test
+    fun `every notification switch persists`() =
+        runTest {
+            viewModel.setRecurringReminders(false)
+            viewModel.setRecurringPosted(false)
+            viewModel.setRecurringPendingConfirm(false)
+            viewModel.setCardClosing(false)
+            viewModel.setCardClosingDaysBefore(5)
+            viewModel.setCardPayment(false)
+            viewModel.setCardPaymentDaysBefore(1)
+            viewModel.setCardOverdue(false)
+
+            val settings = preferences.getNotificationSettings()
+            assertThat(settings.recurringReminders).isFalse()
+            assertThat(settings.recurringPosted).isFalse()
+            assertThat(settings.recurringPendingConfirm).isFalse()
+            assertThat(settings.cardClosing).isFalse()
+            assertThat(settings.cardClosingDaysBefore).isEqualTo(5)
+            assertThat(settings.cardPayment).isFalse()
+            assertThat(settings.cardPaymentDaysBefore).isEqualTo(1)
+            assertThat(settings.cardOverdue).isFalse()
+        }
+
+    @Test
+    fun `test notification shows the gateway test and a snackbar`() =
+        runTest {
+            viewModel.events.test {
+                viewModel.sendTestNotification()
+
+                assertThat(awaitItem()).isEqualTo(
+                    SettingsEvent.ShowSnackbar(R.string.settings_notifications_test_sent),
+                )
+            }
+            assertThat(gateway.testShown).isTrue()
+        }
+
+    @Test
+    fun `credit card accounts enable the card notification section`() =
+        runTest {
+            accounts.setInitialData(
+                accountList =
+                    listOf(
+                        Account(
+                            id = 1L,
+                            name = "Visa",
+                            type = AccountType.CREDIT_CARD,
+                            initialBalance = Money.ZERO,
+                            color = 1,
+                            icon = "card",
+                            createdAt = Instant.parse("2026-09-28T15:30:00Z"),
+                        ),
+                    ),
+            )
+
+            assertThat(viewModel.uiState.value.hasCreditCard).isTrue()
         }
 }
