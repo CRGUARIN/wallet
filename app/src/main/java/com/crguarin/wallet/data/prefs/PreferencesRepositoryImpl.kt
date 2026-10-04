@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.crguarin.wallet.domain.model.ThemeMode
@@ -14,7 +15,6 @@ import com.crguarin.wallet.domain.repository.PreferencesRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import java.io.IOException
 import java.time.LocalDate
@@ -85,18 +85,86 @@ class PreferencesRepositoryImpl
             }
         }
 
-        // Provisional stubs: Task 16 (data) persists them in DataStore.
-        override fun observeNotificationSettings(): Flow<NotificationSettings> = flowOf(NotificationSettings())
-
-        override suspend fun getNotificationSettings(): NotificationSettings = NotificationSettings()
-
-        override suspend fun updateNotificationSettings(transform: (NotificationSettings) -> NotificationSettings) {
-            // No-op until the DataStore implementation lands.
+        private object NotificationKeys {
+            val ENABLED = booleanPreferencesKey("notif_enabled")
+            val HOUR = intPreferencesKey("notif_hour")
+            val MINUTE = intPreferencesKey("notif_minute")
+            val RECURRING_REMINDERS = booleanPreferencesKey("notif_recurring_reminders")
+            val RECURRING_POSTED = booleanPreferencesKey("notif_recurring_posted")
+            val RECURRING_PENDING = booleanPreferencesKey("notif_recurring_pending")
+            val CARD_CLOSING = booleanPreferencesKey("notif_card_closing")
+            val CARD_CLOSING_DAYS_BEFORE = intPreferencesKey("notif_card_closing_days_before")
+            val CARD_PAYMENT = booleanPreferencesKey("notif_card_payment")
+            val CARD_PAYMENT_DAYS_BEFORE = intPreferencesKey("notif_card_payment_days_before")
+            val CARD_OVERDUE = booleanPreferencesKey("notif_card_overdue")
+            val LAST_RUN_DATE = stringPreferencesKey("last_notification_run_date")
         }
 
-        override suspend fun getLastNotificationRunDate(): LocalDate? = null
+        private fun notificationSettingsOf(preferences: Preferences): NotificationSettings {
+            val defaults = NotificationSettings()
+            return NotificationSettings(
+                enabled = preferences[NotificationKeys.ENABLED] ?: defaults.enabled,
+                hour = (preferences[NotificationKeys.HOUR] ?: defaults.hour).coerceIn(0, 23),
+                minute = (preferences[NotificationKeys.MINUTE] ?: defaults.minute).coerceIn(0, 59),
+                recurringReminders = preferences[NotificationKeys.RECURRING_REMINDERS] ?: defaults.recurringReminders,
+                recurringPosted = preferences[NotificationKeys.RECURRING_POSTED] ?: defaults.recurringPosted,
+                recurringPendingConfirm = preferences[NotificationKeys.RECURRING_PENDING] ?: defaults.recurringPendingConfirm,
+                cardClosing = preferences[NotificationKeys.CARD_CLOSING] ?: defaults.cardClosing,
+                cardClosingDaysBefore =
+                    (preferences[NotificationKeys.CARD_CLOSING_DAYS_BEFORE] ?: defaults.cardClosingDaysBefore)
+                        .coerceIn(0, 7),
+                cardPayment = preferences[NotificationKeys.CARD_PAYMENT] ?: defaults.cardPayment,
+                cardPaymentDaysBefore =
+                    (preferences[NotificationKeys.CARD_PAYMENT_DAYS_BEFORE] ?: defaults.cardPaymentDaysBefore)
+                        .coerceIn(0, 7),
+                cardOverdue = preferences[NotificationKeys.CARD_OVERDUE] ?: defaults.cardOverdue,
+            )
+        }
+
+        private fun NotificationSettings.clamped(): NotificationSettings =
+            copy(
+                hour = hour.coerceIn(0, 23),
+                minute = minute.coerceIn(0, 59),
+                cardClosingDaysBefore = cardClosingDaysBefore.coerceIn(0, 7),
+                cardPaymentDaysBefore = cardPaymentDaysBefore.coerceIn(0, 7),
+            )
+
+        private fun Preferences.toLastRunDate(): LocalDate? =
+            this[NotificationKeys.LAST_RUN_DATE]?.let { runCatching { LocalDate.parse(it) }.getOrNull() }
+
+        override fun observeNotificationSettings(): Flow<NotificationSettings> =
+            dataStore.data
+                .catch { e -> if (e is IOException) emit(emptyPreferences()) else throw e }
+                .map { preferences -> notificationSettingsOf(preferences) }
+
+        override suspend fun getNotificationSettings(): NotificationSettings = observeNotificationSettings().first()
+
+        override suspend fun updateNotificationSettings(transform: (NotificationSettings) -> NotificationSettings) {
+            dataStore.edit { preferences ->
+                val updated = transform(notificationSettingsOf(preferences)).clamped()
+                preferences[NotificationKeys.ENABLED] = updated.enabled
+                preferences[NotificationKeys.HOUR] = updated.hour
+                preferences[NotificationKeys.MINUTE] = updated.minute
+                preferences[NotificationKeys.RECURRING_REMINDERS] = updated.recurringReminders
+                preferences[NotificationKeys.RECURRING_POSTED] = updated.recurringPosted
+                preferences[NotificationKeys.RECURRING_PENDING] = updated.recurringPendingConfirm
+                preferences[NotificationKeys.CARD_CLOSING] = updated.cardClosing
+                preferences[NotificationKeys.CARD_CLOSING_DAYS_BEFORE] = updated.cardClosingDaysBefore
+                preferences[NotificationKeys.CARD_PAYMENT] = updated.cardPayment
+                preferences[NotificationKeys.CARD_PAYMENT_DAYS_BEFORE] = updated.cardPaymentDaysBefore
+                preferences[NotificationKeys.CARD_OVERDUE] = updated.cardOverdue
+            }
+        }
+
+        override suspend fun getLastNotificationRunDate(): LocalDate? =
+            dataStore.data
+                .catch { e -> if (e is IOException) emit(emptyPreferences()) else throw e }
+                .map { preferences -> preferences.toLastRunDate() }
+                .first()
 
         override suspend fun setLastNotificationRunDate(date: LocalDate) {
-            // No-op until the DataStore implementation lands.
+            dataStore.edit { preferences ->
+                preferences[NotificationKeys.LAST_RUN_DATE] = date.toString()
+            }
         }
     }
