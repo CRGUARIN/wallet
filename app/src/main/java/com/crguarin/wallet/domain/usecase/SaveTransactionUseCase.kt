@@ -5,6 +5,7 @@ import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.core.time.TimeProvider
 import com.crguarin.wallet.domain.model.Account
+import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.DomainLimits
@@ -26,6 +27,24 @@ class SaveTransactionUseCase
         private val checkNegativeBalanceUseCase: CheckNegativeBalanceUseCase,
     ) {
         suspend operator fun invoke(transaction: Transaction): DomainResult<SaveTransactionResult> {
+            val validated =
+                when (val result = validate(transaction)) {
+                    is DomainResult.Success -> result.value
+                    is DomainResult.Failure -> return result
+                }
+
+            val balanceWarning = checkNegativeBalanceUseCase(validated)
+
+            val savedId = transactionRepository.saveTransaction(validated)
+            return DomainResult.Success(SaveTransactionResult(savedId, balanceWarning))
+        }
+
+        /**
+         * Runs every validation of [invoke] without saving, returning the transaction
+         * ready to persist (with its timestamps set). Shared with reconciliation
+         * adjustments so they go through the exact same rules.
+         */
+        suspend fun validate(transaction: Transaction): DomainResult<Transaction> {
             if (transaction.amount <= Money.ZERO || transaction.amount > Money.MAX) {
                 return DomainResult.Failure(DomainError.AmountInvalid)
             }
@@ -87,6 +106,10 @@ class SaveTransactionUseCase
                 accountRepository.getAccount(transaction.accountId)
                     ?: return DomainResult.Failure(DomainError.NotFound)
 
+            if (!areInstallmentsValid(transaction, account)) {
+                return DomainResult.Failure(DomainError.InvalidTransaction)
+            }
+
             val isNew = transaction.id == 0L
             val existing =
                 if (!isNew) {
@@ -119,8 +142,6 @@ class SaveTransactionUseCase
                 }
             }
 
-            val balanceWarning = checkNegativeBalanceUseCase(transaction)
-
             val now = timeProvider.now()
             val toSave =
                 if (isNew) {
@@ -129,8 +150,20 @@ class SaveTransactionUseCase
                     val oldTx = checkNotNull(existing)
                     transaction.copy(createdAt = oldTx.createdAt, updatedAt = now)
                 }
+            return DomainResult.Success(toSave)
+        }
 
-            val savedId = transactionRepository.saveTransaction(toSave)
-            return DomainResult.Success(SaveTransactionResult(savedId, balanceWarning))
+        private fun areInstallmentsValid(
+            transaction: Transaction,
+            account: Account,
+        ): Boolean {
+            val installments = transaction.installments ?: return true
+            return transaction.type == TransactionType.EXPENSE &&
+                account.type == AccountType.CREDIT_CARD &&
+                installments in 1..MAX_INSTALLMENTS
+        }
+
+        companion object {
+            const val MAX_INSTALLMENTS = 48
         }
     }
