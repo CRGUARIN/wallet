@@ -346,7 +346,8 @@ class BackupValidatorTest {
 
     @Test
     fun `recurring backup without payments is valid`() {
-        assertThat(BackupValidator.validate(recurring.copy(recurringPayments = emptyList()))).isNull()
+        val withoutGenerated = recurring.copy(recurringPayments = emptyList(), transactions = validCardBackupDto().transactions)
+        assertThat(BackupValidator.validate(withoutGenerated)).isNull()
         assertThat(BackupValidator.validate(valid.copy(recurringPayments = emptyList()))).isNull()
     }
 
