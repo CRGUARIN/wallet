@@ -97,14 +97,6 @@ fun TransactionListItem(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.Center,
         ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (transaction.recurringId != null) {
                     Icon(
@@ -116,13 +108,21 @@ fun TransactionListItem(
                     Spacer(modifier = Modifier.width(4.dp))
                 }
                 Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    text = title,
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             if (!details.transaction.note.isNullOrBlank()) {
                 Text(
                     text = details.transaction.note,
