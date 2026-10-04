@@ -1,6 +1,7 @@
 package com.crguarin.wallet.ui.home
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -49,6 +50,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -67,6 +69,8 @@ import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionDetails
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.card.CardOverview
+import com.crguarin.wallet.domain.model.recurring.UpcomingKind
+import com.crguarin.wallet.domain.model.recurring.UpcomingPayment
 import com.crguarin.wallet.ui.accounts.CardRowBalance
 import com.crguarin.wallet.ui.components.EmptyState
 import com.crguarin.wallet.ui.components.IconCatalog
@@ -77,6 +81,7 @@ import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 import java.time.Instant
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 
 @Composable
 fun HomeRoute(
@@ -86,6 +91,10 @@ fun HomeRoute(
     onQuickAction: (TransactionType) -> Unit,
     modifier: Modifier = Modifier,
     onViewReports: () -> Unit = {},
+    onUpcomingRecurringClick: (Long) -> Unit = {},
+    onUpcomingPendingClick: () -> Unit = {},
+    onUpcomingCardClick: (Long) -> Unit = {},
+    onViewAllRecurring: () -> Unit = {},
     viewModel: HomeViewModel? = safeHiltViewModel(),
 ) {
     if (viewModel == null) {
@@ -96,6 +105,10 @@ fun HomeRoute(
             onViewAllTransactions = onViewAllTransactions,
             onQuickAction = onQuickAction,
             onViewReports = onViewReports,
+            onUpcomingRecurringClick = onUpcomingRecurringClick,
+            onUpcomingPendingClick = onUpcomingPendingClick,
+            onUpcomingCardClick = onUpcomingCardClick,
+            onViewAllRecurring = onViewAllRecurring,
             modifier = modifier,
         )
         return
@@ -110,6 +123,10 @@ fun HomeRoute(
         onViewAllTransactions = onViewAllTransactions,
         onQuickAction = onQuickAction,
         onViewReports = onViewReports,
+        onUpcomingRecurringClick = onUpcomingRecurringClick,
+        onUpcomingPendingClick = onUpcomingPendingClick,
+        onUpcomingCardClick = onUpcomingCardClick,
+        onViewAllRecurring = onViewAllRecurring,
         modifier = modifier,
     )
 }
@@ -124,6 +141,10 @@ fun HomeScreen(
     onQuickAction: (TransactionType) -> Unit,
     onViewReports: () -> Unit,
     modifier: Modifier = Modifier,
+    onUpcomingRecurringClick: (Long) -> Unit = {},
+    onUpcomingPendingClick: () -> Unit = {},
+    onUpcomingCardClick: (Long) -> Unit = {},
+    onViewAllRecurring: () -> Unit = {},
 ) {
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -165,6 +186,19 @@ fun HomeScreen(
                         onAccountClick = onAccountClick,
                         cardOverviews = uiState.cardOverviews,
                         today = uiState.today,
+                    )
+                }
+            }
+
+            if (uiState.upcomingPayments.isNotEmpty()) {
+                item(key = "upcoming_payments") {
+                    UpcomingPaymentsCard(
+                        payments = uiState.upcomingPayments,
+                        today = uiState.today,
+                        onUpcomingRecurringClick = onUpcomingRecurringClick,
+                        onUpcomingPendingClick = onUpcomingPendingClick,
+                        onUpcomingCardClick = onUpcomingCardClick,
+                        onViewAllRecurring = onViewAllRecurring,
                     )
                 }
             }
@@ -217,6 +251,117 @@ fun HomeScreen(
             item(key = "bottom_spacer") {
                 Spacer(modifier = Modifier.height(72.dp))
             }
+        }
+    }
+}
+
+@Composable
+private fun UpcomingPaymentsCard(
+    payments: List<UpcomingPayment>,
+    today: LocalDate,
+    onUpcomingRecurringClick: (Long) -> Unit,
+    onUpcomingPendingClick: () -> Unit,
+    onUpcomingCardClick: (Long) -> Unit,
+    onViewAllRecurring: () -> Unit,
+) {
+    Card(
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            Text(
+                text = stringResource(R.string.home_upcoming_title),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.semantics { heading() },
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            payments.take(5).forEach { payment ->
+                UpcomingPaymentRow(
+                    payment = payment,
+                    today = today,
+                    onClick = {
+                        when (payment.kind) {
+                            UpcomingKind.RECURRING -> onUpcomingRecurringClick(payment.refId)
+                            UpcomingKind.RECURRING_PENDING -> onUpcomingPendingClick()
+                            UpcomingKind.CARD_PAYMENT -> onUpcomingCardClick(payment.refId)
+                        }
+                    },
+                )
+            }
+            TextButton(
+                onClick = onViewAllRecurring,
+                modifier = Modifier.align(Alignment.End),
+            ) {
+                Text(text = stringResource(R.string.home_view_all))
+            }
+        }
+    }
+}
+
+@Composable
+private fun UpcomingPaymentRow(
+    payment: UpcomingPayment,
+    today: LocalDate,
+    onClick: () -> Unit,
+) {
+    val daysUntil =
+        ChronoUnit.DAYS
+            .between(today, payment.date)
+            .toInt()
+            .coerceAtLeast(0)
+    val whenText =
+        when (daysUntil) {
+            0 -> stringResource(R.string.upcoming_today)
+            1 -> stringResource(R.string.upcoming_tomorrow)
+            else -> pluralStringResource(R.plurals.upcoming_in_days, daysUntil, daysUntil)
+        }
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = payment.title,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (payment.kind == UpcomingKind.RECURRING_PENDING) {
+                Text(
+                    text = stringResource(R.string.recurring_section_pending),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            Text(
+                text = "$whenText · ${payment.accountName}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        if (payment.amount != null) {
+            MoneyText(
+                amount = payment.amount,
+                type = payment.type,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            )
+        } else {
+            Text(
+                text = stringResource(R.string.upcoming_amount_unknown),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }

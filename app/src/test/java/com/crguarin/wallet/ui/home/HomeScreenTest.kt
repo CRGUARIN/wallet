@@ -18,6 +18,8 @@ import com.crguarin.wallet.domain.model.MonthSummary
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionDetails
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.recurring.UpcomingKind
+import com.crguarin.wallet.domain.model.recurring.UpcomingPayment
 import com.crguarin.wallet.ui.accounts.sampleCardOverview
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.google.common.truth.Truth.assertThat
@@ -265,5 +267,153 @@ class HomeScreenTest {
         composeRule.onNodeWithText("Deuda").assertIsDisplayed()
         composeRule.onNodeWithText("Disponible", substring = true).assertIsDisplayed()
         composeRule.onNodeWithText("Pagar antes del", substring = true).assertIsDisplayed()
+    }
+
+    private val upcomingToday = LocalDate.of(2026, 9, 28)
+
+    private fun upcoming(
+        kind: UpcomingKind,
+        refId: Long,
+        title: String,
+        date: LocalDate = upcomingToday,
+        amount: Money? = Money(4_590_000L),
+    ) = UpcomingPayment(
+        kind = kind,
+        refId = refId,
+        title = title,
+        type = TransactionType.EXPENSE,
+        date = date,
+        amount = amount,
+        accountName = "Efectivo",
+    )
+
+    private fun upcomingState(payments: List<UpcomingPayment>) =
+        HomeUiState(
+            isLoading = false,
+            totalBalance = Money(1_250_000L),
+            monthSummary = MonthSummary(income = Money(500_000L), expense = Money(230_000L)),
+            accounts = listOf(AccountWithBalance(account, Money(450_000L))),
+            recentTransactions = emptyList(),
+            today = upcomingToday,
+            upcomingPayments = payments,
+        )
+
+    private fun showUpcoming(
+        payments: List<UpcomingPayment>,
+        onUpcomingRecurringClick: (Long) -> Unit = {},
+        onUpcomingPendingClick: () -> Unit = {},
+        onUpcomingCardClick: (Long) -> Unit = {},
+        onViewAllRecurring: () -> Unit = {},
+    ) {
+        composeRule.setContent {
+            WalletTheme {
+                HomeScreen(
+                    uiState = upcomingState(payments),
+                    onAccountClick = {},
+                    onTransactionClick = {},
+                    onViewAllTransactions = {},
+                    onQuickAction = {},
+                    onViewReports = {},
+                    onUpcomingRecurringClick = onUpcomingRecurringClick,
+                    onUpcomingPendingClick = onUpcomingPendingClick,
+                    onUpcomingCardClick = onUpcomingCardClick,
+                    onViewAllRecurring = onViewAllRecurring,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `upcoming card is hidden when there is nothing upcoming`() {
+        showUpcoming(emptyList())
+
+        composeRule.onNodeWithText("Próximos pagos").assertDoesNotExist()
+    }
+
+    @Test
+    fun `upcoming card shows title amount timing and account`() {
+        showUpcoming(
+            listOf(
+                upcoming(UpcomingKind.RECURRING, refId = 11L, title = "Netflix", date = upcomingToday),
+                upcoming(
+                    UpcomingKind.RECURRING,
+                    refId = 12L,
+                    title = "Arriendo",
+                    date = upcomingToday.plusDays(1),
+                ),
+                upcoming(
+                    UpcomingKind.RECURRING,
+                    refId = 13L,
+                    title = "Gimnasio",
+                    date = upcomingToday.plusDays(4),
+                ),
+            ),
+        )
+
+        composeRule.onNodeWithText("Próximos pagos").assertIsDisplayed()
+        composeRule.onNodeWithText("Netflix").assertIsDisplayed()
+        composeRule.onNodeWithText("Hoy · Efectivo").assertIsDisplayed()
+        composeRule.onNodeWithText("Mañana · Efectivo").assertIsDisplayed()
+        composeRule.onNodeWithText("En 4 días · Efectivo").assertIsDisplayed()
+        composeRule.onNodeWithText("− $ 45.900").assertIsDisplayed()
+    }
+
+    @Test
+    fun `pending rows carry the pending label and cards can show an unknown amount`() {
+        showUpcoming(
+            listOf(
+                upcoming(UpcomingKind.RECURRING_PENDING, refId = 21L, title = "Luz"),
+                upcoming(
+                    UpcomingKind.CARD_PAYMENT,
+                    refId = 7L,
+                    title = "Pago de RappiCard",
+                    date = upcomingToday.plusDays(2),
+                    amount = null,
+                ),
+            ),
+        )
+
+        composeRule.onNodeWithText("Por confirmar").assertIsDisplayed()
+        composeRule.onNodeWithText("Concilia el extracto").assertIsDisplayed()
+        composeRule.onNodeWithText("En 2 días · Efectivo").assertIsDisplayed()
+    }
+
+    @Test
+    fun `upcoming card shows at most five rows`() {
+        showUpcoming((1L..6L).map { id -> upcoming(UpcomingKind.RECURRING, refId = id, title = "Pago $id") })
+
+        composeRule.onNodeWithText("Pago 5").assertIsDisplayed()
+        composeRule.onNodeWithText("Pago 6").assertDoesNotExist()
+    }
+
+    @Test
+    fun `upcoming rows route to edit list account or the full list`() {
+        var recurringId: Long? = null
+        var pendingClicks = 0
+        var cardId: Long? = null
+        var viewAllClicks = 0
+        showUpcoming(
+            listOf(
+                upcoming(UpcomingKind.RECURRING, refId = 11L, title = "Netflix"),
+                upcoming(UpcomingKind.RECURRING_PENDING, refId = 21L, title = "Luz"),
+                upcoming(UpcomingKind.CARD_PAYMENT, refId = 7L, title = "Pago de RappiCard"),
+            ),
+            onUpcomingRecurringClick = { recurringId = it },
+            onUpcomingPendingClick = { pendingClicks++ },
+            onUpcomingCardClick = { cardId = it },
+            onViewAllRecurring = { viewAllClicks++ },
+        )
+
+        composeRule.onNodeWithText("Netflix").performClick()
+        composeRule.onNodeWithText("Luz").performClick()
+        composeRule.onNodeWithText("Pago de RappiCard").performClick()
+        // The upcoming card is laid out before the recent movements, so its
+        // "Ver todos" comes first.
+        composeRule.onAllNodesWithText("Ver todos").onFirst().performClick()
+
+        assertThat(recurringId).isEqualTo(11L)
+        assertThat(pendingClicks).isEqualTo(1)
+        assertThat(cardId).isEqualTo(7L)
+        assertThat(viewAllClicks).isEqualTo(1)
     }
 }

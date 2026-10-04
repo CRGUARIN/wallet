@@ -3,6 +3,7 @@ package com.crguarin.wallet.ui.home
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.fake.FakeAccountRepository
 import com.crguarin.wallet.domain.fake.FakeCardStatementRepository
+import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
 import com.crguarin.wallet.domain.model.Account
@@ -14,6 +15,7 @@ import com.crguarin.wallet.domain.usecase.ObserveMonthSummaryUseCase
 import com.crguarin.wallet.domain.usecase.ObserveTotalBalanceUseCase
 import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewUseCase
 import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewsUseCase
+import com.crguarin.wallet.domain.usecase.recurring.ObserveUpcomingPaymentsUseCase
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -89,6 +91,16 @@ class HomeViewModelTest {
                 ObserveCardOverviewsUseCase(
                     accountRepository,
                     ObserveCardOverviewUseCase(accountRepository, cardStatementRepository, timeProvider),
+                ),
+            observeUpcomingPaymentsUseCase =
+                ObserveUpcomingPaymentsUseCase(
+                    FakeRecurringRepository(),
+                    accountRepository,
+                    ObserveCardOverviewsUseCase(
+                        accountRepository,
+                        ObserveCardOverviewUseCase(accountRepository, cardStatementRepository, timeProvider),
+                    ),
+                    timeProvider,
                 ),
         )
 
