@@ -7,7 +7,7 @@ import com.crguarin.wallet.domain.model.TransactionType
 /** A small valid backup: two accounts, two root categories, one subcategory and one transaction of each type. */
 fun validBackupDto(): BackupDto =
     BackupDto(
-        schemaVersion = 1,
+        schemaVersion = BackupDto.SCHEMA_VERSION,
         appVersion = "1.0.0",
         exportedAt = "2026-09-28T15:00:00Z",
         currency = "COP",
@@ -38,5 +38,92 @@ fun validBackupDto(): BackupDto =
                 ),
                 TransactionDto(2, TransactionType.INCOME, 20_000_000, 2, null, 2, "2026-09-28", null, 1_790_000_000_000, 1_790_000_000_000),
                 TransactionDto(3, TransactionType.TRANSFER, 100_000, 1, 2, null, "2026-09-28", null, 1_790_000_000_000, 1_790_000_000_000),
+            ),
+    )
+
+/**
+ * A valid version 2 backup with a credit card: negative initial balance (current debt),
+ * an installment purchase, an interest adjustment and two statements (one with adjustment,
+ * one without).
+ */
+fun validCardBackupDto(): BackupDto =
+    validBackupDto().copy(
+        accounts =
+            validBackupDto().accounts +
+                AccountDto(
+                    id = 3,
+                    name = "RappiCard",
+                    type = AccountType.CREDIT_CARD,
+                    currencyCode = "COP",
+                    initialBalance = -2_000_000,
+                    color = -16711936,
+                    icon = "credit_card",
+                    includeInTotal = true,
+                    isArchived = false,
+                    sortOrder = 2,
+                    createdAt = 1_790_000_000_002,
+                    creditLimit = 10_000_000,
+                    statementDay = 15,
+                    paymentDueDay = 5,
+                ),
+        categories =
+            validBackupDto().categories +
+                listOf(
+                    CategoryDto(4, null, "card_interest_fees", CategoryType.EXPENSE, null, -65536, "credit_card", false, 3),
+                    CategoryDto(5, null, "card_adjustment", CategoryType.INCOME, null, -16711936, "payments", false, 4),
+                ),
+        transactions =
+            validBackupDto().transactions +
+                listOf(
+                    TransactionDto(
+                        4,
+                        TransactionType.EXPENSE,
+                        300_000,
+                        3,
+                        null,
+                        1,
+                        "2026-09-10",
+                        "Compra a cuotas",
+                        1_790_000_000_000,
+                        1_790_000_000_000,
+                        installments = 3,
+                    ),
+                    TransactionDto(
+                        5,
+                        TransactionType.EXPENSE,
+                        15_000,
+                        3,
+                        null,
+                        4,
+                        "2026-09-15",
+                        "Extracto 2026-09-15",
+                        1_790_000_000_000,
+                        1_790_000_000_000,
+                    ),
+                ),
+        cardStatements =
+            listOf(
+                CardStatementDto(
+                    1,
+                    3,
+                    "2026-08-15",
+                    "2026-09-05",
+                    2_000_000,
+                    minimumPayment = 100_000,
+                    statedInterestAndFees = null,
+                    adjustmentTransactionId = null,
+                    createdAt = 1_790_000_000_000,
+                ),
+                CardStatementDto(
+                    2,
+                    3,
+                    "2026-09-15",
+                    "2026-10-05",
+                    2_315_000,
+                    minimumPayment = 115_000,
+                    statedInterestAndFees = 15_000,
+                    adjustmentTransactionId = 5,
+                    createdAt = 1_790_000_000_001,
+                ),
             ),
     )

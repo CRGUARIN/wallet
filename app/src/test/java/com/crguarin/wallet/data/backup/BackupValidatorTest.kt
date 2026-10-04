@@ -2,6 +2,7 @@ package com.crguarin.wallet.data.backup
 
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.core.result.DomainError
+import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.TransactionType
 import com.google.common.truth.Truth.assertThat
@@ -43,8 +44,15 @@ class BackupValidatorTest {
 
     @Test
     fun `unsupported schema version is reported as such`() {
-        assertThat(BackupValidator.validate(valid.copy(schemaVersion = 2))).isEqualTo(DomainError.BackupVersionUnsupported)
+        assertThat(BackupValidator.validate(valid.copy(schemaVersion = 3))).isEqualTo(DomainError.BackupVersionUnsupported)
         assertThat(BackupValidator.validate(valid.copy(schemaVersion = 0))).isEqualTo(DomainError.BackupVersionUnsupported)
+    }
+
+    @Test
+    fun `schema versions 1 and 2 are accepted`() {
+        assertThat(BackupValidator.validate(valid.copy(schemaVersion = 1))).isNull()
+        assertThat(BackupValidator.validate(valid.copy(schemaVersion = 2))).isNull()
+        assertThat(BackupValidator.validate(validCardBackupDto())).isNull()
     }
 
     @Test
@@ -224,5 +232,106 @@ class BackupValidatorTest {
     @Test
     fun `transaction types are covered by the fixture`() {
         assertThat(valid.transactions.map { it.type }.toSet()).containsExactlyElementsIn(TransactionType.entries)
+    }
+
+    private val card = validCardBackupDto()
+
+    private fun BackupDto.withCardAccount(change: (AccountDto) -> AccountDto) =
+        copy(accounts = accounts.map { if (it.type == AccountType.CREDIT_CARD) change(it) else it })
+
+    private fun BackupDto.withStatement(
+        id: Long,
+        change: (CardStatementDto) -> CardStatementDto,
+    ) = copy(cardStatements = cardStatements.map { if (it.id == id) change(it) else it })
+
+    private fun BackupDto.withCardTransaction(
+        id: Long,
+        change: (TransactionDto) -> TransactionDto,
+    ) = copy(transactions = transactions.map { if (it.id == id) change(it) else it })
+
+    @Test
+    fun `negative initial balance is allowed on a credit card`() {
+        assertThat(BackupValidator.validate(card)).isNull()
+        assertThat(card.accounts.single { it.type == AccountType.CREDIT_CARD }.initialBalance).isLessThan(0)
+    }
+
+    @Test
+    fun `card without credit limit or with a non-positive or too large limit is rejected`() {
+        assertInvalid(card.withCardAccount { it.copy(creditLimit = null) })
+        assertInvalid(card.withCardAccount { it.copy(creditLimit = 0) })
+        assertInvalid(card.withCardAccount { it.copy(creditLimit = -5) })
+        assertInvalid(card.withCardAccount { it.copy(creditLimit = Money.MAX_MINOR_UNITS + 1) })
+    }
+
+    @Test
+    fun `card with an invalid statement or due day is rejected`() {
+        assertInvalid(card.withCardAccount { it.copy(statementDay = null) })
+        assertInvalid(card.withCardAccount { it.copy(statementDay = 0) })
+        assertInvalid(card.withCardAccount { it.copy(statementDay = 32) })
+        assertInvalid(card.withCardAccount { it.copy(paymentDueDay = null) })
+        assertInvalid(card.withCardAccount { it.copy(paymentDueDay = 0) })
+        assertInvalid(card.withCardAccount { it.copy(paymentDueDay = 32) })
+    }
+
+    @Test
+    fun `card fields on a non-card account are rejected`() {
+        assertInvalid(valid.withAccount { it.copy(creditLimit = 1_000_000) })
+        assertInvalid(valid.withAccount { it.copy(statementDay = 15) })
+        assertInvalid(valid.withAccount { it.copy(paymentDueDay = 5) })
+    }
+
+    @Test
+    fun `installments outside 1 to 48 are rejected`() {
+        assertInvalid(card.withCardTransaction(4) { it.copy(installments = 0) })
+        assertInvalid(card.withCardTransaction(4) { it.copy(installments = 49) })
+        assertInvalid(card.withCardTransaction(4) { it.copy(installments = -1) })
+    }
+
+    @Test
+    fun `installments on income transfer or a non-card expense are rejected`() {
+        assertInvalid(card.withCardTransaction(2) { it.copy(installments = 3) })
+        assertInvalid(card.withCardTransaction(3) { it.copy(installments = 3) })
+        assertInvalid(card.withCardTransaction(1) { it.copy(installments = 3) })
+    }
+
+    @Test
+    fun `single installment on a card expense is valid`() {
+        assertThat(BackupValidator.validate(card.withCardTransaction(4) { it.copy(installments = 1) })).isNull()
+        assertThat(BackupValidator.validate(card.withCardTransaction(4) { it.copy(installments = 48) })).isNull()
+    }
+
+    @Test
+    fun `statement with unknown or non-card account is rejected`() {
+        assertInvalid(card.withStatement(1) { it.copy(accountId = 99) })
+        assertInvalid(card.withStatement(1) { it.copy(accountId = 1) })
+    }
+
+    @Test
+    fun `duplicated statement ids and duplicated closings per account are rejected`() {
+        assertInvalid(card.copy(cardStatements = card.cardStatements + card.cardStatements.first().copy(id = 99)))
+        assertInvalid(card.withStatement(1) { it.copy(id = 2) })
+        assertInvalid(card.withStatement(1) { it.copy(closingDate = "2026-09-15") })
+    }
+
+    @Test
+    fun `statement with non-positive id negative balance or invalid dates is rejected`() {
+        assertInvalid(card.withStatement(1) { it.copy(id = 0) })
+        assertInvalid(card.withStatement(2) { it.copy(statementBalance = -1) })
+        assertInvalid(card.withStatement(2) { it.copy(statementBalance = Money.MAX_MINOR_UNITS + 1) })
+        assertInvalid(card.withStatement(1) { it.copy(minimumPayment = -1) })
+        assertInvalid(card.withStatement(1) { it.copy(statedInterestAndFees = -1) })
+        assertInvalid(card.withStatement(1) { it.copy(closingDate = "15/08/2026") })
+        assertInvalid(card.withStatement(1) { it.copy(dueDate = "not-a-date") })
+    }
+
+    @Test
+    fun `statement with unknown adjustment or one from another account is rejected`() {
+        assertInvalid(card.withStatement(1) { it.copy(adjustmentTransactionId = 99) })
+        assertInvalid(card.withStatement(1) { it.copy(adjustmentTransactionId = 1) })
+    }
+
+    @Test
+    fun `statement without adjustment is valid`() {
+        assertThat(BackupValidator.validate(card.withStatement(2) { it.copy(adjustmentTransactionId = null) })).isNull()
     }
 }
