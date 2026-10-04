@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
@@ -43,6 +44,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.R
@@ -66,6 +68,7 @@ internal fun TransactionEditForm(
     onYesterdayClick: () -> Unit,
     onNoteChanged: (String) -> Unit,
     onSaveClick: () -> Unit,
+    onInstallmentsChanged: (Int) -> Unit = {},
 ) {
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -177,6 +180,20 @@ internal fun TransactionEditForm(
                     )
                 }
             }
+        }
+
+        if (uiState.showInstallments) {
+            OutlinedTextField(
+                value = uiState.installments.toString(),
+                onValueChange = { text ->
+                    text.toIntOrNull()?.let { onInstallmentsChanged(it) }
+                },
+                label = { Text(text = stringResource(R.string.card_installments_label)) },
+                supportingText = { Text(text = stringResource(R.string.card_installments_hint)) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
