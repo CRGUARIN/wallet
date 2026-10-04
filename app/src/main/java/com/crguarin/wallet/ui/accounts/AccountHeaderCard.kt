@@ -85,6 +85,7 @@ internal fun AccountHeaderCard(
                         when (account.type) {
                             AccountType.CASH -> stringResource(R.string.account_type_cash)
                             AccountType.SAVINGS -> stringResource(R.string.account_type_savings)
+                            AccountType.CREDIT_CARD -> stringResource(R.string.account_type_credit_card)
                         }
                     Text(
                         text = typeText,

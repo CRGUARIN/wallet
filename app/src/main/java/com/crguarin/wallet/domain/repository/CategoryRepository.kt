@@ -37,4 +37,15 @@ interface CategoryRepository {
         categoryId: Long,
         unarchiveParent: Boolean = false,
     )
+
+    /**
+     * Returns the id of the non-archived category with [systemKey]; unarchives it if archived;
+     * creates it (root, with [type], [color], [icon]) if missing.
+     */
+    suspend fun ensureSystemCategory(
+        systemKey: String,
+        type: CategoryType,
+        color: Int,
+        icon: String,
+    ): Long
 }

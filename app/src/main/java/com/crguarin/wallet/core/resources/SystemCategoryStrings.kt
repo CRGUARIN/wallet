@@ -32,6 +32,8 @@ object SystemCategoryStrings {
             "gifts" to R.string.category_gifts,
             "interest" to R.string.category_interest,
             "other_income" to R.string.category_other_income,
+            "card_interest_fees" to R.string.category_card_interest_fees,
+            "card_adjustment" to R.string.category_card_adjustment,
         )
 
     val keys: Set<String> get() = byKey.keys

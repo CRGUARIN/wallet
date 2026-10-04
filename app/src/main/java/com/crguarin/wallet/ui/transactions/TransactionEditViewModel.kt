@@ -12,6 +12,7 @@ import com.crguarin.wallet.core.time.TimeProvider
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.Category
+import com.crguarin.wallet.domain.model.card.BalanceWarning
 import com.crguarin.wallet.domain.model.CategoryNode
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.DomainLimits
@@ -510,7 +511,7 @@ class TransactionEditViewModel
             val transaction = buildTransaction(showErrors = true) ?: return
             _uiState.update { it.copy(isSaving = true, generalErrorRes = null) }
             viewModelScope.launch {
-                if (checkNegativeBalanceUseCase(transaction)) {
+                if (checkNegativeBalanceUseCase(transaction) != BalanceWarning.NONE) {
                     _uiState.update { it.copy(isSaving = false, showNegativeBalanceDialog = true) }
                     return@launch
                 }

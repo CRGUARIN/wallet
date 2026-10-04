@@ -12,6 +12,7 @@ import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.card.BalanceWarning
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
@@ -292,7 +293,7 @@ class SaveTransactionUseCaseTest {
             val result = saveTransactionUseCase(tx)
             assertThat(result.isSuccess).isTrue()
             val saveResult = result.getOrNull()!!
-            assertThat(saveResult.willBeNegative).isTrue()
+            assertThat(saveResult.balanceWarning).isEqualTo(BalanceWarning.NEGATIVE_BALANCE)
         }
 
     @Test
@@ -313,7 +314,7 @@ class SaveTransactionUseCaseTest {
             val result = saveTransactionUseCase(tx)
             assertThat(result.isSuccess).isTrue()
             val saveResult = result.getOrNull()!!
-            assertThat(saveResult.willBeNegative).isFalse()
+            assertThat(saveResult.balanceWarning).isEqualTo(BalanceWarning.NONE)
         }
 
     @Test
@@ -341,6 +342,6 @@ class SaveTransactionUseCaseTest {
             val updatedTx = existingTx.copy(amount = Money(50_000L))
             val result = saveTransactionUseCase(updatedTx)
             assertThat(result.isSuccess).isTrue()
-            assertThat(result.getOrNull()!!.willBeNegative).isFalse()
+            assertThat(result.getOrNull()!!.balanceWarning).isEqualTo(BalanceWarning.NONE)
         }
 }

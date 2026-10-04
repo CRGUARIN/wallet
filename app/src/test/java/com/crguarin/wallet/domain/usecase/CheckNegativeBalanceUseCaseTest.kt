@@ -6,6 +6,7 @@ import com.crguarin.wallet.domain.fake.FakeTransactionRepository
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.Transaction
+import com.crguarin.wallet.domain.model.card.BalanceWarning
 import com.crguarin.wallet.domain.model.TransactionType
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
@@ -73,13 +74,13 @@ class CheckNegativeBalanceUseCaseTest {
     @Test
     fun `new expense exceeding balance returns true`() =
         runTest {
-            assertThat(checkNegativeBalanceUseCase(expense(60_000L))).isTrue()
+            assertThat(checkNegativeBalanceUseCase(expense(60_000L))).isEqualTo(BalanceWarning.NEGATIVE_BALANCE)
         }
 
     @Test
     fun `new expense within balance returns false`() =
         runTest {
-            assertThat(checkNegativeBalanceUseCase(expense(30_000L))).isFalse()
+            assertThat(checkNegativeBalanceUseCase(expense(30_000L))).isEqualTo(BalanceWarning.NONE)
         }
 
     @Test
@@ -87,7 +88,7 @@ class CheckNegativeBalanceUseCaseTest {
         runTest {
             val income =
                 expense(1_000_000L).copy(type = TransactionType.INCOME)
-            assertThat(checkNegativeBalanceUseCase(income)).isFalse()
+            assertThat(checkNegativeBalanceUseCase(income)).isEqualTo(BalanceWarning.NONE)
         }
 
     @Test
@@ -98,7 +99,7 @@ class CheckNegativeBalanceUseCaseTest {
             val existing = expense(60_000L, id = 10L)
             transactionRepository.setInitialData(listOf(existing))
 
-            assertThat(checkNegativeBalanceUseCase(existing.copy())).isFalse()
+            assertThat(checkNegativeBalanceUseCase(existing.copy())).isEqualTo(BalanceWarning.NONE)
         }
 
     @Test
@@ -109,7 +110,9 @@ class CheckNegativeBalanceUseCaseTest {
             transactionRepository.setInitialData(listOf(existing))
 
             // Baseline without old effect: 100_000; new expense 120_000 -> negative.
-            assertThat(checkNegativeBalanceUseCase(existing.copy(amount = Money(120_000L)))).isTrue()
+            assertThat(checkNegativeBalanceUseCase(existing.copy(amount = Money(120_000L)))).isEqualTo(
+                BalanceWarning.NEGATIVE_BALANCE,
+            )
         }
 
     @Test
@@ -120,8 +123,10 @@ class CheckNegativeBalanceUseCaseTest {
             transactionRepository.setInitialData(listOf(existing))
 
             // Savings has 500_000; moving a 60_000 expense there is safe.
-            assertThat(checkNegativeBalanceUseCase(existing.copy(accountId = 2L))).isFalse()
+            assertThat(checkNegativeBalanceUseCase(existing.copy(accountId = 2L))).isEqualTo(BalanceWarning.NONE)
             // Moving a 600_000 expense there is not.
-            assertThat(checkNegativeBalanceUseCase(existing.copy(accountId = 2L, amount = Money(600_000L)))).isTrue()
+            assertThat(checkNegativeBalanceUseCase(existing.copy(accountId = 2L, amount = Money(600_000L)))).isEqualTo(
+                BalanceWarning.NEGATIVE_BALANCE,
+            )
         }
 }

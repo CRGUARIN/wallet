@@ -26,6 +26,8 @@ data class TransactionEdit(
     val transactionId: Long? = null,
     val initialType: TransactionType = TransactionType.EXPENSE,
     val accountId: Long? = null,
+    val toAccountId: Long? = null,
+    val initialAmountMinor: Long? = null,
 )
 
 @Serializable
@@ -54,6 +56,11 @@ data class CategoryEdit(
     val categoryId: Long? = null,
     val parentId: Long? = null,
     val type: CategoryType,
+)
+
+@Serializable
+data class CardReconcile(
+    val accountId: Long,
 )
 
 @Serializable

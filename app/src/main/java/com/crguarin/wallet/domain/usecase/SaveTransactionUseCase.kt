@@ -119,7 +119,7 @@ class SaveTransactionUseCase
                 }
             }
 
-            val willBeNegative = checkNegativeBalanceUseCase(transaction)
+            val balanceWarning = checkNegativeBalanceUseCase(transaction)
 
             val now = timeProvider.now()
             val toSave =
@@ -131,6 +131,6 @@ class SaveTransactionUseCase
                 }
 
             val savedId = transactionRepository.saveTransaction(toSave)
-            return DomainResult.Success(SaveTransactionResult(savedId, willBeNegative))
+            return DomainResult.Success(SaveTransactionResult(savedId, balanceWarning))
         }
     }

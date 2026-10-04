@@ -15,4 +15,9 @@ data class Transaction(
     val note: String? = null,
     val createdAt: Instant,
     val updatedAt: Instant,
+    /**
+     * Number of installments (1..48). Only set on EXPENSE transactions of a credit card
+     * account; informational only (it does not change the amount, the debt or reports).
+     */
+    val installments: Int? = null,
 )

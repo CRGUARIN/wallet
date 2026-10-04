@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import com.crguarin.wallet.ui.accounts.AccountDetailRoute
 import com.crguarin.wallet.ui.accounts.AccountEditRoute
 import com.crguarin.wallet.ui.accounts.AccountsRoute
+import com.crguarin.wallet.ui.cards.CardReconcileRoute
 import com.crguarin.wallet.ui.categories.CategoriesRoute
 import com.crguarin.wallet.ui.categories.CategoryEditRoute
 import com.crguarin.wallet.ui.home.HomeRoute
@@ -163,6 +164,11 @@ fun WalletNavHost(
                 onCategoriesClick = {
                     navController.navigate(Categories())
                 },
+            )
+        }
+        composable<CardReconcile> {
+            CardReconcileRoute(
+                onNavigateBack = { navController.popBackStack() },
             )
         }
     }

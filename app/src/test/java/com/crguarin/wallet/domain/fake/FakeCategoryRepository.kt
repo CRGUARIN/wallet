@@ -116,4 +116,32 @@ class FakeCategoryRepository : CategoryRepository {
         }
         notifyChanged()
     }
+
+    override suspend fun ensureSystemCategory(
+        systemKey: String,
+        type: CategoryType,
+        color: Int,
+        icon: String,
+    ): Long {
+        val existing = categories.values.firstOrNull { it.systemKey == systemKey }
+        if (existing != null) {
+            if (existing.isArchived) {
+                categories[existing.id] = existing.copy(isArchived = false)
+                notifyChanged()
+            }
+            return existing.id
+        }
+        val nextSortOrder = (categories.values.maxOfOrNull { it.sortOrder } ?: -1) + 1
+        return saveCategory(
+            Category(
+                name = null,
+                systemKey = systemKey,
+                type = type,
+                parentId = null,
+                color = color,
+                icon = icon,
+                sortOrder = nextSortOrder,
+            ),
+        )
+    }
 }

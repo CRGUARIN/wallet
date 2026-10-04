@@ -115,4 +115,11 @@ class CategoryRepositoryImpl
                 }
             }
         }
+
+        override suspend fun ensureSystemCategory(
+            systemKey: String,
+            type: CategoryType,
+            color: Int,
+            icon: String,
+        ): Long = error("not implemented")
     }

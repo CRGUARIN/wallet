@@ -16,4 +16,16 @@ data class Account(
     val isArchived: Boolean = false,
     val sortOrder: Int = 0,
     val createdAt: Instant,
+    /**
+     * Total credit limit. Only applies to [AccountType.CREDIT_CARD]; null for other types.
+     */
+    val creditLimit: Money? = null,
+    /**
+     * Day of month (1..31) when the statement closes. Only applies to [AccountType.CREDIT_CARD].
+     */
+    val statementDay: Int? = null,
+    /**
+     * Day of month (1..31) when payment is due. Only applies to [AccountType.CREDIT_CARD].
+     */
+    val paymentDueDay: Int? = null,
 )
