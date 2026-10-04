@@ -7,8 +7,10 @@ import com.crguarin.wallet.domain.model.recurring.RecurrenceMath
 import com.crguarin.wallet.domain.model.recurring.RecurringMode
 import com.crguarin.wallet.domain.model.recurring.UpcomingKind
 import com.crguarin.wallet.domain.model.recurring.UpcomingPayment
+import com.crguarin.wallet.domain.model.recurring.blockReason
 import com.crguarin.wallet.domain.model.recurring.pendingCount
 import com.crguarin.wallet.domain.repository.AccountRepository
+import com.crguarin.wallet.domain.repository.CategoryRepository
 import com.crguarin.wallet.domain.repository.RecurringRepository
 import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewsUseCase
 import kotlinx.coroutines.flow.Flow
@@ -20,14 +22,15 @@ import javax.inject.Inject
  * days, CONFIRM payments awaiting confirmation (one row each) and the pending
  * payment of every card, by date, capped at [MAX_ROWS] rows.
  *
- * Note: the category block is not applied here because this use case has no
- * access to the categories; a payment whose category is archived still shows.
+ * Blocked payments (archived account or category) are excluded, like the
+ * overview totals and the notifications.
  */
 class ObserveUpcomingPaymentsUseCase
     @Inject
     constructor(
         private val recurringRepository: RecurringRepository,
         private val accountRepository: AccountRepository,
+        private val categoryRepository: CategoryRepository,
         private val observeCardOverviewsUseCase: ObserveCardOverviewsUseCase,
         private val timeProvider: TimeProvider,
     ) {
@@ -35,16 +38,18 @@ class ObserveUpcomingPaymentsUseCase
             combine(
                 recurringRepository.observeAll(),
                 accountRepository.observeAllAccounts(),
+                categoryRepository.observeCategories(includeArchived = true),
                 observeCardOverviewsUseCase(),
-            ) { payments, accounts, cardOverviews ->
+            ) { payments, accounts, categories, cardOverviews ->
                 val today = timeProvider.today()
                 val end = today.plusDays(days.toLong())
                 val accountsById = accounts.associateBy { it.id }
+                val categoriesById = categories.associateBy { it.id }
                 val rows = mutableListOf<UpcomingPayment>()
                 for (payment in payments) {
                     if (!payment.isActive || payment.isFinished) continue
                     val account = accountsById[payment.accountId] ?: continue
-                    if (account.isArchived) continue
+                    if (payment.blockReason(account, categoriesById[payment.categoryId]) != null) continue
                     val pending = payment.pendingCount(today)
                     if (payment.mode == RecurringMode.CONFIRM && pending > 0) {
                         rows.add(
@@ -61,6 +66,7 @@ class ObserveUpcomingPaymentsUseCase
                         continue
                     }
                     for (date in RecurrenceMath.occurrencesBetween(payment, today, end)) {
+                        if (payment.endDate != null && date.isAfter(payment.endDate)) continue
                         rows.add(
                             UpcomingPayment(
                                 kind = UpcomingKind.RECURRING,

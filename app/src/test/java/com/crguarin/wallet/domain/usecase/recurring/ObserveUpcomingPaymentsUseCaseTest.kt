@@ -3,6 +3,7 @@ package com.crguarin.wallet.domain.usecase.recurring
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.fake.FakeAccountRepository
 import com.crguarin.wallet.domain.fake.FakeCardStatementRepository
+import com.crguarin.wallet.domain.fake.FakeCategoryRepository
 import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.model.card.CardStatement
@@ -11,6 +12,7 @@ import com.crguarin.wallet.domain.model.recurring.RecurringMode
 import com.crguarin.wallet.domain.model.recurring.UpcomingKind
 import com.crguarin.wallet.domain.model.recurring.testAccount
 import com.crguarin.wallet.domain.model.recurring.testCardAccount
+import com.crguarin.wallet.domain.model.recurring.testCategory
 import com.crguarin.wallet.domain.model.recurring.testPayment
 import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewUseCase
 import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewsUseCase
@@ -25,6 +27,7 @@ import java.time.LocalDate
 class ObserveUpcomingPaymentsUseCaseTest {
     private lateinit var recurringRepository: FakeRecurringRepository
     private lateinit var accountRepository: FakeAccountRepository
+    private lateinit var categoryRepository: FakeCategoryRepository
     private lateinit var upcomingUseCase: ObserveUpcomingPaymentsUseCase
 
     private val today = LocalDate.of(2026, 10, 5)
@@ -33,6 +36,8 @@ class ObserveUpcomingPaymentsUseCaseTest {
     fun setUp() {
         recurringRepository = FakeRecurringRepository()
         accountRepository = FakeAccountRepository()
+        categoryRepository = FakeCategoryRepository()
+        categoryRepository.setInitialData(listOf(testCategory()))
         val cardStatementRepository = FakeCardStatementRepository()
         val timeProvider = FakeTimeProvider(currentInstant = Instant.parse("2026-10-05T12:00:00Z"))
         val card = testCardAccount()
@@ -60,6 +65,7 @@ class ObserveUpcomingPaymentsUseCaseTest {
             ObserveUpcomingPaymentsUseCase(
                 recurringRepository,
                 accountRepository,
+                categoryRepository,
                 ObserveCardOverviewsUseCase(accountRepository, observeCardOverview),
                 timeProvider,
             )
@@ -145,5 +151,49 @@ class ObserveUpcomingPaymentsUseCaseTest {
             )
             val rows = upcomingUseCase(7).first()
             assertThat(rows.none { it.kind == UpcomingKind.RECURRING }).isTrue()
+        }
+
+    @Test
+    fun `payment with archived category is excluded`() =
+        runTest {
+            categoryRepository.setInitialData(
+                listOf(testCategory(), testCategory(id = 2L, name = "Old", isArchived = true)),
+            )
+            recurringRepository.setInitialData(
+                listOf(
+                    testPayment(id = 1L, startDate = today, nextDueDate = today, categoryId = 2L),
+                    testPayment(
+                        id = 2L,
+                        name = "Old sub",
+                        startDate = LocalDate.of(2026, 9, 21),
+                        nextDueDate = LocalDate.of(2026, 9, 21),
+                        frequency = RecurrenceFrequency.WEEKLY,
+                        mode = RecurringMode.CONFIRM,
+                        categoryId = 2L,
+                    ),
+                ),
+            )
+            val rows = upcomingUseCase(7).first()
+            assertThat(rows.none { it.kind == UpcomingKind.RECURRING }).isTrue()
+            assertThat(rows.none { it.kind == UpcomingKind.RECURRING_PENDING }).isTrue()
+        }
+
+    @Test
+    fun `occurrences past endDate are excluded`() =
+        runTest {
+            recurringRepository.setInitialData(
+                listOf(
+                    testPayment(
+                        id = 1L,
+                        startDate = today,
+                        nextDueDate = today,
+                        frequency = RecurrenceFrequency.WEEKLY,
+                        endDate = today.plusDays(3),
+                    ),
+                ),
+            )
+            val rows = upcomingUseCase(30).first()
+            val recurring = rows.filter { it.kind == UpcomingKind.RECURRING }
+            assertThat(recurring.map { it.date }).containsExactly(today)
         }
 }
