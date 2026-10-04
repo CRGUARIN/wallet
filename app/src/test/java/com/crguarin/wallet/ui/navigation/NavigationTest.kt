@@ -1,5 +1,7 @@
 package com.crguarin.wallet.ui.navigation
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.semantics.SemanticsNode
@@ -35,7 +37,10 @@ class NavigationTest {
 
     private lateinit var navController: NavHostController
 
-    private fun setAppContent(startDestination: Any = Home) {
+    private fun setAppContent(
+        startDestination: Any = Home,
+        deepLinkIntent: Intent? = null,
+    ) {
         composeRule.setContent {
             navController = rememberNavController()
             // Inspection mode renders the screens without Hilt ViewModels.
@@ -44,11 +49,14 @@ class NavigationTest {
                     WalletAppContent(
                         navController = navController,
                         startDestination = startDestination,
+                        deepLinkIntent = deepLinkIntent,
                     )
                 }
             }
         }
     }
+
+    private fun deepLinkIntent(uri: String): Intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri))
 
     @Test
     @Config(qualifiers = "es")
@@ -336,6 +344,42 @@ class NavigationTest {
         assertThat(route?.toAccountId).isEqualTo(7L)
         assertThat(route?.initialAmountMinor).isEqualTo(150_050L)
         composeRule.onNodeWithText("Nuevo movimiento").assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "es")
+    fun `account deep link opens that account detail`() {
+        // Exact URI built by the notification gateway for card events.
+        setAppContent(deepLinkIntent = deepLinkIntent("wallet://account/7"))
+        composeRule.waitForIdle()
+
+        val route = navController.currentBackStackEntry?.toRoute<AccountDetail>()
+        assertThat(route?.accountId).isEqualTo(7L)
+        composeRule.onNodeWithText("Detalle de cuenta").assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "es")
+    fun `recurring deep link opens the recurring list`() {
+        // Exact URI built by the notification gateway for recurring events.
+        setAppContent(deepLinkIntent = deepLinkIntent("wallet://recurring"))
+        composeRule.waitForIdle()
+
+        assertThat(navController.currentBackStackEntry?.destination?.hasRoute(RecurringList::class)).isTrue()
+        composeRule.onAllNodesWithText("Pagos recurrentes").onFirst().assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "es")
+    fun `deep link is ignored while onboarding is incomplete`() {
+        setAppContent(
+            startDestination = Onboarding,
+            deepLinkIntent = deepLinkIntent("wallet://account/7"),
+        )
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Bienvenido a Wallet").assertIsDisplayed()
+        assertThat(navController.currentBackStackEntry?.destination?.hasRoute(Onboarding::class)).isTrue()
     }
 
     private fun assertTabSelected(

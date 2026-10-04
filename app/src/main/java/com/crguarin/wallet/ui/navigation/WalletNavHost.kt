@@ -5,6 +5,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navDeepLink
 import com.crguarin.wallet.ui.accounts.AccountDetailRoute
 import com.crguarin.wallet.ui.accounts.AccountEditRoute
 import com.crguarin.wallet.ui.accounts.AccountsRoute
@@ -109,7 +110,9 @@ fun WalletNavHost(
                 },
             )
         }
-        composable<AccountDetail> {
+        composable<AccountDetail>(
+            deepLinks = listOf(navDeepLink<AccountDetail>(basePath = "wallet://account")),
+        ) {
             AccountDetailRoute(
                 onNavigateBack = { navController.popBackStack() },
                 onEditClick = { accountId ->
@@ -189,7 +192,9 @@ fun WalletNavHost(
                 },
             )
         }
-        composable<RecurringList> {
+        composable<RecurringList>(
+            deepLinks = listOf(navDeepLink<RecurringList>(basePath = "wallet://recurring")),
+        ) {
             RecurringListRoute(
                 onNavigateBack = { navController.popBackStack() },
                 onAddClick = { navController.navigate(RecurringEdit()) },
