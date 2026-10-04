@@ -121,5 +121,28 @@ class CategoryRepositoryImpl
             type: CategoryType,
             color: Int,
             icon: String,
-        ): Long = error("not implemented")
+        ): Long =
+            withContext(ioDispatcher) {
+                walletDatabase.withTransaction {
+                    val existing = categoryDao.getBySystemKey(systemKey)
+                    if (existing != null) {
+                        if (existing.isArchived) {
+                            categoryDao.unarchive(existing.id)
+                        }
+                        existing.id
+                    } else {
+                        categoryDao.insert(
+                            com.crguarin.wallet.data.db.CategoryEntity(
+                                name = null,
+                                systemKey = systemKey,
+                                type = type,
+                                parentId = null,
+                                color = color,
+                                icon = icon,
+                                sortOrder = categoryDao.nextRootSortOrder(),
+                            ),
+                        )
+                    }
+                }
+            }
     }
