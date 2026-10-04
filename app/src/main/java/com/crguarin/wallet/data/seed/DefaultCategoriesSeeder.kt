@@ -103,7 +103,7 @@ class DefaultCategoriesSeeder
                 CategorySeed(
                     systemKey = "card_interest_fees",
                     type = CategoryType.EXPENSE,
-                    color = 0xFFE53935.toInt(),
+                    color = 0xFFEF5350.toInt(),
                     icon = "credit_card",
                 ),
                 // Income categories
@@ -140,7 +140,7 @@ class DefaultCategoriesSeeder
                 CategorySeed(
                     systemKey = "card_adjustment",
                     type = CategoryType.INCOME,
-                    color = 0xFF00897B.toInt(),
+                    color = 0xFF66BB6A.toInt(),
                     icon = "receipt_long",
                 ),
             )
