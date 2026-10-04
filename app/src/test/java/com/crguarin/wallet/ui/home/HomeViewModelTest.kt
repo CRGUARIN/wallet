@@ -3,6 +3,7 @@ package com.crguarin.wallet.ui.home
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.fake.FakeAccountRepository
 import com.crguarin.wallet.domain.fake.FakeCardStatementRepository
+import com.crguarin.wallet.domain.fake.FakeCategoryRepository
 import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
@@ -96,6 +97,7 @@ class HomeViewModelTest {
                 ObserveUpcomingPaymentsUseCase(
                     FakeRecurringRepository(),
                     accountRepository,
+                    FakeCategoryRepository(),
                     ObserveCardOverviewsUseCase(
                         accountRepository,
                         ObserveCardOverviewUseCase(accountRepository, cardStatementRepository, timeProvider),

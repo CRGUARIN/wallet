@@ -27,6 +27,9 @@ import javax.inject.Inject
 /** Number of recent movements shown on Home. */
 const val HOME_RECENT_LIMIT = 10
 
+/** Days covered by the "upcoming payments" card. */
+private const val UPCOMING_DAYS = 7
+
 data class HomeUiState(
     val isLoading: Boolean = true,
     val totalBalance: Money = Money.ZERO,
@@ -79,7 +82,7 @@ class HomeViewModel
                         today = today,
                     )
                 },
-                observeUpcomingPaymentsUseCase(),
+                observeUpcomingPaymentsUseCase(UPCOMING_DAYS),
             ) { base, upcoming ->
                 base.copy(upcomingPayments = upcoming)
             }.stateIn(
