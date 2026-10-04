@@ -85,6 +85,7 @@ class CategoryRepositoryImpl
             withContext(ioDispatcher) {
                 walletDatabase.withTransaction {
                     categoryDao.reassignTransactions(fromId = fromCategoryId, toId = toCategoryId)
+                    walletDatabase.recurringPaymentDao().reassignCategory(fromId = fromCategoryId, toId = toCategoryId)
                     val source = categoryDao.getById(fromCategoryId)
                     if (source != null) {
                         categoryDao.delete(source)

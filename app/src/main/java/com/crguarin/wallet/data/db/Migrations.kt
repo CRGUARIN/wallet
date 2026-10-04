@@ -26,3 +26,30 @@ val MIGRATION_1_2: Migration =
             )
         }
     }
+
+/**
+ * Migration from schema 2 to schema 3 (recurring payments). The `recurring_payments`
+ * CREATE TABLE and index statements below are copied verbatim from the generated
+ * `app/schemas/com.crguarin.wallet.data.db.WalletDatabase/3.json`.
+ */
+val MIGRATION_2_3: Migration =
+    object : Migration(2, 3) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE transactions ADD COLUMN recurring_id INTEGER")
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `recurring_payments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `type` TEXT NOT NULL, `amount` INTEGER NOT NULL, `account_id` INTEGER NOT NULL, `category_id` INTEGER NOT NULL, `note` TEXT, `frequency` TEXT NOT NULL, `interval` INTEGER NOT NULL, `start_date` INTEGER NOT NULL, `next_due_date` INTEGER NOT NULL, `end_date` INTEGER, `mode` TEXT NOT NULL, `reminder_days_before` INTEGER, `is_active` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, FOREIGN KEY(`account_id`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT , FOREIGN KEY(`category_id`) REFERENCES `categories`(`id`) ON UPDATE NO ACTION ON DELETE RESTRICT )",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_recurring_payments_account_id` ON `recurring_payments` (`account_id`)",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_recurring_payments_category_id` ON `recurring_payments` (`category_id`)",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_recurring_payments_next_due_date` ON `recurring_payments` (`next_due_date`)",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_transactions_recurring_id` ON `transactions` (`recurring_id`)",
+            )
+        }
+    }

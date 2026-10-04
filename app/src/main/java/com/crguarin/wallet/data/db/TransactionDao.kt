@@ -107,6 +107,22 @@ interface TransactionDao {
     @Query("DELETE FROM transactions WHERE id = :id")
     suspend fun deleteById(id: Long): Int
 
+    @Query("UPDATE transactions SET recurring_id = NULL WHERE recurring_id = :paymentId")
+    suspend fun clearRecurringId(paymentId: Long): Int
+
+    @Query(
+        """
+        $TRANSACTION_DETAILS_SELECT
+        WHERE t.recurring_id = :paymentId
+        ORDER BY t.date DESC, t.created_at DESC, t.id DESC
+        LIMIT :limit
+        """,
+    )
+    fun observeGeneratedByPayment(
+        paymentId: Long,
+        limit: Int,
+    ): Flow<List<TransactionWithDetails>>
+
     @Query(
         """
         SELECT

@@ -4,6 +4,8 @@ import androidx.room.TypeConverter
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.recurring.RecurrenceFrequency
+import com.crguarin.wallet.domain.model.recurring.RecurringMode
 import java.time.Instant
 import java.time.LocalDate
 
@@ -25,6 +27,18 @@ class Converters {
 
     @TypeConverter
     fun toTransactionType(value: String?): TransactionType? = value?.let { TransactionType.valueOf(it) }
+
+    @TypeConverter
+    fun fromRecurrenceFrequency(value: RecurrenceFrequency?): String? = value?.name
+
+    @TypeConverter
+    fun toRecurrenceFrequency(value: String?): RecurrenceFrequency? = value?.let { RecurrenceFrequency.valueOf(it) }
+
+    @TypeConverter
+    fun fromRecurringMode(value: RecurringMode?): String? = value?.name
+
+    @TypeConverter
+    fun toRecurringMode(value: String?): RecurringMode? = value?.let { RecurringMode.valueOf(it) }
 
     @TypeConverter
     fun fromLocalDate(value: LocalDate?): Long? = value?.toEpochDay()
