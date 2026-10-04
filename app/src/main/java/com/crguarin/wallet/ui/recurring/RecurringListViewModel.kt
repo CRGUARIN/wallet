@@ -172,8 +172,8 @@ class RecurringListViewModel
                     val result = skipRecurringOccurrenceUseCase(id = item.payment.id)
                 ) {
                     is DomainResult.Success -> {
+                        // Skipping records nothing, so no "charge recorded" feedback here.
                         _uiState.update { it.copy(isProcessing = false, skipItem = null) }
-                        _events.send(RecurringListEvent.ShowMessage(R.string.recurring_recorded))
                     }
                     is DomainResult.Failure -> {
                         _uiState.update { it.copy(isProcessing = false) }
