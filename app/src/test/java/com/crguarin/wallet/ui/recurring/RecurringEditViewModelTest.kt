@@ -443,6 +443,27 @@ class RecurringEditViewModelTest {
         }
 
     @Test
+    fun `resuming refreshes the form date so saving afterwards keeps it`() =
+        runTest(testDispatcher) {
+            recurringRepository.setInitialData(
+                listOf(existingPayment(isActive = false, nextDueDate = LocalDate.of(2026, 9, 15))),
+            )
+            val viewModel = createViewModel(editHandle(5L))
+            assertThat(viewModel.uiState.value.nextDate).isEqualTo(LocalDate.of(2026, 9, 15))
+
+            viewModel.setActive(true)
+
+            // Resuming moves nextDueDate to the first occurrence on or after today (2026-09-28).
+            assertThat(recurringRepository.get(5L)!!.nextDueDate).isEqualTo(LocalDate.of(2026, 10, 15))
+            assertThat(viewModel.uiState.value.nextDate).isEqualTo(LocalDate.of(2026, 10, 15))
+
+            viewModel.onSaveClick()
+
+            assertThat(viewModel.uiState.value.dateErrorRes).isNull()
+            assertThat(recurringRepository.get(5L)!!.nextDueDate).isEqualTo(LocalDate.of(2026, 10, 15))
+        }
+
+    @Test
     fun `delete asks for confirmation and removes the payment`() =
         runTest(testDispatcher) {
             recurringRepository.setInitialData(listOf(existingPayment()))

@@ -474,8 +474,26 @@ class RecurringEditViewModel
                         val refreshed = recurringRepository.get(editingId)
                         if (refreshed != null) {
                             originalPayment = refreshed
+                            // Resuming recalculates nextDueDate; keep the form in sync so saving
+                            // afterwards does not treat the stale date as a new calendar anchor.
+                            val syncedNextDate =
+                                if (active) {
+                                    refreshed.nextDueDate
+                                } else {
+                                    _uiState.value.nextDate
+                                }
+                            _uiState.update {
+                                it.copy(
+                                    isActive = active,
+                                    nextDate = syncedNextDate,
+                                    dateErrorRes = if (active) null else it.dateErrorRes,
+                                    generalErrorRes = null,
+                                )
+                            }
+                            if (active) persistForm()
+                        } else {
+                            _uiState.update { it.copy(isActive = active, generalErrorRes = null) }
                         }
-                        _uiState.update { it.copy(isActive = active, generalErrorRes = null) }
                     }
                     is DomainResult.Failure -> {
                         _uiState.update { it.copy(generalErrorRes = result.error.asStringRes()) }

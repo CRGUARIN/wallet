@@ -99,6 +99,25 @@ class SetRecurringActiveUseCaseTest {
         }
 
     @Test
+    fun `resuming never moves nextDueDate back over a recorded occurrence`() =
+        runTest {
+            // Today's charge already ran (nextDueDate advanced to November); pausing and resuming
+            // on the same day must keep November, not bring October back.
+            recurringRepository.setInitialData(
+                listOf(
+                    testPayment(
+                        id = 1L,
+                        startDate = LocalDate.of(2026, 1, 5),
+                        nextDueDate = LocalDate.of(2026, 11, 5),
+                        isActive = false,
+                    ),
+                ),
+            )
+            assertThat(setRecurringActiveUseCase(1L, true)).isEqualTo(DomainResult.Success(Unit))
+            assertThat(recurringRepository.get(1L)?.nextDueDate).isEqualTo(LocalDate.of(2026, 11, 5))
+        }
+
+    @Test
     fun `weekly resume lands on the calendar anchor`() =
         runTest {
             recurringRepository.setInitialData(

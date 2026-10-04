@@ -10,7 +10,9 @@ import javax.inject.Inject
 /**
  * Pauses (`active = false`) or resumes a recurring payment. Resuming sets
  * `nextDueDate = firstOnOrAfter(today)`, so paused periods are never caught
- * up. A finished payment cannot resume without changing its `endDate`.
+ * up; it never moves `nextDueDate` backwards over an occurrence that was
+ * already recorded or skipped. A finished payment cannot resume without
+ * changing its `endDate`.
  */
 class SetRecurringActiveUseCase
     @Inject
@@ -30,7 +32,13 @@ class SetRecurringActiveUseCase
                 return DomainResult.Success(Unit)
             }
             if (payment.isFinished) return DomainResult.Failure(DomainError.InvalidTransaction)
-            val nextDueDate = RecurrenceMath.firstOnOrAfter(payment, timeProvider.today())
+            // Paused periods are skipped, but an occurrence already recorded or skipped must not
+            // come back (e.g. pausing and resuming on the same day the auto charge ran).
+            val nextDueDate =
+                maxOf(
+                    RecurrenceMath.firstOnOrAfter(payment, timeProvider.today()),
+                    payment.nextDueDate,
+                )
             recurringRepository.save(payment.copy(isActive = true, nextDueDate = nextDueDate, updatedAt = timeProvider.now()))
             return DomainResult.Success(Unit)
         }
