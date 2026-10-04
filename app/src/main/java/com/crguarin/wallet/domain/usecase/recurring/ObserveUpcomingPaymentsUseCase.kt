@@ -65,7 +65,9 @@ class ObserveUpcomingPaymentsUseCase
                         )
                         continue
                     }
-                    for (date in RecurrenceMath.occurrencesBetween(payment, today, end)) {
+                    // Occurrences before nextDueDate were already recorded or skipped.
+                    val from = maxOf(today, payment.nextDueDate)
+                    for (date in RecurrenceMath.occurrencesBetween(payment, from, end)) {
                         if (payment.endDate != null && date.isAfter(payment.endDate)) continue
                         rows.add(
                             UpcomingPayment(

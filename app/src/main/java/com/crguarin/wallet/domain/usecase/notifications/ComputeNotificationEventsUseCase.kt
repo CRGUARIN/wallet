@@ -65,7 +65,9 @@ class ComputeNotificationEventsUseCase
                         val daysBefore = payment.reminderDaysBefore
                         if (daysBefore != null) {
                             val horizon = today.plusDays(MAX_REMINDER_DAYS)
-                            for (date in RecurrenceMath.occurrencesBetween(payment, today, horizon)) {
+                            // Occurrences before nextDueDate were already recorded or skipped.
+                            val from = maxOf(today, payment.nextDueDate)
+                            for (date in RecurrenceMath.occurrencesBetween(payment, from, horizon)) {
                                 if (payment.endDate != null && date.isAfter(payment.endDate)) continue
                                 val trigger = date.minusDays(daysBefore.toLong())
                                 if (fires(trigger)) {

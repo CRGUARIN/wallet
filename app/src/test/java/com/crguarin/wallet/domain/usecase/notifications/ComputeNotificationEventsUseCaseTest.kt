@@ -407,4 +407,26 @@ class ComputeNotificationEventsUseCaseTest {
                     .filterIsInstance<NotificationEvent.RecurringUpcoming>()
             assertThat(events).isEmpty()
         }
+
+    @Test
+    fun `no reminder for an occurrence already recorded`() =
+        runTest {
+            // Today's charge already ran, so nextDueDate moved to next week: only that one is reminded.
+            recurringRepository.setInitialData(
+                listOf(
+                    testPayment(
+                        id = 1L,
+                        startDate = today,
+                        nextDueDate = today.plusDays(7),
+                        frequency = RecurrenceFrequency.WEEKLY,
+                        reminderDaysBefore = 0,
+                    ),
+                ),
+            )
+            val settings = NotificationSettings(cardClosing = false, cardPayment = false, cardOverdue = false)
+            val events =
+                compute(today.minusDays(1), today, settings)
+                    .filterIsInstance<NotificationEvent.RecurringUpcoming>()
+            assertThat(events).isEmpty()
+        }
 }

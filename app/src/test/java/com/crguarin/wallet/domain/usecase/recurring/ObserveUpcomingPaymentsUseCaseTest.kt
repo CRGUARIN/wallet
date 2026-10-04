@@ -196,4 +196,23 @@ class ObserveUpcomingPaymentsUseCaseTest {
             val recurring = rows.filter { it.kind == UpcomingKind.RECURRING }
             assertThat(recurring.map { it.date }).containsExactly(today)
         }
+
+    @Test
+    fun `an occurrence already recorded today is not shown again`() =
+        runTest {
+            // The AUTO charge of today ran, so nextDueDate moved to next week.
+            recurringRepository.setInitialData(
+                listOf(
+                    testPayment(
+                        id = 1L,
+                        startDate = today,
+                        nextDueDate = today.plusDays(7),
+                        frequency = RecurrenceFrequency.WEEKLY,
+                    ),
+                ),
+            )
+            val rows = upcomingUseCase(7).first()
+            val recurring = rows.filter { it.kind == UpcomingKind.RECURRING }
+            assertThat(recurring.map { it.date }).containsExactly(today.plusDays(7))
+        }
 }
