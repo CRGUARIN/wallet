@@ -39,7 +39,9 @@ class BackupParser
                     return invalid("not a JSON object: ${e.message}")
                 }
             schemaVersionOf(root)?.let { version ->
-                if (version != BackupDto.SCHEMA_VERSION) return DomainResult.Failure(DomainError.BackupVersionUnsupported)
+                if (version != 1 && version != BackupDto.SCHEMA_VERSION) {
+                    return DomainResult.Failure(DomainError.BackupVersionUnsupported)
+                }
             }
             val dto =
                 try {

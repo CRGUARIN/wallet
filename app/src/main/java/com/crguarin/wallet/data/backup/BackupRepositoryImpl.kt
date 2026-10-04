@@ -69,10 +69,12 @@ class BackupRepositoryImpl
                 accounts = backupDao.getAccounts().map { it.toBackupDto() },
                 categories = backupDao.getCategories().map { it.toBackupDto() },
                 transactions = backupDao.getTransactions().map { it.toBackupDto() },
+                cardStatements = backupDao.getCardStatements().map { it.toBackupDto() },
             )
 
         /** Must run inside a transaction: any exception rolls everything back. */
         private suspend fun replaceAll(dto: BackupDto) {
+            backupDao.deleteAllCardStatements()
             backupDao.deleteAllTransactions()
             backupDao.deleteSubcategories()
             backupDao.deleteRootCategories()
@@ -83,6 +85,7 @@ class BackupRepositoryImpl
             backupDao.insertCategories(roots.map { it.toEntity() })
             backupDao.insertCategories(subcategories.map { it.toEntity() })
             backupDao.insertTransactions(dto.transactions.map { it.toEntity() })
+            backupDao.insertCardStatements(dto.cardStatements.map { it.toEntity() })
         }
 
         /** The last-used account may not exist in the imported data; leaving it would point to nothing. */

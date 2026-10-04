@@ -3,6 +3,7 @@ package com.crguarin.wallet.data.backup
 import com.crguarin.wallet.core.money.APP_CURRENCY
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.core.result.DomainError
+import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.DomainLimits
 import com.crguarin.wallet.domain.model.TransactionType
 import java.time.DateTimeException
@@ -11,19 +12,26 @@ import java.time.LocalDate
 /**
  * Pure validation of a decoded [BackupDto]. Runs before the database is touched, so it must
  * reject anything that would violate a business rule or a foreign key on insert.
+ *
+ * Accepts schema versions 1 and 2: a version 1 backup carries no card fields and is imported
+ * with the defaults (no credit cards, no statements).
  */
 object BackupValidator {
     /** Returns null when [dto] is valid, or the [DomainError] to report otherwise. */
     fun validate(dto: BackupDto): DomainError? {
-        if (dto.schemaVersion != BackupDto.SCHEMA_VERSION) return DomainError.BackupVersionUnsupported
+        if (dto.schemaVersion != 1 && dto.schemaVersion != BackupDto.SCHEMA_VERSION) {
+            return DomainError.BackupVersionUnsupported
+        }
         return firstReason(dto)?.let { DomainError.BackupInvalid(it) }
     }
 
     private fun firstReason(dto: BackupDto): String? {
         if (dto.currency != APP_CURRENCY) return "unsupported currency '${dto.currency}'"
+        val accountTypes = dto.accounts.associate { it.id to it.type }
         return validateAccounts(dto.accounts)
             ?: validateCategories(dto.categories)
-            ?: validateTransactions(dto)
+            ?: validateTransactions(dto, accountTypes)
+            ?: validateCardStatements(dto, accountTypes)
     }
 
     private fun validateAccounts(accounts: List<AccountDto>): String? {
@@ -34,11 +42,35 @@ object BackupValidator {
                 account.currencyCode != APP_CURRENCY -> return "account ${account.id}: unsupported currency"
                 name.isEmpty() -> return "account ${account.id}: empty name"
                 name.length > DomainLimits.NAME_MAX_LENGTH -> return "account ${account.id}: name too long"
-                account.initialBalance < 0 -> return "account ${account.id}: negative initial balance"
                 account.initialBalance > Money.MAX_MINOR_UNITS -> return "account ${account.id}: initial balance too large"
+                account.initialBalance < -Money.MAX_MINOR_UNITS -> return "account ${account.id}: initial balance too large"
+                account.initialBalance < 0 && account.type != AccountType.CREDIT_CARD ->
+                    return "account ${account.id}: negative initial balance"
             }
+            accountCardProblem(account)?.let { return it }
         }
         return null
+    }
+
+    private fun accountCardProblem(account: AccountDto): String? {
+        val label = "account ${account.id}"
+        return if (account.type == AccountType.CREDIT_CARD) {
+            when {
+                account.creditLimit == null -> "$label: card without credit limit"
+                account.creditLimit <= 0 -> "$label: credit limit must be positive"
+                account.creditLimit > Money.MAX_MINOR_UNITS -> "$label: credit limit too large"
+                account.statementDay == null || account.statementDay !in 1..31 -> "$label: invalid statement day"
+                account.paymentDueDay == null || account.paymentDueDay !in 1..31 -> "$label: invalid payment due day"
+                else -> null
+            }
+        } else {
+            when {
+                account.creditLimit != null -> "$label: credit limit on a non-card account"
+                account.statementDay != null -> "$label: statement day on a non-card account"
+                account.paymentDueDay != null -> "$label: payment due day on a non-card account"
+                else -> null
+            }
+        }
     }
 
     private fun validateCategories(categories: List<CategoryDto>): String? {
@@ -58,16 +90,20 @@ object BackupValidator {
         return null
     }
 
-    private fun validateTransactions(dto: BackupDto): String? {
+    private fun validateTransactions(
+        dto: BackupDto,
+        accountTypes: Map<Long, AccountType>,
+    ): String? {
         idProblem("transaction", dto.transactions.map { it.id })?.let { return it }
         val accountIds = dto.accounts.map { it.id }.toSet()
         val categoriesById = dto.categories.associateBy { it.id }
-        return dto.transactions.firstNotNullOfOrNull { transactionProblem(it, accountIds, categoriesById) }
+        return dto.transactions.firstNotNullOfOrNull { transactionProblem(it, accountIds, accountTypes, categoriesById) }
     }
 
     private fun transactionProblem(
         tx: TransactionDto,
         accountIds: Set<Long>,
+        accountTypes: Map<Long, AccountType>,
         categoriesById: Map<Long, CategoryDto>,
     ): String? {
         val label = "transaction ${tx.id}"
@@ -77,9 +113,20 @@ object BackupValidator {
             !isValidDate(tx.date) -> "$label: invalid date"
             (tx.note?.length ?: 0) > DomainLimits.NOTE_MAX_LENGTH -> "$label: note too long"
             tx.accountId !in accountIds -> "$label: unknown account ${tx.accountId}"
+            !isValidInstallments(tx, accountTypes) -> "$label: invalid installments"
             tx.type == TransactionType.TRANSFER -> transferProblem(tx, accountIds)
             else -> flowProblem(tx, categoriesById)
         }
+    }
+
+    private fun isValidInstallments(
+        tx: TransactionDto,
+        accountTypes: Map<Long, AccountType>,
+    ): Boolean {
+        val installments = tx.installments ?: return true
+        return tx.type == TransactionType.EXPENSE &&
+            accountTypes[tx.accountId] == AccountType.CREDIT_CARD &&
+            installments in 1..48
     }
 
     private fun transferProblem(
@@ -111,6 +158,45 @@ object BackupValidator {
             category.type.name != tx.type.name -> "$label: category type differs from transaction type"
             else -> null
         }
+    }
+
+    private fun validateCardStatements(
+        dto: BackupDto,
+        accountTypes: Map<Long, AccountType>,
+    ): String? {
+        val statements = dto.cardStatements
+        idProblem("card statement", statements.map { it.id })?.let { return it }
+        val seenClosings = mutableSetOf<Pair<Long, String>>()
+        val transactionsById = dto.transactions.associateBy { it.id }
+        for (statement in statements) {
+            val label = "card statement ${statement.id}"
+            val accountType = accountTypes[statement.accountId]
+            when {
+                accountType == null -> return "$label: unknown account ${statement.accountId}"
+                accountType != AccountType.CREDIT_CARD -> return "$label: account ${statement.accountId} is not a credit card"
+                !isValidDate(statement.closingDate) -> return "$label: invalid closing date"
+                !isValidDate(statement.dueDate) -> return "$label: invalid due date"
+                !seenClosings.add(statement.accountId to statement.closingDate) ->
+                    return "$label: duplicated closing date for account ${statement.accountId}"
+                statement.statementBalance < 0 -> return "$label: negative statement balance"
+                statement.statementBalance > Money.MAX_MINOR_UNITS -> return "$label: statement balance too large"
+                !isValidOptionalAmount(statement.minimumPayment) -> return "$label: invalid minimum payment"
+                !isValidOptionalAmount(statement.statedInterestAndFees) -> return "$label: invalid stated interest and fees"
+                !isValidAdjustment(statement, transactionsById) -> return "$label: unknown adjustment ${statement.adjustmentTransactionId}"
+            }
+        }
+        return null
+    }
+
+    private fun isValidOptionalAmount(amount: Long?): Boolean = amount == null || amount in 0..Money.MAX_MINOR_UNITS
+
+    private fun isValidAdjustment(
+        statement: CardStatementDto,
+        transactionsById: Map<Long, TransactionDto>,
+    ): Boolean {
+        val adjustmentId = statement.adjustmentTransactionId ?: return true
+        val transaction = transactionsById[adjustmentId] ?: return false
+        return transaction.accountId == statement.accountId
     }
 
     private fun idProblem(

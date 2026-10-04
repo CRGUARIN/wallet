@@ -1,6 +1,7 @@
 package com.crguarin.wallet.data.backup
 
 import com.crguarin.wallet.data.db.AccountEntity
+import com.crguarin.wallet.data.db.CardStatementEntity
 import com.crguarin.wallet.data.db.CategoryEntity
 import com.crguarin.wallet.data.db.TransactionEntity
 import java.time.Instant
@@ -19,6 +20,9 @@ fun AccountEntity.toBackupDto(): AccountDto =
         isArchived = isArchived,
         sortOrder = sortOrder,
         createdAt = createdAt.toEpochMilli(),
+        creditLimit = creditLimit,
+        statementDay = statementDay,
+        paymentDueDay = paymentDueDay,
     )
 
 fun AccountDto.toEntity(): AccountEntity =
@@ -34,6 +38,9 @@ fun AccountDto.toEntity(): AccountEntity =
         isArchived = isArchived,
         sortOrder = sortOrder,
         createdAt = Instant.ofEpochMilli(createdAt),
+        creditLimit = creditLimit,
+        statementDay = statementDay,
+        paymentDueDay = paymentDueDay,
     )
 
 fun CategoryEntity.toBackupDto(): CategoryDto =
@@ -74,6 +81,7 @@ fun TransactionEntity.toBackupDto(): TransactionDto =
         note = note,
         createdAt = createdAt.toEpochMilli(),
         updatedAt = updatedAt.toEpochMilli(),
+        installments = installments,
     )
 
 /** Assumes [TransactionDto.date] was already validated by [BackupValidator]. */
@@ -89,4 +97,32 @@ fun TransactionDto.toEntity(): TransactionEntity =
         note = note,
         createdAt = Instant.ofEpochMilli(createdAt),
         updatedAt = Instant.ofEpochMilli(updatedAt),
+        installments = installments,
+    )
+
+fun CardStatementEntity.toBackupDto(): CardStatementDto =
+    CardStatementDto(
+        id = id,
+        accountId = accountId,
+        closingDate = closingDate.toString(),
+        dueDate = dueDate.toString(),
+        statementBalance = statementBalance,
+        minimumPayment = minimumPayment,
+        statedInterestAndFees = statedInterestFees,
+        adjustmentTransactionId = adjustmentTransactionId,
+        createdAt = createdAt.toEpochMilli(),
+    )
+
+/** Assumes [CardStatementDto.closingDate] and [CardStatementDto.dueDate] were already validated by [BackupValidator]. */
+fun CardStatementDto.toEntity(): CardStatementEntity =
+    CardStatementEntity(
+        id = id,
+        accountId = accountId,
+        closingDate = LocalDate.parse(closingDate),
+        dueDate = LocalDate.parse(dueDate),
+        statementBalance = statementBalance,
+        minimumPayment = minimumPayment,
+        statedInterestFees = statedInterestAndFees,
+        adjustmentTransactionId = adjustmentTransactionId,
+        createdAt = Instant.ofEpochMilli(createdAt),
     )
