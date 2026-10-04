@@ -9,6 +9,7 @@ import com.crguarin.wallet.data.db.AccountEntity
 import com.crguarin.wallet.data.db.BackupDao
 import com.crguarin.wallet.data.db.CardStatementEntity
 import com.crguarin.wallet.data.db.CategoryEntity
+import com.crguarin.wallet.data.db.RecurringPaymentEntity
 import com.crguarin.wallet.data.db.TransactionEntity
 import com.crguarin.wallet.data.db.WalletDatabase
 import com.crguarin.wallet.domain.fake.FakePreferencesRepository
@@ -18,6 +19,7 @@ import com.crguarin.wallet.domain.model.BackupSummary
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.UserPreferences
+import com.crguarin.wallet.domain.model.recurring.RecurringMode
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -78,6 +80,7 @@ class BackupRepositoryImplTest {
         val categories: List<CategoryEntity>,
         val transactions: List<TransactionEntity>,
         val statements: List<CardStatementEntity>,
+        val payments: List<RecurringPaymentEntity>,
         val balances: List<Pair<Long, Long>>,
     )
 
@@ -87,6 +90,7 @@ class BackupRepositoryImplTest {
             categories = database.backupDao().getCategories(),
             transactions = database.backupDao().getTransactions(),
             statements = database.backupDao().getCardStatements(),
+            payments = database.backupDao().getRecurringPayments(),
             balances =
                 database
                     .accountDao()
@@ -447,6 +451,122 @@ class BackupRepositoryImplTest {
             val result = repository(target, dao = failing).importBackup(parser.encode(validCardBackupDto()))
 
             assertThat(result.errorOrNull()).isEqualTo(DomainError.BackupFailed)
+            assertThat(snapshot(target)).isEqualTo(before)
+        }
+
+    @Test
+    fun `round trip version 3 keeps recurring payments and the generated movement`() =
+        runTest {
+            val backup = validRecurringBackupDto()
+
+            val result = repository(target).importBackup(parser.encode(backup))
+
+            assertThat(result).isEqualTo(
+                DomainResult.Success(BackupSummary(3, 5, 6, cardStatements = 2, recurringPayments = 2)),
+            )
+            val payments = target.backupDao().getRecurringPayments()
+            assertThat(payments.map { it.id }).containsExactly(1L, 2L)
+            val auto = payments.single { it.id == 1L }
+            assertThat(auto.name).isEqualTo("Netflix")
+            assertThat(auto.accountId).isEqualTo(3L)
+            assertThat(auto.mode).isEqualTo(RecurringMode.AUTO)
+            assertThat(auto.nextDueDate).isEqualTo(LocalDate.of(2026, 10, 15))
+            val confirm = payments.single { it.id == 2L }
+            assertThat(confirm.mode).isEqualTo(RecurringMode.CONFIRM)
+            assertThat(confirm.endDate).isEqualTo(LocalDate.of(2028, 1, 10))
+            assertThat(confirm.nextDueDate).isEqualTo(LocalDate.of(2027, 1, 10))
+            val transactions = target.backupDao().getTransactions()
+            assertThat(transactions.single { it.id == 6L }.recurringId).isEqualTo(1L)
+
+            val exported = (repository(target).exportBackup() as DomainResult.Success).value
+            val decoded = (parser.decode(exported) as DomainResult.Success).value
+            assertThat(decoded.copy(exportedAt = backup.exportedAt, appVersion = backup.appVersion)).isEqualTo(backup)
+        }
+
+    @Test
+    fun `importing a real version 2 file without the new keys has no recurring payments`() =
+        runTest {
+            val v2 =
+                """
+                {
+                  "schemaVersion": 2,
+                  "appVersion": "1.1.0",
+                  "exportedAt": "2026-09-28T15:00:00Z",
+                  "currency": "COP",
+                  "accounts": [
+                    { "id": 1, "name": "Efectivo", "type": "CASH", "currencyCode": "COP", "initialBalance": 5000000, "color": -16711936, "icon": "wallet", "includeInTotal": true, "isArchived": false, "sortOrder": 0, "createdAt": 1790000000000 },
+                    { "id": 3, "name": "RappiCard", "type": "CREDIT_CARD", "currencyCode": "COP", "initialBalance": -2000000, "color": -16711936, "icon": "credit_card", "includeInTotal": true, "isArchived": false, "sortOrder": 2, "createdAt": 1790000000002, "creditLimit": 10000000, "statementDay": 15, "paymentDueDay": 5 }
+                  ],
+                  "categories": [
+                    { "id": 1, "name": null, "systemKey": "food", "type": "EXPENSE", "parentId": null, "color": -65536, "icon": "restaurant", "isArchived": false, "sortOrder": 0 },
+                    { "id": 2, "name": "Salario", "systemKey": null, "type": "INCOME", "parentId": null, "color": -16711936, "icon": "work", "isArchived": false, "sortOrder": 1 },
+                    { "id": 3, "name": "Almuerzos", "systemKey": null, "type": "EXPENSE", "parentId": 1, "color": -65536, "icon": "restaurant", "isArchived": false, "sortOrder": 0 }
+                  ],
+                  "transactions": [
+                    { "id": 1, "type": "EXPENSE", "amount": 1500000, "accountId": 1, "toAccountId": null, "categoryId": 3, "date": "2026-09-27", "note": "Almuerzo", "createdAt": 1790000000000, "updatedAt": 1790000000000 },
+                    { "id": 2, "type": "INCOME", "amount": 20000000, "accountId": 1, "toAccountId": null, "categoryId": 2, "date": "2026-09-28", "note": null, "createdAt": 1790000000000, "updatedAt": 1790000000000 },
+                    { "id": 4, "type": "EXPENSE", "amount": 300000, "accountId": 3, "toAccountId": null, "categoryId": 1, "date": "2026-09-10", "note": "Compra a cuotas", "createdAt": 1790000000000, "updatedAt": 1790000000000, "installments": 3 }
+                  ],
+                  "cardStatements": [
+                    { "id": 1, "accountId": 3, "closingDate": "2026-08-15", "dueDate": "2026-09-05", "statementBalance": 2000000, "minimumPayment": 100000, "statedInterestAndFees": null, "adjustmentTransactionId": null, "createdAt": 1790000000000 }
+                  ]
+                }
+                """.trimIndent()
+
+            val result = repository(target).importBackup(v2)
+
+            assertThat(result).isEqualTo(DomainResult.Success(BackupSummary(2, 3, 3, cardStatements = 1)))
+            assertThat(result.getOrNull()?.recurringPayments).isEqualTo(0)
+            val after = snapshot(target)
+            assertThat(after.payments).isEmpty()
+            assertThat(after.transactions.all { it.recurringId == null }).isTrue()
+            assertThat(after.accounts.single { it.id == 3L }.creditLimit).isEqualTo(10_000_000L)
+            assertThat(after.transactions.single { it.id == 4L }.installments).isEqualTo(3)
+        }
+
+    @Test
+    fun `failure inserting the recurring payments rolls back to the previous data`() =
+        runTest {
+            populate(target)
+            val before = snapshot(target)
+            val real = target.backupDao()
+            val failing =
+                object : BackupDao by real {
+                    override suspend fun insertRecurringPayments(payments: List<RecurringPaymentEntity>) {
+                        error("disk failure")
+                    }
+                }
+
+            val result = repository(target, dao = failing).importBackup(parser.encode(validRecurringBackupDto()))
+
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.BackupFailed)
+            assertThat(snapshot(target)).isEqualTo(before)
+        }
+
+    @Test
+    fun `importing a backup without payments removes the existing ones`() =
+        runTest {
+            repository(target).importBackup(parser.encode(validRecurringBackupDto()))
+            assertThat(target.backupDao().getRecurringPayments()).hasSize(2)
+
+            val result = repository(target).importBackup(parser.encode(validBackupDto()))
+
+            assertThat(result).isEqualTo(DomainResult.Success(BackupSummary(2, 3, 3)))
+            assertThat(target.backupDao().getRecurringPayments()).isEmpty()
+            assertThat(target.backupDao().getTransactions().all { it.recurringId == null }).isTrue()
+        }
+
+    @Test
+    fun `parse reports the recurring payment count without touching the database`() =
+        runTest {
+            populate(target)
+            val before = snapshot(target)
+
+            val summary = repository(target).parseBackup(parser.encode(validRecurringBackupDto()))
+
+            assertThat(summary).isEqualTo(
+                DomainResult.Success(BackupSummary(3, 5, 6, cardStatements = 2, recurringPayments = 2)),
+            )
             assertThat(snapshot(target)).isEqualTo(before)
         }
 }
