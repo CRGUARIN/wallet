@@ -278,7 +278,13 @@ class TransactionEditViewModel
                 val isRestoredForm = savedStateHandle.contains(KEY_TYPE)
                 if (isRestoredForm) {
                     selectedTypeFlow.value = _uiState.value.selectedType
-                    _uiState.update { it.copy(isEditMode = true, editingTransactionId = editingId) }
+                    _uiState.update {
+                        it.copy(
+                            isEditMode = true,
+                            editingTransactionId = editingId,
+                            recurringId = existing.recurringId,
+                        )
+                    }
                 } else {
                     selectedTypeFlow.value = existing.type
                     _uiState.update {

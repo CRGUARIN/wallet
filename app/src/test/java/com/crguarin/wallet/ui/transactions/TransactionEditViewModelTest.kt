@@ -799,13 +799,28 @@ class TransactionEditViewModelTest {
         }
 
     @Test
+    fun `edit mode keeps the recurring id after process death`() =
+        runTest(testDispatcher) {
+            recurringRepository.setInitialData(listOf(netflixRule()))
+            transactionRepository.setInitialData(listOf(existingExpense().copy(recurringId = 7L)))
+            val handle = editHandle(10L)
+            createViewModel(handle).setNote("Cena")
+
+            val restored = createViewModel(SavedStateHandle(handle.keys().associateWith { handle.get<Any?>(it) }))
+
+            assertThat(restored.uiState.value.recurringId).isEqualTo(7L)
+            assertThat(restored.uiState.value.recurringSourceName).isEqualTo("Netflix")
+        }
+
+    @Test
     fun `saving a generated movement preserves its recurring id`() =
         runTest(testDispatcher) {
             recurringRepository.setInitialData(listOf(netflixRule()))
             transactionRepository.setInitialData(listOf(existingExpense().copy(recurringId = 7L)))
             val viewModel = createViewModel(editHandle(10L))
 
-            viewModel.setAmountText("160000")
+            // Kept below the cash balance so the negative-balance warning does not interrupt the save.
+            viewModel.setAmountText("1600")
             viewModel.events.test {
                 viewModel.onSaveClick()
                 assertThat(awaitItem()).isEqualTo(TransactionEditEvent.NavigateBack)
