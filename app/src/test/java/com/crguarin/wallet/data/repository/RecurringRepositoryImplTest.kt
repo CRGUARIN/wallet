@@ -7,6 +7,7 @@ import app.cash.turbine.test
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.data.db.AccountEntity
 import com.crguarin.wallet.data.db.CategoryEntity
+import com.crguarin.wallet.data.db.RecurringPaymentDao
 import com.crguarin.wallet.data.db.WalletDatabase
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.Category
@@ -140,6 +141,14 @@ class RecurringRepositoryImplTest {
             .first()
             .size
 
+    private fun transactionRowCount(): Long =
+        database.openHelper.writableDatabase
+            .query("SELECT COUNT(*) AS count FROM transactions")
+            .use { cursor ->
+                cursor.moveToFirst()
+                cursor.getLong(cursor.getColumnIndexOrThrow("count"))
+            }
+
     @Test
     fun `save and get round-trip every field including mappers`() =
         runTest {
@@ -243,6 +252,43 @@ class RecurringRepositoryImplTest {
             assertThat(failed).isTrue()
             assertThat(repository.get(id)?.nextDueDate).isEqualTo(due)
             assertThat(generatedCount(id)).isEqualTo(0)
+        }
+
+    @Test
+    fun `failed due-date update rolls back the inserted movement`() =
+        runTest {
+            seedAccountAndCategory()
+            val id = repository.save(payment())
+
+            // Delegates to the real DAO but blows up exactly when the repository advances
+            // the due date, after the movement was inserted inside the same transaction.
+            val failingDao =
+                object : RecurringPaymentDao by database.recurringPaymentDao() {
+                    override suspend fun updateNextDueDate(
+                        id: Long,
+                        nextDueDate: LocalDate,
+                        updatedAt: Instant,
+                    ): Int = throw IllegalStateException("forced due-date update failure")
+                }
+            val failingRepository =
+                RecurringRepositoryImpl(
+                    recurringPaymentDao = failingDao,
+                    transactionDao = database.transactionDao(),
+                    walletDatabase = database,
+                    ioDispatcher = Dispatchers.Unconfined,
+                )
+
+            var failed = false
+            try {
+                failingRepository.completeOccurrence(id, due, occurrence(), next)
+            } catch (e: Exception) {
+                failed = true
+            }
+
+            assertThat(failed).isTrue()
+            assertThat(repository.get(id)?.nextDueDate).isEqualTo(due)
+            assertThat(generatedCount(id)).isEqualTo(0)
+            assertThat(transactionRowCount()).isEqualTo(0L)
         }
 
     @Test

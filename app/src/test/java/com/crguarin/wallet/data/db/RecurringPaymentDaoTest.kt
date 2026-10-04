@@ -249,6 +249,27 @@ class RecurringPaymentDaoTest {
         }
 
     @Test
+    fun transaction_withUnknownRecurringId_isAcceptedBecauseThereIsNoForeignKey() =
+        runTest {
+            val txId =
+                transactionDao.insert(
+                    TransactionEntity(
+                        type = TransactionType.EXPENSE,
+                        amount = 1_000L,
+                        accountId = accountId,
+                        categoryId = categoryId,
+                        date = LocalDate.of(2026, 10, 5),
+                        note = "Sin regla",
+                        createdAt = now,
+                        updatedAt = now,
+                        recurringId = 999_999L,
+                    ),
+                )
+
+            assertThat(transactionDao.getById(txId)?.recurringId).isEqualTo(999_999L)
+        }
+
+    @Test
     fun clearRecurringId_nullsEveryRowOfThePayment() =
         runTest {
             val id = recurringDao.insert(payment())
