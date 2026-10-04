@@ -7,6 +7,7 @@ import com.crguarin.wallet.domain.fake.FakeAccountRepository
 import com.crguarin.wallet.domain.fake.FakeCardStatementRepository
 import com.crguarin.wallet.domain.fake.FakeCategoryRepository
 import com.crguarin.wallet.domain.fake.FakePreferencesRepository
+import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
 import com.crguarin.wallet.domain.model.Account
@@ -132,6 +133,7 @@ class TransactionEditCardTest {
                     accountRepository,
                     ObserveCardOverviewUseCase(accountRepository, FakeCardStatementRepository(), timeProvider),
                 ),
+            recurringRepository = FakeRecurringRepository(),
         )
 
     private fun creationHandle(

@@ -21,6 +21,7 @@ private val IMPORT_MIME_TYPES = arrayOf("application/json", "text/plain", "appli
 fun SettingsRoute(
     onCategoriesClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onRecurringClick: () -> Unit = {},
     viewModel: SettingsViewModel? = safeHiltViewModel(),
 ) {
     if (viewModel == null) {
@@ -35,6 +36,7 @@ fun SettingsRoute(
             onImportClick = {},
             onConfirmImport = {},
             onDismissImport = {},
+            onRecurringClick = onRecurringClick,
             modifier = modifier,
         )
         return
@@ -77,6 +79,18 @@ fun SettingsRoute(
         onConfirmImport = viewModel::confirmImport,
         onDismissImport = viewModel::dismissImport,
         snackbarHostState = snackbarHostState,
+        onRecurringClick = onRecurringClick,
+        onNotificationsEnabledChanged = viewModel::setNotificationsEnabled,
+        onNotificationTimeChanged = viewModel::setNotificationTime,
+        onRecurringRemindersChanged = viewModel::setRecurringReminders,
+        onRecurringPostedChanged = viewModel::setRecurringPosted,
+        onRecurringPendingChanged = viewModel::setRecurringPendingConfirm,
+        onCardClosingChanged = viewModel::setCardClosing,
+        onCardClosingDaysChanged = viewModel::setCardClosingDaysBefore,
+        onCardPaymentChanged = viewModel::setCardPayment,
+        onCardPaymentDaysChanged = viewModel::setCardPaymentDaysBefore,
+        onCardOverdueChanged = viewModel::setCardOverdue,
+        onSendTestNotification = viewModel::sendTestNotification,
         modifier = modifier,
     )
 }

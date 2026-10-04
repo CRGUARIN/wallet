@@ -2,6 +2,7 @@ package com.crguarin.wallet.ui.components
 
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.Transaction
@@ -28,6 +29,7 @@ class TransactionListItemTest {
         toAccountId: Long? = null,
         categorySystemKey: String? = null,
         parentCategorySystemKey: String? = null,
+        recurringId: Long? = null,
     ) = TransactionDetails(
         transaction =
             Transaction(
@@ -40,6 +42,7 @@ class TransactionListItemTest {
                 date = LocalDate.of(2026, 9, 28),
                 createdAt = Instant.EPOCH,
                 updatedAt = Instant.EPOCH,
+                recurringId = recurringId,
             ),
         accountName = "Efectivo",
         accountColor = 0xFF66BB6A.toInt(),
@@ -149,5 +152,35 @@ class TransactionListItemTest {
         }
 
         composeRule.onNodeWithText("Food › Groceries").assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "es-rCO")
+    fun `recurring movements show the repeat icon`() {
+        composeRule.setContent {
+            WalletTheme {
+                TransactionListItem(
+                    details = details(TransactionType.EXPENSE, categorySystemKey = "groceries", recurringId = 9L),
+                    onClick = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription("Pago recurrente").assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "es-rCO")
+    fun `manual movements show no repeat icon`() {
+        composeRule.setContent {
+            WalletTheme {
+                TransactionListItem(
+                    details = details(TransactionType.EXPENSE, categorySystemKey = "groceries"),
+                    onClick = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription("Pago recurrente").assertDoesNotExist()
     }
 }

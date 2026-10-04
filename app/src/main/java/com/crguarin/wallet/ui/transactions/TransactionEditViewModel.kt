@@ -24,6 +24,7 @@ import com.crguarin.wallet.domain.model.card.CardOverview
 import com.crguarin.wallet.domain.repository.AccountRepository
 import com.crguarin.wallet.domain.repository.CategoryRepository
 import com.crguarin.wallet.domain.repository.PreferencesRepository
+import com.crguarin.wallet.domain.repository.RecurringRepository
 import com.crguarin.wallet.domain.repository.TransactionRepository
 import com.crguarin.wallet.domain.usecase.CheckNegativeBalanceUseCase
 import com.crguarin.wallet.domain.usecase.DeleteTransactionUseCase
@@ -102,6 +103,10 @@ data class TransactionEditUiState(
     val showToAccountSheet: Boolean = false,
     val showCategorySheet: Boolean = false,
     val showDatePicker: Boolean = false,
+    /** Name of the recurring rule that generated this movement, when it still exists. */
+    val recurringSourceName: String? = null,
+    /** Recurring rule that generated the edited movement; preserved on save. */
+    val recurringId: Long? = null,
 ) {
     /** Active accounts; transfers need at least two of them. */
     val activeAccountCount: Int
@@ -184,6 +189,7 @@ class TransactionEditViewModel
         private val checkNegativeBalanceUseCase: CheckNegativeBalanceUseCase,
         private val timeProvider: TimeProvider,
         private val observeCardOverviewsUseCase: ObserveCardOverviewsUseCase,
+        private val recurringRepository: RecurringRepository,
     ) : ViewModel() {
         private val route: TransactionEdit = savedStateHandle.toRoute<TransactionEdit>()
         val targetTransactionId: Long? = route.transactionId
@@ -272,13 +278,20 @@ class TransactionEditViewModel
                 val isRestoredForm = savedStateHandle.contains(KEY_TYPE)
                 if (isRestoredForm) {
                     selectedTypeFlow.value = _uiState.value.selectedType
-                    _uiState.update { it.copy(isEditMode = true, editingTransactionId = editingId) }
+                    _uiState.update {
+                        it.copy(
+                            isEditMode = true,
+                            editingTransactionId = editingId,
+                            recurringId = existing.recurringId,
+                        )
+                    }
                 } else {
                     selectedTypeFlow.value = existing.type
                     _uiState.update {
                         it.copy(
                             isEditMode = true,
                             editingTransactionId = editingId,
+                            recurringId = existing.recurringId,
                             selectedType = existing.type,
                             amountText = formatForInput(existing.amount),
                             accountId = existing.accountId,
@@ -293,6 +306,7 @@ class TransactionEditViewModel
                 }
                 resolveArchivedAccounts()
                 _uiState.value.categoryId?.let { resolveSelectedCategory(it) }
+                resolveRecurringSource(existing.recurringId)
                 _uiState.update { it.copy(isLoading = false) }
             } else {
                 applyRoutePrefill()
@@ -353,6 +367,11 @@ class TransactionEditViewModel
                 savedStateHandle[KEY_INSTALLMENTS] = 1
                 _uiState.update { it.copy(installments = 1) }
             }
+        }
+
+        private suspend fun resolveRecurringSource(recurringId: Long?) {
+            val name = recurringId?.let { recurringRepository.get(it)?.name }
+            _uiState.update { it.copy(recurringSourceName = name) }
         }
 
         private suspend fun resolveArchivedAccounts() {
@@ -717,6 +736,7 @@ class TransactionEditViewModel
                 date = date,
                 note = state.note.ifBlank { null },
                 installments = installments,
+                recurringId = state.recurringId,
                 createdAt = timeProvider.now(),
                 updatedAt = timeProvider.now(),
             )

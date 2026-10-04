@@ -8,11 +8,13 @@ import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.MonthSummary
 import com.crguarin.wallet.domain.model.TransactionDetails
 import com.crguarin.wallet.domain.model.card.CardOverview
+import com.crguarin.wallet.domain.model.recurring.UpcomingPayment
 import com.crguarin.wallet.domain.repository.TransactionRepository
 import com.crguarin.wallet.domain.usecase.ObserveAccountsUseCase
 import com.crguarin.wallet.domain.usecase.ObserveMonthSummaryUseCase
 import com.crguarin.wallet.domain.usecase.ObserveTotalBalanceUseCase
 import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewsUseCase
+import com.crguarin.wallet.domain.usecase.recurring.ObserveUpcomingPaymentsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +27,9 @@ import javax.inject.Inject
 /** Number of recent movements shown on Home. */
 const val HOME_RECENT_LIMIT = 10
 
+/** Days covered by the "upcoming payments" card. */
+private const val UPCOMING_DAYS = 7
+
 data class HomeUiState(
     val isLoading: Boolean = true,
     val totalBalance: Money = Money.ZERO,
@@ -33,6 +38,7 @@ data class HomeUiState(
     val recentTransactions: List<TransactionDetails> = emptyList(),
     val cardOverviews: Map<Long, CardOverview> = emptyMap(),
     val today: LocalDate = LocalDate.now(),
+    val upcomingPayments: List<UpcomingPayment> = emptyList(),
 ) {
     /** A transfer needs at least two active accounts. */
     val canTransfer: Boolean
@@ -52,27 +58,33 @@ class HomeViewModel
         transactionRepository: TransactionRepository,
         timeProvider: TimeProvider,
         observeCardOverviewsUseCase: ObserveCardOverviewsUseCase,
+        observeUpcomingPaymentsUseCase: ObserveUpcomingPaymentsUseCase,
     ) : ViewModel() {
         private val currentMonth: YearMonth = YearMonth.from(timeProvider.today())
         private val today: LocalDate = timeProvider.today()
 
         val uiState: StateFlow<HomeUiState> =
             combine(
-                observeTotalBalanceUseCase(),
-                observeMonthSummaryUseCase(currentMonth),
-                observeAccountsUseCase(),
-                transactionRepository.observeRecentTransactions(HOME_RECENT_LIMIT),
-                observeCardOverviewsUseCase(),
-            ) { totalBalance, monthSummary, accounts, recentTransactions, cardOverviews ->
-                HomeUiState(
-                    isLoading = false,
-                    totalBalance = totalBalance,
-                    monthSummary = monthSummary,
-                    accounts = accounts,
-                    recentTransactions = recentTransactions,
-                    cardOverviews = cardOverviews,
-                    today = today,
-                )
+                combine(
+                    observeTotalBalanceUseCase(),
+                    observeMonthSummaryUseCase(currentMonth),
+                    observeAccountsUseCase(),
+                    transactionRepository.observeRecentTransactions(HOME_RECENT_LIMIT),
+                    observeCardOverviewsUseCase(),
+                ) { totalBalance, monthSummary, accounts, recentTransactions, cardOverviews ->
+                    HomeUiState(
+                        isLoading = false,
+                        totalBalance = totalBalance,
+                        monthSummary = monthSummary,
+                        accounts = accounts,
+                        recentTransactions = recentTransactions,
+                        cardOverviews = cardOverviews,
+                        today = today,
+                    )
+                },
+                observeUpcomingPaymentsUseCase(UPCOMING_DAYS),
+            ) { base, upcoming ->
+                base.copy(upcomingPayments = upcoming)
             }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),

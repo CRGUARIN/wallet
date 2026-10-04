@@ -8,6 +8,7 @@ import com.crguarin.wallet.domain.fake.FakeAccountRepository
 import com.crguarin.wallet.domain.fake.FakeCardStatementRepository
 import com.crguarin.wallet.domain.fake.FakeCategoryRepository
 import com.crguarin.wallet.domain.fake.FakePreferencesRepository
+import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
 import com.crguarin.wallet.domain.model.Account
@@ -18,6 +19,8 @@ import com.crguarin.wallet.domain.model.DomainLimits
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.UserPreferences
+import com.crguarin.wallet.domain.model.recurring.RecurrenceFrequency
+import com.crguarin.wallet.domain.model.recurring.RecurringPayment
 import com.crguarin.wallet.domain.usecase.CheckNegativeBalanceUseCase
 import com.crguarin.wallet.domain.usecase.DeleteTransactionUseCase
 import com.crguarin.wallet.domain.usecase.ObserveAccountsUseCase
@@ -113,6 +116,7 @@ class TransactionEditViewModelTest {
 
         accountRepository.setInitialData(listOf(cashAccount, savingsAccount, archivedAccount))
         categoryRepository.setInitialData(listOf(foodCategory, salaryCategory))
+        recurringRepository = FakeRecurringRepository()
 
         checkNegativeBalanceUseCase = CheckNegativeBalanceUseCase(accountRepository, transactionRepository)
         saveTransactionUseCase =
@@ -130,6 +134,8 @@ class TransactionEditViewModelTest {
     fun tearDown() {
         Dispatchers.resetMain()
     }
+
+    private lateinit var recurringRepository: FakeRecurringRepository
 
     private fun createViewModel(savedStateHandle: SavedStateHandle = creationHandle()): TransactionEditViewModel =
         TransactionEditViewModel(
@@ -149,6 +155,7 @@ class TransactionEditViewModelTest {
                     accountRepository,
                     ObserveCardOverviewUseCase(accountRepository, FakeCardStatementRepository(), timeProvider),
                 ),
+            recurringRepository = recurringRepository,
         )
 
     private fun creationHandle(
@@ -746,5 +753,80 @@ class TransactionEditViewModelTest {
                 assertThat(awaitItem()).isEqualTo(TransactionEditEvent.OpenAccountEdit)
                 cancelAndIgnoreRemainingEvents()
             }
+        }
+
+    private fun netflixRule() =
+        RecurringPayment(
+            id = 7L,
+            name = "Netflix",
+            type = TransactionType.EXPENSE,
+            amount = Money(150_000L),
+            accountId = 1L,
+            categoryId = 10L,
+            frequency = RecurrenceFrequency.MONTHLY,
+            startDate = baseDate,
+            nextDueDate = baseDate,
+            createdAt = baseInstant,
+            updatedAt = baseInstant,
+        )
+
+    @Test
+    fun `editing a generated movement resolves the rule name`() =
+        runTest(testDispatcher) {
+            recurringRepository.setInitialData(listOf(netflixRule()))
+            transactionRepository.setInitialData(listOf(existingExpense().copy(recurringId = 7L)))
+            val viewModel = createViewModel(editHandle(10L))
+
+            assertThat(viewModel.uiState.value.recurringSourceName).isEqualTo("Netflix")
+        }
+
+    @Test
+    fun `editing a movement whose rule was deleted shows no source name`() =
+        runTest(testDispatcher) {
+            transactionRepository.setInitialData(listOf(existingExpense().copy(recurringId = 7L)))
+            val viewModel = createViewModel(editHandle(10L))
+
+            assertThat(viewModel.uiState.value.recurringSourceName).isNull()
+        }
+
+    @Test
+    fun `editing a manual movement shows no source name`() =
+        runTest(testDispatcher) {
+            transactionRepository.setInitialData(listOf(existingExpense()))
+            val viewModel = createViewModel(editHandle(10L))
+
+            assertThat(viewModel.uiState.value.recurringSourceName).isNull()
+        }
+
+    @Test
+    fun `edit mode keeps the recurring id after process death`() =
+        runTest(testDispatcher) {
+            recurringRepository.setInitialData(listOf(netflixRule()))
+            transactionRepository.setInitialData(listOf(existingExpense().copy(recurringId = 7L)))
+            val handle = editHandle(10L)
+            createViewModel(handle).setNote("Cena")
+
+            val restored = createViewModel(SavedStateHandle(handle.keys().associateWith { handle.get<Any?>(it) }))
+
+            assertThat(restored.uiState.value.recurringId).isEqualTo(7L)
+            assertThat(restored.uiState.value.recurringSourceName).isEqualTo("Netflix")
+        }
+
+    @Test
+    fun `saving a generated movement preserves its recurring id`() =
+        runTest(testDispatcher) {
+            recurringRepository.setInitialData(listOf(netflixRule()))
+            transactionRepository.setInitialData(listOf(existingExpense().copy(recurringId = 7L)))
+            val viewModel = createViewModel(editHandle(10L))
+
+            // Kept below the cash balance so the negative-balance warning does not interrupt the save.
+            viewModel.setAmountText("1600")
+            viewModel.events.test {
+                viewModel.onSaveClick()
+                assertThat(awaitItem()).isEqualTo(TransactionEditEvent.NavigateBack)
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            assertThat(transactionRepository.getTransaction(10L)?.recurringId).isEqualTo(7L)
         }
 }
