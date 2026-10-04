@@ -50,6 +50,26 @@ class CardReminderMathTest {
     }
 
     @Test
+    fun `reconciled last closing overdue keeps its due date and amount`() {
+        val lateToday = LocalDate.of(2026, 10, 6)
+        val overview =
+            overviewWith(
+                statement =
+                    statement(
+                        closingDate = LocalDate.of(2026, 9, 15),
+                        dueDate = LocalDate.of(2026, 10, 5),
+                    ),
+                pendingAmount = Money(450_000L),
+                pendingDueDate = LocalDate.of(2026, 10, 5),
+                status = StatementPaymentStatus.OVERDUE,
+            )
+        val info = CardReminderMath.paymentInfo(overview, statementDay, paymentDueDay, lateToday)
+        assertThat(info?.dueDate).isEqualTo(LocalDate.of(2026, 10, 5))
+        assertThat(info?.amount).isEqualTo(Money(450_000L))
+        assertThat(info?.status).isEqualTo(StatementPaymentStatus.OVERDUE)
+    }
+
+    @Test
     fun `not reconciled with debt estimates due date with unknown amount`() {
         val overview = overviewWith(statement = null, debt = Money(300_000L))
         val info = CardReminderMath.paymentInfo(overview, statementDay, paymentDueDay, today)

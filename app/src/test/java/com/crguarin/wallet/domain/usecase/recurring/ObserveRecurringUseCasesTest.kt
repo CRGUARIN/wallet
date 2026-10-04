@@ -69,8 +69,22 @@ class ObserveRecurringUseCasesTest {
                         nextDueDate = LocalDate.of(2026, 10, 10),
                     ),
                     testPayment(
+                        id = 5L,
+                        name = "Rent",
+                        amount = Money(50_000L),
+                        startDate = LocalDate.of(2026, 9, 1),
+                        nextDueDate = LocalDate.of(2026, 10, 1),
+                    ),
+                    testPayment(
                         id = 3L,
                         name = "Old",
+                        startDate = LocalDate.of(2026, 9, 10),
+                        nextDueDate = LocalDate.of(2026, 9, 10),
+                        isActive = false,
+                    ),
+                    testPayment(
+                        id = 6L,
+                        name = "Alpha",
                         startDate = LocalDate.of(2026, 9, 10),
                         nextDueDate = LocalDate.of(2026, 9, 10),
                         isActive = false,
@@ -86,13 +100,13 @@ class ObserveRecurringUseCasesTest {
             )
             val overview = overviewUseCase().first()
             assertThat(overview.pending.map { it.payment.name }).containsExactly("Netflix")
-            assertThat(overview.active.map { it.payment.name }).containsExactly("Gym", "Blocked")
-            assertThat(overview.inactive.map { it.payment.name }).containsExactly("Old")
+            assertThat(overview.active.map { it.payment.name }).containsExactly("Rent", "Gym", "Blocked").inOrder()
+            assertThat(overview.inactive.map { it.payment.name }).containsExactly("Alpha", "Old").inOrder()
             val blocked = overview.active.first { it.payment.name == "Blocked" }
             assertThat(blocked.blockReason).isEqualTo(RecurringBlockReason.ACCOUNT_ARCHIVED)
             // Totals count every active, unfinished and unblocked payment,
-            // including the pending CONFIRM one: 100_000 + 45_900.
-            assertThat(overview.monthlyExpense).isEqualTo(Money(145_900L))
+            // including the pending CONFIRM one: 50_000 + 100_000 + 45_900.
+            assertThat(overview.monthlyExpense).isEqualTo(Money(195_900L))
             assertThat(overview.monthlyIncome).isEqualTo(Money.ZERO)
         }
 
