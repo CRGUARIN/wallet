@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <!-- Navigation -->
     <string name="nav_home">Home</string>
     <string name="nav_transactions">Transactions</string>
@@ -475,8 +475,9 @@
     <string name="recurring_active_label">Active</string>
     <string name="recurring_paused">Paused</string>
     <string name="recurring_finished">Finished</string>
-    <string name="recurring_pause">Pause</string>
-    <string name="recurring_resume">Resume</string>
+    <!-- Task contract actions; the form exposes them through the "Active" switch. -->
+    <string name="recurring_pause" tools:ignore="UnusedResources">Pause</string>
+    <string name="recurring_resume" tools:ignore="UnusedResources">Resume</string>
     <string name="recurring_blocked_account">The account is archived: it won\'t be recorded until you unarchive it.</string>
     <string name="recurring_blocked_category">The category is archived: it won\'t be recorded until you unarchive it.</string>
     <string name="recurring_confirm_action">Record</string>

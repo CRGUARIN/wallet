@@ -4,4 +4,8 @@
     <issue id="ObsoleteSdkInt">
         <ignore path="src/main/res/mipmap-anydpi-v26" />
     </issue>
+    <!-- "Anual" (yearly) es correcto en español; el chequeo Typos solo entiende inglés. -->
+    <issue id="Typos">
+        <ignore regexp="Anual"/>
+    </issue>
 </lint>

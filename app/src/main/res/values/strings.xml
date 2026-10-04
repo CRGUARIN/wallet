@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name" translatable="false">Wallet</string>
 
     <!-- Navegación -->
@@ -479,8 +479,9 @@
     <string name="recurring_active_label">Activo</string>
     <string name="recurring_paused">Pausado</string>
     <string name="recurring_finished">Finalizado</string>
-    <string name="recurring_pause">Pausar</string>
-    <string name="recurring_resume">Reanudar</string>
+    <!-- Acciones del contrato de la tarea; el formulario las expone con el interruptor "Activo". -->
+    <string name="recurring_pause" tools:ignore="UnusedResources">Pausar</string>
+    <string name="recurring_resume" tools:ignore="UnusedResources">Reanudar</string>
     <string name="recurring_blocked_account">La cuenta está archivada: no se registrará hasta que la desarchives.</string>
     <string name="recurring_blocked_category">La categoría está archivada: no se registrará hasta que la desarchives.</string>
     <string name="recurring_confirm_action">Registrar</string>

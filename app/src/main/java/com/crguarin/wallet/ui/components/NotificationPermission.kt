@@ -5,6 +5,7 @@
 package com.crguarin.wallet.ui.components
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
@@ -91,6 +92,9 @@ private fun computeGranted(context: Context): Boolean {
         ) == PackageManager.PERMISSION_GRANTED
 }
 
+// POST_NOTIFICATIONS is a compile-time String constant (safe to inline on any API level) and the
+// callers only reach this function through the API 33+ path of request().
+@SuppressLint("InlinedApi")
 private fun isPermanentlyDenied(
     context: Context,
     askedOnce: Boolean,
