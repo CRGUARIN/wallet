@@ -68,7 +68,7 @@ class BackupParserTest {
 
         assertThat(root.keys)
             .containsAtLeast("schemaVersion", "appVersion", "exportedAt", "currency", "accounts", "categories", "transactions")
-        assertThat(root["schemaVersion"]!!.jsonPrimitive.content).isEqualTo("1")
+        assertThat(root["schemaVersion"]!!.jsonPrimitive.content).isEqualTo("2")
         assertThat(root["currency"]!!.jsonPrimitive.content).isEqualTo("COP")
         assertThat(root["exportedAt"]!!.jsonPrimitive.content).isEqualTo("2026-09-28T15:00:00Z")
 
@@ -85,6 +85,9 @@ class BackupParserTest {
             "isArchived",
             "sortOrder",
             "createdAt",
+            "creditLimit",
+            "statementDay",
+            "paymentDueDay",
         )
         assertThat(account["type"]!!.jsonPrimitive.content).isEqualTo("CASH")
         assertThat(account["initialBalance"]!!.jsonPrimitive.isString).isFalse()
@@ -111,7 +114,29 @@ class BackupParserTest {
 
     @Test
     fun `output is pretty printed`() {
-        assertThat(parser.encode(validBackupDto())).contains("\n    \"schemaVersion\": 1")
+        assertThat(parser.encode(validBackupDto())).contains("\n    \"schemaVersion\": 2")
+    }
+
+    @Test
+    fun `a version 1 backup without the new fields is accepted with card defaults`() {
+        val dto = decodeToDto(planSample)
+
+        assertThat(dto.schemaVersion).isEqualTo(1)
+        assertThat(dto.cardStatements).isEmpty()
+        assertThat(dto.accounts.single().creditLimit).isNull()
+        assertThat(dto.accounts.single().statementDay).isNull()
+        assertThat(dto.accounts.single().paymentDueDay).isNull()
+        assertThat(dto.transactions.single().installments).isNull()
+    }
+
+    @Test
+    fun `a version 2 backup with card data parses`() {
+        val dto = decodeToDto(parser.encode(validCardBackupDto()))
+
+        assertThat(dto.schemaVersion).isEqualTo(2)
+        assertThat(dto.accounts.single { it.type == AccountType.CREDIT_CARD }.creditLimit).isEqualTo(10_000_000L)
+        assertThat(dto.transactions.single { it.id == 4L }.installments).isEqualTo(3)
+        assertThat(dto.cardStatements).hasSize(2)
     }
 
     @Test
@@ -145,7 +170,7 @@ class BackupParserTest {
     fun `a different schema version is unsupported even if the rest has another shape`() {
         val future: JsonObject =
             buildJsonObject {
-                put("schemaVersion", 2)
+                put("schemaVersion", 3)
                 put("data", JsonArray(listOf(JsonPrimitive("something else"))))
             }
         assertThat(error(future.toString())).isEqualTo(DomainError.BackupVersionUnsupported)

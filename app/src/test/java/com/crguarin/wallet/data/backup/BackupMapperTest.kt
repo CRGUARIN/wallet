@@ -46,6 +46,43 @@ class BackupMapperTest {
     }
 
     @Test
+    fun `card account dto round trips through the entity with card fields`() {
+        val card = validCardBackupDto()
+        assertThat(card.accounts.map { it.toEntity().toBackupDto() }).isEqualTo(card.accounts)
+
+        val entity = card.accounts.single { it.id == 3L }.toEntity()
+        assertThat(entity.creditLimit).isEqualTo(10_000_000L)
+        assertThat(entity.statementDay).isEqualTo(15)
+        assertThat(entity.paymentDueDay).isEqualTo(5)
+        assertThat(entity.initialBalance).isEqualTo(-2_000_000L)
+    }
+
+    @Test
+    fun `installments round trip through the entity`() {
+        val card = validCardBackupDto()
+        assertThat(card.transactions.map { it.toEntity().toBackupDto() }).isEqualTo(card.transactions)
+        assertThat(
+            card.transactions
+                .single { it.id == 4L }
+                .toEntity()
+                .installments,
+        ).isEqualTo(3)
+    }
+
+    @Test
+    fun `card statement dto round trips through the entity`() {
+        val card = validCardBackupDto()
+        assertThat(card.cardStatements.map { it.toEntity().toBackupDto() }).isEqualTo(card.cardStatements)
+
+        val withAdjustment = card.cardStatements.single { it.id == 2L }.toEntity()
+        assertThat(withAdjustment.adjustmentTransactionId).isEqualTo(5L)
+        assertThat(withAdjustment.closingDate).isEqualTo(LocalDate.of(2026, 9, 15))
+
+        val withoutAdjustment = card.cardStatements.single { it.id == 1L }.toEntity()
+        assertThat(withoutAdjustment.adjustmentTransactionId).isNull()
+    }
+
+    @Test
     fun `transaction date is written as an ISO date and read back`() {
         val entity =
             TransactionEntity(

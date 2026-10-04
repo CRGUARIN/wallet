@@ -7,6 +7,7 @@ import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.data.db.AccountEntity
 import com.crguarin.wallet.data.db.BackupDao
+import com.crguarin.wallet.data.db.CardStatementEntity
 import com.crguarin.wallet.data.db.CategoryEntity
 import com.crguarin.wallet.data.db.TransactionEntity
 import com.crguarin.wallet.data.db.WalletDatabase
@@ -76,6 +77,7 @@ class BackupRepositoryImplTest {
         val accounts: List<AccountEntity>,
         val categories: List<CategoryEntity>,
         val transactions: List<TransactionEntity>,
+        val statements: List<CardStatementEntity>,
         val balances: List<Pair<Long, Long>>,
     )
 
@@ -84,6 +86,7 @@ class BackupRepositoryImplTest {
             accounts = database.backupDao().getAccounts(),
             categories = database.backupDao().getCategories(),
             transactions = database.backupDao().getTransactions(),
+            statements = database.backupDao().getCardStatements(),
             balances =
                 database
                     .accountDao()
@@ -235,7 +238,7 @@ class BackupRepositoryImplTest {
             val exported = (repository(source).exportBackup() as DomainResult.Success).value
             val dto = (parser.decode(exported) as DomainResult.Success).value
 
-            assertThat(dto.schemaVersion).isEqualTo(1)
+            assertThat(dto.schemaVersion).isEqualTo(2)
             assertThat(dto.appVersion).isEqualTo("1.0.0")
             assertThat(dto.currency).isEqualTo("COP")
             assertThat(dto.exportedAt).isEqualTo("2026-09-28T15:00:00Z")
@@ -276,7 +279,7 @@ class BackupRepositoryImplTest {
             populate(target)
             val before = snapshot(target)
 
-            val result = repository(target).importBackup(parser.encode(validBackupDto().copy(schemaVersion = 2)))
+            val result = repository(target).importBackup(parser.encode(validBackupDto().copy(schemaVersion = 3)))
 
             assertThat(result.errorOrNull()).isEqualTo(DomainError.BackupVersionUnsupported)
             assertThat(snapshot(target)).isEqualTo(before)
@@ -376,5 +379,74 @@ class BackupRepositoryImplTest {
 
             assertThat(result).isEqualTo(DomainResult.Success(BackupSummary(0, 0, 0)))
             assertThat(snapshot(target).accounts).isEmpty()
+        }
+
+    @Test
+    fun `importing a real version 1 file without card fields uses the defaults`() =
+        runTest {
+            val v1 =
+                """
+                {
+                  "schemaVersion": 1,
+                  "appVersion": "1.0.0",
+                  "exportedAt": "2026-09-28T15:00:00Z",
+                  "currency": "COP",
+                  "accounts": [ { "id": 1, "name": "Efectivo", "type": "CASH", "currencyCode": "COP", "initialBalance": 5000000, "color": -16711936, "icon": "wallet", "includeInTotal": true, "isArchived": false, "sortOrder": 0, "createdAt": 1790000000000 } ],
+                  "categories": [ { "id": 1, "name": null, "systemKey": "food", "type": "EXPENSE", "parentId": null, "color": -65536, "icon": "restaurant", "isArchived": false, "sortOrder": 0 } ],
+                  "transactions": [ { "id": 1, "type": "EXPENSE", "amount": 1500000, "accountId": 1, "toAccountId": null, "categoryId": 1, "date": "2026-09-27", "note": "Almuerzo", "createdAt": 1790000000000, "updatedAt": 1790000000000 } ]
+                }
+                """.trimIndent()
+
+            val result = repository(target).importBackup(v1)
+
+            assertThat(result).isEqualTo(DomainResult.Success(BackupSummary(1, 1, 1)))
+            val after = snapshot(target)
+            assertThat(after.statements).isEmpty()
+            assertThat(after.accounts.single().creditLimit).isNull()
+            assertThat(after.transactions.single().installments).isNull()
+        }
+
+    @Test
+    fun `round trip version 2 keeps the card installments and statements`() =
+        runTest {
+            val card = validCardBackupDto()
+
+            val result = repository(target).importBackup(parser.encode(card))
+
+            assertThat(result).isEqualTo(DomainResult.Success(BackupSummary(3, 5, 5)))
+            val exported = (repository(target).exportBackup() as DomainResult.Success).value
+            val decoded = (parser.decode(exported) as DomainResult.Success).value
+            assertThat(decoded.copy(exportedAt = card.exportedAt, appVersion = card.appVersion)).isEqualTo(card)
+
+            val statements = target.backupDao().getCardStatements()
+            assertThat(statements.map { it.id }).containsExactly(1L, 2L)
+            assertThat(statements.single { it.id == 2L }.adjustmentTransactionId).isEqualTo(5L)
+            assertThat(statements.single { it.id == 1L }.adjustmentTransactionId).isNull()
+            assertThat(
+                target
+                    .backupDao()
+                    .getTransactions()
+                    .single { it.id == 4L }
+                    .installments,
+            ).isEqualTo(3)
+        }
+
+    @Test
+    fun `failure inserting the statements rolls back to the previous data`() =
+        runTest {
+            populate(target)
+            val before = snapshot(target)
+            val real = target.backupDao()
+            val failing =
+                object : BackupDao by real {
+                    override suspend fun insertCardStatements(statements: List<CardStatementEntity>) {
+                        error("disk failure")
+                    }
+                }
+
+            val result = repository(target, dao = failing).importBackup(parser.encode(validCardBackupDto()))
+
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.BackupFailed)
+            assertThat(snapshot(target)).isEqualTo(before)
         }
 }
