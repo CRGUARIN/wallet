@@ -1,11 +1,15 @@
 package com.crguarin.wallet.ui.recurring
 
 import android.app.Application
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.Density
 import androidx.test.core.app.ApplicationProvider
 import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
@@ -71,41 +75,51 @@ class RecurringEditScreenTest {
         uiState: RecurringEditUiState,
         onSaveClick: () -> Unit = {},
         onTransactionClick: (Long) -> Unit = {},
+        density: Density? = null,
     ) {
         composeRule.setContent {
-            WalletTheme {
-                RecurringEditScreen(
-                    uiState = uiState,
-                    onNavigateBack = {},
-                    onTypeSelected = {},
-                    onNameChanged = {},
-                    onAmountChanged = {},
-                    onOpenAccountSheet = {},
-                    onDismissAccountSheet = {},
-                    onAccountSelected = {},
-                    onOpenCategorySheet = {},
-                    onDismissCategorySheet = {},
-                    onCategorySelected = {},
-                    onFrequencySelected = {},
-                    onIntervalChanged = {},
-                    onOpenNextDatePicker = {},
-                    onDismissNextDatePicker = {},
-                    onNextDateSelected = {},
-                    onEndNeverSelected = {},
-                    onEndOnDateSelected = {},
-                    onOpenEndDatePicker = {},
-                    onDismissEndDatePicker = {},
-                    onEndDateSelected = {},
-                    onModeSelected = {},
-                    onReminderSelected = {},
-                    onNoteChanged = {},
-                    onActiveChanged = {},
-                    onSaveClick = onSaveClick,
-                    onDeleteClick = {},
-                    onDismissDeleteDialog = {},
-                    onConfirmDelete = {},
-                    onTransactionClick = onTransactionClick,
-                )
+            val content: @Composable () -> Unit = {
+                WalletTheme {
+                    RecurringEditScreen(
+                        uiState = uiState,
+                        onNavigateBack = {},
+                        onTypeSelected = {},
+                        onNameChanged = {},
+                        onAmountChanged = {},
+                        onOpenAccountSheet = {},
+                        onDismissAccountSheet = {},
+                        onAccountSelected = {},
+                        onOpenCategorySheet = {},
+                        onDismissCategorySheet = {},
+                        onCategorySelected = {},
+                        onFrequencySelected = {},
+                        onIntervalChanged = {},
+                        onOpenNextDatePicker = {},
+                        onDismissNextDatePicker = {},
+                        onNextDateSelected = {},
+                        onEndNeverSelected = {},
+                        onEndOnDateSelected = {},
+                        onOpenEndDatePicker = {},
+                        onDismissEndDatePicker = {},
+                        onEndDateSelected = {},
+                        onModeSelected = {},
+                        onReminderSelected = {},
+                        onNoteChanged = {},
+                        onActiveChanged = {},
+                        onSaveClick = onSaveClick,
+                        onDeleteClick = {},
+                        onDismissDeleteDialog = {},
+                        onConfirmDelete = {},
+                        onTransactionClick = onTransactionClick,
+                    )
+                }
+            }
+            if (density == null) {
+                content()
+            } else {
+                CompositionLocalProvider(LocalDensity provides density) {
+                    content()
+                }
             }
         }
     }
@@ -201,5 +215,15 @@ class RecurringEditScreenTest {
 
         composeRule.onNodeWithText(str(R.string.action_save)).performScrollTo().performClick()
         assertThat(saved).isTrue()
+    }
+
+    @Test
+    fun `form renders at double font scale`() {
+        setScreen(baseState(), density = Density(density = 1f, fontScale = 2f))
+
+        composeRule.onNodeWithText(str(R.string.type_expense)).assertIsDisplayed()
+        composeRule.onNodeWithText(str(R.string.recurring_frequency_weekly)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(str(R.string.recurring_reminder_none)).performScrollTo().assertExists()
+        composeRule.onNodeWithText(str(R.string.action_save)).performScrollTo().assertExists()
     }
 }

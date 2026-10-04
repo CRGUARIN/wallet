@@ -1,6 +1,9 @@
 package com.crguarin.wallet.ui.recurring
 
 import android.app.Application
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -10,6 +13,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeUp
+import androidx.compose.ui.unit.Density
 import androidx.test.core.app.ApplicationProvider
 import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
@@ -97,27 +101,37 @@ class RecurringListScreenTest {
         onConfirmAmountChanged: (String) -> Unit = {},
         onConfirmRecord: () -> Unit = {},
         onEnableNotifications: () -> Unit = {},
+        density: Density? = null,
     ) {
         composeRule.setContent {
-            WalletTheme {
-                RecurringListScreen(
-                    uiState = uiState,
-                    notificationsBlocked = notificationsBlocked,
-                    onNavigateBack = {},
-                    onAddClick = onAddClick,
-                    onPaymentClick = onPaymentClick,
-                    onConfirmClick = {},
-                    onSkipClick = {},
-                    onConfirmAmountChanged = onConfirmAmountChanged,
-                    onOpenConfirmDatePicker = {},
-                    onDismissConfirmDatePicker = {},
-                    onConfirmDateSelected = {},
-                    onConfirmRecord = onConfirmRecord,
-                    onDismissConfirm = {},
-                    onConfirmSkip = {},
-                    onDismissSkip = {},
-                    onEnableNotifications = onEnableNotifications,
-                )
+            val content: @Composable () -> Unit = {
+                WalletTheme {
+                    RecurringListScreen(
+                        uiState = uiState,
+                        notificationsBlocked = notificationsBlocked,
+                        onNavigateBack = {},
+                        onAddClick = onAddClick,
+                        onPaymentClick = onPaymentClick,
+                        onConfirmClick = {},
+                        onSkipClick = {},
+                        onConfirmAmountChanged = onConfirmAmountChanged,
+                        onOpenConfirmDatePicker = {},
+                        onDismissConfirmDatePicker = {},
+                        onConfirmDateSelected = {},
+                        onConfirmRecord = onConfirmRecord,
+                        onDismissConfirm = {},
+                        onConfirmSkip = {},
+                        onDismissSkip = {},
+                        onEnableNotifications = onEnableNotifications,
+                    )
+                }
+            }
+            if (density == null) {
+                content()
+            } else {
+                CompositionLocalProvider(LocalDensity provides density) {
+                    content()
+                }
             }
         }
     }
@@ -262,5 +276,65 @@ class RecurringListScreenTest {
         )
 
         composeRule.onNodeWithText(str(R.string.recurring_notifications_blocked)).assertDoesNotExist()
+    }
+
+    @Test
+    fun `notifiable payments are those with a reminder or confirm mode`() {
+        fun overview(
+            pending: List<RecurringItem> = emptyList(),
+            active: List<RecurringItem> = emptyList(),
+            inactive: List<RecurringItem> = emptyList(),
+        ) = RecurringOverview(
+            pending = pending,
+            active = active,
+            inactive = inactive,
+            monthlyExpense = Money.ZERO,
+            monthlyIncome = Money.ZERO,
+        )
+
+        assertThat(hasNotifiablePayments(null)).isFalse()
+        assertThat(hasNotifiablePayments(overview(active = listOf(item(payment(id = 1L, reminder = 3)))))).isTrue()
+        assertThat(
+            hasNotifiablePayments(
+                overview(active = listOf(item(payment(id = 1L, mode = RecurringMode.CONFIRM)))),
+            ),
+        ).isTrue()
+        assertThat(hasNotifiablePayments(overview(active = listOf(item(payment(id = 1L)))))).isFalse()
+        assertThat(
+            hasNotifiablePayments(
+                overview(inactive = listOf(item(payment(id = 1L, reminder = 3, isActive = false)))),
+            ),
+        ).isFalse()
+    }
+
+    @Test
+    fun `list rows and actions render at double font scale`() {
+        val overview =
+            RecurringOverview(
+                pending =
+                    listOf(
+                        item(
+                            payment(id = 1L, name = "Energía", mode = RecurringMode.CONFIRM),
+                            pendingCount = 2,
+                        ),
+                    ),
+                active = listOf(item(payment(id = 2L, name = "Netflix"))),
+                inactive = emptyList(),
+                monthlyExpense = Money(45_900_00L),
+                monthlyIncome = Money.ZERO,
+            )
+        setScreen(
+            uiState = RecurringListUiState(isLoading = false, overview = overview, today = today),
+            density = Density(density = 1f, fontScale = 2f),
+        )
+
+        composeRule.onNodeWithText(str(R.string.recurring_monthly_expense)).assertIsDisplayed()
+        scrollToComposed("Energía")
+        composeRule.onNodeWithText("Energía").assertExists()
+        scrollToComposed(str(R.string.recurring_confirm_action))
+        composeRule.onNodeWithText(str(R.string.recurring_confirm_action)).assertExists()
+        composeRule.onNodeWithText(str(R.string.recurring_skip_action)).assertExists()
+        scrollToComposed("Netflix")
+        composeRule.onNodeWithText("Netflix").assertExists()
     }
 }
