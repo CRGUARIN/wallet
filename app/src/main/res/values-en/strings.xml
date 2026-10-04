@@ -431,4 +431,184 @@
     <string name="card_statement_matched">matched</string>
     <string name="card_over_limit_title">Over credit limit</string>
     <string name="card_over_limit_message">This transaction takes the card debt over its limit. Save anyway?</string>
+
+    <!-- Recurring payments ("Add" is reused from action_add; "Name" from category_name_label) -->
+    <string name="recurring_title">Recurring payments</string>
+    <string name="recurring_settings_subtitle">Subscriptions, bills and periodic charges</string>
+    <string name="recurring_new">New recurring payment</string>
+    <string name="recurring_edit">Edit recurring payment</string>
+    <string name="recurring_empty_title">No recurring payments</string>
+    <string name="recurring_empty_message">Add your subscriptions and bills so they are recorded automatically.</string>
+    <string name="recurring_section_pending">To confirm</string>
+    <string name="recurring_section_active">Active</string>
+    <string name="recurring_section_inactive">Paused and finished</string>
+    <string name="recurring_monthly_expense">Recurring expenses per month</string>
+    <string name="recurring_monthly_income">Recurring income per month</string>
+    <string name="recurring_monthly_note">Approximate monthly equivalent</string>
+    <string name="recurring_name_hint">E.g. Netflix, rent, gym</string>
+    <string name="recurring_frequency_label">Frequency</string>
+    <string name="recurring_frequency_weekly">Weekly</string>
+    <string name="recurring_frequency_monthly">Monthly</string>
+    <string name="recurring_frequency_yearly">Yearly</string>
+    <string name="recurring_interval_label">Repeat every</string>
+    <string name="recurring_schedule_weekly">%1$s · on %2$s</string>
+    <string name="recurring_schedule_monthly">%1$s · day %2$d</string>
+    <string name="recurring_schedule_yearly">%1$s · on %2$s</string>
+    <string name="recurring_next_date_label">Next charge</string>
+    <string name="recurring_next_date_hint">It repeats from this date. If you already recorded today\'s charge, pick the next one.</string>
+    <string name="recurring_next_on">Next: %1$s</string>
+    <string name="recurring_end_label">Ends</string>
+    <string name="recurring_end_never">Never</string>
+    <string name="recurring_end_on_date">On a date</string>
+    <string name="recurring_ends_on">Until %1$s</string>
+    <string name="recurring_mode_label">When the date comes</string>
+    <string name="recurring_mode_auto">Record it automatically</string>
+    <string name="recurring_mode_auto_desc">It is deducted from the account without asking.</string>
+    <string name="recurring_mode_confirm">Ask me first</string>
+    <string name="recurring_mode_confirm_desc">Useful when the amount changes, like utility bills.</string>
+    <string name="recurring_badge_auto">Automatic</string>
+    <string name="recurring_badge_confirm">Asks you</string>
+    <string name="recurring_reminder_label">Reminder</string>
+    <string name="recurring_reminder_none">No reminder</string>
+    <string name="recurring_active_label">Active</string>
+    <string name="recurring_paused">Paused</string>
+    <string name="recurring_finished">Finished</string>
+    <string name="recurring_pause">Pause</string>
+    <string name="recurring_resume">Resume</string>
+    <string name="recurring_blocked_account">The account is archived: it won\'t be recorded until you unarchive it.</string>
+    <string name="recurring_blocked_category">The category is archived: it won\'t be recorded until you unarchive it.</string>
+    <string name="recurring_confirm_action">Record</string>
+    <string name="recurring_skip_action">Skip</string>
+    <string name="recurring_confirm_title">Record %1$s</string>
+    <string name="recurring_confirm_message">Confirm the amount and date of the charge.</string>
+    <string name="recurring_skip_title">Skip this charge?</string>
+    <string name="recurring_skip_message">The charge of %1$s won\'t be recorded.</string>
+    <string name="recurring_delete_title">Delete recurring payment?</string>
+    <string name="recurring_delete_message">Transactions already recorded are kept.</string>
+    <string name="recurring_history_title">Latest records</string>
+    <string name="recurring_history_empty">No charges recorded yet.</string>
+    <string name="recurring_saved">Recurring payment saved</string>
+    <string name="recurring_recorded">Charge recorded</string>
+    <string name="recurring_generated_by">Recorded automatically by \"%1$s\"</string>
+    <string name="recurring_icon_cd">Recurring payment</string>
+    <string name="recurring_notifications_blocked">Notifications are blocked: you won\'t get reminders.</string>
+    <string name="recurring_notifications_enable">Enable</string>
+    <plurals name="recurring_interval_weeks">
+        <item quantity="one">week</item>
+        <item quantity="other">weeks</item>
+    </plurals>
+    <plurals name="recurring_interval_months">
+        <item quantity="one">month</item>
+        <item quantity="other">months</item>
+    </plurals>
+    <plurals name="recurring_interval_years">
+        <item quantity="one">year</item>
+        <item quantity="other">years</item>
+    </plurals>
+    <plurals name="recurring_every_weeks">
+        <item quantity="one">Every week</item>
+        <item quantity="other">Every %d weeks</item>
+    </plurals>
+    <plurals name="recurring_every_months">
+        <item quantity="one">Every month</item>
+        <item quantity="other">Every %d months</item>
+    </plurals>
+    <plurals name="recurring_every_years">
+        <item quantity="one">Every year</item>
+        <item quantity="other">Every %d years</item>
+    </plurals>
+    <plurals name="recurring_reminder_days_before">
+        <item quantity="one">%d day before</item>
+        <item quantity="other">%d days before</item>
+    </plurals>
+    <plurals name="recurring_pending_count">
+        <item quantity="one">%d charge to confirm</item>
+        <item quantity="other">%d charges to confirm</item>
+    </plurals>
+
+    <!-- Recurring errors -->
+    <string name="error_recurring_date_past">The next charge date can\'t be before today</string>
+    <string name="error_recurring_end_before_start">The end date must be on or after the next charge</string>
+    <string name="error_recurring_interval">Enter a number between 1 and 12</string>
+    <string name="error_account_has_recurring">This account has recurring payments. Delete them or move them to another account first.</string>
+    <string name="error_category_has_recurring">This category has recurring payments. Move them to another category first.</string>
+
+    <!-- Upcoming payments (Home) -->
+    <string name="home_upcoming_title">Upcoming payments</string>
+    <string name="upcoming_today">Today</string>
+    <string name="upcoming_tomorrow">Tomorrow</string>
+    <string name="upcoming_card_payment">%1$s payment</string>
+    <string name="upcoming_amount_unknown">Reconcile the statement</string>
+    <plurals name="upcoming_in_days">
+        <item quantity="one">In %d day</item>
+        <item quantity="other">In %d days</item>
+    </plurals>
+
+    <!-- Settings: recurring and notifications -->
+    <string name="settings_item_recurring">Recurring payments</string>
+    <string name="settings_section_notifications">Notifications</string>
+    <string name="settings_notifications_enabled">Enable notifications</string>
+    <string name="settings_notifications_blocked">Notifications are blocked for Wallet.</string>
+    <string name="settings_notifications_open_system">Open system settings</string>
+    <string name="settings_notifications_time">Notification time</string>
+    <string name="settings_notifications_time_value">Every day at %1$s</string>
+    <string name="settings_notifications_recurring_header">Recurring payments</string>
+    <string name="settings_notif_recurring_reminders">Reminders before the charge</string>
+    <string name="settings_notif_recurring_reminders_desc">As set in each payment</string>
+    <string name="settings_notif_recurring_posted">Notify when a charge is recorded</string>
+    <string name="settings_notif_recurring_pending">Notify when a charge needs confirmation</string>
+    <string name="settings_notifications_cards_header">Credit cards</string>
+    <string name="settings_notif_card_closing">Statement date</string>
+    <string name="settings_notif_card_payment">Payment due date</string>
+    <string name="settings_notif_card_overdue">Notify when the payment is overdue</string>
+    <string name="settings_notif_same_day">On the day</string>
+    <string name="settings_notifications_test">Send test notification</string>
+    <string name="settings_notifications_test_sent">Notification sent</string>
+    <plurals name="settings_notif_days_before">
+        <item quantity="one">%d day before</item>
+        <item quantity="other">%d days before</item>
+    </plurals>
+
+    <!-- Backup with recurring -->
+    <string name="backup_summary_format_with_recurring">%1$s, %2$s, %3$s, %4$s</string>
+    <string name="backup_summary_format_with_statements_recurring">%1$s, %2$s, %3$s, %4$s, %5$s</string>
+    <plurals name="backup_summary_recurring">
+        <item quantity="one">%d recurring payment</item>
+        <item quantity="other">%d recurring payments</item>
+    </plurals>
+
+    <!-- Notifications -->
+    <string name="notif_channel_recurring_name">Recurring payments</string>
+    <string name="notif_channel_recurring_desc">Reminders and recorded charges</string>
+    <string name="notif_channel_cards_name">Credit cards</string>
+    <string name="notif_channel_cards_desc">Statement and payment dates</string>
+    <string name="notif_recurring_upcoming_title">%1$s · %2$s</string>
+    <string name="notif_recurring_upcoming_expense">Next charge on %1$s from %2$s</string>
+    <string name="notif_recurring_upcoming_income">Next income on %1$s to %2$s</string>
+    <string name="notif_recurring_pending_expense">Did you pay %1$s?</string>
+    <string name="notif_recurring_pending_income">Did you receive %1$s?</string>
+    <string name="notif_recurring_pending_text">Tap to confirm the amount (%1$s).</string>
+    <string name="notif_recurring_posted_title">%1$s recorded</string>
+    <string name="notif_recurring_posted_text">%1$s in %2$s</string>
+    <string name="notif_card_closing_today">%1$s statement closes today</string>
+    <string name="notif_card_closing_text">When the statement arrives, reconcile it in the app.</string>
+    <string name="notif_card_payment_today">%1$s payment is due today</string>
+    <string name="notif_card_payment_amount">Amount due: %1$s</string>
+    <string name="notif_card_payment_unknown">Reconcile the statement to know how much to pay.</string>
+    <string name="notif_card_overdue_title">%1$s payment is overdue</string>
+    <string name="notif_card_overdue_text">Pending: %1$s</string>
+    <string name="notif_test_title">Notifications work</string>
+    <string name="notif_test_text">This is how Wallet will remind you.</string>
+    <plurals name="notif_recurring_posted_many">
+        <item quantity="one">%d recurring payment recorded</item>
+        <item quantity="other">%d recurring payments recorded</item>
+    </plurals>
+    <plurals name="notif_card_closing_days">
+        <item quantity="one">%2$s statement closes in %1$d day</item>
+        <item quantity="other">%2$s statement closes in %1$d days</item>
+    </plurals>
+    <plurals name="notif_card_payment_days">
+        <item quantity="one">%2$s payment is due in %1$d day</item>
+        <item quantity="other">%2$s payment is due in %1$d days</item>
+    </plurals>
 </resources>

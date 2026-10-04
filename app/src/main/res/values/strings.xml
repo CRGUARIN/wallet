@@ -435,4 +435,184 @@
     <string name="card_statement_matched">cuadró</string>
     <string name="card_over_limit_title">Superas el cupo</string>
     <string name="card_over_limit_message">Con este movimiento la deuda de la tarjeta supera su cupo. ¿Guardar de todos modos?</string>
+
+    <!-- Pagos recurrentes ("Agregar" se reutiliza de action_add; "Nombre" de category_name_label) -->
+    <string name="recurring_title">Pagos recurrentes</string>
+    <string name="recurring_settings_subtitle">Suscripciones, servicios y cobros periódicos</string>
+    <string name="recurring_new">Nuevo pago recurrente</string>
+    <string name="recurring_edit">Editar pago recurrente</string>
+    <string name="recurring_empty_title">Sin pagos recurrentes</string>
+    <string name="recurring_empty_message">Agrega tus suscripciones y servicios para que se registren solos.</string>
+    <string name="recurring_section_pending">Por confirmar</string>
+    <string name="recurring_section_active">Activos</string>
+    <string name="recurring_section_inactive">Pausados y finalizados</string>
+    <string name="recurring_monthly_expense">Gastos recurrentes al mes</string>
+    <string name="recurring_monthly_income">Ingresos recurrentes al mes</string>
+    <string name="recurring_monthly_note">Equivalente mensual aproximado</string>
+    <string name="recurring_name_hint">Ej.: Netflix, arriendo, gimnasio</string>
+    <string name="recurring_frequency_label">Frecuencia</string>
+    <string name="recurring_frequency_weekly">Semanal</string>
+    <string name="recurring_frequency_monthly">Mensual</string>
+    <string name="recurring_frequency_yearly">Anual</string>
+    <string name="recurring_interval_label">Repetir cada</string>
+    <string name="recurring_schedule_weekly">%1$s · los %2$s</string>
+    <string name="recurring_schedule_monthly">%1$s · día %2$d</string>
+    <string name="recurring_schedule_yearly">%1$s · el %2$s</string>
+    <string name="recurring_next_date_label">Próximo cobro</string>
+    <string name="recurring_next_date_hint">Desde esta fecha se repite. Si el cobro de hoy ya lo anotaste, elige el siguiente.</string>
+    <string name="recurring_next_on">Próximo: %1$s</string>
+    <string name="recurring_end_label">Termina</string>
+    <string name="recurring_end_never">Nunca</string>
+    <string name="recurring_end_on_date">En una fecha</string>
+    <string name="recurring_ends_on">Hasta el %1$s</string>
+    <string name="recurring_mode_label">Cuando llegue la fecha</string>
+    <string name="recurring_mode_auto">Registrarlo automáticamente</string>
+    <string name="recurring_mode_auto_desc">Se descuenta de la cuenta sin preguntarte.</string>
+    <string name="recurring_mode_confirm">Preguntarme antes</string>
+    <string name="recurring_mode_confirm_desc">Útil si el valor cambia cada vez, como los servicios.</string>
+    <string name="recurring_badge_auto">Automático</string>
+    <string name="recurring_badge_confirm">Te pregunta</string>
+    <string name="recurring_reminder_label">Recordatorio</string>
+    <string name="recurring_reminder_none">Sin recordatorio</string>
+    <string name="recurring_active_label">Activo</string>
+    <string name="recurring_paused">Pausado</string>
+    <string name="recurring_finished">Finalizado</string>
+    <string name="recurring_pause">Pausar</string>
+    <string name="recurring_resume">Reanudar</string>
+    <string name="recurring_blocked_account">La cuenta está archivada: no se registrará hasta que la desarchives.</string>
+    <string name="recurring_blocked_category">La categoría está archivada: no se registrará hasta que la desarchives.</string>
+    <string name="recurring_confirm_action">Registrar</string>
+    <string name="recurring_skip_action">Omitir</string>
+    <string name="recurring_confirm_title">Registrar %1$s</string>
+    <string name="recurring_confirm_message">Confirma el valor y la fecha del cobro.</string>
+    <string name="recurring_skip_title">¿Omitir este cobro?</string>
+    <string name="recurring_skip_message">No se registrará el cobro del %1$s.</string>
+    <string name="recurring_delete_title">¿Eliminar pago recurrente?</string>
+    <string name="recurring_delete_message">Los movimientos que ya se registraron se conservan.</string>
+    <string name="recurring_history_title">Últimos registros</string>
+    <string name="recurring_history_empty">Aún no se ha registrado ningún cobro.</string>
+    <string name="recurring_saved">Pago recurrente guardado</string>
+    <string name="recurring_recorded">Cobro registrado</string>
+    <string name="recurring_generated_by">Registrado automáticamente por «%1$s»</string>
+    <string name="recurring_icon_cd">Pago recurrente</string>
+    <string name="recurring_notifications_blocked">Las notificaciones están bloqueadas: no recibirás recordatorios.</string>
+    <string name="recurring_notifications_enable">Activar</string>
+    <plurals name="recurring_interval_weeks">
+        <item quantity="one">semana</item>
+        <item quantity="other">semanas</item>
+    </plurals>
+    <plurals name="recurring_interval_months">
+        <item quantity="one">mes</item>
+        <item quantity="other">meses</item>
+    </plurals>
+    <plurals name="recurring_interval_years">
+        <item quantity="one">año</item>
+        <item quantity="other">años</item>
+    </plurals>
+    <plurals name="recurring_every_weeks">
+        <item quantity="one">Cada semana</item>
+        <item quantity="other">Cada %d semanas</item>
+    </plurals>
+    <plurals name="recurring_every_months">
+        <item quantity="one">Cada mes</item>
+        <item quantity="other">Cada %d meses</item>
+    </plurals>
+    <plurals name="recurring_every_years">
+        <item quantity="one">Cada año</item>
+        <item quantity="other">Cada %d años</item>
+    </plurals>
+    <plurals name="recurring_reminder_days_before">
+        <item quantity="one">%d día antes</item>
+        <item quantity="other">%d días antes</item>
+    </plurals>
+    <plurals name="recurring_pending_count">
+        <item quantity="one">%d cobro por confirmar</item>
+        <item quantity="other">%d cobros por confirmar</item>
+    </plurals>
+
+    <!-- Errores de recurrentes -->
+    <string name="error_recurring_date_past">La fecha del próximo cobro no puede ser anterior a hoy</string>
+    <string name="error_recurring_end_before_start">La fecha final debe ser igual o posterior al próximo cobro</string>
+    <string name="error_recurring_interval">Ingresa un número entre 1 y 12</string>
+    <string name="error_account_has_recurring">La cuenta tiene pagos recurrentes. Elimínalos o cámbialos de cuenta primero.</string>
+    <string name="error_category_has_recurring">La categoría tiene pagos recurrentes. Cámbialos de categoría primero.</string>
+
+    <!-- Próximos pagos (Inicio) -->
+    <string name="home_upcoming_title">Próximos pagos</string>
+    <string name="upcoming_today">Hoy</string>
+    <string name="upcoming_tomorrow">Mañana</string>
+    <string name="upcoming_card_payment">Pago de %1$s</string>
+    <string name="upcoming_amount_unknown">Concilia el extracto</string>
+    <plurals name="upcoming_in_days">
+        <item quantity="one">En %d día</item>
+        <item quantity="other">En %d días</item>
+    </plurals>
+
+    <!-- Ajustes: recurrentes y notificaciones -->
+    <string name="settings_item_recurring">Pagos recurrentes</string>
+    <string name="settings_section_notifications">Notificaciones</string>
+    <string name="settings_notifications_enabled">Activar notificaciones</string>
+    <string name="settings_notifications_blocked">Las notificaciones están bloqueadas para Wallet.</string>
+    <string name="settings_notifications_open_system">Abrir ajustes del sistema</string>
+    <string name="settings_notifications_time">Hora de los avisos</string>
+    <string name="settings_notifications_time_value">Todos los días a las %1$s</string>
+    <string name="settings_notifications_recurring_header">Pagos recurrentes</string>
+    <string name="settings_notif_recurring_reminders">Recordatorios antes del cobro</string>
+    <string name="settings_notif_recurring_reminders_desc">Según lo que elegiste en cada pago</string>
+    <string name="settings_notif_recurring_posted">Avisar cuando se registre un cobro</string>
+    <string name="settings_notif_recurring_pending">Avisar cuando haya un cobro por confirmar</string>
+    <string name="settings_notifications_cards_header">Tarjetas de crédito</string>
+    <string name="settings_notif_card_closing">Fecha de corte</string>
+    <string name="settings_notif_card_payment">Fecha límite de pago</string>
+    <string name="settings_notif_card_overdue">Avisar si el pago queda vencido</string>
+    <string name="settings_notif_same_day">El mismo día</string>
+    <string name="settings_notifications_test">Enviar notificación de prueba</string>
+    <string name="settings_notifications_test_sent">Notificación enviada</string>
+    <plurals name="settings_notif_days_before">
+        <item quantity="one">%d día antes</item>
+        <item quantity="other">%d días antes</item>
+    </plurals>
+
+    <!-- Backup con recurrentes -->
+    <string name="backup_summary_format_with_recurring">%1$s, %2$s, %3$s, %4$s</string>
+    <string name="backup_summary_format_with_statements_recurring">%1$s, %2$s, %3$s, %4$s, %5$s</string>
+    <plurals name="backup_summary_recurring">
+        <item quantity="one">%d pago recurrente</item>
+        <item quantity="other">%d pagos recurrentes</item>
+    </plurals>
+
+    <!-- Notificaciones -->
+    <string name="notif_channel_recurring_name">Pagos recurrentes</string>
+    <string name="notif_channel_recurring_desc">Recordatorios y cobros registrados</string>
+    <string name="notif_channel_cards_name">Tarjetas de crédito</string>
+    <string name="notif_channel_cards_desc">Fechas de corte y de pago</string>
+    <string name="notif_recurring_upcoming_title">%1$s · %2$s</string>
+    <string name="notif_recurring_upcoming_expense">Próximo cobro el %1$s desde %2$s</string>
+    <string name="notif_recurring_upcoming_income">Próximo ingreso el %1$s en %2$s</string>
+    <string name="notif_recurring_pending_expense">¿Ya pagaste %1$s?</string>
+    <string name="notif_recurring_pending_income">¿Recibiste %1$s?</string>
+    <string name="notif_recurring_pending_text">Toca para confirmar el valor (%1$s).</string>
+    <string name="notif_recurring_posted_title">Se registró %1$s</string>
+    <string name="notif_recurring_posted_text">%1$s en %2$s</string>
+    <string name="notif_card_closing_today">Hoy es el corte de %1$s</string>
+    <string name="notif_card_closing_text">Cuando llegue el extracto, concílialo en la app.</string>
+    <string name="notif_card_payment_today">Hoy vence el pago de %1$s</string>
+    <string name="notif_card_payment_amount">Por pagar: %1$s</string>
+    <string name="notif_card_payment_unknown">Concilia el extracto para saber cuánto pagar.</string>
+    <string name="notif_card_overdue_title">El pago de %1$s está vencido</string>
+    <string name="notif_card_overdue_text">Pendiente: %1$s</string>
+    <string name="notif_test_title">Las notificaciones funcionan</string>
+    <string name="notif_test_text">Así te avisará Wallet.</string>
+    <plurals name="notif_recurring_posted_many">
+        <item quantity="one">Se registró %d pago recurrente</item>
+        <item quantity="other">Se registraron %d pagos recurrentes</item>
+    </plurals>
+    <plurals name="notif_card_closing_days">
+        <item quantity="one">%2$s corta en %1$d día</item>
+        <item quantity="other">%2$s corta en %1$d días</item>
+    </plurals>
+    <plurals name="notif_card_payment_days">
+        <item quantity="one">El pago de %2$s vence en %1$d día</item>
+        <item quantity="other">El pago de %2$s vence en %1$d días</item>
+    </plurals>
 </resources>
