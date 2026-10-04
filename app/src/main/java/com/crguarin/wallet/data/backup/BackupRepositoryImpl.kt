@@ -70,12 +70,14 @@ class BackupRepositoryImpl
                 categories = backupDao.getCategories().map { it.toBackupDto() },
                 transactions = backupDao.getTransactions().map { it.toBackupDto() },
                 cardStatements = backupDao.getCardStatements().map { it.toBackupDto() },
+                recurringPayments = backupDao.getRecurringPayments().map { it.toBackupDto() },
             )
 
         /** Must run inside a transaction: any exception rolls everything back. */
         private suspend fun replaceAll(dto: BackupDto) {
             backupDao.deleteAllCardStatements()
             backupDao.deleteAllTransactions()
+            backupDao.deleteAllRecurringPayments()
             backupDao.deleteSubcategories()
             backupDao.deleteRootCategories()
             backupDao.deleteAllAccounts()
@@ -84,6 +86,7 @@ class BackupRepositoryImpl
             backupDao.insertAccounts(dto.accounts.map { it.toEntity() })
             backupDao.insertCategories(roots.map { it.toEntity() })
             backupDao.insertCategories(subcategories.map { it.toEntity() })
+            backupDao.insertRecurringPayments(dto.recurringPayments.map { it.toEntity() })
             backupDao.insertTransactions(dto.transactions.map { it.toEntity() })
             backupDao.insertCardStatements(dto.cardStatements.map { it.toEntity() })
         }
@@ -96,7 +99,14 @@ class BackupRepositoryImpl
             }
         }
 
-        private fun BackupDto.toSummary() = BackupSummary(accounts.size, categories.size, transactions.size, cardStatements.size)
+        private fun BackupDto.toSummary() =
+            BackupSummary(
+                accounts = accounts.size,
+                categories = categories.size,
+                transactions = transactions.size,
+                cardStatements = cardStatements.size,
+                recurringPayments = recurringPayments.size,
+            )
 
         private inline fun <T> guarded(block: () -> DomainResult<T>): DomainResult<T> =
             try {

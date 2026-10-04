@@ -1,9 +1,12 @@
 package com.crguarin.wallet.data.backup
 
+import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.data.db.AccountEntity
 import com.crguarin.wallet.data.db.CardStatementEntity
 import com.crguarin.wallet.data.db.CategoryEntity
+import com.crguarin.wallet.data.db.RecurringPaymentEntity
 import com.crguarin.wallet.data.db.TransactionEntity
+import com.crguarin.wallet.domain.model.recurring.RecurringPayment
 import java.time.Instant
 import java.time.LocalDate
 
@@ -82,6 +85,7 @@ fun TransactionEntity.toBackupDto(): TransactionDto =
         createdAt = createdAt.toEpochMilli(),
         updatedAt = updatedAt.toEpochMilli(),
         installments = installments,
+        recurringId = recurringId,
     )
 
 /** Assumes [TransactionDto.date] was already validated by [BackupValidator]. */
@@ -98,6 +102,7 @@ fun TransactionDto.toEntity(): TransactionEntity =
         createdAt = Instant.ofEpochMilli(createdAt),
         updatedAt = Instant.ofEpochMilli(updatedAt),
         installments = installments,
+        recurringId = recurringId,
     )
 
 fun CardStatementEntity.toBackupDto(): CardStatementDto =
@@ -125,4 +130,90 @@ fun CardStatementDto.toEntity(): CardStatementEntity =
         statedInterestFees = statedInterestAndFees,
         adjustmentTransactionId = adjustmentTransactionId,
         createdAt = Instant.ofEpochMilli(createdAt),
+    )
+
+fun RecurringPayment.toBackupDto(): RecurringPaymentDto =
+    RecurringPaymentDto(
+        id = id,
+        name = name,
+        type = type,
+        amount = amount.minorUnits,
+        accountId = accountId,
+        categoryId = categoryId,
+        note = note,
+        frequency = frequency,
+        interval = interval,
+        startDate = startDate.toString(),
+        endDate = endDate?.toString(),
+        nextDueDate = nextDueDate.toString(),
+        mode = mode,
+        reminderDaysBefore = reminderDaysBefore,
+        isActive = isActive,
+        createdAt = createdAt.toEpochMilli(),
+        updatedAt = updatedAt.toEpochMilli(),
+    )
+
+fun RecurringPaymentEntity.toBackupDto(): RecurringPaymentDto =
+    RecurringPaymentDto(
+        id = id,
+        name = name,
+        type = type,
+        amount = amount,
+        accountId = accountId,
+        categoryId = categoryId,
+        note = note,
+        frequency = frequency,
+        interval = interval,
+        startDate = startDate.toString(),
+        endDate = endDate?.toString(),
+        nextDueDate = nextDueDate.toString(),
+        mode = mode,
+        reminderDaysBefore = reminderDaysBefore,
+        isActive = isActive,
+        createdAt = createdAt.toEpochMilli(),
+        updatedAt = updatedAt.toEpochMilli(),
+    )
+
+/** Assumes the dates of [RecurringPaymentDto] were already validated by [BackupValidator]. */
+fun RecurringPaymentDto.toEntity(): RecurringPaymentEntity =
+    RecurringPaymentEntity(
+        id = id,
+        name = name,
+        type = type,
+        amount = amount,
+        accountId = accountId,
+        categoryId = categoryId,
+        note = note,
+        frequency = frequency,
+        interval = interval,
+        startDate = LocalDate.parse(startDate),
+        nextDueDate = LocalDate.parse(nextDueDate),
+        endDate = endDate?.let(LocalDate::parse),
+        mode = mode,
+        reminderDaysBefore = reminderDaysBefore,
+        isActive = isActive,
+        createdAt = Instant.ofEpochMilli(createdAt),
+        updatedAt = Instant.ofEpochMilli(updatedAt),
+    )
+
+/** Assumes the dates of [RecurringPaymentDto] were already validated by [BackupValidator]. */
+fun RecurringPaymentDto.toDomain(): RecurringPayment =
+    RecurringPayment(
+        id = id,
+        name = name,
+        type = type,
+        amount = Money(amount),
+        accountId = accountId,
+        categoryId = categoryId,
+        note = note,
+        frequency = frequency,
+        interval = interval,
+        startDate = LocalDate.parse(startDate),
+        endDate = endDate?.let(LocalDate::parse),
+        nextDueDate = LocalDate.parse(nextDueDate),
+        mode = mode,
+        reminderDaysBefore = reminderDaysBefore,
+        isActive = isActive,
+        createdAt = Instant.ofEpochMilli(createdAt),
+        updatedAt = Instant.ofEpochMilli(updatedAt),
     )
