@@ -2,8 +2,11 @@ package com.crguarin.wallet.ui.util
 
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
+import androidx.test.core.app.ApplicationProvider
+import androidx.work.testing.WorkManagerTestInitHelper
 import com.google.common.truth.Truth.assertThat
 import org.junit.After
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -12,6 +15,13 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class LanguageHelperTest {
+    @Before
+    fun setUp() {
+        // MainActivity schedules the daily checks on start. Robolectric does not run the
+        // androidx.startup provider that initializes WorkManager in the real app.
+        WorkManagerTestInitHelper.initializeTestWorkManager(ApplicationProvider.getApplicationContext())
+    }
+
     @After
     fun tearDown() {
         AppCompatDelegate.setApplicationLocales(LocaleListCompat.getEmptyLocaleList())
