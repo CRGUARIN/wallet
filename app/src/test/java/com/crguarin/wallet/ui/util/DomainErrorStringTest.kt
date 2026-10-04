@@ -36,6 +36,8 @@ class DomainErrorStringTest {
                 DomainError.CategoryArchived,
                 DomainError.SameCategoryReassignment,
                 DomainError.InvalidTransaction,
+                DomainError.CardDayInvalid,
+                DomainError.AccountTypeChangeNotAllowed,
                 DomainError.BackupInvalid("corrupted"),
                 DomainError.BackupVersionUnsupported,
                 DomainError.BackupFailed,
