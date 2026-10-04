@@ -596,14 +596,15 @@ Deep links de notificaciones (Tarea 16, explícitos a `MainActivity`, sin intent
 - Formato JSON con kotlinx.serialization (`schemaVersion = 3` desde la Tarea 16; se acepta importar v1, v2 y v3):
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "appVersion": "1.0.0",
   "exportedAt": "2026-09-28T15:00:00Z",
   "currency": "COP",
   "accounts": [ { "id": 1, "name": "Efectivo", "type": "CASH", "currencyCode": "COP", "initialBalance": 5000000, "color": -16711936, "icon": "wallet", "includeInTotal": true, "isArchived": false, "sortOrder": 0, "createdAt": 1790000000000 } ],
   "categories": [ { "id": 1, "name": null, "systemKey": "food", "type": "EXPENSE", "parentId": null, "color": -65536, "icon": "restaurant", "isArchived": false, "sortOrder": 0 } ],
-  "transactions": [ { "id": 1, "type": "EXPENSE", "amount": 1500000, "accountId": 1, "toAccountId": null, "categoryId": 1, "date": "2026-09-27", "note": "Almuerzo", "createdAt": 1790000000000, "updatedAt": 1790000000000 } ],
-  "cardStatements": [ { "id": 1, "accountId": 2, "closingDate": "2026-09-30", "dueDate": "2026-10-15", "statementBalance": 25000000, "minimumPayment": null, "statedInterestAndFees": null, "adjustmentTransactionId": null, "createdAt": 1790000000000 } ]
+  "transactions": [ { "id": 1, "type": "EXPENSE", "amount": 1500000, "accountId": 1, "toAccountId": null, "categoryId": 1, "date": "2026-09-27", "note": "Almuerzo", "createdAt": 1790000000000, "updatedAt": 1790000000000, "installments": null, "recurringId": null } ],
+  "cardStatements": [ { "id": 1, "accountId": 2, "closingDate": "2026-09-30", "dueDate": "2026-10-15", "statementBalance": 25000000, "minimumPayment": null, "statedInterestAndFees": null, "adjustmentTransactionId": null, "createdAt": 1790000000000 } ],
+  "recurringPayments": [ { "id": 1, "name": "Netflix", "type": "EXPENSE", "amount": 4590000, "accountId": 2, "categoryId": 1, "note": null, "frequency": "MONTHLY", "interval": 1, "startDate": "2026-10-12", "endDate": null, "nextDueDate": "2026-11-12", "mode": "AUTO", "reminderDaysBefore": 1, "isActive": true, "createdAt": 1790000000000, "updatedAt": 1790000000000 } ]
 }
 ```
 - En v2, `AccountDto` agrega `creditLimit`, `statementDay` y `paymentDueDay`; `TransactionDto` agrega `installments`; y el documento agrega `cardStatements`. Un backup v1 se importa con los defaults (sin tarjetas ni extractos).
@@ -611,7 +612,7 @@ Deep links de notificaciones (Tarea 16, explícitos a `MainActivity`, sin intent
 - **Exportar**: Storage Access Framework `ActivityResultContracts.CreateDocument("application/json")`, nombre sugerido `wallet-backup-YYYYMMDD-HHmm.json`. Sin permisos de almacenamiento.
 - **Importar**: `OpenDocument(arrayOf("application/json"))`.
   1. Parsear y **validar completamente** antes de tocar la BD: `schemaVersion` soportado, ids únicos, referencias válidas (accountId, toAccountId, categoryId, parentId existen), reglas de 5.4 (montos > 0, transferencias con destino ≠ origen, tipo de categoría coherente, máx. 2 niveles).
-  2. Mostrar resumen ("3 cuentas, 25 categorías, 480 movimientos") y confirmación: **"Esto reemplazará todos tus datos actuales"**.
+  2. Mostrar resumen ("3 cuentas, 25 categorías, 480 movimientos, 4 pagos recurrentes") y confirmación: **"Esto reemplazará todos tus datos actuales"**.
   3. Reemplazar todo dentro de **una sola transacción de Room** (`withTransaction`): borrar todo e insertar conservando ids.
   4. Si algo falla → rollback y mensaje de error; los datos actuales quedan intactos.
 - Trabajo de IO en `Dispatchers.IO`; UI muestra progreso.
