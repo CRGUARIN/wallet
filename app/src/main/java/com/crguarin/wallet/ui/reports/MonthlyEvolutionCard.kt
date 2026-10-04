@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -144,15 +146,19 @@ internal fun MonthlyEvolutionCard(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun MonthlyLegend(
     incomeColor: Color,
     expenseColor: Color,
     netColor: Color,
 ) {
-    Row(
+    // FlowRow: with four entries and large font scales the legend wraps instead of squeezing the
+    // last entry into a one-letter-wide column.
+    FlowRow(
         horizontalArrangement = Arrangement.spacedBy(16.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+        itemVerticalAlignment = Alignment.CenterVertically,
     ) {
         LegendDot(color = incomeColor, label = stringResource(R.string.account_detail_income))
         LegendDot(color = expenseColor, label = stringResource(R.string.account_detail_expense))

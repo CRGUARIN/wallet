@@ -663,6 +663,31 @@ class ReportsScreenTest {
     }
 
     @Test
+    fun `balance evolution selects the last point of the new period after a period change`() {
+        val locale = Locale("es", "CO")
+        var uiState by mutableStateOf(state(focus = ReportFocus.BALANCE))
+        composeRule.setContent { ScreenContent(uiState, {}, {}, { _, _, _, _ -> }, {}, {}, {}) }
+        composeRule.onNodeWithText("15 oct: $ 51.500.000").assertIsDisplayed()
+
+        // September is selected: the previous data stays on screen while the new one loads.
+        val september = YearMonth.of(2026, 9)
+        uiState = uiState.copy(yearMonth = september, isRefreshing = true)
+        composeRule.waitForIdle()
+        val septemberPoints =
+            (1..30).map { day ->
+                BalancePoint(LocalDate.of(2026, 9, day), Money(4_000_000_000L + day * 1_000_000L))
+            }
+        uiState =
+            uiState.copy(
+                isRefreshing = false,
+                balanceEvolution = BalanceEvolution(BalanceGranularity.DAILY, Money(4_000_000_000L), septemberPoints),
+            )
+
+        val lastLabel = pointDateLabel(LocalDate.of(2026, 9, 30), BalanceGranularity.DAILY, locale)
+        composeRule.onNodeWithText("$lastLabel: $ 40.300.000").assertIsDisplayed()
+    }
+
+    @Test
     fun `balance x labels use days and month letters`() {
         val locale = Locale("es", "CO")
 

@@ -54,23 +54,29 @@ internal fun BalanceEvolutionCard(
     val evolution = uiState.balanceEvolution ?: return
     val locale = LocalConfiguration.current.locales[0]
     val points = evolution.points
+    // The period of the drawn data: while a new selection loads (isRefreshing) the state still
+    // holds the previous evolution, so slots and labels must not come from uiState.yearMonth.
+    val dataMonth = points.firstOrNull()?.date?.let(YearMonth::from) ?: uiState.yearMonth
     val selectionKey =
         "${uiState.mode.name}:${uiState.yearMonth}:${uiState.accountId}:${uiState.focus.name}"
-    var selectedIndex by rememberSaveable(selectionKey) { mutableIntStateOf(points.size - 1) }
-    val safeIndex = selectedIndex.coerceIn(0, (points.size - 1).coerceAtLeast(0))
+    // NO_SELECTION follows the last point, also when the new period's data arrives after the key
+    // changed.
+    var selectedIndex by rememberSaveable(selectionKey) { mutableIntStateOf(NO_SELECTION) }
+    val lastIndex = (points.size - 1).coerceAtLeast(0)
+    val safeIndex = if (selectedIndex == NO_SELECTION) lastIndex else selectedIndex.coerceIn(0, lastIndex)
     val selectedPoint = points.getOrNull(safeIndex)
 
     val slotCount =
         when (evolution.granularity) {
-            BalanceGranularity.DAILY -> uiState.yearMonth.lengthOfMonth()
+            BalanceGranularity.DAILY -> dataMonth.lengthOfMonth()
             BalanceGranularity.MONTHLY -> 12
         }
     val range = remember(evolution) { ReportsChartMapper.balanceAxisRange(evolution) }
     val values = remember(points, range) { ReportsChartMapper.balancePositions(points, range) }
     val zeroFraction = if (range.minMinorUnits < 0L) range.fractionOf(0L) else null
     val xLabels =
-        remember(evolution.granularity, uiState.yearMonth, locale) {
-            balanceXLabels(evolution.granularity, uiState.yearMonth, slotCount, locale)
+        remember(evolution.granularity, dataMonth, locale) {
+            balanceXLabels(evolution.granularity, dataMonth, slotCount, locale)
         }
 
     Card(
@@ -152,6 +158,8 @@ private fun OpeningClosingColumn(
         )
     }
 }
+
+private const val NO_SELECTION = -1
 
 /**
  * X axis labels as (slot index, label): days 1, 15 and last in DAILY mode, the narrow month

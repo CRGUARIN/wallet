@@ -163,6 +163,9 @@ fun BalanceLineChart(
                         )
                     onDrawBehind {
                         if (chart.points.isEmpty()) return@onDrawBehind
+                        // With large font scales neighbouring y labels can overlap: a label is
+                        // skipped (its guide is still drawn) when it would touch the last one drawn.
+                        var lastLabelTop = Float.POSITIVE_INFINITY
                         for (index in yLayouts.indices) {
                             val layout = yLayouts[index]
                             val fraction = if (yLayouts.size <= 1) 0f else index / (yLayouts.size - 1f)
@@ -173,15 +176,15 @@ fun BalanceLineChart(
                                 end = Offset(chart.plotRight, y),
                                 strokeWidth = 1.dp.toPx(),
                             )
-                            drawText(
-                                textLayoutResult = layout,
-                                color = labelColor,
-                                topLeft =
-                                    Offset(
-                                        x = chart.plotLeft - 6.dp.toPx() - layout.size.width,
-                                        y = (y - layout.size.height / 2f).coerceIn(0f, size.height - layout.size.height),
-                                    ),
-                            )
+                            val labelTop = (y - layout.size.height / 2f).coerceIn(0f, size.height - layout.size.height)
+                            if (labelTop + layout.size.height <= lastLabelTop) {
+                                drawText(
+                                    textLayoutResult = layout,
+                                    color = labelColor,
+                                    topLeft = Offset(x = chart.plotLeft - 6.dp.toPx() - layout.size.width, y = labelTop),
+                                )
+                                lastLabelTop = labelTop
+                            }
                         }
 
                         chart.fillPath?.let { path ->
