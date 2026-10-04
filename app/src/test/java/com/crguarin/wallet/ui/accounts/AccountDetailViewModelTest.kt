@@ -5,6 +5,7 @@ import app.cash.turbine.test
 import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.fake.FakeAccountRepository
+import com.crguarin.wallet.domain.fake.FakeCardStatementRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
 import com.crguarin.wallet.domain.model.Account
@@ -15,6 +16,7 @@ import com.crguarin.wallet.domain.usecase.ObserveDailyTotalsUseCase
 import com.crguarin.wallet.domain.usecase.ObserveMonthSummaryUseCase
 import com.crguarin.wallet.domain.usecase.ObserveTransactionsUseCase
 import com.crguarin.wallet.domain.usecase.UnarchiveAccountUseCase
+import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewUseCase
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -92,6 +94,9 @@ class AccountDetailViewModelTest {
                 unarchiveAccountUseCase = unarchiveAccountUseCase,
                 deleteAccountUseCase = deleteAccountUseCase,
                 timeProvider = timeProvider,
+                observeCardOverviewUseCase = ObserveCardOverviewUseCase(),
+                cardStatementRepository = FakeCardStatementRepository(),
+                transactionRepository = transactionRepository,
             )
     }
 
@@ -265,4 +270,56 @@ class AccountDetailViewModelTest {
         sortOrder = 1,
         createdAt = Instant.EPOCH,
     )
+
+    @Test
+    fun `card fields default to empty and pay source resolves the last non-card account`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                accountList =
+                    listOf(
+                        activeAccount(id = 1L, name = "Efectivo").copy(
+                            type = AccountType.CASH,
+                            sortOrder = 0,
+                        ),
+                        activeAccount(id = 2L, name = "Ahorros").copy(sortOrder = 1),
+                        activeAccount(id = 7L, name = "RappiCard").copy(
+                            type = AccountType.CREDIT_CARD,
+                            icon = "credit_card",
+                            sortOrder = 2,
+                        ),
+                    ),
+            )
+
+            viewModel.uiState.test {
+                val state = awaitItem()
+                assertThat(state.cardOverview).isNull()
+                assertThat(state.statements).isEmpty()
+                assertThat(state.adjustmentAmounts).isEmpty()
+                assertThat(state.payFromAccountId).isEqualTo(2L)
+                assertThat(state.payAmountMinor).isNull()
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `pay source is null when there is no non-card account`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                accountList =
+                    listOf(
+                        activeAccount(id = 7L, name = "RappiCard").copy(
+                            type = AccountType.CREDIT_CARD,
+                            icon = "credit_card",
+                        ),
+                    ),
+            )
+
+            viewModel.uiState.test {
+                val state = awaitItem()
+                assertThat(state.payFromAccountId).isNull()
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
 }
