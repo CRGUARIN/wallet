@@ -109,11 +109,7 @@ fun RecurringListRoute(
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
     val permission = permissionState ?: rememberNotificationPermissionState()
-    val notificationsBlocked =
-        !permission.granted &&
-            rememberNotifiable(uiState) {
-                it.payment.reminderDaysBefore != null || it.payment.mode == RecurringMode.CONFIRM
-            }
+    val notificationsBlocked = !permission.granted && hasNotifiablePayments(uiState.overview)
 
     LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
@@ -147,17 +143,15 @@ fun RecurringListRoute(
     )
 }
 
-/** True when any pending or active payment matches [predicate]. */
-@Composable
-private fun rememberNotifiable(
-    uiState: RecurringListUiState,
-    predicate: (RecurringItem) -> Boolean,
-): Boolean {
-    val overview = uiState.overview ?: return false
-    return remember(overview) {
-        (overview.pending + overview.active).any(predicate)
-    }
-}
+/**
+ * True when some active payment (pending confirmation or upcoming) has a reminder
+ * or uses the CONFIRM mode, i.e. when notifications would actually be used.
+ */
+internal fun hasNotifiablePayments(overview: RecurringOverview?): Boolean =
+    overview != null &&
+        (overview.pending + overview.active).any { item ->
+            item.payment.reminderDaysBefore != null || item.payment.mode == RecurringMode.CONFIRM
+        }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -211,9 +205,9 @@ fun RecurringListScreen(
             return@Scaffold
         }
         val overview = uiState.overview
-        val isEmpty =
-            overview == null || (overview.pending.isEmpty() && overview.active.isEmpty() && overview.inactive.isEmpty())
-        if (isEmpty) {
+        if (overview == null ||
+            (overview.pending.isEmpty() && overview.active.isEmpty() && overview.inactive.isEmpty())
+        ) {
             EmptyState(
                 icon = Icons.Default.Repeat,
                 title = stringResource(R.string.recurring_empty_title),
@@ -222,13 +216,13 @@ fun RecurringListScreen(
                 onActionClick = onAddClick,
                 modifier = Modifier.padding(innerPadding),
             )
-        } else if (overview != null) {
+        } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(innerPadding),
             ) {
                 item(key = "summary") {
                     MonthlySummary(
-                        overview = uiState.overview,
+                        overview = overview,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     )
                 }
