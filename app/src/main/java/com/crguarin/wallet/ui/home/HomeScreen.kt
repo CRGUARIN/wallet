@@ -327,8 +327,14 @@ private fun UpcomingPaymentRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
+            val title =
+                if (payment.kind == UpcomingKind.CARD_PAYMENT) {
+                    stringResource(R.string.upcoming_card_payment, payment.title)
+                } else {
+                    payment.title
+                }
             Text(
-                text = payment.title,
+                text = title,
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.Medium,
                 maxLines = 1,

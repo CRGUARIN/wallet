@@ -367,7 +367,7 @@ class HomeScreenTest {
                 upcoming(
                     UpcomingKind.CARD_PAYMENT,
                     refId = 7L,
-                    title = "Pago de RappiCard",
+                    title = "RappiCard",
                     date = upcomingToday.plusDays(2),
                     amount = null,
                 ),
@@ -375,6 +375,7 @@ class HomeScreenTest {
         )
 
         composeRule.onNodeWithText("Por confirmar").assertIsDisplayed()
+        composeRule.onNodeWithText("Pago de RappiCard").assertIsDisplayed()
         composeRule.onNodeWithText("Concilia el extracto").assertIsDisplayed()
         composeRule.onNodeWithText("En 2 días · Efectivo").assertIsDisplayed()
     }
@@ -397,7 +398,7 @@ class HomeScreenTest {
             listOf(
                 upcoming(UpcomingKind.RECURRING, refId = 11L, title = "Netflix"),
                 upcoming(UpcomingKind.RECURRING_PENDING, refId = 21L, title = "Luz"),
-                upcoming(UpcomingKind.CARD_PAYMENT, refId = 7L, title = "Pago de RappiCard"),
+                upcoming(UpcomingKind.CARD_PAYMENT, refId = 7L, title = "RappiCard"),
             ),
             onUpcomingRecurringClick = { recurringId = it },
             onUpcomingPendingClick = { pendingClicks++ },
