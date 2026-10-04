@@ -4,12 +4,14 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.core.money.MoneyParser
 import com.crguarin.wallet.core.money.formatForInput
 import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.core.time.TimeProvider
 import com.crguarin.wallet.domain.model.Account
+import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryNode
@@ -58,6 +60,7 @@ private const val KEY_TO_ACCOUNT = "tx_form_to_account"
 private const val KEY_CATEGORY = "tx_form_category"
 private const val KEY_DATE = "tx_form_date"
 private const val KEY_NOTE = "tx_form_note"
+private const val KEY_INSTALLMENTS = "tx_form_installments"
 
 data class TransactionEditUiState(
     val isLoading: Boolean = true,
@@ -84,6 +87,10 @@ data class TransactionEditUiState(
     val noteErrorRes: Int? = null,
     val generalErrorRes: Int? = null,
     val isSaving: Boolean = false,
+    /** Warning that triggered the confirmation dialog; NONE when the dialog is not about balance. */
+    val balanceWarning: BalanceWarning = BalanceWarning.NONE,
+    /** Number of installments for a card purchase; 1 means a single payment (saved as null). */
+    val installments: Int = 1,
     val showNegativeBalanceDialog: Boolean = false,
     val showDeleteDialog: Boolean = false,
     val showAccountSheet: Boolean = false,
@@ -102,6 +109,18 @@ data class TransactionEditUiState(
                 selectedType != TransactionType.TRANSFER &&
                 accounts.isEmpty() &&
                 generalErrorRes == null
+
+    /** Type of the selected origin account, looking in archived accounts too. */
+    val selectedAccountType: AccountType?
+        get() =
+            (
+                accounts.firstOrNull { it.account.id == accountId }?.account
+                    ?: archivedAccount
+            )?.type
+
+    /** The installments field is only offered for card purchases. */
+    val showInstallments: Boolean
+        get() = selectedType == TransactionType.EXPENSE && selectedAccountType == AccountType.CREDIT_CARD
 
     /** A transfer needs a second active account; otherwise the transfer tab offers to create one. */
     val showTransferNeedsAccounts: Boolean
@@ -164,6 +183,8 @@ class TransactionEditViewModel
         val targetTransactionId: Long? = route.transactionId
         private val initialTypeArg: TransactionType = route.initialType
         private val routeAccountId: Long? = route.accountId
+        private val routeToAccountId: Long? = route.toAccountId
+        private val routeInitialAmountMinor: Long? = route.initialAmountMinor
 
         private val selectedTypeFlow: MutableStateFlow<TransactionType>
 
@@ -188,6 +209,9 @@ class TransactionEditViewModel
                     categoryId = savedStateHandle.get<Long>(KEY_CATEGORY),
                     date = savedStateHandle.get<Long>(KEY_DATE)?.let { LocalDate.ofEpochDay(it) } ?: today,
                     note = savedStateHandle.get<String>(KEY_NOTE).orEmpty(),
+                    installments =
+                        savedStateHandle.get<Int>(KEY_INSTALLMENTS)?.coerceIn(1, SaveTransactionUseCase.MAX_INSTALLMENTS)
+                            ?: 1,
                 )
 
             viewModelScope.launch {
@@ -196,6 +220,7 @@ class TransactionEditViewModel
             viewModelScope.launch {
                 observeAccountsUseCase(false).collect { accounts ->
                     _uiState.update { it.copy(accounts = accounts) }
+                    clearInstallmentsWhenHidden()
                 }
             }
             viewModelScope.launch {
@@ -249,6 +274,7 @@ class TransactionEditViewModel
                             categoryId = existing.categoryId,
                             date = existing.date,
                             note = existing.note.orEmpty(),
+                            installments = existing.installments?.coerceIn(1, SaveTransactionUseCase.MAX_INSTALLMENTS) ?: 1,
                         )
                     }
                     persistForm()
@@ -257,6 +283,7 @@ class TransactionEditViewModel
                 _uiState.value.categoryId?.let { resolveSelectedCategory(it) }
                 _uiState.update { it.copy(isLoading = false) }
             } else {
+                applyRoutePrefill()
                 val activeAccounts = accountRepository.getAllAccounts().filter { !it.isArchived }
                 val currentAccountId = _uiState.value.accountId
                 val defaultAccountId =
@@ -270,6 +297,7 @@ class TransactionEditViewModel
                     savedStateHandle[KEY_ACCOUNT] = defaultAccountId
                 }
                 clearDestinationIfSameAsOrigin()
+                clearInstallmentsWhenHidden()
                 val currentCategoryId = _uiState.value.categoryId
                 if (currentCategoryId != null) {
                     resolveSelectedCategory(currentCategoryId)
@@ -289,6 +317,30 @@ class TransactionEditViewModel
             val lastUsed = lastUsedId?.let { id -> activeAccounts.firstOrNull { it.id == id } }
             if (lastUsed != null) return lastUsed.id
             return activeAccounts.minByOrNull { it.sortOrder }?.id ?: activeAccounts.first().id
+        }
+
+        /**
+         * Copies [routeToAccountId] and [routeInitialAmountMinor] into new forms.
+         * Only for creation and only when there is no restored user input for that field.
+         */
+        private fun applyRoutePrefill() {
+            if (!savedStateHandle.contains(KEY_TO_ACCOUNT) && routeToAccountId != null) {
+                savedStateHandle[KEY_TO_ACCOUNT] = routeToAccountId
+                _uiState.update { it.copy(toAccountId = routeToAccountId) }
+            }
+            if (!savedStateHandle.contains(KEY_AMOUNT) && routeInitialAmountMinor != null && routeInitialAmountMinor > 0L) {
+                val prefilled = formatForInput(Money(routeInitialAmountMinor))
+                savedStateHandle[KEY_AMOUNT] = prefilled
+                _uiState.update { it.copy(amountText = prefilled) }
+            }
+        }
+
+        /** Hides the installments field and resets it when it no longer applies. */
+        private fun clearInstallmentsWhenHidden() {
+            if (!_uiState.value.showInstallments && _uiState.value.installments != 1) {
+                savedStateHandle[KEY_INSTALLMENTS] = 1
+                _uiState.update { it.copy(installments = 1) }
+            }
         }
 
         private suspend fun resolveArchivedAccounts() {
@@ -364,6 +416,13 @@ class TransactionEditViewModel
                     generalErrorRes = null,
                 )
             }
+            clearInstallmentsWhenHidden()
+        }
+
+        fun setInstallments(installments: Int) {
+            val coerced = installments.coerceIn(1, SaveTransactionUseCase.MAX_INSTALLMENTS)
+            savedStateHandle[KEY_INSTALLMENTS] = coerced
+            _uiState.update { it.copy(installments = coerced, generalErrorRes = null) }
         }
 
         fun setAmountText(text: String) {
@@ -393,6 +452,7 @@ class TransactionEditViewModel
                     generalErrorRes = null,
                 )
             }
+            clearInstallmentsWhenHidden()
         }
 
         fun setToAccountId(toAccountId: Long) {
@@ -511,8 +571,11 @@ class TransactionEditViewModel
             val transaction = buildTransaction(showErrors = true) ?: return
             _uiState.update { it.copy(isSaving = true, generalErrorRes = null) }
             viewModelScope.launch {
-                if (checkNegativeBalanceUseCase(transaction) != BalanceWarning.NONE) {
-                    _uiState.update { it.copy(isSaving = false, showNegativeBalanceDialog = true) }
+                val warning = checkNegativeBalanceUseCase(transaction)
+                if (warning != BalanceWarning.NONE) {
+                    _uiState.update {
+                        it.copy(isSaving = false, showNegativeBalanceDialog = true, balanceWarning = warning)
+                    }
                     return@launch
                 }
                 saveAndFinish(transaction)
@@ -522,14 +585,21 @@ class TransactionEditViewModel
         fun confirmNegativeBalanceSave() {
             if (_uiState.value.isSaving) return
             val transaction = buildTransaction(showErrors = false) ?: return
-            _uiState.update { it.copy(showNegativeBalanceDialog = false, isSaving = true, generalErrorRes = null) }
+            _uiState.update {
+                it.copy(
+                    showNegativeBalanceDialog = false,
+                    balanceWarning = BalanceWarning.NONE,
+                    isSaving = true,
+                    generalErrorRes = null,
+                )
+            }
             viewModelScope.launch {
                 saveAndFinish(transaction)
             }
         }
 
         fun dismissNegativeBalanceDialog() {
-            _uiState.update { it.copy(showNegativeBalanceDialog = false) }
+            _uiState.update { it.copy(showNegativeBalanceDialog = false, balanceWarning = BalanceWarning.NONE) }
         }
 
         fun onDeleteClick() {
@@ -619,6 +689,12 @@ class TransactionEditViewModel
                 }
                 return null
             }
+            val installments =
+                if (state.showInstallments) {
+                    state.installments.takeIf { it > 1 }
+                } else {
+                    null
+                }
             return Transaction(
                 id = state.editingTransactionId ?: 0L,
                 type = state.selectedType,
@@ -628,6 +704,7 @@ class TransactionEditViewModel
                 categoryId = categoryId,
                 date = date,
                 note = state.note.ifBlank { null },
+                installments = installments,
                 createdAt = timeProvider.now(),
                 updatedAt = timeProvider.now(),
             )
@@ -651,6 +728,7 @@ class TransactionEditViewModel
             state.categoryId?.let { savedStateHandle[KEY_CATEGORY] = it }
             state.date?.let { savedStateHandle[KEY_DATE] = it.toEpochDay() }
             savedStateHandle[KEY_NOTE] = state.note
+            savedStateHandle[KEY_INSTALLMENTS] = state.installments
         }
 
         private fun TransactionType.toCategoryType(): CategoryType =

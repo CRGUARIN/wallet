@@ -39,6 +39,7 @@ import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.card.BalanceWarning
 import com.crguarin.wallet.ui.components.AccountPickerSheet
 import com.crguarin.wallet.ui.components.CategoryPickerSheet
 import com.crguarin.wallet.ui.components.ConfirmDialog
@@ -83,6 +84,7 @@ fun TransactionEditRoute(
             onTodayClick = {},
             onYesterdayClick = {},
             onNoteChanged = {},
+            onInstallmentsChanged = {},
             onSaveClick = {},
             onDeleteClick = {},
             onDismissDeleteDialog = {},
@@ -131,6 +133,7 @@ fun TransactionEditRoute(
         onTodayClick = viewModel::setToday,
         onYesterdayClick = viewModel::setYesterday,
         onNoteChanged = viewModel::setNote,
+        onInstallmentsChanged = viewModel::setInstallments,
         onSaveClick = viewModel::onSaveClick,
         onDeleteClick = viewModel::onDeleteClick,
         onDismissDeleteDialog = viewModel::dismissDeleteDialog,
@@ -207,6 +210,7 @@ fun TransactionEditScreen(
     onTodayClick: () -> Unit,
     onYesterdayClick: () -> Unit,
     onNoteChanged: (String) -> Unit,
+    onInstallmentsChanged: (Int) -> Unit = {},
     onSaveClick: () -> Unit,
     onDeleteClick: () -> Unit,
     onDismissDeleteDialog: () -> Unit,
@@ -309,6 +313,7 @@ fun TransactionEditScreen(
                         onTodayClick = onTodayClick,
                         onYesterdayClick = onYesterdayClick,
                         onNoteChanged = onNoteChanged,
+                        onInstallmentsChanged = onInstallmentsChanged,
                         onSaveClick = onSaveClick,
                     )
                 }
@@ -353,9 +358,24 @@ fun TransactionEditScreen(
     }
 
     if (uiState.showNegativeBalanceDialog) {
+        val isOverLimit = uiState.balanceWarning == BalanceWarning.OVER_CREDIT_LIMIT
         ConfirmDialog(
-            title = stringResource(R.string.transaction_edit_negative_balance_title),
-            message = stringResource(R.string.transaction_edit_negative_balance_message),
+            title =
+                stringResource(
+                    if (isOverLimit) {
+                        R.string.card_over_limit_title
+                    } else {
+                        R.string.transaction_edit_negative_balance_title
+                    },
+                ),
+            message =
+                stringResource(
+                    if (isOverLimit) {
+                        R.string.card_over_limit_message
+                    } else {
+                        R.string.transaction_edit_negative_balance_message
+                    },
+                ),
             onConfirm = onConfirmNegativeBalance,
             onDismiss = onDismissNegativeBalance,
         )
@@ -444,6 +464,7 @@ private fun TransactionEditScreenPreviewLight() {
             onTodayClick = {},
             onYesterdayClick = {},
             onNoteChanged = {},
+            onInstallmentsChanged = {},
             onSaveClick = {},
             onDeleteClick = {},
             onDismissDeleteDialog = {},
@@ -487,6 +508,7 @@ private fun TransactionEditScreenPreviewDark() {
             onTodayClick = {},
             onYesterdayClick = {},
             onNoteChanged = {},
+            onInstallmentsChanged = {},
             onSaveClick = {},
             onDeleteClick = {},
             onDismissDeleteDialog = {},
