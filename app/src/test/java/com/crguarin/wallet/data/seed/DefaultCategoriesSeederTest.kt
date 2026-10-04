@@ -49,11 +49,11 @@ class DefaultCategoriesSeederTest {
             seeder.seedIfNeeded()
 
             val categoriesAfterFirstRun = database.categoryDao().getAll()
-            assertThat(categoriesAfterFirstRun).hasSize(20)
+            assertThat(categoriesAfterFirstRun).hasSize(22)
 
             val roots = categoriesAfterFirstRun.filter { it.parentId == null }
             val subcategories = categoriesAfterFirstRun.filter { it.parentId != null }
-            assertThat(roots).hasSize(13)
+            assertThat(roots).hasSize(15)
             assertThat(subcategories).hasSize(7)
 
             val food = roots.first { it.systemKey == "food" }
@@ -64,7 +64,7 @@ class DefaultCategoriesSeederTest {
             seeder.seedIfNeeded()
 
             val categoriesAfterSecondRun = database.categoryDao().getAll()
-            assertThat(categoriesAfterSecondRun).hasSize(20)
+            assertThat(categoriesAfterSecondRun).hasSize(22)
         }
 
     @Test
