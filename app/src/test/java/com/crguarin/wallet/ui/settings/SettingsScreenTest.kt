@@ -153,10 +153,8 @@ class SettingsScreenTest {
         show(SettingsUiState(dynamicColor = true), calls)
 
         composeRule
-            .onNode(
-                androidx.compose.ui.test
-                    .isToggleable(),
-            ).performScrollTo()
+            .onNode(isToggleable() and hasText("Color dinámico"))
+            .performScrollTo()
             .assertIsOn()
             .performClick()
 
@@ -168,10 +166,8 @@ class SettingsScreenTest {
         show(SettingsUiState(dynamicColor = false))
 
         composeRule
-            .onNode(
-                androidx.compose.ui.test
-                    .isToggleable(),
-            ).performScrollTo()
+            .onNode(isToggleable() and hasText("Color dinámico"))
+            .performScrollTo()
             .assertIsOff()
     }
 
@@ -369,12 +365,15 @@ class SettingsScreenTest {
     }
 
     @Test
-    fun `card section is only shown when a credit card exists`() {
+    fun `card section is hidden when there is no credit card`() {
         show(SettingsUiState(notificationSettings = NotificationSettings(), hasCreditCard = false))
 
         composeRule.onNodeWithText("Tarjetas de crédito").assertDoesNotExist()
         composeRule.onNodeWithText("Fecha de corte").assertDoesNotExist()
+    }
 
+    @Test
+    fun `card section shows the card controls when a credit card exists`() {
         show(SettingsUiState(notificationSettings = NotificationSettings(), hasCreditCard = true))
 
         composeRule.onNodeWithText("Tarjetas de crédito").performScrollTo().assertIsDisplayed()

@@ -355,7 +355,8 @@ class HomeScreenTest {
         composeRule.onNodeWithText("Hoy · Efectivo").assertIsDisplayed()
         composeRule.onNodeWithText("Mañana · Efectivo").assertIsDisplayed()
         composeRule.onNodeWithText("En 4 días · Efectivo").assertIsDisplayed()
-        composeRule.onNodeWithText("− $ 45.900").assertIsDisplayed()
+        // Every row carries the same amount, so the money text appears three times.
+        composeRule.onAllNodesWithText("− $ 45.900").onFirst().assertIsDisplayed()
     }
 
     @Test

@@ -17,6 +17,7 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -29,38 +30,13 @@ import java.time.Instant
 class MainViewModelTest {
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var preferencesRepository: FakePreferencesRepository
-    private lateinit var viewModel: MainViewModel
+    private lateinit var scheduler: FakeDailyWorkScheduler
 
     @Before
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         preferencesRepository = FakePreferencesRepository()
-        val accountRepository = FakeAccountRepository()
-        val transactionRepository = FakeTransactionRepository()
-        val categoryRepository = FakeCategoryRepository()
-        val timeProvider = FakeTimeProvider(Instant.EPOCH)
-        val checkNegativeBalanceUseCase = CheckNegativeBalanceUseCase(accountRepository, transactionRepository)
-        viewModel =
-            MainViewModel(
-                preferencesRepository,
-                OnAppStartUseCase(
-                    ProcessDueRecurringUseCase(
-                        FakeRecurringRepository(),
-                        accountRepository,
-                        categoryRepository,
-                        SaveTransactionUseCase(
-                            transactionRepository,
-                            accountRepository,
-                            categoryRepository,
-                            timeProvider,
-                            checkNegativeBalanceUseCase,
-                        ),
-                        timeProvider,
-                    ),
-                    preferencesRepository,
-                    FakeDailyWorkScheduler(),
-                ),
-            )
+        scheduler = FakeDailyWorkScheduler()
     }
 
     @After
@@ -68,9 +44,38 @@ class MainViewModelTest {
         Dispatchers.resetMain()
     }
 
+    private fun createViewModel(): MainViewModel {
+        val accountRepository = FakeAccountRepository()
+        val transactionRepository = FakeTransactionRepository()
+        val categoryRepository = FakeCategoryRepository()
+        val timeProvider = FakeTimeProvider(Instant.EPOCH)
+        val checkNegativeBalanceUseCase = CheckNegativeBalanceUseCase(accountRepository, transactionRepository)
+        return MainViewModel(
+            preferencesRepository,
+            OnAppStartUseCase(
+                ProcessDueRecurringUseCase(
+                    FakeRecurringRepository(),
+                    accountRepository,
+                    categoryRepository,
+                    SaveTransactionUseCase(
+                        transactionRepository,
+                        accountRepository,
+                        categoryRepository,
+                        timeProvider,
+                        checkNegativeBalanceUseCase,
+                    ),
+                    timeProvider,
+                ),
+                preferencesRepository,
+                scheduler,
+            ),
+        )
+    }
+
     @Test
     fun `uiState emits Ready with onboarding completed flag and preferences`() =
         runTest(testDispatcher) {
+            val viewModel = createViewModel()
             viewModel.uiState.test {
                 val item = awaitItem()
                 assertThat(item).isInstanceOf(MainUiState.Ready::class.java)
@@ -84,5 +89,46 @@ class MainViewModelTest {
 
                 cancelAndIgnoreRemainingEvents()
             }
+        }
+
+    @Test
+    fun `app start is not triggered until onboarding is complete`() =
+        runTest(testDispatcher) {
+            createViewModel()
+            advanceUntilIdle()
+
+            assertThat(scheduler.calls).isEmpty()
+
+            preferencesRepository.setOnboardingCompleted(true)
+            advanceUntilIdle()
+
+            assertThat(scheduler.calls)
+                .containsExactly(FakeDailyWorkScheduler.ScheduleCall(hour = 8, minute = 0, replace = false))
+        }
+
+    @Test
+    fun `app start runs only once even when preferences keep changing`() =
+        runTest(testDispatcher) {
+            preferencesRepository.setOnboardingCompleted(true)
+            createViewModel()
+            advanceUntilIdle()
+
+            preferencesRepository.setDynamicColor(false)
+            preferencesRepository.setOnboardingCompleted(false)
+            preferencesRepository.setOnboardingCompleted(true)
+            advanceUntilIdle()
+
+            assertThat(scheduler.calls).hasSize(1)
+        }
+
+    @Test
+    fun `app start runs once with an already completed onboarding`() =
+        runTest(testDispatcher) {
+            preferencesRepository.setOnboardingCompleted(true)
+            createViewModel()
+            advanceUntilIdle()
+
+            assertThat(scheduler.calls)
+                .containsExactly(FakeDailyWorkScheduler.ScheduleCall(hour = 8, minute = 0, replace = false))
         }
 }
