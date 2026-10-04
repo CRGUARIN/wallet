@@ -4,7 +4,9 @@ import android.content.Context
 import androidx.room.Room
 import com.crguarin.wallet.data.db.AccountDao
 import com.crguarin.wallet.data.db.BackupDao
+import com.crguarin.wallet.data.db.CardStatementDao
 import com.crguarin.wallet.data.db.CategoryDao
+import com.crguarin.wallet.data.db.MIGRATION_1_2
 import com.crguarin.wallet.data.db.TransactionDao
 import com.crguarin.wallet.data.db.WalletDatabase
 import dagger.Module
@@ -29,7 +31,8 @@ object DatabaseModule {
                 context,
                 WalletDatabase::class.java,
                 DATABASE_NAME,
-            ).build()
+            ).addMigrations(MIGRATION_1_2)
+            .build()
 
     @Provides
     fun provideAccountDao(database: WalletDatabase): AccountDao = database.accountDao()
@@ -42,4 +45,7 @@ object DatabaseModule {
 
     @Provides
     fun provideBackupDao(database: WalletDatabase): BackupDao = database.backupDao()
+
+    @Provides
+    fun provideCardStatementDao(database: WalletDatabase): CardStatementDao = database.cardStatementDao()
 }

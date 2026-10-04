@@ -20,6 +20,7 @@ fun TransactionEntity.toDomain(): Transaction =
         note = note,
         createdAt = createdAt,
         updatedAt = updatedAt,
+        installments = installments,
     )
 
 fun Transaction.toEntity(): TransactionEntity =
@@ -34,6 +35,7 @@ fun Transaction.toEntity(): TransactionEntity =
         note = note,
         createdAt = createdAt,
         updatedAt = updatedAt,
+        installments = installments,
     )
 
 fun DbTransactionWithDetails.toDomain(): TransactionDetails =

@@ -101,10 +101,10 @@ class DefaultCategoriesSeeder
                     icon = "more_horiz",
                 ),
                 CategorySeed(
-                    systemKey = "card_interest_fees",
-                    type = CategoryType.EXPENSE,
-                    color = 0xFFEF5350.toInt(),
-                    icon = "credit_card",
+                    systemKey = SystemCategoryDefaults.CARD_INTEREST_FEES_KEY,
+                    type = SystemCategoryDefaults.CARD_INTEREST_FEES_TYPE,
+                    color = SystemCategoryDefaults.CARD_INTEREST_FEES_COLOR,
+                    icon = SystemCategoryDefaults.CARD_INTEREST_FEES_ICON,
                 ),
                 // Income categories
                 CategorySeed(
@@ -138,10 +138,10 @@ class DefaultCategoriesSeeder
                     icon = "account_balance",
                 ),
                 CategorySeed(
-                    systemKey = "card_adjustment",
-                    type = CategoryType.INCOME,
-                    color = 0xFF66BB6A.toInt(),
-                    icon = "receipt_long",
+                    systemKey = SystemCategoryDefaults.CARD_ADJUSTMENT_KEY,
+                    type = SystemCategoryDefaults.CARD_ADJUSTMENT_TYPE,
+                    color = SystemCategoryDefaults.CARD_ADJUSTMENT_COLOR,
+                    icon = SystemCategoryDefaults.CARD_ADJUSTMENT_ICON,
                 ),
             )
 

@@ -60,4 +60,6 @@ data class TransactionEntity(
     val createdAt: Instant,
     @ColumnInfo(name = "updated_at")
     val updatedAt: Instant,
+    @ColumnInfo(name = "installments")
+    val installments: Int? = null,
 )
