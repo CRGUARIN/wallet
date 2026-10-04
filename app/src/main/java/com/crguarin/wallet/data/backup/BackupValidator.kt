@@ -29,9 +29,11 @@ object BackupValidator {
     private fun firstReason(dto: BackupDto): String? {
         if (dto.currency != APP_CURRENCY) return "unsupported currency '${dto.currency}'"
         val accountTypes = dto.accounts.associate { it.id to it.type }
+        val recurringIds = dto.recurringPayments.map { it.id }.toSet()
         return validateAccounts(dto.accounts)
             ?: validateCategories(dto.categories)
-            ?: validateTransactions(dto, accountTypes)
+            ?: validateRecurringPayments(dto)
+            ?: validateTransactions(dto, accountTypes, recurringIds)
             ?: validateCardStatements(dto, accountTypes)
     }
 
@@ -91,14 +93,54 @@ object BackupValidator {
         return null
     }
 
+    private fun validateRecurringPayments(dto: BackupDto): String? {
+        val payments = dto.recurringPayments
+        idProblem("recurring payment", payments.map { it.id })?.let { return it }
+        val accountIds = dto.accounts.map { it.id }.toSet()
+        val categoriesById = dto.categories.associateBy { it.id }
+        return payments.firstNotNullOfOrNull { recurringProblem(it, accountIds, categoriesById) }
+    }
+
+    private fun recurringProblem(
+        payment: RecurringPaymentDto,
+        accountIds: Set<Long>,
+        categoriesById: Map<Long, CategoryDto>,
+    ): String? {
+        val label = "recurring payment ${payment.id}"
+        val category = categoriesById[payment.categoryId]
+        return when {
+            payment.name.trim().isEmpty() -> "$label: empty name"
+            payment.name.length > DomainLimits.NAME_MAX_LENGTH -> "$label: name too long"
+            payment.type == TransactionType.TRANSFER -> "$label: invalid type"
+            payment.amount <= 0 -> "$label: amount must be positive"
+            payment.amount > Money.MAX_MINOR_UNITS -> "$label: amount too large"
+            (payment.note?.length ?: 0) > DomainLimits.NOTE_MAX_LENGTH -> "$label: note too long"
+            payment.accountId !in accountIds -> "$label: unknown account ${payment.accountId}"
+            category == null -> "$label: unknown category ${payment.categoryId}"
+            category.type.name != payment.type.name -> "$label: category type differs from payment type"
+            payment.interval !in 1..12 -> "$label: invalid interval"
+            payment.reminderDaysBefore != null && payment.reminderDaysBefore !in 1..7 ->
+                "$label: invalid reminder"
+            !isValidDate(payment.startDate) -> "$label: invalid start date"
+            !isValidDate(payment.nextDueDate) -> "$label: invalid next due date"
+            payment.endDate != null && !isValidDate(payment.endDate) -> "$label: invalid end date"
+            payment.endDate != null && LocalDate.parse(payment.endDate) < LocalDate.parse(payment.startDate) ->
+                "$label: end date before start date"
+            else -> null
+        }
+    }
+
     private fun validateTransactions(
         dto: BackupDto,
         accountTypes: Map<Long, AccountType>,
+        recurringIds: Set<Long>,
     ): String? {
         idProblem("transaction", dto.transactions.map { it.id })?.let { return it }
         val accountIds = dto.accounts.map { it.id }.toSet()
         val categoriesById = dto.categories.associateBy { it.id }
-        return dto.transactions.firstNotNullOfOrNull { transactionProblem(it, accountIds, accountTypes, categoriesById) }
+        return dto.transactions.firstNotNullOfOrNull {
+            transactionProblem(it, accountIds, accountTypes, categoriesById, recurringIds)
+        }
     }
 
     private fun transactionProblem(
@@ -106,6 +148,7 @@ object BackupValidator {
         accountIds: Set<Long>,
         accountTypes: Map<Long, AccountType>,
         categoriesById: Map<Long, CategoryDto>,
+        recurringIds: Set<Long>,
     ): String? {
         val label = "transaction ${tx.id}"
         return when {
@@ -114,6 +157,8 @@ object BackupValidator {
             !isValidDate(tx.date) -> "$label: invalid date"
             (tx.note?.length ?: 0) > DomainLimits.NOTE_MAX_LENGTH -> "$label: note too long"
             tx.accountId !in accountIds -> "$label: unknown account ${tx.accountId}"
+            tx.recurringId != null && tx.recurringId !in recurringIds ->
+                "$label: unknown recurring payment ${tx.recurringId}"
             !isValidInstallments(tx, accountTypes) -> "$label: invalid installments"
             tx.type == TransactionType.TRANSFER -> transferProblem(tx, accountIds)
             else -> flowProblem(tx, categoriesById)

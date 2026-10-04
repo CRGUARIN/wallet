@@ -336,4 +336,112 @@ class BackupValidatorTest {
     fun `statement without adjustment is valid`() {
         assertThat(BackupValidator.validate(card.withStatement(2) { it.copy(adjustmentTransactionId = null) })).isNull()
     }
+
+    private val recurring = validRecurringBackupDto()
+
+    private fun BackupDto.withRecurring(
+        id: Long,
+        change: (RecurringPaymentDto) -> RecurringPaymentDto,
+    ) = copy(recurringPayments = recurringPayments.map { if (it.id == id) change(it) else it })
+
+    @Test
+    fun `recurring backup without payments is valid`() {
+        assertThat(BackupValidator.validate(recurring.copy(recurringPayments = emptyList()))).isNull()
+        assertThat(BackupValidator.validate(valid.copy(recurringPayments = emptyList()))).isNull()
+    }
+
+    @Test
+    fun `non-positive and duplicated recurring ids are rejected`() {
+        assertInvalid(recurring.withRecurring(1) { it.copy(id = 0) })
+        assertInvalid(recurring.withRecurring(2) { it.copy(id = -1) })
+        assertInvalid(recurring.withRecurring(2) { it.copy(id = 1) })
+    }
+
+    @Test
+    fun `empty recurring name is rejected and the limit is enforced`() {
+        assertInvalid(recurring.withRecurring(1) { it.copy(name = "") })
+        assertInvalid(recurring.withRecurring(1) { it.copy(name = "   ") })
+        assertInvalid(recurring.withRecurring(1) { it.copy(name = "a".repeat(41)) })
+        assertThat(BackupValidator.validate(recurring.withRecurring(1) { it.copy(name = "a".repeat(40)) })).isNull()
+    }
+
+    @Test
+    fun `transfer type is rejected for recurring payments`() {
+        assertInvalid(recurring.withRecurring(1) { it.copy(type = TransactionType.TRANSFER) })
+    }
+
+    @Test
+    fun `non-positive and too large recurring amounts are rejected`() {
+        assertInvalid(recurring.withRecurring(1) { it.copy(amount = 0) })
+        assertInvalid(recurring.withRecurring(1) { it.copy(amount = -5) })
+        assertInvalid(recurring.withRecurring(1) { it.copy(amount = Money.MAX_MINOR_UNITS + 1) })
+        assertThat(
+            BackupValidator.validate(recurring.withRecurring(1) { it.copy(amount = Money.MAX_MINOR_UNITS) }),
+        ).isNull()
+    }
+
+    @Test
+    fun `recurring note longer than 200 is rejected and exactly 200 is valid`() {
+        assertInvalid(recurring.withRecurring(1) { it.copy(note = "n".repeat(201)) })
+        assertThat(
+            BackupValidator.validate(recurring.withRecurring(1) { it.copy(note = "n".repeat(200)) }),
+        ).isNull()
+    }
+
+    @Test
+    fun `recurring payment with unknown account or category is rejected`() {
+        assertInvalid(recurring.withRecurring(1) { it.copy(accountId = 99) })
+        assertInvalid(recurring.withRecurring(1) { it.copy(categoryId = 99) })
+    }
+
+    @Test
+    fun `recurring payment with a category of the other type is rejected`() {
+        assertInvalid(recurring.withRecurring(1) { it.copy(categoryId = 2) })
+    }
+
+    @Test
+    fun `recurring interval outside 1 to 12 is rejected`() {
+        assertInvalid(recurring.withRecurring(1) { it.copy(interval = 0) })
+        assertInvalid(recurring.withRecurring(1) { it.copy(interval = 13) })
+        assertThat(BackupValidator.validate(recurring.withRecurring(1) { it.copy(interval = 1) })).isNull()
+        assertThat(BackupValidator.validate(recurring.withRecurring(1) { it.copy(interval = 12) })).isNull()
+    }
+
+    @Test
+    fun `recurring reminder outside null or 1 to 7 is rejected`() {
+        assertInvalid(recurring.withRecurring(1) { it.copy(reminderDaysBefore = 0) })
+        assertInvalid(recurring.withRecurring(1) { it.copy(reminderDaysBefore = 8) })
+        assertThat(BackupValidator.validate(recurring.withRecurring(1) { it.copy(reminderDaysBefore = null) })).isNull()
+        assertThat(BackupValidator.validate(recurring.withRecurring(1) { it.copy(reminderDaysBefore = 1) })).isNull()
+        assertThat(BackupValidator.validate(recurring.withRecurring(1) { it.copy(reminderDaysBefore = 7) })).isNull()
+    }
+
+    @Test
+    fun `recurring end date before the start date is rejected and equal is valid`() {
+        assertInvalid(recurring.withRecurring(1) { it.copy(startDate = "2026-10-15", endDate = "2026-10-14") })
+        assertThat(
+            BackupValidator.validate(recurring.withRecurring(1) { it.copy(startDate = "2026-10-15", endDate = "2026-10-15") }),
+        ).isNull()
+        assertThat(BackupValidator.validate(recurring.withRecurring(2) { it.copy(endDate = null) })).isNull()
+    }
+
+    @Test
+    fun `recurring payment with invalid dates is rejected`() {
+        assertInvalid(recurring.withRecurring(1) { it.copy(startDate = "15/09/2026") })
+        assertInvalid(recurring.withRecurring(1) { it.copy(nextDueDate = "2026-13-40") })
+        assertInvalid(recurring.withRecurring(2) { it.copy(endDate = "not-a-date") })
+    }
+
+    @Test
+    fun `transaction with an unknown recurring payment is rejected`() {
+        assertInvalid(recurring.withTransaction(6) { it.copy(recurringId = 99) })
+        assertInvalid(recurring.withTransaction(1) { it.copy(recurringId = 99) })
+    }
+
+    @Test
+    fun `transaction with a null or existing recurring payment is valid`() {
+        assertThat(BackupValidator.validate(recurring.withTransaction(1) { it.copy(recurringId = null) })).isNull()
+        assertThat(BackupValidator.validate(recurring.withTransaction(1) { it.copy(recurringId = 2) })).isNull()
+        assertThat(BackupValidator.validate(recurring)).isNull()
+    }
 }
