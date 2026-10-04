@@ -21,6 +21,7 @@ fun TransactionEntity.toDomain(): Transaction =
         createdAt = createdAt,
         updatedAt = updatedAt,
         installments = installments,
+        recurringId = recurringId,
     )
 
 fun Transaction.toEntity(): TransactionEntity =
@@ -36,6 +37,7 @@ fun Transaction.toEntity(): TransactionEntity =
         createdAt = createdAt,
         updatedAt = updatedAt,
         installments = installments,
+        recurringId = recurringId,
     )
 
 fun DbTransactionWithDetails.toDomain(): TransactionDetails =

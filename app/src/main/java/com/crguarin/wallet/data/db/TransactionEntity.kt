@@ -36,6 +36,7 @@ import java.time.LocalDate
         Index(value = ["to_account_id"]),
         Index(value = ["category_id"]),
         Index(value = ["date"]),
+        Index(value = ["recurring_id"], name = "index_transactions_recurring_id"),
     ],
 )
 data class TransactionEntity(
@@ -62,4 +63,6 @@ data class TransactionEntity(
     val updatedAt: Instant,
     @ColumnInfo(name = "installments")
     val installments: Int? = null,
+    @ColumnInfo(name = "recurring_id")
+    val recurringId: Long? = null,
 )

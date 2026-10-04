@@ -1,12 +1,17 @@
 package com.crguarin.wallet.data.prefs
 
 import android.content.Context
+import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.test.core.app.ApplicationProvider
 import app.cash.turbine.test
 import com.crguarin.wallet.domain.model.ThemeMode
+import com.crguarin.wallet.domain.model.notifications.NotificationSettings
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
@@ -16,12 +21,14 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.io.File
+import java.time.LocalDate
 
 @OptIn(ExperimentalCoroutinesApi::class)
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class PreferencesRepositoryImplTest {
     private lateinit var repository: PreferencesRepositoryImpl
+    private lateinit var dataStore: DataStore<Preferences>
     private val testDispatcher = UnconfinedTestDispatcher()
     private val testScope = TestScope(testDispatcher)
 
@@ -29,7 +36,7 @@ class PreferencesRepositoryImplTest {
     fun setUp() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val testFile = File(context.filesDir, "datastore/test_prefs_${System.currentTimeMillis()}.preferences_pb")
-        val dataStore =
+        dataStore =
             PreferenceDataStoreFactory.create(
                 scope = testScope,
                 produceFile = { testFile },
@@ -76,5 +83,64 @@ class PreferencesRepositoryImplTest {
 
                 cancelAndIgnoreRemainingEvents()
             }
+        }
+
+    @Test
+    fun `notification settings default to the C3 contract values`() =
+        testScope.runTest {
+            assertThat(repository.getNotificationSettings()).isEqualTo(NotificationSettings())
+        }
+
+    @Test
+    fun `notification settings updates are saved and observed`() =
+        testScope.runTest {
+            repository.observeNotificationSettings().test {
+                assertThat(awaitItem()).isEqualTo(NotificationSettings())
+
+                repository.updateNotificationSettings { it.copy(enabled = false, hour = 21, minute = 30) }
+                val updated = awaitItem()
+                assertThat(updated.enabled).isFalse()
+                assertThat(updated.hour).isEqualTo(21)
+                assertThat(updated.minute).isEqualTo(30)
+                assertThat(updated.recurringReminders).isTrue()
+
+                repository.updateNotificationSettings {
+                    it.copy(cardClosingDaysBefore = 5, cardPaymentDaysBefore = 0, cardOverdue = false)
+                }
+                val cards = awaitItem()
+                assertThat(cards.cardClosingDaysBefore).isEqualTo(5)
+                assertThat(cards.cardPaymentDaysBefore).isEqualTo(0)
+                assertThat(cards.cardOverdue).isFalse()
+                assertThat(cards.hour).isEqualTo(21)
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `notification settings out-of-range values are clamped`() =
+        testScope.runTest {
+            repository.updateNotificationSettings {
+                it.copy(hour = 99, minute = -4, cardClosingDaysBefore = 30, cardPaymentDaysBefore = -2)
+            }
+
+            val stored = repository.getNotificationSettings()
+            assertThat(stored.hour).isEqualTo(23)
+            assertThat(stored.minute).isEqualTo(0)
+            assertThat(stored.cardClosingDaysBefore).isEqualTo(7)
+            assertThat(stored.cardPaymentDaysBefore).isEqualTo(0)
+        }
+
+    @Test
+    fun `last notification run date round-trips as ISO date`() =
+        testScope.runTest {
+            assertThat(repository.getLastNotificationRunDate()).isNull()
+
+            val today = LocalDate.of(2026, 10, 4)
+            repository.setLastNotificationRunDate(today)
+
+            assertThat(repository.getLastNotificationRunDate()).isEqualTo(today)
+            val raw = dataStore.data.first()[stringPreferencesKey("last_notification_run_date")]
+            assertThat(raw).isEqualTo("2026-10-04")
         }
 }
