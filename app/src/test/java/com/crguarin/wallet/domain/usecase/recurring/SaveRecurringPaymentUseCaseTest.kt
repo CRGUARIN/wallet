@@ -57,6 +57,16 @@ class SaveRecurringPaymentUseCaseTest {
         }
 
     @Test
+    fun `create stamps createdAt and updatedAt from the time provider`() =
+        runTest {
+            val result = saveRecurringPaymentUseCase(testPayment(id = 0L, startDate = today))
+            val id = (result as DomainResult.Success).value
+            val saved = recurringRepository.get(id)
+            assertThat(saved?.createdAt).isEqualTo(now)
+            assertThat(saved?.updatedAt).isEqualTo(now)
+        }
+
+    @Test
     fun `create rejects startDate in the past`() =
         runTest {
             val result = saveRecurringPaymentUseCase(testPayment(id = 0L, startDate = today.minusDays(1)))
@@ -222,12 +232,60 @@ class SaveRecurringPaymentUseCaseTest {
         }
 
     @Test
+    fun `edit with a new startDate recalculates nextDueDate from today`() =
+        runTest {
+            recurringRepository.setInitialData(listOf(testPayment(id = 1L, startDate = today)))
+            val newStart = LocalDate.of(2026, 10, 20)
+            val result = saveRecurringPaymentUseCase(testPayment(id = 1L, startDate = newStart))
+            assertThat(result.isSuccess).isTrue()
+            assertThat(recurringRepository.get(1L)?.startDate).isEqualTo(newStart)
+            assertThat(recurringRepository.get(1L)?.nextDueDate).isEqualTo(newStart)
+        }
+
+    @Test
+    fun `edit with an interval change recalculates nextDueDate`() =
+        runTest {
+            val start = LocalDate.of(2026, 8, 5)
+            recurringRepository.setInitialData(
+                listOf(
+                    testPayment(
+                        id = 1L,
+                        startDate = start,
+                        nextDueDate = start,
+                        frequency = RecurrenceFrequency.MONTHLY,
+                    ),
+                ),
+            )
+            val result =
+                saveRecurringPaymentUseCase(
+                    testPayment(
+                        id = 1L,
+                        startDate = start,
+                        frequency = RecurrenceFrequency.MONTHLY,
+                        interval = 3,
+                    ),
+                )
+            assertThat(result.isSuccess).isTrue()
+            // Quarterly anchored on the 5th: Aug 5, Nov 5...; first on/after Oct 5 is Nov 5.
+            assertThat(recurringRepository.get(1L)?.nextDueDate).isEqualTo(LocalDate.of(2026, 11, 5))
+        }
+
+    @Test
     fun `edit with new startDate in the past fails`() =
         runTest {
             recurringRepository.setInitialData(listOf(testPayment(id = 1L, startDate = today)))
             val result =
                 saveRecurringPaymentUseCase(testPayment(id = 1L, startDate = today.minusDays(1)))
             assertThat(result.errorOrNull()).isEqualTo(DomainError.RecurringDateInPast)
+        }
+
+    @Test
+    fun `edit with new startDate beyond one year fails`() =
+        runTest {
+            recurringRepository.setInitialData(listOf(testPayment(id = 1L, startDate = today)))
+            val result =
+                saveRecurringPaymentUseCase(testPayment(id = 1L, startDate = today.plusYears(1).plusDays(1)))
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.DateOutOfRange)
         }
 
     @Test

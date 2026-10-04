@@ -8,10 +8,13 @@ import com.crguarin.wallet.domain.fake.FakeCategoryRepository
 import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
+import com.crguarin.wallet.domain.model.Transaction
+import com.crguarin.wallet.domain.model.recurring.OccurrenceResult
 import com.crguarin.wallet.domain.model.recurring.RecurringMode
 import com.crguarin.wallet.domain.model.recurring.testAccount
 import com.crguarin.wallet.domain.model.recurring.testCategory
 import com.crguarin.wallet.domain.model.recurring.testPayment
+import com.crguarin.wallet.domain.repository.RecurringRepository
 import com.crguarin.wallet.domain.usecase.CheckNegativeBalanceUseCase
 import com.crguarin.wallet.domain.usecase.SaveTransactionUseCase
 import com.google.common.truth.Truth.assertThat
@@ -23,6 +26,10 @@ import java.time.LocalDate
 
 class ConfirmSkipRecurringUseCaseTest {
     private lateinit var recurringRepository: FakeRecurringRepository
+    private lateinit var accountRepository: FakeAccountRepository
+    private lateinit var categoryRepository: FakeCategoryRepository
+    private lateinit var timeProvider: FakeTimeProvider
+    private lateinit var saveTransactionUseCase: SaveTransactionUseCase
     private lateinit var confirmRecurringOccurrenceUseCase: ConfirmRecurringOccurrenceUseCase
     private lateinit var skipRecurringOccurrenceUseCase: SkipRecurringOccurrenceUseCase
 
@@ -31,13 +38,13 @@ class ConfirmSkipRecurringUseCaseTest {
     @Before
     fun setUp() {
         recurringRepository = FakeRecurringRepository()
-        val accountRepository = FakeAccountRepository()
-        val categoryRepository = FakeCategoryRepository()
+        accountRepository = FakeAccountRepository()
+        categoryRepository = FakeCategoryRepository()
         val transactionRepository = FakeTransactionRepository()
-        val timeProvider = FakeTimeProvider(currentInstant = Instant.parse("2026-10-05T12:00:00Z"))
+        timeProvider = FakeTimeProvider(currentInstant = Instant.parse("2026-10-05T12:00:00Z"))
         accountRepository.setInitialData(listOf(testAccount()))
         categoryRepository.setInitialData(listOf(testCategory()))
-        val saveTransactionUseCase =
+        saveTransactionUseCase =
             SaveTransactionUseCase(
                 transactionRepository,
                 accountRepository,
@@ -114,5 +121,42 @@ class ConfirmSkipRecurringUseCaseTest {
     fun `skip on missing payment fails with NotFound`() =
         runTest {
             assertThat(skipRecurringOccurrenceUseCase(99L).errorOrNull()).isEqualTo(DomainError.NotFound)
+        }
+
+    @Test
+    fun `confirm already handled by a concurrent run fails with NotFound`() =
+        runTest {
+            recurringRepository.setInitialData(
+                listOf(testPayment(id = 1L, startDate = today, nextDueDate = today, mode = RecurringMode.CONFIRM)),
+            )
+            val useCase =
+                ConfirmRecurringOccurrenceUseCase(
+                    alreadyHandledRepository(),
+                    accountRepository,
+                    categoryRepository,
+                    saveTransactionUseCase,
+                    timeProvider,
+                )
+            assertThat(useCase(1L, Money(1_000L), today).errorOrNull()).isEqualTo(DomainError.NotFound)
+        }
+
+    @Test
+    fun `skip already handled by a concurrent run fails with NotFound`() =
+        runTest {
+            recurringRepository.setInitialData(
+                listOf(testPayment(id = 1L, startDate = today, nextDueDate = today, mode = RecurringMode.CONFIRM)),
+            )
+            val useCase = SkipRecurringOccurrenceUseCase(alreadyHandledRepository(), timeProvider)
+            assertThat(useCase(1L).errorOrNull()).isEqualTo(DomainError.NotFound)
+        }
+
+    private fun alreadyHandledRepository(): RecurringRepository =
+        object : RecurringRepository by recurringRepository {
+            override suspend fun completeOccurrence(
+                paymentId: Long,
+                expectedDueDate: LocalDate,
+                transaction: Transaction?,
+                newNextDueDate: LocalDate,
+            ): OccurrenceResult = OccurrenceResult.AlreadyHandled
         }
 }
