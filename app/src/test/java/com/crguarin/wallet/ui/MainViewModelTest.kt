@@ -1,8 +1,18 @@
 package com.crguarin.wallet.ui
 
 import app.cash.turbine.test
+import com.crguarin.wallet.domain.fake.FakeAccountRepository
+import com.crguarin.wallet.domain.fake.FakeCategoryRepository
+import com.crguarin.wallet.domain.fake.FakeDailyWorkScheduler
 import com.crguarin.wallet.domain.fake.FakePreferencesRepository
+import com.crguarin.wallet.domain.fake.FakeRecurringRepository
+import com.crguarin.wallet.domain.fake.FakeTimeProvider
+import com.crguarin.wallet.domain.fake.FakeTransactionRepository
 import com.crguarin.wallet.domain.model.ThemeMode
+import com.crguarin.wallet.domain.usecase.CheckNegativeBalanceUseCase
+import com.crguarin.wallet.domain.usecase.SaveTransactionUseCase
+import com.crguarin.wallet.domain.usecase.notifications.OnAppStartUseCase
+import com.crguarin.wallet.domain.usecase.recurring.ProcessDueRecurringUseCase
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -13,6 +23,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import java.time.Instant
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModelTest {
@@ -24,7 +35,32 @@ class MainViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         preferencesRepository = FakePreferencesRepository()
-        viewModel = MainViewModel(preferencesRepository)
+        val accountRepository = FakeAccountRepository()
+        val transactionRepository = FakeTransactionRepository()
+        val categoryRepository = FakeCategoryRepository()
+        val timeProvider = FakeTimeProvider(Instant.EPOCH)
+        val checkNegativeBalanceUseCase = CheckNegativeBalanceUseCase(accountRepository, transactionRepository)
+        viewModel =
+            MainViewModel(
+                preferencesRepository,
+                OnAppStartUseCase(
+                    ProcessDueRecurringUseCase(
+                        FakeRecurringRepository(),
+                        accountRepository,
+                        categoryRepository,
+                        SaveTransactionUseCase(
+                            transactionRepository,
+                            accountRepository,
+                            categoryRepository,
+                            timeProvider,
+                            checkNegativeBalanceUseCase,
+                        ),
+                        timeProvider,
+                    ),
+                    preferencesRepository,
+                    FakeDailyWorkScheduler(),
+                ),
+            )
     }
 
     @After
