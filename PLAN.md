@@ -363,7 +363,7 @@ UNIQUE(account_id, closing_date), INDEX(adjustment_transaction_id)
 
 ### 6.3 Migraciones
 - v1 es la base. Toda migración futura debe tener `Migration` explícita **y** test con `MigrationTestHelper`. **Prohibido** `fallbackToDestructiveMigration()` en release.
-- Migración 1→2 (Tarea 15): agrega las 3 columnas de tarjeta a `accounts`, `installments` a `transactions` y crea `card_statements`; conserva todos los datos. Test con `MigrationTestHelper`.
+- Migración 1→2 (Tarea 15): agrega las 3 columnas de tarjeta a `accounts`, `installments` a `transactions` y crea `card_statements`; conserva todos los datos. Test con `MigrationTestHelper` (nota: en AGP 9 los assets del source set `test` no llegan al test, así que `app/schemas` se registra como assets del source set `debug`).
 
 ### 6.4 Seed inicial
 En el primer arranque (`RoomDatabase.Callback.onCreate` o, mejor, un `DefaultCategoriesSeeder` invocado por el onboarding) se crean las categorías por defecto con `systemKey`:
