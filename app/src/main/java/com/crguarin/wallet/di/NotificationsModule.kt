@@ -30,14 +30,12 @@ abstract class NotificationsModule {
     companion object {
         @Provides
         @Singleton
-        @JvmStatic
         fun provideWorkManager(
             @ApplicationContext context: Context,
         ): WorkManager = WorkManager.getInstance(context)
 
         @Provides
         @Singleton
-        @JvmStatic
         fun provideAppLocaleSource(): AppLocaleSource = AppLocaleSource { AppCompatDelegate.getApplicationLocales() }
     }
 }
