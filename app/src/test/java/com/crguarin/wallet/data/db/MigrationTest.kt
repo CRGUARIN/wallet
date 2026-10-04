@@ -408,6 +408,27 @@ class MigrationTest {
             assertThat(cursor.readLong("count")).isEqualTo(0L)
         }
 
+        // Every v3 index exists with its exact generated name.
+        db.query(
+            "SELECT name FROM sqlite_master WHERE type = 'index' " +
+                "AND tbl_name IN ('transactions', 'recurring_payments')",
+        ).use { cursor ->
+            val names = mutableListOf<String?>()
+            while (cursor.moveToNext()) {
+                names += cursor.readString("name")
+            }
+            assertThat(names).containsExactly(
+                "index_transactions_account_id",
+                "index_transactions_to_account_id",
+                "index_transactions_category_id",
+                "index_transactions_date",
+                "index_transactions_recurring_id",
+                "index_recurring_payments_account_id",
+                "index_recurring_payments_category_id",
+                "index_recurring_payments_next_due_date",
+            )
+        }
+
         // Balances computed from the migrated rows match the pre-migration values.
         assertThat(balanceOf(db, 1)).isEqualTo(-130_000L)
         assertThat(balanceOf(db, 2)).isEqualTo(1_700_000L)
