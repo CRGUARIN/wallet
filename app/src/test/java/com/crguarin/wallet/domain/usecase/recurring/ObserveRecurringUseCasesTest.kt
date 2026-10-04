@@ -9,6 +9,7 @@ import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.recurring.RecurrenceFrequency
 import com.crguarin.wallet.domain.model.recurring.RecurringBlockReason
 import com.crguarin.wallet.domain.model.recurring.RecurringMode
+import com.crguarin.wallet.domain.model.recurring.pendingCount
 import com.crguarin.wallet.domain.model.recurring.testAccount
 import com.crguarin.wallet.domain.model.recurring.testCategory
 import com.crguarin.wallet.domain.model.recurring.testPayment
@@ -114,6 +115,20 @@ class ObserveRecurringUseCasesTest {
             // 09-21, 09-28 and 10-05 are all due.
             assertThat(overview.pending.single().pendingCount).isEqualTo(3)
         }
+
+    @Test
+    fun `pendingCount ignores occurrences past endDate`() {
+        val payment =
+            testPayment(
+                startDate = LocalDate.of(2026, 10, 1),
+                nextDueDate = LocalDate.of(2026, 10, 1),
+                endDate = LocalDate.of(2026, 10, 5),
+                frequency = RecurrenceFrequency.WEEKLY,
+                mode = RecurringMode.CONFIRM,
+            )
+        // Weekly from Oct 1: Oct 1 and Oct 8 are due by Oct 10, but Oct 8 is past the end date.
+        assertThat(payment.pendingCount(LocalDate.of(2026, 10, 10))).isEqualTo(1)
+    }
 
     @Test
     fun `auto payments never report pending`() =

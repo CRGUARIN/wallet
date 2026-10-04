@@ -352,4 +352,27 @@ class ComputeNotificationEventsUseCaseTest {
             assertThat(second.map { it.key }).containsExactlyElementsIn(first.map { it.key })
             assertThat(first.none { it is NotificationEvent.RecurringPosted }).isTrue()
         }
+
+    @Test
+    fun `no reminder events past endDate`() =
+        runTest {
+            recurringRepository.setInitialData(
+                listOf(
+                    testPayment(
+                        id = 1L,
+                        startDate = LocalDate.of(2026, 10, 5),
+                        nextDueDate = LocalDate.of(2026, 10, 5),
+                        frequency = RecurrenceFrequency.WEEKLY,
+                        endDate = LocalDate.of(2026, 10, 8),
+                        reminderDaysBefore = 0,
+                    ),
+                ),
+            )
+            val settings = NotificationSettings(cardClosing = false, cardPayment = false, cardOverdue = false)
+            // Oct 12 would be the next weekly occurrence, but the rule ended Oct 8.
+            val events =
+                compute(LocalDate.of(2026, 10, 11), LocalDate.of(2026, 10, 12), settings)
+                    .filterIsInstance<NotificationEvent.RecurringUpcoming>()
+            assertThat(events).isEmpty()
+        }
 }

@@ -26,7 +26,8 @@ fun RecurringPayment.blockReason(
 fun RecurringPayment.pendingCount(today: LocalDate): Int {
     if (mode != RecurringMode.CONFIRM) return 0
     if (nextDueDate > today) return 0
-    return RecurrenceMath.occurrencesBetween(this, nextDueDate, today).size
+    val last = if (endDate != null && endDate < today) endDate else today
+    return RecurrenceMath.occurrencesBetween(this, nextDueDate, last).size
 }
 
 fun RecurringPayment.toItem(
