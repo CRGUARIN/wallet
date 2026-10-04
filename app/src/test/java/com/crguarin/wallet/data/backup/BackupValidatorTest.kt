@@ -434,6 +434,14 @@ class BackupValidatorTest {
     }
 
     @Test
+    fun `recurring next due date before the start date is rejected and equal is valid`() {
+        assertInvalid(recurring.withRecurring(1) { it.copy(nextDueDate = "2026-09-14") })
+        assertThat(
+            BackupValidator.validate(recurring.withRecurring(1) { it.copy(nextDueDate = "2026-09-15") }),
+        ).isNull()
+    }
+
+    @Test
     fun `transaction with an unknown recurring payment is rejected`() {
         assertInvalid(recurring.withTransaction(6) { it.copy(recurringId = 99) })
         assertInvalid(recurring.withTransaction(1) { it.copy(recurringId = 99) })

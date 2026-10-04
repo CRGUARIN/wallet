@@ -126,6 +126,8 @@ object BackupValidator {
             payment.endDate != null && !isValidDate(payment.endDate) -> "$label: invalid end date"
             payment.endDate != null && LocalDate.parse(payment.endDate) < LocalDate.parse(payment.startDate) ->
                 "$label: end date before start date"
+            LocalDate.parse(payment.nextDueDate) < LocalDate.parse(payment.startDate) ->
+                "$label: next due date before start date"
             else -> null
         }
     }
