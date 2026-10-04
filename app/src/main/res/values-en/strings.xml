@@ -161,6 +161,7 @@
     <string name="account_edit_icon_label">Icon</string>
     <string name="account_edit_include_in_total_title">Include in total balance</string>
     <string name="account_edit_include_in_total_subtitle">Add this account\'s balance to the overall total</string>
+    <string name="account_edit_type_locked_message">The type cannot be changed because this account has transactions</string>
 
     <!-- Common components -->
     <string name="account_picker_title">Select account</string>

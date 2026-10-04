@@ -245,4 +245,149 @@ class AccountEditViewModelTest {
                 Locale.setDefault(defaultLocale)
             }
         }
+
+    @Test
+    fun `selecting credit card swaps the default icon`() =
+        runTest(testDispatcher) {
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to null))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+
+            viewModel.setType(AccountType.CREDIT_CARD)
+
+            val state = viewModel.uiState.value
+            assertThat(state.isCreditCard).isTrue()
+            assertThat(state.icon).isEqualTo("credit_card")
+        }
+
+    @Test
+    fun `credit limit and day fields validate inline`() =
+        runTest(testDispatcher) {
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to null))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+            viewModel.setType(AccountType.CREDIT_CARD)
+
+            viewModel.setCreditLimitText("")
+            assertThat(viewModel.uiState.value.creditLimitErrorRes).isEqualTo(R.string.card_error_limit_required)
+            viewModel.setCreditLimitText("0")
+            assertThat(viewModel.uiState.value.creditLimitErrorRes).isEqualTo(R.string.card_error_limit_required)
+            viewModel.setCreditLimitText("500000")
+            assertThat(viewModel.uiState.value.creditLimitErrorRes).isNull()
+
+            viewModel.setStatementDayText("32")
+            assertThat(viewModel.uiState.value.statementDayErrorRes).isEqualTo(R.string.card_error_day_invalid)
+            viewModel.setStatementDayText("15")
+            assertThat(viewModel.uiState.value.statementDayErrorRes).isNull()
+
+            viewModel.setPaymentDueDayText("0")
+            assertThat(viewModel.uiState.value.paymentDueDayErrorRes).isEqualTo(R.string.card_error_day_invalid)
+            viewModel.setPaymentDueDayText("5")
+            assertThat(viewModel.uiState.value.paymentDueDayErrorRes).isNull()
+        }
+
+    @Test
+    fun `edit mode with transactions locks the account type`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                accountList = listOf(existingAccount),
+                txCounts = mapOf(10L to 2),
+            )
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to 10L))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+
+            assertThat(viewModel.uiState.value.hasTransactions).isTrue()
+            assertThat(viewModel.uiState.value.isTypeLocked).isTrue()
+
+            viewModel.setType(AccountType.CREDIT_CARD)
+            assertThat(viewModel.uiState.value.type).isEqualTo(AccountType.SAVINGS)
+        }
+
+    @Test
+    fun `edit mode without transactions keeps the type editable`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(listOf(existingAccount))
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to 10L))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+
+            assertThat(viewModel.uiState.value.isTypeLocked).isFalse()
+
+            viewModel.setType(AccountType.CREDIT_CARD)
+            assertThat(viewModel.uiState.value.type).isEqualTo(AccountType.CREDIT_CARD)
+        }
+
+    @Test
+    fun `edit mode of a card pre-fills debt as a positive amount`() =
+        runTest(testDispatcher) {
+            val card =
+                existingAccount.copy(
+                    id = 11L,
+                    name = "RappiCard",
+                    type = AccountType.CREDIT_CARD,
+                    initialBalance = Money(-250_000L),
+                    icon = "credit_card",
+                    creditLimit = Money(500_000_00L),
+                    statementDay = 15,
+                    paymentDueDay = 5,
+                )
+            accountRepository.setInitialData(listOf(card))
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to 11L))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+
+            val state = viewModel.uiState.value
+            assertThat(state.isCreditCard).isTrue()
+            assertThat(state.initialBalanceText).isEqualTo("2500")
+            assertThat(state.creditLimitText).isEqualTo("500000")
+            assertThat(state.statementDayText).isEqualTo("15")
+            assertThat(state.paymentDueDayText).isEqualTo("5")
+        }
+
+    @Test
+    fun `saving a card with invalid fields reports errors and does not save`() =
+        runTest(testDispatcher) {
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to null))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+
+            viewModel.setName("RappiCard")
+            viewModel.setType(AccountType.CREDIT_CARD)
+            viewModel.setInitialBalanceText("2500")
+            viewModel.setCreditLimitText("")
+            viewModel.setStatementDayText("40")
+            viewModel.setPaymentDueDayText("5")
+
+            viewModel.saveAccount()
+
+            val state = viewModel.uiState.value
+            assertThat(state.creditLimitErrorRes).isEqualTo(R.string.card_error_limit_required)
+            assertThat(state.statementDayErrorRes).isEqualTo(R.string.card_error_day_invalid)
+            assertThat(accountRepository.getAllAccounts()).isEmpty()
+        }
+
+    @Test
+    fun `saving a card stores negated debt limit and billing days`() =
+        runTest(testDispatcher) {
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to null))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+
+            viewModel.setName("RappiCard")
+            viewModel.setType(AccountType.CREDIT_CARD)
+            viewModel.setInitialBalanceText("2500")
+            viewModel.setCreditLimitText("500000")
+            viewModel.setStatementDayText("15")
+            viewModel.setPaymentDueDayText("5")
+
+            viewModel.events.test {
+                viewModel.saveAccount()
+                assertThat(awaitItem()).isEqualTo(AccountEditEvent.NavigateBack)
+
+                val accounts = accountRepository.getAllAccounts()
+                assertThat(accounts).hasSize(1)
+                val saved = accounts.first()
+                assertThat(saved.type).isEqualTo(AccountType.CREDIT_CARD)
+                assertThat(saved.initialBalance).isEqualTo(Money(-250_000L))
+                assertThat(saved.creditLimit).isEqualTo(Money(50_000_000L))
+                assertThat(saved.statementDay).isEqualTo(15)
+                assertThat(saved.paymentDueDay).isEqualTo(5)
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
 }

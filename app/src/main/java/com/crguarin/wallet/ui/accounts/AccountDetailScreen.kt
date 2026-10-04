@@ -3,6 +3,7 @@ package com.crguarin.wallet.ui.accounts
 import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,16 +13,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -36,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
@@ -52,11 +59,14 @@ import androidx.paging.compose.itemKey
 import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.APP_CURRENCY
 import com.crguarin.wallet.core.money.Money
+import com.crguarin.wallet.core.money.MoneyFormatter
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.MonthSummary
 import com.crguarin.wallet.domain.model.TransactionListEntry
+import com.crguarin.wallet.domain.model.card.CardStatement
+import com.crguarin.wallet.domain.model.card.InstallmentStatus
 import com.crguarin.wallet.ui.components.ConfirmDialog
 import com.crguarin.wallet.ui.components.EmptyState
 import com.crguarin.wallet.ui.components.ErrorState
@@ -65,6 +75,7 @@ import com.crguarin.wallet.ui.components.TransactionDayHeader
 import com.crguarin.wallet.ui.components.TransactionListItem
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.transactions.rememberEntriesPagingItems
+import com.crguarin.wallet.ui.util.formatMedium
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 import java.time.Instant
 
@@ -78,6 +89,8 @@ fun AccountDetailRoute(
     onViewAllTransactions: (Long) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: AccountDetailViewModel? = safeHiltViewModel(),
+    onPayCardClick: (fromAccountId: Long?, toAccountId: Long, initialAmountMinor: Long?) -> Unit = { _, _, _ -> },
+    onReconcileClick: (accountId: Long) -> Unit = {},
 ) {
     if (viewModel == null) {
         AccountDetailScreen(
@@ -129,6 +142,10 @@ fun AccountDetailRoute(
         onConfirmDelete = viewModel::deleteAccount,
         onConfirmArchiveInsteadOfDelete = viewModel::confirmArchiveInsteadOfDelete,
         onDismissDialogs = viewModel::dismissDialogs,
+        onPayCardClick = {
+            onPayCardClick(uiState.payFromAccountId, viewModel.accountId, uiState.payAmountMinor)
+        },
+        onReconcileClick = { onReconcileClick(viewModel.accountId) },
         snackbarHostState = snackbarHostState,
         modifier = modifier,
     )
@@ -152,6 +169,8 @@ fun AccountDetailScreen(
     onDismissDialogs: () -> Unit,
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    onPayCardClick: () -> Unit = {},
+    onReconcileClick: () -> Unit = {},
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val account = uiState.accountWithBalance?.account
@@ -265,12 +284,79 @@ fun AccountDetailScreen(
         ) {
             if (account != null) {
                 val balance = uiState.accountWithBalance.balance
-                item(key = "header") {
-                    AccountHeaderCard(
-                        account = account,
-                        balance = balance,
-                        monthSummary = uiState.monthSummary,
-                    )
+                val cardOverview = uiState.cardOverview
+                if (account.type == AccountType.CREDIT_CARD && cardOverview != null) {
+                    item(key = "header") {
+                        CardSummaryCard(
+                            overview = cardOverview,
+                            today = uiState.today,
+                        )
+                    }
+                    item(key = "card_actions") {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Button(
+                                onClick = onPayCardClick,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(text = stringResource(R.string.card_action_pay))
+                            }
+                            OutlinedButton(
+                                onClick = onReconcileClick,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(text = stringResource(R.string.card_action_reconcile))
+                            }
+                        }
+                    }
+                    if (cardOverview.activeInstallments.isNotEmpty()) {
+                        item(key = "installments_header") {
+                            Text(
+                                text = stringResource(R.string.card_installments_title),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.semantics { heading() },
+                            )
+                        }
+                        items(
+                            items = cardOverview.activeInstallments,
+                            key = { it.transactionId },
+                        ) { installment ->
+                            InstallmentRow(
+                                installment = installment,
+                                onClick = { onTransactionClick(installment.transactionId) },
+                            )
+                        }
+                    }
+                    if (uiState.statements.isNotEmpty()) {
+                        item(key = "statements_header") {
+                            Text(
+                                text = stringResource(R.string.card_statements_history),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.semantics { heading() },
+                            )
+                        }
+                        items(
+                            items = uiState.statements,
+                            key = { it.id },
+                        ) { statement ->
+                            StatementRow(
+                                statement = statement,
+                                adjustmentAmount = uiState.adjustmentAmounts[statement.id],
+                            )
+                        }
+                    }
+                } else {
+                    item(key = "header") {
+                        AccountHeaderCard(
+                            account = account,
+                            balance = balance,
+                            monthSummary = uiState.monthSummary,
+                        )
+                    }
                 }
             }
 
@@ -398,6 +484,80 @@ fun AccountDetailScreen(
             onConfirm = onConfirmArchiveInsteadOfDelete,
             onDismiss = onDismissDialogs,
         )
+    }
+}
+
+@Composable
+private fun InstallmentRow(
+    installment: InstallmentStatus,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val locale = LocalConfiguration.current.locales[0]
+    Card(
+        onClick = onClick,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = installment.note?.takeIf { it.isNotBlank() } ?: installment.date.formatMedium(),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text =
+                    stringResource(
+                        R.string.card_installment_progress,
+                        installment.billedInstallments,
+                        installment.installments,
+                        MoneyFormatter.format(installment.remainingAmount, locale),
+                    ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun StatementRow(
+    statement: CardStatement,
+    adjustmentAmount: Money?,
+    modifier: Modifier = Modifier,
+) {
+    val locale = LocalConfiguration.current.locales[0]
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text =
+                    stringResource(
+                        R.string.card_statement_row,
+                        statement.closingDate.formatMedium(),
+                        MoneyFormatter.format(statement.statementBalance, locale),
+                    ),
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text =
+                    if (statement.adjustmentTransactionId != null && adjustmentAmount != null) {
+                        stringResource(
+                            R.string.card_statement_adjusted,
+                            MoneyFormatter.format(adjustmentAmount, locale),
+                        )
+                    } else {
+                        stringResource(R.string.card_statement_matched)
+                    },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 

@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.APP_CURRENCY
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.core.money.MoneyParser
@@ -41,15 +42,30 @@ data class AccountEditUiState(
     val name: String = "",
     val type: AccountType = AccountType.CASH,
     val initialBalanceText: String = "",
+    val creditLimitText: String = "",
+    val statementDayText: String = "",
+    val paymentDueDayText: String = "",
     val color: Int = WalletPalette.colors.first(),
     val icon: String = "wallet",
     val includeInTotal: Boolean = true,
     val originalInitialBalance: Money = Money.ZERO,
+    /** True in edit mode when the account already has transactions: the type cannot change. */
+    val hasTransactions: Boolean = false,
     val isSaving: Boolean = false,
     val nameErrorRes: Int? = null,
     val amountErrorRes: Int? = null,
+    val creditLimitErrorRes: Int? = null,
+    val statementDayErrorRes: Int? = null,
+    val paymentDueDayErrorRes: Int? = null,
     val generalErrorRes: Int? = null,
 ) {
+    val isCreditCard: Boolean
+        get() = type == AccountType.CREDIT_CARD
+
+    /** The type selector is locked in edit mode when the account has transactions. */
+    val isTypeLocked: Boolean
+        get() = isEditMode && hasTransactions
+
     val showInitialBalanceWarning: Boolean
         get() {
             if (!isEditMode) return false
@@ -64,7 +80,10 @@ data class AccountEditUiState(
                 name.isNotBlank() &&
                 name.trim().length <= DomainLimits.NAME_MAX_LENGTH &&
                 nameErrorRes == null &&
-                amountErrorRes == null
+                amountErrorRes == null &&
+                creditLimitErrorRes == null &&
+                statementDayErrorRes == null &&
+                paymentDueDayErrorRes == null
 }
 
 sealed interface AccountEditEvent {
@@ -106,17 +125,32 @@ class AccountEditViewModel
                     _uiState.update { it.copy(isLoading = true, isEditMode = true, accountId = targetAccountId) }
                     val account = accountRepository.getAccount(targetAccountId)
                     if (account != null) {
-                        val formattedBalance = formatForInput(account.initialBalance)
+                        val hasTransactions = accountRepository.countTransactions(targetAccountId) > 0
+                        // A card stores -debt as initialBalance; the form asks for the debt (>= 0).
+                        val debtText =
+                            if (account.type == AccountType.CREDIT_CARD) {
+                                val debt = -account.initialBalance
+                                formatForInput(debt.takeIf { it > Money.ZERO } ?: Money.ZERO)
+                            } else {
+                                formatForInput(account.initialBalance)
+                            }
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
                                 name = account.name,
                                 type = account.type,
-                                initialBalanceText = formattedBalance,
+                                initialBalanceText = debtText,
+                                creditLimitText =
+                                    account.creditLimit?.let { limit ->
+                                        formatForInput(limit)
+                                    } ?: "",
+                                statementDayText = account.statementDay?.toString() ?: "",
+                                paymentDueDayText = account.paymentDueDay?.toString() ?: "",
                                 color = account.color,
                                 icon = account.icon,
                                 includeInTotal = account.includeInTotal,
                                 originalInitialBalance = account.initialBalance,
+                                hasTransactions = hasTransactions,
                             )
                         }
                     } else {
@@ -147,6 +181,7 @@ class AccountEditViewModel
         }
 
         fun setType(type: AccountType) {
+            if (_uiState.value.isTypeLocked) return
             _uiState.update { it.copy(type = type, icon = iconAfterTypeChange(type, it.icon)) }
         }
 
@@ -154,6 +189,32 @@ class AccountEditViewModel
             val parsed = MoneyParser.parseNonNegative(text)
             val error = if (parsed == null) DomainError.AmountInvalid.asStringRes() else null
             _uiState.update { it.copy(initialBalanceText = text, amountErrorRes = error, generalErrorRes = null) }
+        }
+
+        fun setCreditLimitText(text: String) {
+            _uiState.update {
+                it.copy(creditLimitText = text, creditLimitErrorRes = creditLimitError(text), generalErrorRes = null)
+            }
+        }
+
+        fun setStatementDayText(text: String) {
+            _uiState.update {
+                it.copy(
+                    statementDayText = text,
+                    statementDayErrorRes = cardDayError(text),
+                    generalErrorRes = null,
+                )
+            }
+        }
+
+        fun setPaymentDueDayText(text: String) {
+            _uiState.update {
+                it.copy(
+                    paymentDueDayText = text,
+                    paymentDueDayErrorRes = cardDayError(text),
+                    generalErrorRes = null,
+                )
+            }
         }
 
         fun setColor(color: Int) {
@@ -191,6 +252,26 @@ class AccountEditViewModel
                 return
             }
 
+            val isCard = state.type == AccountType.CREDIT_CARD
+            val creditLimit = if (isCard) MoneyParser.parseNonNegative(state.creditLimitText) else null
+            val statementDay = if (isCard) parseCardDay(state.statementDayText) else null
+            val paymentDueDay = if (isCard) parseCardDay(state.paymentDueDayText) else null
+            if (isCard) {
+                val limitError = creditLimitError(state.creditLimitText)
+                val statementError = cardDayError(state.statementDayText)
+                val dueError = cardDayError(state.paymentDueDayText)
+                if (limitError != null || statementError != null || dueError != null || creditLimit == null) {
+                    _uiState.update {
+                        it.copy(
+                            creditLimitErrorRes = limitError,
+                            statementDayErrorRes = statementError,
+                            paymentDueDayErrorRes = dueError,
+                        )
+                    }
+                    return
+                }
+            }
+
             _uiState.update { it.copy(isSaving = true, generalErrorRes = null) }
             viewModelScope.launch {
                 val account =
@@ -199,13 +280,17 @@ class AccountEditViewModel
                         name = trimmedName,
                         type = state.type,
                         currencyCode = APP_CURRENCY,
-                        initialBalance = balance,
+                        // Cards ask for the current debt (>= 0) and store it negated.
+                        initialBalance = if (isCard) -balance else balance,
                         color = state.color,
                         icon = state.icon,
                         includeInTotal = state.includeInTotal,
                         isArchived = false,
                         sortOrder = 0,
                         createdAt = Instant.EPOCH,
+                        creditLimit = creditLimit,
+                        statementDay = statementDay,
+                        paymentDueDay = paymentDueDay,
                     )
 
                 when (val result = saveAccountUseCase(account)) {
@@ -224,3 +309,13 @@ class AccountEditViewModel
             }
         }
     }
+
+private fun creditLimitError(text: String): Int? {
+    val parsed = MoneyParser.parseNonNegative(text)
+    return if (parsed == null || parsed <= Money.ZERO) R.string.card_error_limit_required else null
+}
+
+private fun cardDayError(text: String): Int? {
+    if (parseCardDay(text) == null) return R.string.card_error_day_invalid
+    return null
+}

@@ -60,6 +60,7 @@ import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.AccountWithBalance
+import com.crguarin.wallet.domain.model.card.CardOverview
 import com.crguarin.wallet.ui.components.EmptyState
 import com.crguarin.wallet.ui.components.IconCatalog
 import com.crguarin.wallet.ui.components.LoadingState
@@ -67,6 +68,7 @@ import com.crguarin.wallet.ui.components.MoneyText
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 import java.time.Instant
+import java.time.LocalDate
 
 @Composable
 fun AccountsRoute(
@@ -261,6 +263,8 @@ fun AccountsScreen(
                         onMoveUp = { onMoveAccountUp(item.account.id) },
                         onMoveDown = { onMoveAccountDown(item.account.id) },
                         onClick = { onAccountClick(item.account.id) },
+                        cardOverview = uiState.cardOverviews[item.account.id],
+                        today = uiState.today,
                     )
                 }
 
@@ -325,6 +329,8 @@ fun AccountsScreen(
                                 onMoveDown = {},
                                 onClick = { onAccountClick(item.account.id) },
                                 isArchived = true,
+                                cardOverview = uiState.cardOverviews[item.account.id],
+                                today = uiState.today,
                             )
                         }
                     }
@@ -339,7 +345,7 @@ fun AccountsScreen(
 }
 
 @Composable
-private fun AccountItemRow(
+internal fun AccountItemRow(
     item: AccountWithBalance,
     isReordering: Boolean,
     canMoveUp: Boolean,
@@ -349,6 +355,8 @@ private fun AccountItemRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     isArchived: Boolean = false,
+    cardOverview: CardOverview? = null,
+    today: LocalDate = LocalDate.now(),
 ) {
     Card(
         onClick =
@@ -451,6 +459,11 @@ private fun AccountItemRow(
                         )
                     }
                 }
+            } else if (item.account.type == AccountType.CREDIT_CARD && cardOverview != null) {
+                CardRowBalance(
+                    overview = cardOverview,
+                    today = today,
+                )
             } else {
                 MoneyText(
                     amount = item.balance,

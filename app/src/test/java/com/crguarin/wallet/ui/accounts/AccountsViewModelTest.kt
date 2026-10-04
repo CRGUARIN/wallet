@@ -3,11 +3,15 @@ package com.crguarin.wallet.ui.accounts
 import app.cash.turbine.test
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.fake.FakeAccountRepository
+import com.crguarin.wallet.domain.fake.FakeCardStatementRepository
+import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.usecase.ObserveAccountsUseCase
 import com.crguarin.wallet.domain.usecase.ObserveTotalBalanceUseCase
 import com.crguarin.wallet.domain.usecase.ReorderAccountsUseCase
+import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewUseCase
+import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewsUseCase
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -24,6 +28,8 @@ import java.time.Instant
 class AccountsViewModelTest {
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var accountRepository: FakeAccountRepository
+    private lateinit var cardStatementRepository: FakeCardStatementRepository
+    private lateinit var timeProvider: FakeTimeProvider
     private lateinit var observeAccountsUseCase: ObserveAccountsUseCase
     private lateinit var observeTotalBalanceUseCase: ObserveTotalBalanceUseCase
     private lateinit var reorderAccountsUseCase: ReorderAccountsUseCase
@@ -78,14 +84,21 @@ class AccountsViewModelTest {
     fun setUp() {
         Dispatchers.setMain(testDispatcher)
         accountRepository = FakeAccountRepository()
+        cardStatementRepository = FakeCardStatementRepository()
+        timeProvider = FakeTimeProvider(Instant.parse("2026-09-28T12:00:00Z"))
         observeAccountsUseCase = ObserveAccountsUseCase(accountRepository)
         observeTotalBalanceUseCase = ObserveTotalBalanceUseCase(accountRepository)
         reorderAccountsUseCase = ReorderAccountsUseCase(accountRepository)
+        val observeCardOverviewUseCase =
+            ObserveCardOverviewUseCase(accountRepository, cardStatementRepository, timeProvider)
         viewModel =
             AccountsViewModel(
                 observeAccountsUseCase = observeAccountsUseCase,
                 observeTotalBalanceUseCase = observeTotalBalanceUseCase,
                 reorderAccountsUseCase = reorderAccountsUseCase,
+                observeCardOverviewsUseCase =
+                    ObserveCardOverviewsUseCase(accountRepository, observeCardOverviewUseCase),
+                timeProvider = timeProvider,
             )
     }
 
@@ -166,6 +179,57 @@ class AccountsViewModelTest {
                 viewModel.moveAccountUp(1L)
                 val afterUp = awaitItem()
                 assertThat(afterUp.activeAccounts.map { it.account.id }).containsExactly(1L, 2L).inOrder()
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `card overviews start empty before the domain provides them`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                accountList = listOf(account1, account2),
+            )
+
+            viewModel.uiState.test {
+                val state = awaitItem()
+                assertThat(state.cardOverviews).isEmpty()
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `card overviews expose debt available and usage of a real card`() =
+        runTest(testDispatcher) {
+            val card =
+                Account(
+                    id = 7L,
+                    name = "RappiCard",
+                    type = AccountType.CREDIT_CARD,
+                    currencyCode = "COP",
+                    initialBalance = Money(-250_000L),
+                    color = -16711936,
+                    icon = "credit_card",
+                    includeInTotal = true,
+                    isArchived = false,
+                    sortOrder = 2,
+                    createdAt = Instant.EPOCH,
+                    creditLimit = Money(500_000L),
+                    statementDay = 15,
+                    paymentDueDay = 5,
+                )
+            accountRepository.setInitialData(
+                accountList = listOf(account1, card),
+            )
+
+            viewModel.uiState.test {
+                val state = awaitItem()
+                val overview = state.cardOverviews[7L]
+                assertThat(overview).isNotNull()
+                assertThat(overview?.debt).isEqualTo(Money(250_000L))
+                assertThat(overview?.available).isEqualTo(Money(250_000L))
+                assertThat(overview?.usedPerMille).isEqualTo(500)
 
                 cancelAndIgnoreRemainingEvents()
             }

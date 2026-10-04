@@ -2,6 +2,7 @@ package com.crguarin.wallet.ui.home
 
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.fake.FakeAccountRepository
+import com.crguarin.wallet.domain.fake.FakeCardStatementRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
 import com.crguarin.wallet.domain.model.Account
@@ -11,6 +12,8 @@ import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.usecase.ObserveAccountsUseCase
 import com.crguarin.wallet.domain.usecase.ObserveMonthSummaryUseCase
 import com.crguarin.wallet.domain.usecase.ObserveTotalBalanceUseCase
+import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewUseCase
+import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewsUseCase
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -35,6 +38,7 @@ class HomeViewModelTest {
 
     private lateinit var accountRepository: FakeAccountRepository
     private lateinit var transactionRepository: FakeTransactionRepository
+    private lateinit var cardStatementRepository: FakeCardStatementRepository
     private lateinit var timeProvider: FakeTimeProvider
 
     private val cash =
@@ -65,6 +69,7 @@ class HomeViewModelTest {
         Dispatchers.setMain(testDispatcher)
         accountRepository = FakeAccountRepository()
         transactionRepository = FakeTransactionRepository()
+        cardStatementRepository = FakeCardStatementRepository()
         timeProvider = FakeTimeProvider(baseInstant)
     }
 
@@ -80,6 +85,11 @@ class HomeViewModelTest {
             observeAccountsUseCase = ObserveAccountsUseCase(accountRepository),
             transactionRepository = transactionRepository,
             timeProvider = timeProvider,
+            observeCardOverviewsUseCase =
+                ObserveCardOverviewsUseCase(
+                    accountRepository,
+                    ObserveCardOverviewUseCase(accountRepository, cardStatementRepository, timeProvider),
+                ),
         )
 
     private fun transaction(
@@ -178,5 +188,40 @@ class HomeViewModelTest {
             advanceUntilIdle()
 
             assertThat(viewModel.uiState.value.monthSummary.expense).isEqualTo(Money(1_000L))
+        }
+
+    @Test
+    fun `card overviews start empty before the domain provides them`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(listOf(cash, savings))
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+
+            assertThat(viewModel.uiState.value.cardOverviews).isEmpty()
+        }
+
+    @Test
+    fun `card overviews expose debt and available of a real card`() =
+        runTest(testDispatcher) {
+            val card =
+                cash.copy(
+                    id = 7L,
+                    name = "RappiCard",
+                    type = AccountType.CREDIT_CARD,
+                    initialBalance = Money(-250_000L),
+                    icon = "credit_card",
+                    sortOrder = 2,
+                    creditLimit = Money(500_000L),
+                    statementDay = 15,
+                    paymentDueDay = 5,
+                )
+            accountRepository.setInitialData(listOf(cash, card))
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+
+            val overview = viewModel.uiState.value.cardOverviews[7L]
+            assertThat(overview).isNotNull()
+            assertThat(overview?.debt).isEqualTo(Money(250_000L))
+            assertThat(overview?.available).isEqualTo(Money(250_000L))
         }
 }

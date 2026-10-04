@@ -36,8 +36,11 @@ import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.AccountWithBalance
+import com.crguarin.wallet.domain.model.card.CardOverview
+import com.crguarin.wallet.ui.accounts.CardRowBalance
 import com.crguarin.wallet.ui.theme.WalletTheme
 import java.time.Instant
+import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,6 +53,8 @@ fun AccountPickerSheet(
     sheetState: SheetState = rememberModalBottomSheetState(),
     allOptionLabel: String? = null,
     onAllOptionSelected: (() -> Unit)? = null,
+    cardOverviews: Map<Long, CardOverview> = emptyMap(),
+    today: LocalDate = LocalDate.now(),
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
@@ -151,11 +156,19 @@ fun AccountPickerSheet(
                                 text = item.account.name,
                                 style = MaterialTheme.typography.bodyLarge,
                             )
-                            MoneyText(
-                                amount = item.balance,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            val cardOverview = cardOverviews[item.account.id]
+                            if (item.account.type == AccountType.CREDIT_CARD && cardOverview != null) {
+                                CardRowBalance(
+                                    overview = cardOverview,
+                                    today = today,
+                                )
+                            } else {
+                                MoneyText(
+                                    amount = item.balance,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
 
                         if (isSelected) {

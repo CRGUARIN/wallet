@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import com.crguarin.wallet.R
+import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
@@ -129,5 +130,92 @@ class AccountEditScreenTest {
         composeRule.onNodeWithText("Guardar").performScrollTo().assertIsEnabled()
         composeRule.onNodeWithText("Guardar").performClick()
         assertThat(saveClicked).isTrue()
+    }
+
+    @Test
+    fun `card type shows debt limit and day fields`() {
+        composeRule.setContent {
+            WalletTheme {
+                AccountEditScreen(
+                    uiState =
+                        AccountEditUiState(
+                            name = "RappiCard",
+                            type = AccountType.CREDIT_CARD,
+                        ),
+                    onNavigateBack = {},
+                    onNameChanged = {},
+                    onTypeChanged = {},
+                    onInitialBalanceChanged = {},
+                    onColorSelected = {},
+                    onIconSelected = {},
+                    onIncludeInTotalChanged = {},
+                    onSaveClick = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Tarjeta de crédito").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Deuda actual").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Cupo total").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Día de corte").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Día límite de pago").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `card field errors are shown inline`() {
+        composeRule.setContent {
+            WalletTheme {
+                AccountEditScreen(
+                    uiState =
+                        AccountEditUiState(
+                            name = "RappiCard",
+                            type = AccountType.CREDIT_CARD,
+                            creditLimitErrorRes = R.string.card_error_limit_required,
+                            statementDayErrorRes = R.string.card_error_day_invalid,
+                        ),
+                    onNavigateBack = {},
+                    onNameChanged = {},
+                    onTypeChanged = {},
+                    onInitialBalanceChanged = {},
+                    onColorSelected = {},
+                    onIconSelected = {},
+                    onIncludeInTotalChanged = {},
+                    onSaveClick = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Ingresa el cupo de la tarjeta").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Ingresa un día entre 1 y 31").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `type lock message is shown when the type cannot change`() {
+        composeRule.setContent {
+            WalletTheme {
+                AccountEditScreen(
+                    uiState =
+                        AccountEditUiState(
+                            name = "RappiCard",
+                            type = AccountType.CREDIT_CARD,
+                            isEditMode = true,
+                            hasTransactions = true,
+                        ),
+                    onNavigateBack = {},
+                    onNameChanged = {},
+                    onTypeChanged = {},
+                    onInitialBalanceChanged = {},
+                    onColorSelected = {},
+                    onIconSelected = {},
+                    onIncludeInTotalChanged = {},
+                    onSaveClick = {},
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithText("El tipo no se puede cambiar porque la cuenta tiene movimientos")
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 }

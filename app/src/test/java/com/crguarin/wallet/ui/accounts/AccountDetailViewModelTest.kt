@@ -5,16 +5,22 @@ import app.cash.turbine.test
 import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.fake.FakeAccountRepository
+import com.crguarin.wallet.domain.fake.FakeCardStatementRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
+import com.crguarin.wallet.domain.model.Transaction
+import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.card.CardStatement
+import com.crguarin.wallet.domain.model.card.StatementPaymentStatus
 import com.crguarin.wallet.domain.usecase.ArchiveAccountUseCase
 import com.crguarin.wallet.domain.usecase.DeleteAccountUseCase
 import com.crguarin.wallet.domain.usecase.ObserveDailyTotalsUseCase
 import com.crguarin.wallet.domain.usecase.ObserveMonthSummaryUseCase
 import com.crguarin.wallet.domain.usecase.ObserveTransactionsUseCase
 import com.crguarin.wallet.domain.usecase.UnarchiveAccountUseCase
+import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewUseCase
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -31,6 +37,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.time.Instant
+import java.time.LocalDate
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -39,6 +46,7 @@ class AccountDetailViewModelTest {
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var accountRepository: FakeAccountRepository
     private lateinit var transactionRepository: FakeTransactionRepository
+    private lateinit var cardStatementRepository: FakeCardStatementRepository
     private lateinit var timeProvider: FakeTimeProvider
     private lateinit var observeMonthSummaryUseCase: ObserveMonthSummaryUseCase
     private lateinit var archiveAccountUseCase: ArchiveAccountUseCase
@@ -67,6 +75,7 @@ class AccountDetailViewModelTest {
         Dispatchers.setMain(testDispatcher)
         accountRepository = FakeAccountRepository()
         transactionRepository = FakeTransactionRepository()
+        cardStatementRepository = FakeCardStatementRepository()
         timeProvider = FakeTimeProvider(Instant.parse("2026-09-28T12:00:00Z"))
         observeMonthSummaryUseCase = ObserveMonthSummaryUseCase(transactionRepository)
         archiveAccountUseCase = ArchiveAccountUseCase(accountRepository)
@@ -92,6 +101,10 @@ class AccountDetailViewModelTest {
                 unarchiveAccountUseCase = unarchiveAccountUseCase,
                 deleteAccountUseCase = deleteAccountUseCase,
                 timeProvider = timeProvider,
+                observeCardOverviewUseCase =
+                    ObserveCardOverviewUseCase(accountRepository, cardStatementRepository, timeProvider),
+                cardStatementRepository = cardStatementRepository,
+                transactionRepository = transactionRepository,
             )
     }
 
@@ -265,4 +278,147 @@ class AccountDetailViewModelTest {
         sortOrder = 1,
         createdAt = Instant.EPOCH,
     )
+
+    @Test
+    fun `card fields default to empty and pay source resolves the last non-card account`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                accountList =
+                    listOf(
+                        activeAccount(id = 1L, name = "Efectivo").copy(
+                            type = AccountType.CASH,
+                            sortOrder = 0,
+                        ),
+                        activeAccount(id = 2L, name = "Ahorros").copy(sortOrder = 1),
+                        activeAccount(id = 7L, name = "RappiCard").copy(
+                            type = AccountType.CREDIT_CARD,
+                            icon = "credit_card",
+                            sortOrder = 2,
+                        ),
+                    ),
+            )
+
+            viewModel.uiState.test {
+                val state = awaitItem()
+                assertThat(state.cardOverview).isNull()
+                assertThat(state.statements).isEmpty()
+                assertThat(state.adjustmentAmounts).isEmpty()
+                assertThat(state.payFromAccountId).isEqualTo(2L)
+                assertThat(state.payAmountMinor).isNull()
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `pay source is null when there is no non-card account`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                accountList =
+                    listOf(
+                        activeAccount(id = 7L, name = "RappiCard").copy(
+                            type = AccountType.CREDIT_CARD,
+                            icon = "credit_card",
+                        ),
+                    ),
+            )
+
+            viewModel.uiState.test {
+                val state = awaitItem()
+                assertThat(state.payFromAccountId).isNull()
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    private fun card42() =
+        account.copy(
+            type = AccountType.CREDIT_CARD,
+            initialBalance = Money(-250_000_00L),
+            icon = "credit_card",
+            creditLimit = Money(500_000_00L),
+            statementDay = 15,
+            paymentDueDay = 5,
+        )
+
+    private fun statement42(
+        id: Long = 1L,
+        adjustmentTransactionId: Long? = null,
+    ) = CardStatement(
+        id = id,
+        accountId = 42L,
+        closingDate = LocalDate.of(2026, 9, 15),
+        dueDate = LocalDate.of(2026, 10, 20),
+        statementBalance = Money(250_000_00L),
+        minimumPayment = null,
+        statedInterestAndFees = null,
+        adjustmentTransactionId = adjustmentTransactionId,
+        createdAt = Instant.EPOCH,
+    )
+
+    @Test
+    fun `card detail exposes overview pending amount pay amount statements and adjustments`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(accountList = listOf(card42()))
+            cardStatementRepository.setInitialData(listOf(statement42(adjustmentTransactionId = 99L)))
+            transactionRepository.setInitialData(
+                listOf(
+                    Transaction(
+                        id = 99L,
+                        type = TransactionType.EXPENSE,
+                        amount = Money(5_000_00L),
+                        accountId = 42L,
+                        date = LocalDate.of(2026, 9, 15),
+                        createdAt = Instant.EPOCH,
+                        updatedAt = Instant.EPOCH,
+                    ),
+                ),
+            )
+
+            viewModel.uiState.test {
+                val state = awaitItem()
+                val overview = state.cardOverview
+                assertThat(overview).isNotNull()
+                assertThat(overview?.debt).isEqualTo(Money(250_000_00L))
+                assertThat(overview?.available).isEqualTo(Money(250_000_00L))
+                assertThat(overview?.pendingStatementAmount).isEqualTo(Money(250_000_00L))
+                assertThat(overview?.paymentStatus).isEqualTo(StatementPaymentStatus.PENDING)
+                assertThat(state.payAmountMinor).isEqualTo(Money(250_000_00L).minorUnits)
+                assertThat(state.statements.map { it.id }).containsExactly(1L)
+                assertThat(state.adjustmentAmounts).containsExactly(1L, Money(5_000_00L))
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `fully paid statement reports paid status and no pay amount`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(accountList = listOf(card42()))
+            cardStatementRepository.setInitialData(
+                statementList = listOf(statement42()),
+                transactionList =
+                    listOf(
+                        Transaction(
+                            id = 50L,
+                            type = TransactionType.TRANSFER,
+                            amount = Money(250_000_00L),
+                            accountId = 1L,
+                            toAccountId = 42L,
+                            date = LocalDate.of(2026, 9, 20),
+                            createdAt = Instant.EPOCH,
+                            updatedAt = Instant.EPOCH,
+                        ),
+                    ),
+            )
+
+            viewModel.uiState.test {
+                val state = awaitItem()
+                assertThat(state.cardOverview?.paymentStatus).isEqualTo(StatementPaymentStatus.PAID)
+                assertThat(state.cardOverview?.pendingStatementAmount).isEqualTo(Money.ZERO)
+                assertThat(state.payAmountMinor).isNull()
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
 }

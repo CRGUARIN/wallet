@@ -8,6 +8,7 @@ import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
@@ -22,6 +23,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.time.Instant
+import java.time.LocalDate
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "es")
@@ -58,6 +60,9 @@ class AccountDetailScreenTest {
         onConfirmDelete: () -> Unit = {},
         onConfirmArchiveInsteadOfDelete: () -> Unit = {},
         onDismissDialogs: () -> Unit = {},
+        onTransactionClick: (Long) -> Unit = {},
+        onPayCardClick: () -> Unit = {},
+        onReconcileClick: () -> Unit = {},
     ) {
         WalletTheme {
             AccountDetailScreen(
@@ -66,7 +71,7 @@ class AccountDetailScreenTest {
                 onNavigateBack = {},
                 onEditClick = onEditClick,
                 onTransferClick = onTransferClick,
-                onTransactionClick = {},
+                onTransactionClick = onTransactionClick,
                 onViewAllTransactions = {},
                 onArchiveClick = {},
                 onUnarchiveClick = {},
@@ -74,8 +79,80 @@ class AccountDetailScreenTest {
                 onConfirmDelete = onConfirmDelete,
                 onConfirmArchiveInsteadOfDelete = onConfirmArchiveInsteadOfDelete,
                 onDismissDialogs = onDismissDialogs,
+                onPayCardClick = onPayCardClick,
+                onReconcileClick = onReconcileClick,
             )
         }
+    }
+
+    private val cardAccount =
+        sampleAccount.copy(
+            id = 7L,
+            name = "RappiCard",
+            type = AccountType.CREDIT_CARD,
+            initialBalance = Money(-250_000_00L),
+            icon = "credit_card",
+        )
+
+    private fun cardState(): AccountDetailUiState =
+        AccountDetailUiState(
+            isLoading = false,
+            accountWithBalance = AccountWithBalance(cardAccount, Money(-250_000_00L)),
+            today = LocalDate.of(2026, 9, 28),
+            cardOverview = sampleCardOverview(accountId = 7L),
+            statements =
+                listOf(
+                    sampleCardStatement(id = 1L, accountId = 7L),
+                    sampleCardStatement(
+                        id = 2L,
+                        accountId = 7L,
+                        closingDate = LocalDate.of(2026, 8, 15),
+                        adjustmentTransactionId = 99L,
+                    ),
+                ),
+            adjustmentAmounts = mapOf(2L to Money(5_000_00L)),
+        )
+
+    @Test
+    @Config(qualifiers = "es-w1000dp-h3000dp")
+    fun `card detail shows summary actions installments and statements`() {
+        composeRule.setContent {
+            TestScreen(uiState = cardState())
+        }
+
+        composeRule.onNodeWithText("Deuda").assertIsDisplayed()
+        composeRule.onNodeWithText("Pagar tarjeta").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Conciliar extracto").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Compras a cuotas").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Portátil").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Cuota 1 de 3", substring = true).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Extractos").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("cuadró", substring = true).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("ajuste de", substring = true).performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "es-w1000dp-h3000dp")
+    fun `card actions and installment tap trigger callbacks`() {
+        var payClicks = 0
+        var reconcileClicks = 0
+        var transactionClick: Long? = null
+        composeRule.setContent {
+            TestScreen(
+                uiState = cardState(),
+                onPayCardClick = { payClicks++ },
+                onReconcileClick = { reconcileClicks++ },
+                onTransactionClick = { transactionClick = it },
+            )
+        }
+
+        composeRule.onNodeWithText("Pagar tarjeta").performScrollTo().performClick()
+        composeRule.onNodeWithText("Conciliar extracto").performScrollTo().performClick()
+        composeRule.onNodeWithText("Portátil").performScrollTo().performClick()
+
+        assertThat(payClicks).isEqualTo(1)
+        assertThat(reconcileClicks).isEqualTo(1)
+        assertThat(transactionClick).isEqualTo(11L)
     }
 
     @Test
