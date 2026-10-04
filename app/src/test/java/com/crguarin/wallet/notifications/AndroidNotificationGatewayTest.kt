@@ -417,7 +417,7 @@ class AndroidNotificationGatewayTest {
     }
 
     @Test
-    fun `channels exist with localized names after notifying`() {
+    fun `channels use the app locale and default importance after notifying`() {
         useAppLocale("es")
 
         gateway.show(listOf(upcoming()))
@@ -428,6 +428,10 @@ class AndroidNotificationGatewayTest {
         assertThat(cards).isNotNull()
         assertThat(recurring.importance).isEqualTo(NotificationManager.IMPORTANCE_DEFAULT)
         assertThat(cards.importance).isEqualTo(NotificationManager.IMPORTANCE_DEFAULT)
+        assertThat(recurring.name.toString()).isEqualTo("Pagos recurrentes")
+        assertThat(recurring.description).isEqualTo("Recordatorios y cobros registrados")
+        assertThat(cards.name.toString()).isEqualTo("Tarjetas de crédito")
+        assertThat(cards.description).isEqualTo("Fechas de corte y de pago")
     }
 
     // Helpers.

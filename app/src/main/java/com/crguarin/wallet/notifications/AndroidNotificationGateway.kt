@@ -44,8 +44,8 @@ class AndroidNotificationGateway
     ) : NotificationGateway {
         override fun show(events: List<NotificationEvent>) {
             if (events.isEmpty() || !areNotificationsAllowed()) return
-            NotificationChannels.createAll(context)
             val localized = localizedContext()
+            NotificationChannels.createAll(localized.context)
             val manager = NotificationManagerCompat.from(context)
             events.forEach { event ->
                 val content = contentFor(localized, event) ?: return@forEach
@@ -59,8 +59,8 @@ class AndroidNotificationGateway
 
         override fun showTest() {
             if (!areNotificationsAllowed()) return
-            NotificationChannels.createAll(context)
             val localized = localizedContext()
+            NotificationChannels.createAll(localized.context)
             val content =
                 NotificationContent(
                     channel = NotificationChannels.RECURRING,
