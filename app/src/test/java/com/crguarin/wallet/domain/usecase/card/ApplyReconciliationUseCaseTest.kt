@@ -13,6 +13,7 @@ import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.card.CardSystemCategories
 import com.crguarin.wallet.domain.model.card.ReconciliationPreview
 import com.crguarin.wallet.domain.usecase.CheckNegativeBalanceUseCase
 import com.crguarin.wallet.domain.usecase.SaveTransactionUseCase
@@ -125,10 +126,10 @@ class ApplyReconciliationUseCaseTest {
             assertThat(adjustment.note).isEqualTo("Extracto 15/09")
 
             val category = categoryRepository.getCategory(adjustment.categoryId!!)!!
-            assertThat(category.systemKey).isEqualTo(CARD_INTEREST_FEES_KEY)
+            assertThat(category.systemKey).isEqualTo(CardSystemCategories.INTEREST_FEES_KEY)
             assertThat(category.type).isEqualTo(CategoryType.EXPENSE)
-            assertThat(category.color).isEqualTo(CARD_INTEREST_FEES_COLOR)
-            assertThat(category.icon).isEqualTo(CARD_INTEREST_FEES_ICON)
+            assertThat(category.color).isEqualTo(CardSystemCategories.INTEREST_FEES_COLOR)
+            assertThat(category.icon).isEqualTo(CardSystemCategories.INTEREST_FEES_ICON)
 
             // The adjustment is only inserted by saveReconciliation, not by validation.
             assertThat(transactionRepository.getTransaction(adjustmentId)).isNull()
@@ -165,10 +166,10 @@ class ApplyReconciliationUseCaseTest {
             assertThat(adjustment.amount).isEqualTo(Money(50_000L))
 
             val category = categoryRepository.getCategory(adjustment.categoryId!!)!!
-            assertThat(category.systemKey).isEqualTo(CARD_ADJUSTMENT_KEY)
+            assertThat(category.systemKey).isEqualTo(CardSystemCategories.ADJUSTMENT_KEY)
             assertThat(category.type).isEqualTo(CategoryType.INCOME)
-            assertThat(category.color).isEqualTo(CARD_ADJUSTMENT_COLOR)
-            assertThat(category.icon).isEqualTo(CARD_ADJUSTMENT_ICON)
+            assertThat(category.color).isEqualTo(CardSystemCategories.ADJUSTMENT_COLOR)
+            assertThat(category.icon).isEqualTo(CardSystemCategories.ADJUSTMENT_ICON)
         }
 
     @Test
@@ -236,7 +237,7 @@ class ApplyReconciliationUseCaseTest {
                     Category(
                         id = 5L,
                         name = null,
-                        systemKey = CARD_INTEREST_FEES_KEY,
+                        systemKey = CardSystemCategories.INTEREST_FEES_KEY,
                         type = CategoryType.EXPENSE,
                         color = 1,
                         icon = "other",

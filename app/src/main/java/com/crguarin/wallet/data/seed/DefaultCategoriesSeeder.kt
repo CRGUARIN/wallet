@@ -6,6 +6,7 @@ import com.crguarin.wallet.data.db.CategoryEntity
 import com.crguarin.wallet.data.db.WalletDatabase
 import com.crguarin.wallet.di.IoDispatcher
 import com.crguarin.wallet.domain.model.CategoryType
+import com.crguarin.wallet.domain.model.card.CardSystemCategories
 import com.crguarin.wallet.domain.seed.CategorySeeder
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
@@ -101,10 +102,10 @@ class DefaultCategoriesSeeder
                     icon = "more_horiz",
                 ),
                 CategorySeed(
-                    systemKey = SystemCategoryDefaults.CARD_INTEREST_FEES_KEY,
-                    type = SystemCategoryDefaults.CARD_INTEREST_FEES_TYPE,
-                    color = SystemCategoryDefaults.CARD_INTEREST_FEES_COLOR,
-                    icon = SystemCategoryDefaults.CARD_INTEREST_FEES_ICON,
+                    systemKey = CardSystemCategories.INTEREST_FEES_KEY,
+                    type = CardSystemCategories.INTEREST_FEES_TYPE,
+                    color = CardSystemCategories.INTEREST_FEES_COLOR,
+                    icon = CardSystemCategories.INTEREST_FEES_ICON,
                 ),
                 // Income categories
                 CategorySeed(
@@ -138,10 +139,10 @@ class DefaultCategoriesSeeder
                     icon = "account_balance",
                 ),
                 CategorySeed(
-                    systemKey = SystemCategoryDefaults.CARD_ADJUSTMENT_KEY,
-                    type = SystemCategoryDefaults.CARD_ADJUSTMENT_TYPE,
-                    color = SystemCategoryDefaults.CARD_ADJUSTMENT_COLOR,
-                    icon = SystemCategoryDefaults.CARD_ADJUSTMENT_ICON,
+                    systemKey = CardSystemCategories.ADJUSTMENT_KEY,
+                    type = CardSystemCategories.ADJUSTMENT_TYPE,
+                    color = CardSystemCategories.ADJUSTMENT_COLOR,
+                    icon = CardSystemCategories.ADJUSTMENT_ICON,
                 ),
             )
 

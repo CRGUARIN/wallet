@@ -4,8 +4,8 @@ import android.content.Context
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.crguarin.wallet.data.db.WalletDatabase
-import com.crguarin.wallet.data.seed.SystemCategoryDefaults
 import com.crguarin.wallet.domain.model.CategoryType
+import com.crguarin.wallet.domain.model.card.CardSystemCategories
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
@@ -52,10 +52,10 @@ class EnsureSystemCategoryTest {
         runTest {
             val id =
                 repository.ensureSystemCategory(
-                    SystemCategoryDefaults.CARD_INTEREST_FEES_KEY,
-                    SystemCategoryDefaults.CARD_INTEREST_FEES_TYPE,
-                    SystemCategoryDefaults.CARD_INTEREST_FEES_COLOR,
-                    SystemCategoryDefaults.CARD_INTEREST_FEES_ICON,
+                    CardSystemCategories.INTEREST_FEES_KEY,
+                    CardSystemCategories.INTEREST_FEES_TYPE,
+                    CardSystemCategories.INTEREST_FEES_COLOR,
+                    CardSystemCategories.INTEREST_FEES_ICON,
                 )
 
             assertThat(id).isGreaterThan(0L)
@@ -65,8 +65,8 @@ class EnsureSystemCategoryTest {
             assertThat(created?.name).isNull()
             assertThat(created?.parentId).isNull()
             assertThat(created?.isArchived).isFalse()
-            assertThat(created?.color).isEqualTo(SystemCategoryDefaults.CARD_INTEREST_FEES_COLOR)
-            assertThat(created?.icon).isEqualTo(SystemCategoryDefaults.CARD_INTEREST_FEES_ICON)
+            assertThat(created?.color).isEqualTo(CardSystemCategories.INTEREST_FEES_COLOR)
+            assertThat(created?.icon).isEqualTo(CardSystemCategories.INTEREST_FEES_ICON)
         }
 
     @Test
@@ -74,17 +74,17 @@ class EnsureSystemCategoryTest {
         runTest {
             val first =
                 repository.ensureSystemCategory(
-                    SystemCategoryDefaults.CARD_ADJUSTMENT_KEY,
-                    SystemCategoryDefaults.CARD_ADJUSTMENT_TYPE,
-                    SystemCategoryDefaults.CARD_ADJUSTMENT_COLOR,
-                    SystemCategoryDefaults.CARD_ADJUSTMENT_ICON,
+                    CardSystemCategories.ADJUSTMENT_KEY,
+                    CardSystemCategories.ADJUSTMENT_TYPE,
+                    CardSystemCategories.ADJUSTMENT_COLOR,
+                    CardSystemCategories.ADJUSTMENT_ICON,
                 )
             val second =
                 repository.ensureSystemCategory(
-                    SystemCategoryDefaults.CARD_ADJUSTMENT_KEY,
-                    SystemCategoryDefaults.CARD_ADJUSTMENT_TYPE,
-                    SystemCategoryDefaults.CARD_ADJUSTMENT_COLOR,
-                    SystemCategoryDefaults.CARD_ADJUSTMENT_ICON,
+                    CardSystemCategories.ADJUSTMENT_KEY,
+                    CardSystemCategories.ADJUSTMENT_TYPE,
+                    CardSystemCategories.ADJUSTMENT_COLOR,
+                    CardSystemCategories.ADJUSTMENT_ICON,
                 )
 
             assertThat(second).isEqualTo(first)
@@ -98,20 +98,20 @@ class EnsureSystemCategoryTest {
         runTest {
             val id =
                 repository.ensureSystemCategory(
-                    SystemCategoryDefaults.CARD_INTEREST_FEES_KEY,
-                    SystemCategoryDefaults.CARD_INTEREST_FEES_TYPE,
-                    SystemCategoryDefaults.CARD_INTEREST_FEES_COLOR,
-                    SystemCategoryDefaults.CARD_INTEREST_FEES_ICON,
+                    CardSystemCategories.INTEREST_FEES_KEY,
+                    CardSystemCategories.INTEREST_FEES_TYPE,
+                    CardSystemCategories.INTEREST_FEES_COLOR,
+                    CardSystemCategories.INTEREST_FEES_ICON,
                 )
             database.categoryDao().archiveCategoryAndSubcategories(id)
             assertThat(database.categoryDao().getById(id)?.isArchived).isTrue()
 
             val ensured =
                 repository.ensureSystemCategory(
-                    SystemCategoryDefaults.CARD_INTEREST_FEES_KEY,
-                    SystemCategoryDefaults.CARD_INTEREST_FEES_TYPE,
-                    SystemCategoryDefaults.CARD_INTEREST_FEES_COLOR,
-                    SystemCategoryDefaults.CARD_INTEREST_FEES_ICON,
+                    CardSystemCategories.INTEREST_FEES_KEY,
+                    CardSystemCategories.INTEREST_FEES_TYPE,
+                    CardSystemCategories.INTEREST_FEES_COLOR,
+                    CardSystemCategories.INTEREST_FEES_ICON,
                 )
 
             assertThat(ensured).isEqualTo(id)

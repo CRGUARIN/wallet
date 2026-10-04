@@ -7,20 +7,13 @@ import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.card.CardStatement
+import com.crguarin.wallet.domain.model.card.CardSystemCategories
 import com.crguarin.wallet.domain.model.card.ReconciliationPreview
 import com.crguarin.wallet.domain.repository.CardStatementRepository
 import com.crguarin.wallet.domain.repository.CategoryRepository
 import com.crguarin.wallet.domain.usecase.SaveTransactionUseCase
 import java.time.LocalDate
 import javax.inject.Inject
-
-const val CARD_INTEREST_FEES_KEY = "card_interest_fees"
-const val CARD_ADJUSTMENT_KEY = "card_adjustment"
-const val CARD_INTEREST_FEES_ICON = "credit_card"
-const val CARD_ADJUSTMENT_ICON = "receipt_long"
-
-val CARD_INTEREST_FEES_COLOR: Int = 0xFFEF5350.toInt()
-val CARD_ADJUSTMENT_COLOR: Int = 0xFF66BB6A.toInt()
 
 /**
  * Saves the statement described by [preview] and, when the difference requires it, the
@@ -51,10 +44,10 @@ class ApplyReconciliationUseCase
                             preview = preview,
                             amount = difference,
                             type = TransactionType.EXPENSE,
-                            systemKey = CARD_INTEREST_FEES_KEY,
-                            categoryType = CategoryType.EXPENSE,
-                            color = CARD_INTEREST_FEES_COLOR,
-                            icon = CARD_INTEREST_FEES_ICON,
+                            systemKey = CardSystemCategories.INTEREST_FEES_KEY,
+                            categoryType = CardSystemCategories.INTEREST_FEES_TYPE,
+                            color = CardSystemCategories.INTEREST_FEES_COLOR,
+                            icon = CardSystemCategories.INTEREST_FEES_ICON,
                             note = adjustmentNote,
                         )
                     difference.isNegative && forceNegativeAdjustment ->
@@ -62,10 +55,10 @@ class ApplyReconciliationUseCase
                             preview = preview,
                             amount = -difference,
                             type = TransactionType.INCOME,
-                            systemKey = CARD_ADJUSTMENT_KEY,
-                            categoryType = CategoryType.INCOME,
-                            color = CARD_ADJUSTMENT_COLOR,
-                            icon = CARD_ADJUSTMENT_ICON,
+                            systemKey = CardSystemCategories.ADJUSTMENT_KEY,
+                            categoryType = CardSystemCategories.ADJUSTMENT_TYPE,
+                            color = CardSystemCategories.ADJUSTMENT_COLOR,
+                            icon = CardSystemCategories.ADJUSTMENT_ICON,
                             note = adjustmentNote,
                         )
                     else -> null
