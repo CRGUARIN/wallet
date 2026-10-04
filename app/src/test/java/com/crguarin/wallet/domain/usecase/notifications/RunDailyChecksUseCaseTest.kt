@@ -17,6 +17,8 @@ import com.crguarin.wallet.domain.model.recurring.testAccount
 import com.crguarin.wallet.domain.model.recurring.testCardAccount
 import com.crguarin.wallet.domain.model.recurring.testCategory
 import com.crguarin.wallet.domain.model.recurring.testPayment
+import com.crguarin.wallet.domain.repository.NotificationGateway
+import com.crguarin.wallet.domain.repository.PreferencesRepository
 import com.crguarin.wallet.domain.repository.RecurringRepository
 import com.crguarin.wallet.domain.usecase.CheckNegativeBalanceUseCase
 import com.crguarin.wallet.domain.usecase.SaveTransactionUseCase
@@ -99,7 +101,6 @@ class RunDailyChecksUseCaseTest {
                 accountRepository,
                 categoryRepository,
                 ObserveCardOverviewsUseCase(accountRepository, observeCardOverview),
-                timeProvider,
             )
         runDailyChecksUseCase = RunDailyChecksUseCase(processDue, preferencesRepository, computeUseCase, gateway, timeProvider)
         onAppStartUseCase = OnAppStartUseCase(processDue, preferencesRepository, scheduler)
@@ -179,6 +180,55 @@ class RunDailyChecksUseCaseTest {
             // The card payment due today is still notified despite the step-1 failure.
             assertThat(gateway.shownEvents.filterIsInstance<NotificationEvent.CardPaymentDue>()).hasSize(1)
             assertThat(preferencesRepository.getLastNotificationRunDate()).isEqualTo(today)
+        }
+
+    @Test
+    fun `steps run in order process show and update last run`() =
+        runTest {
+            recurringRepository.setInitialData(listOf(testPayment(id = 1L, startDate = today, nextDueDate = today)))
+            val order = mutableListOf<String>()
+            val recordingRecurring =
+                object : RecurringRepository by recurringRepository {
+                    override suspend fun getAll(): List<RecurringPayment> {
+                        order.add("process")
+                        return recurringRepository.getAll()
+                    }
+                }
+            val processDue =
+                ProcessDueRecurringUseCase(
+                    recordingRecurring,
+                    accountRepository,
+                    categoryRepository,
+                    saveTransactionUseCase,
+                    timeProvider,
+                )
+            val recordingPreferences =
+                object : PreferencesRepository by preferencesRepository {
+                    override suspend fun setLastNotificationRunDate(date: LocalDate) {
+                        order.add("lastRun")
+                        preferencesRepository.setLastNotificationRunDate(date)
+                    }
+                }
+            val recordingGateway =
+                object : NotificationGateway {
+                    override fun show(events: List<NotificationEvent>) {
+                        order.add("show")
+                    }
+
+                    override fun showTest() = Unit
+                }
+            val useCase =
+                RunDailyChecksUseCase(
+                    processDue,
+                    recordingPreferences,
+                    computeUseCase,
+                    recordingGateway,
+                    timeProvider,
+                )
+
+            useCase()
+
+            assertThat(order).containsExactly("process", "show", "lastRun").inOrder()
         }
 
     @Test

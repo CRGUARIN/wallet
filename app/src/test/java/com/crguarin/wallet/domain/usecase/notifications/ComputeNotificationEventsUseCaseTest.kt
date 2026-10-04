@@ -66,7 +66,6 @@ class ComputeNotificationEventsUseCaseTest {
                 accountRepository,
                 categoryRepository,
                 ObserveCardOverviewsUseCase(accountRepository, observeCardOverview),
-                timeProvider,
             )
     }
 
@@ -248,9 +247,9 @@ class ComputeNotificationEventsUseCaseTest {
         }
 
     @Test
-    fun `card closing fires days before and same day`() =
+    fun `card closing fires on the trigger day only`() =
         runTest {
-            // Next closing is 2026-10-15.
+            // Next closing is 2026-10-15; with 2 days before, the trigger is 2026-10-13.
             val settings =
                 NotificationSettings(
                     recurringReminders = false,
@@ -266,6 +265,39 @@ class ComputeNotificationEventsUseCaseTest {
             assertThat(events).hasSize(1)
             assertThat(events.single().closingDate).isEqualTo(LocalDate.of(2026, 10, 15))
             assertThat(events.single().daysUntil).isEqualTo(2)
+
+            val dayBefore =
+                compute(triggerDay.minusDays(2), triggerDay.minusDays(1), settings)
+                    .filterIsInstance<NotificationEvent.CardClosing>()
+            assertThat(dayBefore).isEmpty()
+            val dayAfter =
+                compute(triggerDay, triggerDay.plusDays(1), settings)
+                    .filterIsInstance<NotificationEvent.CardClosing>()
+            assertThat(dayAfter).isEmpty()
+        }
+
+    @Test
+    fun `card closing with daysBefore zero fires on the closing day`() =
+        runTest {
+            val settings =
+                NotificationSettings(
+                    recurringReminders = false,
+                    recurringPendingConfirm = false,
+                    cardPayment = false,
+                    cardOverdue = false,
+                    cardClosingDaysBefore = 0,
+                )
+            val closingDay = LocalDate.of(2026, 10, 15)
+            val events =
+                compute(closingDay.minusDays(1), closingDay, settings)
+                    .filterIsInstance<NotificationEvent.CardClosing>()
+            assertThat(events).hasSize(1)
+            assertThat(events.single().daysUntil).isEqualTo(0)
+
+            val dayAfter =
+                compute(closingDay, closingDay.plusDays(1), settings)
+                    .filterIsInstance<NotificationEvent.CardClosing>()
+            assertThat(dayAfter).isEmpty()
         }
 
     @Test

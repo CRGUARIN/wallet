@@ -1,6 +1,5 @@
 package com.crguarin.wallet.domain.usecase.notifications
 
-import com.crguarin.wallet.core.time.TimeProvider
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.card.CardMath
 import com.crguarin.wallet.domain.model.card.StatementPaymentStatus
@@ -37,7 +36,6 @@ class ComputeNotificationEventsUseCase
         private val accountRepository: AccountRepository,
         private val categoryRepository: CategoryRepository,
         private val observeCardOverviewsUseCase: ObserveCardOverviewsUseCase,
-        private val timeProvider: TimeProvider,
     ) {
         suspend operator fun invoke(
             lastRun: LocalDate?,
