@@ -66,6 +66,18 @@ fun WalletNavHost(
                 onViewReports = {
                     navController.navigateToTopLevelDestination(Reports)
                 },
+                onUpcomingRecurringClick = { paymentId ->
+                    navController.navigate(RecurringEdit(paymentId = paymentId))
+                },
+                onUpcomingPendingClick = {
+                    navController.navigate(RecurringList)
+                },
+                onUpcomingCardClick = { accountId ->
+                    navController.navigate(AccountDetail(accountId = accountId))
+                },
+                onViewAllRecurring = {
+                    navController.navigate(RecurringList)
+                },
             )
         }
         composable<Transactions> {
@@ -182,6 +194,9 @@ fun WalletNavHost(
                 onCategoriesClick = {
                     navController.navigate(Categories())
                 },
+                onRecurringClick = {
+                    navController.navigate(RecurringList)
+                },
             )
         }
         composable<CardReconcile> {
@@ -206,6 +221,9 @@ fun WalletNavHost(
         composable<RecurringEdit> {
             RecurringEditRoute(
                 onNavigateBack = { navController.popBackStack() },
+                onTransactionClick = { transactionId ->
+                    navController.navigate(TransactionEdit(transactionId = transactionId))
+                },
             )
         }
     }

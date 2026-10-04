@@ -382,6 +382,43 @@ class NavigationTest {
         assertThat(navController.currentBackStackEntry?.destination?.hasRoute(Onboarding::class)).isTrue()
     }
 
+    @Test
+    @Config(qualifiers = "es")
+    fun `recurring payments entry from settings opens the list`() {
+        setAppContent()
+
+        // Click Ajustes tab
+        composeRule.onNodeWithText("Ajustes").performClick()
+        composeRule.onAllNodesWithText("Ajustes").onFirst().assertIsDisplayed()
+
+        // The "Datos" entry is identified by its subtitle (the title is also used by the
+        // notifications section header); the screen scrolls, so it may start below the fold.
+        composeRule
+            .onNodeWithText("Suscripciones, servicios y cobros periódicos")
+            .performScrollTo()
+            .performClick()
+
+        assertThat(navController.currentBackStackEntry?.destination?.hasRoute(RecurringList::class)).isTrue()
+        composeRule.onNodeWithText("Sin pagos recurrentes").assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "es")
+    fun `add from the recurring list opens the new payment form`() {
+        setAppContent()
+
+        composeRule.runOnUiThread {
+            navController.navigate(RecurringList)
+        }
+        composeRule.waitForIdle()
+
+        // Empty list in inspection mode: the state offers the add action.
+        composeRule.onNodeWithText("Agregar").performClick()
+
+        assertThat(navController.currentBackStackEntry?.destination?.hasRoute(RecurringEdit::class)).isTrue()
+        composeRule.onNodeWithText("Nuevo pago recurrente").assertIsDisplayed()
+    }
+
     private fun assertTabSelected(
         contentDescription: String,
         selected: Boolean,
