@@ -46,19 +46,8 @@ fun scheduleText(
             resources.getString(
                 R.string.recurring_schedule_yearly,
                 every,
-                yearlyDayMonth(startDate, locale),
+                startDate.dayOfMonth,
+                startDate.month.getDisplayName(TextStyle.FULL, locale),
             )
-    }
-}
-
-private fun yearlyDayMonth(
-    date: LocalDate,
-    locale: Locale,
-): String {
-    val monthName = date.month.getDisplayName(TextStyle.FULL, locale)
-    return if (locale.language == "es") {
-        "${date.dayOfMonth} de $monthName"
-    } else {
-        "$monthName ${date.dayOfMonth}"
     }
 }

@@ -459,7 +459,7 @@
     <string name="recurring_interval_label">Repetir cada</string>
     <string name="recurring_schedule_weekly">%1$s · los %2$s</string>
     <string name="recurring_schedule_monthly">%1$s · día %2$d</string>
-    <string name="recurring_schedule_yearly">%1$s · el %2$s</string>
+    <string name="recurring_schedule_yearly">%1$s · el %2$d de %3$s</string>
     <string name="recurring_next_date_label">Próximo cobro</string>
     <string name="recurring_next_date_hint">Desde esta fecha se repite. Si el cobro de hoy ya lo anotaste, elige el siguiente.</string>
     <string name="recurring_next_on">Próximo: %1$s</string>
