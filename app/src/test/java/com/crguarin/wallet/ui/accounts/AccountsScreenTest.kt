@@ -13,6 +13,8 @@ import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.AccountWithBalance
+import com.crguarin.wallet.domain.model.card.CardOverview
+import com.crguarin.wallet.domain.model.card.StatementPaymentStatus
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
@@ -21,6 +23,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.time.Instant
+import java.time.LocalDate
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "es")
@@ -208,5 +211,91 @@ class AccountsScreenTest {
         composeRule.onNodeWithText("Sin cuentas").assertIsDisplayed()
         composeRule.onAllNodesWithContentDescription("Nueva cuenta").onFirst().performClick()
         assertThat(newAccountClicked).isTrue()
+    }
+
+    private val cardAccount =
+        Account(
+            id = 7L,
+            name = "RappiCard",
+            type = AccountType.CREDIT_CARD,
+            initialBalance = Money(-250_000_00L),
+            color = 0xFFFF6F00.toInt(),
+            icon = "credit_card",
+            sortOrder = 2,
+            isArchived = false,
+            includeInTotal = true,
+            createdAt = Instant.EPOCH,
+        )
+
+    private fun cardState(
+        overview: CardOverview,
+        today: LocalDate,
+    ) = AccountsUiState(
+        activeAccounts = listOf(AccountWithBalance(cardAccount, Money(-250_000_00L))),
+        totalBalance = Money(-250_000_00L),
+        cardOverviews = mapOf(7L to overview),
+        today = today,
+    )
+
+    private fun showCardState(
+        overview: CardOverview,
+        today: LocalDate,
+    ) {
+        composeRule.setContent {
+            WalletTheme {
+                AccountsScreen(
+                    uiState = cardState(overview, today),
+                    onAccountClick = {},
+                    onNewAccountClick = {},
+                    onToggleReordering = {},
+                    onMoveAccountUp = {},
+                    onMoveAccountDown = {},
+                    onToggleArchivedExpanded = {},
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `card row shows debt available and payment reminder chip`() {
+        val today = LocalDate.of(2026, 9, 28)
+        showCardState(sampleCardOverview(accountId = 7L, today = today), today)
+
+        composeRule.onNodeWithText("Deuda").assertIsDisplayed()
+        composeRule.onNodeWithText("Disponible", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Pagar antes del", substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun `overdue card row shows overdue chip`() {
+        val today = LocalDate.of(2026, 10, 10)
+        showCardState(
+            sampleCardOverview(
+                accountId = 7L,
+                today = today,
+                paymentStatus = StatementPaymentStatus.OVERDUE,
+            ),
+            today,
+        )
+
+        composeRule.onNodeWithText("Pago vencido").assertIsDisplayed()
+    }
+
+    @Test
+    fun `card with credit in favor shows credit balance label`() {
+        val today = LocalDate.of(2026, 9, 28)
+        showCardState(
+            sampleCardOverview(
+                accountId = 7L,
+                today = today,
+                debt = Money(-50_000_00L),
+                paymentStatus = null,
+                pendingAmount = null,
+                dueDate = null,
+            ),
+            today,
+        )
+
+        composeRule.onNodeWithText("Saldo a favor").assertIsDisplayed()
     }
 }

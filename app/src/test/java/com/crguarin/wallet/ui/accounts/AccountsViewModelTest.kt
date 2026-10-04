@@ -3,11 +3,13 @@ package com.crguarin.wallet.ui.accounts
 import app.cash.turbine.test
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.fake.FakeAccountRepository
+import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.usecase.ObserveAccountsUseCase
 import com.crguarin.wallet.domain.usecase.ObserveTotalBalanceUseCase
 import com.crguarin.wallet.domain.usecase.ReorderAccountsUseCase
+import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewsUseCase
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -86,6 +88,8 @@ class AccountsViewModelTest {
                 observeAccountsUseCase = observeAccountsUseCase,
                 observeTotalBalanceUseCase = observeTotalBalanceUseCase,
                 reorderAccountsUseCase = reorderAccountsUseCase,
+                observeCardOverviewsUseCase = ObserveCardOverviewsUseCase(),
+                timeProvider = FakeTimeProvider(Instant.parse("2026-09-28T12:00:00Z")),
             )
     }
 
@@ -166,6 +170,21 @@ class AccountsViewModelTest {
                 viewModel.moveAccountUp(1L)
                 val afterUp = awaitItem()
                 assertThat(afterUp.activeAccounts.map { it.account.id }).containsExactly(1L, 2L).inOrder()
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `card overviews start empty before the domain provides them`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                accountList = listOf(account1, account2),
+            )
+
+            viewModel.uiState.test {
+                val state = awaitItem()
+                assertThat(state.cardOverviews).isEmpty()
 
                 cancelAndIgnoreRemainingEvents()
             }

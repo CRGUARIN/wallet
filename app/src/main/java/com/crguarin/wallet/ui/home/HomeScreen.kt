@@ -63,6 +63,8 @@ import com.crguarin.wallet.domain.model.MonthSummary
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionDetails
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.card.CardOverview
+import com.crguarin.wallet.ui.accounts.CardRowBalance
 import com.crguarin.wallet.ui.components.EmptyState
 import com.crguarin.wallet.ui.components.IconCatalog
 import com.crguarin.wallet.ui.components.LoadingState
@@ -158,6 +160,8 @@ fun HomeScreen(
                     AccountsRow(
                         accounts = uiState.accounts,
                         onAccountClick = onAccountClick,
+                        cardOverviews = uiState.cardOverviews,
+                        today = uiState.today,
                     )
                 }
             }
@@ -338,14 +342,17 @@ private fun SectionHeader(
 }
 
 @Composable
-private fun AccountsRow(
+internal fun AccountsRow(
     accounts: List<AccountWithBalance>,
     onAccountClick: (Long) -> Unit,
+    cardOverviews: Map<Long, CardOverview> = emptyMap(),
+    today: LocalDate = LocalDate.now(),
 ) {
     LazyRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         items(items = accounts, key = { it.account.id }) { item ->
+            val cardOverview = cardOverviews[item.account.id]
             OutlinedCard(
                 onClick = { onAccountClick(item.account.id) },
                 shape = RoundedCornerShape(16.dp),
@@ -376,11 +383,18 @@ private fun AccountsRow(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    MoneyText(
-                        amount = item.balance,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    if (item.account.type == AccountType.CREDIT_CARD && cardOverview != null) {
+                        CardRowBalance(
+                            overview = cardOverview,
+                            today = today,
+                        )
+                    } else {
+                        MoneyText(
+                            amount = item.balance,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
         }

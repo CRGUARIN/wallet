@@ -11,6 +11,7 @@ import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.usecase.ObserveAccountsUseCase
 import com.crguarin.wallet.domain.usecase.ObserveMonthSummaryUseCase
 import com.crguarin.wallet.domain.usecase.ObserveTotalBalanceUseCase
+import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewsUseCase
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -80,6 +81,7 @@ class HomeViewModelTest {
             observeAccountsUseCase = ObserveAccountsUseCase(accountRepository),
             transactionRepository = transactionRepository,
             timeProvider = timeProvider,
+            observeCardOverviewsUseCase = ObserveCardOverviewsUseCase(),
         )
 
     private fun transaction(
@@ -178,5 +180,15 @@ class HomeViewModelTest {
             advanceUntilIdle()
 
             assertThat(viewModel.uiState.value.monthSummary.expense).isEqualTo(Money(1_000L))
+        }
+
+    @Test
+    fun `card overviews start empty before the domain provides them`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(listOf(cash, savings))
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+
+            assertThat(viewModel.uiState.value.cardOverviews).isEmpty()
         }
 }

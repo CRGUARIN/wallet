@@ -18,6 +18,7 @@ import com.crguarin.wallet.domain.model.MonthSummary
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionDetails
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.ui.accounts.sampleCardOverview
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
@@ -219,5 +220,50 @@ class HomeScreenTest {
         composeRule.onNodeWithText("Ver reportes").performClick()
 
         assertThat(reportsClicks).isEqualTo(1)
+    }
+
+    @Test
+    fun `home account row shows card debt available and reminder chip`() {
+        val today = LocalDate.of(2026, 9, 28)
+        val card =
+            Account(
+                id = 7L,
+                name = "RappiCard",
+                type = AccountType.CREDIT_CARD,
+                initialBalance = Money(-250_000_00L),
+                color = 0xFFFF6F00.toInt(),
+                icon = "credit_card",
+                sortOrder = 2,
+                createdAt = Instant.EPOCH,
+            )
+        composeRule.setContent {
+            WalletTheme {
+                HomeScreen(
+                    uiState =
+                        HomeUiState(
+                            isLoading = false,
+                            totalBalance = Money(-250_000_00L),
+                            monthSummary = MonthSummary(income = Money.ZERO, expense = Money.ZERO),
+                            accounts = listOf(AccountWithBalance(card, Money(-250_000_00L))),
+                            recentTransactions = emptyList(),
+                            cardOverviews =
+                                mapOf(
+                                    7L to sampleCardOverview(accountId = 7L),
+                                ),
+                            today = today,
+                        ),
+                    onAccountClick = {},
+                    onTransactionClick = {},
+                    onViewAllTransactions = {},
+                    onQuickAction = {},
+                    onViewReports = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("RappiCard").assertIsDisplayed()
+        composeRule.onNodeWithText("Deuda").assertIsDisplayed()
+        composeRule.onNodeWithText("Disponible", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Pagar antes del", substring = true).assertIsDisplayed()
     }
 }

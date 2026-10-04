@@ -7,15 +7,18 @@ import com.crguarin.wallet.core.time.TimeProvider
 import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.MonthSummary
 import com.crguarin.wallet.domain.model.TransactionDetails
+import com.crguarin.wallet.domain.model.card.CardOverview
 import com.crguarin.wallet.domain.repository.TransactionRepository
 import com.crguarin.wallet.domain.usecase.ObserveAccountsUseCase
 import com.crguarin.wallet.domain.usecase.ObserveMonthSummaryUseCase
 import com.crguarin.wallet.domain.usecase.ObserveTotalBalanceUseCase
+import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import java.time.LocalDate
 import java.time.YearMonth
 import javax.inject.Inject
 
@@ -28,6 +31,8 @@ data class HomeUiState(
     val monthSummary: MonthSummary = MonthSummary(Money.ZERO, Money.ZERO),
     val accounts: List<AccountWithBalance> = emptyList(),
     val recentTransactions: List<TransactionDetails> = emptyList(),
+    val cardOverviews: Map<Long, CardOverview> = emptyMap(),
+    val today: LocalDate = LocalDate.now(),
 ) {
     /** A transfer needs at least two active accounts. */
     val canTransfer: Boolean
@@ -46,8 +51,10 @@ class HomeViewModel
         observeAccountsUseCase: ObserveAccountsUseCase,
         transactionRepository: TransactionRepository,
         timeProvider: TimeProvider,
+        observeCardOverviewsUseCase: ObserveCardOverviewsUseCase,
     ) : ViewModel() {
         private val currentMonth: YearMonth = YearMonth.from(timeProvider.today())
+        private val today: LocalDate = timeProvider.today()
 
         val uiState: StateFlow<HomeUiState> =
             combine(
@@ -55,13 +62,16 @@ class HomeViewModel
                 observeMonthSummaryUseCase(currentMonth),
                 observeAccountsUseCase(),
                 transactionRepository.observeRecentTransactions(HOME_RECENT_LIMIT),
-            ) { totalBalance, monthSummary, accounts, recentTransactions ->
+                observeCardOverviewsUseCase(),
+            ) { totalBalance, monthSummary, accounts, recentTransactions, cardOverviews ->
                 HomeUiState(
                     isLoading = false,
                     totalBalance = totalBalance,
                     monthSummary = monthSummary,
                     accounts = accounts,
                     recentTransactions = recentTransactions,
+                    cardOverviews = cardOverviews,
+                    today = today,
                 )
             }.stateIn(
                 scope = viewModelScope,
