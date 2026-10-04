@@ -5,13 +5,15 @@ import android.app.Application
 import android.app.NotificationManager
 import android.content.Context
 import android.provider.Settings
+import androidx.activity.ComponentActivity
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -25,7 +27,7 @@ import org.robolectric.annotation.Config
  */
 abstract class BaseNotificationPermissionTest {
     @get:Rule
-    val composeRule = createComposeRule()
+    val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     protected fun setSystemNotificationsEnabled(enabled: Boolean) {
         val context = ApplicationProvider.getApplicationContext<Context>()
@@ -80,6 +82,13 @@ class NotificationPermissionApi32Test : BaseNotificationPermissionTest() {
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class NotificationPermissionApi35Test : BaseNotificationPermissionTest() {
+    @Before
+    fun grantPermissionByDefault() {
+        // Robolectric denies runtime permissions unless granted; the app default is "asked once granted".
+        val application = ApplicationProvider.getApplicationContext<Application>()
+        shadowOf(application).grantPermissions(Manifest.permission.POST_NOTIFICATIONS)
+    }
+
     @Test
     fun `granted is false when POST_NOTIFICATIONS is denied`() {
         val application = ApplicationProvider.getApplicationContext<Application>()
@@ -98,8 +107,10 @@ class NotificationPermissionApi35Test : BaseNotificationPermissionTest() {
 
         composeRule.onNodeWithText("Request").performClick()
 
-        assertThat(shadowOf(composeRule.activity).lastRequestedPermission)
-            .isEqualTo(Manifest.permission.POST_NOTIFICATIONS)
-        assertThat(shadowOf(composeRule.activity).peekNextStartedActivity).isNull()
+        assertThat(shadowOf(composeRule.activity).lastRequestedPermission.requestedPermissions.toList())
+            .contains(Manifest.permission.POST_NOTIFICATIONS)
+        // The permission controller starts its own intent; settings must not open.
+        assertThat(shadowOf(composeRule.activity).peekNextStartedActivity()?.action)
+            .isNotEqualTo(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
     }
 }

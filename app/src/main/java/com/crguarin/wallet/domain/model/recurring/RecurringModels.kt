@@ -91,7 +91,9 @@ data class UpcomingPayment(
 )
 
 sealed interface OccurrenceResult {
-    data class Recorded(val transactionId: Long) : OccurrenceResult
+    data class Recorded(
+        val transactionId: Long,
+    ) : OccurrenceResult
 
     data object Skipped : OccurrenceResult
 

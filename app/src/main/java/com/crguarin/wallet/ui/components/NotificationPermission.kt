@@ -1,3 +1,7 @@
+// The file is named after its main entry point, the rememberNotificationPermissionState()
+// composable, rather than after the NotificationPermissionState holder class it declares.
+@file:Suppress("ktlint:standard:filename")
+
 package com.crguarin.wallet.ui.components
 
 import android.Manifest
@@ -30,7 +34,9 @@ import androidx.lifecycle.compose.LifecycleEventEffect
  * permission can no longer be requested).
  */
 @Stable
-class NotificationPermissionState internal constructor(granted: Boolean) {
+class NotificationPermissionState internal constructor(
+    granted: Boolean,
+) {
     var granted: Boolean by mutableStateOf(granted)
         private set
 
