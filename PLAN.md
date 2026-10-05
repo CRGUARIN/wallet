@@ -781,7 +781,7 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 
 ### Tarea 16 — Pagos recurrentes y notificaciones
 - Pagos recurrentes (`RecurringPayment`): suscripciones, servicios e ingresos fijos que se registran solos (AUTO) o pidiendo confirmación (CONFIRM), con calendario anclado a `startDate`, catch-up idempotente, pausa, bloqueos por archivo y borrado que conserva los movimientos.
-- Notificaciones configurables (Ajustes > Notificaciones): recordatorios previos, cobros registrados, cobros por confirmar y corte/pago/vencido de tarjetas; revisión diaria con WorkManager a la hora elegida + procesamiento al abrir la app; permiso `POST_NOTIFICATIONS` pedido en contexto.
+- Notificaciones configurables (Ajustes > Notificaciones): recordatorios previos, cobros registrados, cobros por confirmar y corte/pago/vencido de tarjetas; revisión diaria con WorkManager a la hora elegida + procesamiento al abrir la app y al guardar o reanudar un pago; permiso `POST_NOTIFICATIONS` pedido en contexto.
 - Inicio: tarjeta "Próximos pagos" (7 días). Deep links `wallet://recurring` y `wallet://account/{id}` desde las notificaciones.
 - Migración de BD 2→3 (tabla `recurring_payments` + `transactions.recurring_id` sin FK) y backup v3 (compatible con v1 y v2).
 - **Aceptación**: la verificación completa (`ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease`) pasa, la migración conserva los datos reales de la v2 y los flujos se probaron en dispositivo real.

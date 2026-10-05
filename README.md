@@ -27,7 +27,7 @@ Moneda única: COP. El dinero se maneja como enteros en centavos, nunca como dec
 
 - Crea una suscripción o servicio desde Ajustes > Datos > Pagos recurrentes: nombre, monto, cuenta (puede ser una tarjeta), categoría, cada cuánto se repite y el próximo cobro.
 - **Automático** lo descuenta solo en cada periodo; **Preguntarme antes** te avisa para que confirmes el valor y la fecha (útil si cambia, como los servicios) u omitas ese cobro.
-- Si el teléfono estuvo apagado, al abrir la app se registran los cobros pendientes con su fecha real, cada uno como un movimiento normal.
+- Un cobro automático con fecha de hoy se registra apenas lo guardas. Si el teléfono estuvo apagado, al abrir la app se registran los cobros pendientes con su fecha real, cada uno como un movimiento normal.
 - En Ajustes > Notificaciones eliges la hora de los avisos y qué te avisa: recordatorios antes del cobro, cobros registrados, cobros por confirmar, y de cada tarjeta el corte, la fecha límite de pago y si quedó vencido.
 - Los cobros se registran aunque las notificaciones estén apagadas; en Android 13+ la app pide el permiso solo cuando activas los avisos.
 
@@ -109,7 +109,7 @@ Licencia MIT; consulta el archivo [`LICENSE`](LICENSE).
 
 ## English summary
 
-Wallet is an offline, account-free personal finance app for Android (8.0+): multiple accounts, income/expense/transfer tracking, categories and subcategories, credit cards (debt, available limit, installments, payments and statement reconciliation), monthly transaction lists with filters, reports with a category donut, monthly evolution bars and month pace, balance view with net, savings rate and balance over time, JSON backup export/import, Spanish and English UI, and light/dark/dynamic themes. Build and verify with `./gradlew ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease` (JDK 17, Android SDK 37). See "Release firmado" above for signing the release build with `WALLET_KEYSTORE_*` environment variables or a git-ignored `keystore.properties`. The debug build installs as `com.crguarin.wallet.debug` ("Wallet Debug") alongside the release build and does not share data with it.
+Wallet is an offline, account-free personal finance app for Android (8.0+): multiple accounts, income/expense/transfer tracking, categories and subcategories, credit cards (debt, available limit, installments, payments and statement reconciliation), recurring payments and subscriptions (automatic or confirm-first) with configurable notifications for them and for card dates, monthly transaction lists with filters, reports with a category donut, monthly evolution bars and month pace, balance view with net, savings rate and balance over time, JSON backup export/import, Spanish and English UI, and light/dark/dynamic themes. Build and verify with `./gradlew ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease` (JDK 17, Android SDK 37). See "Release firmado" above for signing the release build with `WALLET_KEYSTORE_*` environment variables or a git-ignored `keystore.properties`. The debug build installs as `com.crguarin.wallet.debug` ("Wallet Debug") alongside the release build and does not share data with it.
 
 ### Credit cards
 
