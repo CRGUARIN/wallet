@@ -8,6 +8,7 @@ import com.crguarin.wallet.domain.fake.FakeAccountRepository
 import com.crguarin.wallet.domain.fake.FakeCategoryRepository
 import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
+import com.crguarin.wallet.domain.fake.FakeTransactionRepository
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.Category
@@ -17,9 +18,12 @@ import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.recurring.RecurrenceFrequency
 import com.crguarin.wallet.domain.model.recurring.RecurringMode
 import com.crguarin.wallet.domain.model.recurring.RecurringPayment
+import com.crguarin.wallet.domain.usecase.CheckNegativeBalanceUseCase
 import com.crguarin.wallet.domain.usecase.ObserveAccountsUseCase
 import com.crguarin.wallet.domain.usecase.ObserveCategoryTreeUseCase
+import com.crguarin.wallet.domain.usecase.SaveTransactionUseCase
 import com.crguarin.wallet.domain.usecase.recurring.DeleteRecurringPaymentUseCase
+import com.crguarin.wallet.domain.usecase.recurring.ProcessDueRecurringUseCase
 import com.crguarin.wallet.domain.usecase.recurring.SaveRecurringPaymentUseCase
 import com.crguarin.wallet.domain.usecase.recurring.SetRecurringActiveUseCase
 import com.google.common.truth.Truth.assertThat
@@ -51,6 +55,7 @@ class RecurringEditViewModelTest {
     private lateinit var saveUseCase: SaveRecurringPaymentUseCase
     private lateinit var deleteUseCase: DeleteRecurringPaymentUseCase
     private lateinit var setActiveUseCase: SetRecurringActiveUseCase
+    private lateinit var processDueUseCase: ProcessDueRecurringUseCase
 
     private val baseInstant = Instant.parse("2026-09-28T12:00:00Z")
     private val today = LocalDate.of(2026, 9, 28)
@@ -112,6 +117,21 @@ class RecurringEditViewModelTest {
             )
         deleteUseCase = DeleteRecurringPaymentUseCase(recurringRepository)
         setActiveUseCase = SetRecurringActiveUseCase(recurringRepository, timeProvider)
+        val transactionRepository = FakeTransactionRepository()
+        processDueUseCase =
+            ProcessDueRecurringUseCase(
+                recurringRepository,
+                accountRepository,
+                categoryRepository,
+                SaveTransactionUseCase(
+                    transactionRepository,
+                    accountRepository,
+                    categoryRepository,
+                    timeProvider,
+                    CheckNegativeBalanceUseCase(accountRepository, transactionRepository),
+                ),
+                timeProvider,
+            )
     }
 
     @After
@@ -133,6 +153,7 @@ class RecurringEditViewModelTest {
             saveRecurringPaymentUseCase = saveUseCase,
             deleteRecurringPaymentUseCase = deleteUseCase,
             setRecurringActiveUseCase = setActiveUseCase,
+            processDueRecurringUseCase = processDueUseCase,
             timeProvider = timeProvider,
         )
 
@@ -203,9 +224,37 @@ class RecurringEditViewModelTest {
         }
 
     @Test
+    fun `an automatic charge due today is recorded when saving`() =
+        runTest(testDispatcher) {
+            val viewModel = createViewModel(creationHandle())
+            viewModel.fillValidCreateForm()
+            viewModel.setNextDate(today)
+
+            viewModel.onSaveClick()
+
+            assertThat(recurringRepository.completedTransactions.map { it.date }).containsExactly(today)
+            assertThat(recurringRepository.getAll().single().nextDueDate).isEqualTo(today.plusMonths(1))
+        }
+
+    @Test
+    fun `a charge that asks first is not recorded when saving`() =
+        runTest(testDispatcher) {
+            val viewModel = createViewModel(creationHandle())
+            viewModel.fillValidCreateForm()
+            viewModel.setNextDate(today)
+            viewModel.setMode(RecurringMode.CONFIRM)
+
+            viewModel.onSaveClick()
+
+            assertThat(recurringRepository.completedTransactions).isEmpty()
+            assertThat(recurringRepository.getAll().single().nextDueDate).isEqualTo(today)
+        }
+
+    @Test
     fun `editing without schedule changes keeps the pending next due date`() =
         runTest(testDispatcher) {
-            recurringRepository.setInitialData(listOf(existingPayment()))
+            // CONFIRM: an AUTO payment would record the overdue charge on save.
+            recurringRepository.setInitialData(listOf(existingPayment(mode = RecurringMode.CONFIRM)))
             val viewModel = createViewModel(editHandle(5L))
 
             assertThat(viewModel.uiState.value.isEditMode).isTrue()
@@ -215,7 +264,7 @@ class RecurringEditViewModelTest {
             viewModel.setAmountText("50000")
             viewModel.events.test {
                 viewModel.onSaveClick()
-                assertThat(awaitItem()).isEqualTo(RecurringEditEvent.Saved(needsPermissionRequest = false))
+                assertThat(awaitItem()).isEqualTo(RecurringEditEvent.Saved(needsPermissionRequest = true))
                 cancelAndIgnoreRemainingEvents()
             }
 

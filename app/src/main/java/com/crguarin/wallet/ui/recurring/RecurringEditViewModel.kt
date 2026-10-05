@@ -25,6 +25,7 @@ import com.crguarin.wallet.domain.repository.RecurringRepository
 import com.crguarin.wallet.domain.usecase.ObserveAccountsUseCase
 import com.crguarin.wallet.domain.usecase.ObserveCategoryTreeUseCase
 import com.crguarin.wallet.domain.usecase.recurring.DeleteRecurringPaymentUseCase
+import com.crguarin.wallet.domain.usecase.recurring.ProcessDueRecurringUseCase
 import com.crguarin.wallet.domain.usecase.recurring.SaveRecurringPaymentUseCase
 import com.crguarin.wallet.domain.usecase.recurring.SetRecurringActiveUseCase
 import com.crguarin.wallet.ui.navigation.RecurringEdit
@@ -124,6 +125,7 @@ class RecurringEditViewModel
         private val saveRecurringPaymentUseCase: SaveRecurringPaymentUseCase,
         private val deleteRecurringPaymentUseCase: DeleteRecurringPaymentUseCase,
         private val setRecurringActiveUseCase: SetRecurringActiveUseCase,
+        private val processDueRecurringUseCase: ProcessDueRecurringUseCase,
         private val timeProvider: TimeProvider,
     ) : ViewModel() {
         private val route: RecurringEdit = savedStateHandle.toRoute<RecurringEdit>()
@@ -490,7 +492,11 @@ class RecurringEditViewModel
                                     generalErrorRes = null,
                                 )
                             }
-                            if (active) persistForm()
+                            if (active) {
+                                persistForm()
+                                // A charge due today is recorded now, not on the next app start.
+                                processDueRecurringUseCase()
+                            }
                         } else {
                             _uiState.update { it.copy(isActive = active, generalErrorRes = null) }
                         }
@@ -622,6 +628,9 @@ class RecurringEditViewModel
                     val result = saveRecurringPaymentUseCase(payment = payment)
                 ) {
                     is DomainResult.Success -> {
+                        // An AUTO charge due today is recorded right away instead of waiting for
+                        // the next app start or daily check. It never throws.
+                        processDueRecurringUseCase()
                         _uiState.update { it.copy(isSaving = false) }
                         val needsPermission = state.reminderDaysBefore != null || state.mode == RecurringMode.CONFIRM
                         _events.send(RecurringEditEvent.Saved(needsPermissionRequest = needsPermission))
