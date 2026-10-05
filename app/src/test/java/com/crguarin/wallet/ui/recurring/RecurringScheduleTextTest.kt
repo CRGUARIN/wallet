@@ -58,4 +58,22 @@ class RecurringScheduleTextTest {
         assertThat(textFor(Locale.forLanguageTag("es"), RecurrenceFrequency.MONTHLY, interval = 2))
             .isEqualTo("Cada 2 meses · día 12")
     }
+
+    @Test
+    fun `weekly in spanish uses the plural weekday`() {
+        // 2026-09-13 is a Sunday.
+        val sunday = LocalDate.of(2026, 9, 13)
+        val configuration =
+            Configuration(app.resources.configuration).apply { setLocale(Locale.forLanguageTag("es")) }
+        val resources = app.createConfigurationContext(configuration).resources
+        assertThat(scheduleText(resources, RecurrenceFrequency.WEEKLY, 1, sunday, Locale.forLanguageTag("es")))
+            .isEqualTo("Cada semana · los domingos")
+    }
+
+    @Test
+    fun `weekly in english uses the plural weekday`() {
+        // 2026-09-12 is a Saturday.
+        assertThat(textFor(Locale.ENGLISH, RecurrenceFrequency.WEEKLY))
+            .isEqualTo("Every week · on Saturdays")
+    }
 }

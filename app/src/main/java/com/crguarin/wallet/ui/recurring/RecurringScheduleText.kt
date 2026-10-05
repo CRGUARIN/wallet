@@ -10,8 +10,8 @@ import java.util.Locale
 /**
  * Builds the schedule line shown under each active payment
  * ("Cada mes · día 12"), combining the `recurring_every_*` and
- * `recurring_schedule_*` strings with java.time day/month names
- * in the current locale.
+ * `recurring_schedule_*` strings with the weekday phrases from
+ * resources and java.time month names in the current locale.
  */
 fun scheduleText(
     resources: Resources,
@@ -34,7 +34,7 @@ fun scheduleText(
             resources.getString(
                 R.string.recurring_schedule_weekly,
                 every,
-                startDate.dayOfWeek.getDisplayName(TextStyle.FULL, locale),
+                resources.getStringArray(R.array.recurring_schedule_weekdays)[startDate.dayOfWeek.value - 1],
             )
         RecurrenceFrequency.MONTHLY ->
             resources.getString(

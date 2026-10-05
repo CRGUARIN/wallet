@@ -453,7 +453,17 @@
     <string name="recurring_frequency_monthly">Monthly</string>
     <string name="recurring_frequency_yearly">Yearly</string>
     <string name="recurring_interval_label">Repeat every</string>
-    <string name="recurring_schedule_weekly">%1$s · on %2$s</string>
+    <string name="recurring_schedule_weekly">%1$s · %2$s</string>
+    <!-- Weekly schedule day, Monday first (index = DayOfWeek.value - 1). -->
+    <string-array name="recurring_schedule_weekdays">
+        <item>on Mondays</item>
+        <item>on Tuesdays</item>
+        <item>on Wednesdays</item>
+        <item>on Thursdays</item>
+        <item>on Fridays</item>
+        <item>on Saturdays</item>
+        <item>on Sundays</item>
+    </string-array>
     <string name="recurring_schedule_monthly">%1$s · day %2$d</string>
     <string name="recurring_schedule_yearly">%1$s · on %3$s %2$d</string>
     <string name="recurring_next_date_label">Next charge</string>

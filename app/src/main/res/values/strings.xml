@@ -457,7 +457,17 @@
     <string name="recurring_frequency_monthly">Mensual</string>
     <string name="recurring_frequency_yearly">Anual</string>
     <string name="recurring_interval_label">Repetir cada</string>
-    <string name="recurring_schedule_weekly">%1$s · los %2$s</string>
+    <string name="recurring_schedule_weekly">%1$s · %2$s</string>
+    <!-- Weekly schedule day, Monday first (index = DayOfWeek.value - 1). -->
+    <string-array name="recurring_schedule_weekdays">
+        <item>los lunes</item>
+        <item>los martes</item>
+        <item>los miércoles</item>
+        <item>los jueves</item>
+        <item>los viernes</item>
+        <item>los sábados</item>
+        <item>los domingos</item>
+    </string-array>
     <string name="recurring_schedule_monthly">%1$s · día %2$d</string>
     <string name="recurring_schedule_yearly">%1$s · el %2$d de %3$s</string>
     <string name="recurring_next_date_label">Próximo cobro</string>
