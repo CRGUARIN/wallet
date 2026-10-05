@@ -524,7 +524,8 @@ private fun LeadDaysSelector(
         }
     Box {
         ListItem(
-            headlineContent = { Text(text = selectedLabel) },
+            headlineContent = { Text(text = stringResource(R.string.settings_notif_lead_days)) },
+            supportingContent = { Text(text = selectedLabel) },
             trailingContent = {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,

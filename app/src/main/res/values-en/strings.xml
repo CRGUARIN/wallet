@@ -334,7 +334,7 @@
     <string name="settings_dynamic_color_subtitle">Use the colors from your wallpaper</string>
     <string name="settings_about_version">Version</string>
     <string name="backup_export_title">Export data</string>
-    <string name="backup_export_subtitle">Save a file with your accounts, categories and transactions</string>
+    <string name="backup_export_subtitle">Save a file with your accounts, categories, transactions and recurring payments</string>
     <string name="backup_import_title">Import data</string>
     <string name="backup_import_subtitle">Restore your data from a backup file</string>
     <string name="backup_in_progress">Processing backup</string>
@@ -574,6 +574,7 @@
     <string name="settings_notif_card_closing">Statement date</string>
     <string name="settings_notif_card_payment">Payment due date</string>
     <string name="settings_notif_card_overdue">Notify when the payment is overdue</string>
+    <string name="settings_notif_lead_days">When to notify</string>
     <string name="settings_notif_same_day">On the day</string>
     <string name="settings_notifications_test">Send test notification</string>
     <string name="settings_notifications_test_sent">Notification sent</string>

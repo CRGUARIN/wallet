@@ -338,7 +338,7 @@
     <string name="settings_dynamic_color_subtitle">Usar los colores de tu fondo de pantalla</string>
     <string name="settings_about_version">Versión</string>
     <string name="backup_export_title">Exportar datos</string>
-    <string name="backup_export_subtitle">Guarda un archivo con tus cuentas, categorías y movimientos</string>
+    <string name="backup_export_subtitle">Guarda un archivo con tus cuentas, categorías, movimientos y pagos recurrentes</string>
     <string name="backup_import_title">Importar datos</string>
     <string name="backup_import_subtitle">Restaura tus datos desde un archivo de backup</string>
     <string name="backup_in_progress">Procesando backup</string>
@@ -578,6 +578,7 @@
     <string name="settings_notif_card_closing">Fecha de corte</string>
     <string name="settings_notif_card_payment">Fecha límite de pago</string>
     <string name="settings_notif_card_overdue">Avisar si el pago queda vencido</string>
+    <string name="settings_notif_lead_days">Cuándo avisar</string>
     <string name="settings_notif_same_day">El mismo día</string>
     <string name="settings_notifications_test">Enviar notificación de prueba</string>
     <string name="settings_notifications_test_sent">Notificación enviada</string>
