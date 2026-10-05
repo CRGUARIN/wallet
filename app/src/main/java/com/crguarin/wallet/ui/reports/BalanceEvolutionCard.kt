@@ -185,7 +185,10 @@ internal fun pointDateLabel(
     locale: Locale,
 ): String =
     when (granularity) {
-        BalanceGranularity.DAILY -> "${date.dayOfMonth} ${date.month.getDisplayName(TextStyle.SHORT, locale)}"
+        // Some JDK/ICU versions abbreviate Spanish months with a trailing dot ("oct."); drop it
+        // so the label matches the rest of the app on every runtime.
+        BalanceGranularity.DAILY ->
+            "${date.dayOfMonth} ${date.month.getDisplayName(TextStyle.SHORT, locale).removeSuffix(".")}"
         BalanceGranularity.MONTHLY -> monthFullName(YearMonth.from(date), locale)
     }
 

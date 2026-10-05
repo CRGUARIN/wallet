@@ -278,7 +278,8 @@ internal fun monthAbbreviation(
     yearMonth: YearMonth,
     locale: Locale,
 ): String {
-    val name = yearMonth.month.getDisplayName(TextStyle.SHORT, locale)
+    // Some JDK/ICU versions add a trailing dot to Spanish abbreviations ("oct.").
+    val name = yearMonth.month.getDisplayName(TextStyle.SHORT, locale).removeSuffix(".")
     return name.replaceFirstChar { if (it.isLowerCase()) it.titlecase(locale) else it.toString() }
 }
 
