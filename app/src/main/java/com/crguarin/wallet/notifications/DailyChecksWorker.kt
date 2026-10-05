@@ -35,7 +35,8 @@ class DailyChecksWorker(
                     applicationContext,
                     DailyChecksEntryPoint::class.java,
                 )
-            entryPoint.runDailyChecks()
+            val runDailyChecks = entryPoint.runDailyChecks()
+            runDailyChecks()
             Result.success()
         } catch (_: Exception) {
             Result.success()
