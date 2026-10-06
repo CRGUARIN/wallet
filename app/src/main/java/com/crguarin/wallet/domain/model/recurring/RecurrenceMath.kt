@@ -68,6 +68,24 @@ object RecurrenceMath {
     ): LocalDate = nextAfter(payment.startDate, payment.frequency, payment.interval, date)
 
     /**
+     * Last occurrence strictly before [date], or null when [date] is on or before the first one.
+     */
+    fun lastBefore(
+        startDate: LocalDate,
+        frequency: RecurrenceFrequency,
+        interval: Int,
+        date: LocalDate,
+    ): LocalDate? {
+        val k = firstIndexOnOrAfter(startDate, frequency, interval, date)
+        return if (k == 0L) null else occurrence(startDate, frequency, interval, k - 1)
+    }
+
+    fun lastBefore(
+        payment: RecurringPayment,
+        date: LocalDate,
+    ): LocalDate? = lastBefore(payment.startDate, payment.frequency, payment.interval, date)
+
+    /**
      * Every occurrence in [from, to] (both inclusive). Empty when `from > to`.
      */
     fun occurrencesBetween(
