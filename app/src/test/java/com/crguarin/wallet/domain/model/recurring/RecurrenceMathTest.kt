@@ -109,6 +109,22 @@ class RecurrenceMathTest {
     }
 
     @Test
+    fun `lastBefore is strict and null before the first occurrence`() {
+        val start = LocalDate.of(2026, 1, 31)
+        assertThat(RecurrenceMath.lastBefore(start, RecurrenceFrequency.MONTHLY, 1, start)).isNull()
+        assertThat(RecurrenceMath.lastBefore(start, RecurrenceFrequency.MONTHLY, 1, start.minusDays(5))).isNull()
+        assertThat(
+            RecurrenceMath.lastBefore(start, RecurrenceFrequency.MONTHLY, 1, LocalDate.of(2026, 3, 31)),
+        ).isEqualTo(LocalDate.of(2026, 2, 28))
+        assertThat(
+            RecurrenceMath.lastBefore(start, RecurrenceFrequency.MONTHLY, 1, LocalDate.of(2026, 3, 1)),
+        ).isEqualTo(LocalDate.of(2026, 2, 28))
+        assertThat(
+            RecurrenceMath.lastBefore(start, RecurrenceFrequency.WEEKLY, 2, LocalDate.of(2026, 2, 15)),
+        ).isEqualTo(LocalDate.of(2026, 2, 14))
+    }
+
+    @Test
     fun `occurrencesBetween is inclusive on both ends`() {
         val start = LocalDate.of(2026, 9, 7)
         val occurrences =

@@ -17,4 +17,7 @@ object CardSystemCategories {
     val ADJUSTMENT_TYPE = CategoryType.INCOME
     const val ADJUSTMENT_COLOR = 0xFF66BB6A.toInt()
     const val ADJUSTMENT_ICON = "receipt_long"
+
+    /** Reconciliation relies on these keeping their type, so it cannot be changed. */
+    val KEYS: Set<String> = setOf(INTEREST_FEES_KEY, ADJUSTMENT_KEY)
 }

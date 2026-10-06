@@ -271,6 +271,58 @@ class SaveRecurringPaymentUseCaseTest {
         }
 
     @Test
+    fun `edit with an interval change does not reuse the occurrence recorded today`() =
+        runTest {
+            // Monthly on the 5th, already charged today (Oct 5): nextDueDate moved to Nov 5.
+            val start = LocalDate.of(2026, 1, 5)
+            recurringRepository.setInitialData(
+                listOf(testPayment(id = 1L, startDate = start, nextDueDate = LocalDate.of(2026, 11, 5))),
+            )
+            val result = saveRecurringPaymentUseCase(testPayment(id = 1L, startDate = start, interval = 3))
+            assertThat(result.isSuccess).isTrue()
+            // Quarterly from Jan 5 includes Oct 5 (today), which was already charged.
+            assertThat(recurringRepository.get(1L)?.nextDueDate).isEqualTo(LocalDate.of(2027, 1, 5))
+        }
+
+    @Test
+    fun `edit with a frequency change does not reuse the occurrence recorded today`() =
+        runTest {
+            val start = LocalDate.of(2026, 1, 5) // a Monday, like today
+            recurringRepository.setInitialData(
+                listOf(testPayment(id = 1L, startDate = start, nextDueDate = LocalDate.of(2026, 11, 5))),
+            )
+            val result =
+                saveRecurringPaymentUseCase(
+                    testPayment(id = 1L, startDate = start, frequency = RecurrenceFrequency.WEEKLY),
+                )
+            assertThat(result.isSuccess).isTrue()
+            assertThat(recurringRepository.get(1L)?.nextDueDate).isEqualTo(LocalDate.of(2026, 10, 12))
+        }
+
+    @Test
+    fun `edit with a calendar change keeps today when nothing was recorded today`() =
+        runTest {
+            // Yearly from Jan 5, last charged Jan 5: switching to weekly lands on today (a Monday).
+            val start = LocalDate.of(2026, 1, 5)
+            recurringRepository.setInitialData(
+                listOf(
+                    testPayment(
+                        id = 1L,
+                        startDate = start,
+                        nextDueDate = LocalDate.of(2027, 1, 5),
+                        frequency = RecurrenceFrequency.YEARLY,
+                    ),
+                ),
+            )
+            val result =
+                saveRecurringPaymentUseCase(
+                    testPayment(id = 1L, startDate = start, frequency = RecurrenceFrequency.WEEKLY),
+                )
+            assertThat(result.isSuccess).isTrue()
+            assertThat(recurringRepository.get(1L)?.nextDueDate).isEqualTo(today)
+        }
+
+    @Test
     fun `edit with new startDate in the past fails`() =
         runTest {
             recurringRepository.setInitialData(listOf(testPayment(id = 1L, startDate = today)))

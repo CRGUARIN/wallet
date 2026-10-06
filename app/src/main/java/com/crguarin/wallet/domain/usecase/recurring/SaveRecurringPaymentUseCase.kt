@@ -12,6 +12,7 @@ import com.crguarin.wallet.domain.model.recurring.RecurringPayment
 import com.crguarin.wallet.domain.repository.AccountRepository
 import com.crguarin.wallet.domain.repository.CategoryRepository
 import com.crguarin.wallet.domain.repository.RecurringRepository
+import java.time.LocalDate
 import javax.inject.Inject
 
 /**
@@ -20,6 +21,8 @@ import javax.inject.Inject
  * On creation `nextDueDate = startDate`. On edition, when `frequency`,
  * `interval` or `startDate` change, `nextDueDate` is recalculated as
  * `firstOnOrAfter(today)` of the new calendar; otherwise it is preserved.
+ * When the last occurrence already recorded or skipped falls on today or later,
+ * the recalculation starts the day after it, so that date is never charged twice.
  * Already recorded transactions are never modified.
  */
 class SaveRecurringPaymentUseCase
@@ -102,7 +105,7 @@ class SaveRecurringPaymentUseCase
                             payment.startDate,
                             payment.frequency,
                             payment.interval,
-                            today,
+                            recalculationFloor(existing, today),
                         )
                     } else {
                         existing.nextDueDate
@@ -117,5 +120,18 @@ class SaveRecurringPaymentUseCase
                     )
                 DomainResult.Success(id)
             }
+        }
+
+        /**
+         * First date the recalculated calendar may use: today, or the day after the last
+         * occurrence of the stored calendar (the one before its `nextDueDate`, already recorded
+         * or skipped) when that occurrence is today or later.
+         */
+        private fun recalculationFloor(
+            existing: RecurringPayment,
+            today: LocalDate,
+        ): LocalDate {
+            val lastHandled = RecurrenceMath.lastBefore(existing, existing.nextDueDate) ?: return today
+            return if (lastHandled.isBefore(today)) today else lastHandled.plusDays(1)
         }
     }

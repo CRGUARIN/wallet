@@ -15,8 +15,10 @@ import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.DomainLimits
 import com.crguarin.wallet.domain.model.SystemCategoryNames
 import com.crguarin.wallet.domain.model.buildCategoryTree
+import com.crguarin.wallet.domain.model.card.CardSystemCategories
 import com.crguarin.wallet.domain.model.normalizedName
 import com.crguarin.wallet.domain.repository.CategoryRepository
+import com.crguarin.wallet.domain.repository.RecurringRepository
 import com.crguarin.wallet.domain.usecase.ArchiveCategoryUseCase
 import com.crguarin.wallet.domain.usecase.DeleteCategoryUseCase
 import com.crguarin.wallet.domain.usecase.ReassignAndDeleteCategoryUseCase
@@ -94,6 +96,7 @@ class CategoryEditViewModel
     constructor(
         savedStateHandle: SavedStateHandle,
         private val categoryRepository: CategoryRepository,
+        private val recurringRepository: RecurringRepository,
         private val saveCategoryUseCase: SaveCategoryUseCase,
         private val deleteCategoryUseCase: DeleteCategoryUseCase,
         private val reassignAndDeleteCategoryUseCase: ReassignAndDeleteCategoryUseCase,
@@ -126,7 +129,11 @@ class CategoryEditViewModel
                     if (category != null) {
                         val childrenCount = categoryRepository.countChildren(targetCategoryId)
                         val txCount = categoryRepository.countTransactions(targetCategoryId)
-                        val isTypeLocked = category.parentId != null || txCount > 0
+                        val isTypeLocked =
+                            category.parentId != null ||
+                                txCount > 0 ||
+                                category.systemKey in CardSystemCategories.KEYS ||
+                                recurringRepository.countByCategory(targetCategoryId) > 0
                         val isParentDisabled = childrenCount > 0
 
                         val resolvedName =
