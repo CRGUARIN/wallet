@@ -2,10 +2,13 @@ package com.crguarin.wallet.domain.usecase
 
 import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.domain.fake.FakeCategoryRepository
+import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeSystemCategoryNames
 import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryNameMatcher
 import com.crguarin.wallet.domain.model.CategoryType
+import com.crguarin.wallet.domain.model.card.CardSystemCategories
+import com.crguarin.wallet.domain.model.recurring.testPayment
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
 import org.junit.Before
@@ -13,14 +16,17 @@ import org.junit.Test
 
 class SaveCategoryUseCaseTest {
     private lateinit var categoryRepository: FakeCategoryRepository
+    private lateinit var recurringRepository: FakeRecurringRepository
     private lateinit var systemCategoryNames: FakeSystemCategoryNames
     private lateinit var saveCategoryUseCase: SaveCategoryUseCase
 
     @Before
     fun setUp() {
         categoryRepository = FakeCategoryRepository()
+        recurringRepository = FakeRecurringRepository()
         systemCategoryNames = FakeSystemCategoryNames()
-        saveCategoryUseCase = SaveCategoryUseCase(categoryRepository, CategoryNameMatcher(systemCategoryNames))
+        saveCategoryUseCase =
+            SaveCategoryUseCase(categoryRepository, recurringRepository, CategoryNameMatcher(systemCategoryNames))
     }
 
     @Test
@@ -182,6 +188,58 @@ class SaveCategoryUseCaseTest {
             val changeType = category.copy(type = CategoryType.INCOME)
             val result = saveCategoryUseCase(changeType)
             assertThat(result.errorOrNull()).isEqualTo(DomainError.CategoryHasTransactions(5))
+        }
+
+    @Test
+    fun `fails when changing type of category with recurring payments`() =
+        runTest {
+            val category =
+                Category(
+                    id = 1L,
+                    name = "Suscripciones",
+                    type = CategoryType.EXPENSE,
+                    color = 1,
+                    icon = "subscriptions",
+                )
+            categoryRepository.setInitialData(listOf(category))
+            recurringRepository.setInitialData(listOf(testPayment(id = 1L, categoryId = 1L)))
+
+            val result = saveCategoryUseCase(category.copy(type = CategoryType.INCOME))
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.CategoryHasRecurring)
+        }
+
+    @Test
+    fun `fails when changing type of a card system category`() =
+        runTest {
+            val interestFees =
+                Category(
+                    id = 1L,
+                    systemKey = CardSystemCategories.INTEREST_FEES_KEY,
+                    type = CardSystemCategories.INTEREST_FEES_TYPE,
+                    color = CardSystemCategories.INTEREST_FEES_COLOR,
+                    icon = CardSystemCategories.INTEREST_FEES_ICON,
+                )
+            categoryRepository.setInitialData(listOf(interestFees))
+
+            val result = saveCategoryUseCase(interestFees.copy(type = CategoryType.INCOME))
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.CategoryTypeMismatch)
+        }
+
+    @Test
+    fun `keeping the type of a card system category still saves`() =
+        runTest {
+            val interestFees =
+                Category(
+                    id = 1L,
+                    systemKey = CardSystemCategories.INTEREST_FEES_KEY,
+                    type = CardSystemCategories.INTEREST_FEES_TYPE,
+                    color = CardSystemCategories.INTEREST_FEES_COLOR,
+                    icon = CardSystemCategories.INTEREST_FEES_ICON,
+                )
+            categoryRepository.setInitialData(listOf(interestFees))
+
+            val result = saveCategoryUseCase(interestFees.copy(color = 2))
+            assertThat(result.isSuccess).isTrue()
         }
 
     @Test

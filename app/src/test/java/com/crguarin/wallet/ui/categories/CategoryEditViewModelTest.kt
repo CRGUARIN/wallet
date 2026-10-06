@@ -8,6 +8,7 @@ import com.crguarin.wallet.domain.fake.FakeSystemCategoryNames
 import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryNameMatcher
 import com.crguarin.wallet.domain.model.CategoryType
+import com.crguarin.wallet.domain.model.recurring.testPayment
 import com.crguarin.wallet.domain.usecase.ArchiveCategoryUseCase
 import com.crguarin.wallet.domain.usecase.DeleteCategoryUseCase
 import com.crguarin.wallet.domain.usecase.ReassignAndDeleteCategoryUseCase
@@ -32,6 +33,7 @@ import org.robolectric.annotation.Config
 class CategoryEditViewModelTest {
     private val testDispatcher = UnconfinedTestDispatcher()
     private lateinit var categoryRepository: FakeCategoryRepository
+    private lateinit var recurringRepository: FakeRecurringRepository
     private lateinit var systemCategoryNames: FakeSystemCategoryNames
     private lateinit var saveCategoryUseCase: SaveCategoryUseCase
     private lateinit var deleteCategoryUseCase: DeleteCategoryUseCase
@@ -67,8 +69,10 @@ class CategoryEditViewModelTest {
             FakeSystemCategoryNames(
                 currentNamesMap = mapOf("food" to "Alimentación"),
             )
-        saveCategoryUseCase = SaveCategoryUseCase(categoryRepository, CategoryNameMatcher(systemCategoryNames))
-        deleteCategoryUseCase = DeleteCategoryUseCase(categoryRepository, FakeRecurringRepository())
+        recurringRepository = FakeRecurringRepository()
+        saveCategoryUseCase =
+            SaveCategoryUseCase(categoryRepository, recurringRepository, CategoryNameMatcher(systemCategoryNames))
+        deleteCategoryUseCase = DeleteCategoryUseCase(categoryRepository, recurringRepository)
         reassignAndDeleteCategoryUseCase = ReassignAndDeleteCategoryUseCase(categoryRepository)
         archiveCategoryUseCase = ArchiveCategoryUseCase(categoryRepository)
 
@@ -140,6 +144,23 @@ class CategoryEditViewModelTest {
             assertThat(state.parentId).isEqualTo(20L)
             assertThat(state.color).isEqualTo(customParentCategory.color)
             assertThat(state.isTypeLocked).isTrue()
+        }
+
+    @Test
+    fun `edit mode locks type when recurring payments use the category`() =
+        runTest(testDispatcher) {
+            recurringRepository.setInitialData(listOf(testPayment(id = 1L, categoryId = 20L)))
+            val savedStateHandle =
+                SavedStateHandle(
+                    mapOf(
+                        "categoryId" to 20L,
+                        "parentId" to null,
+                        "type" to CategoryType.EXPENSE,
+                    ),
+                )
+            val viewModel = createViewModel(savedStateHandle)
+
+            assertThat(viewModel.uiState.value.isTypeLocked).isTrue()
         }
 
     @Test
@@ -394,6 +415,7 @@ class CategoryEditViewModelTest {
         CategoryEditViewModel(
             savedStateHandle = savedStateHandle,
             categoryRepository = categoryRepository,
+            recurringRepository = recurringRepository,
             saveCategoryUseCase = saveCategoryUseCase,
             deleteCategoryUseCase = deleteCategoryUseCase,
             reassignAndDeleteCategoryUseCase = reassignAndDeleteCategoryUseCase,

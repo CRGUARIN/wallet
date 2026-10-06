@@ -5,14 +5,17 @@ import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryNameMatcher
 import com.crguarin.wallet.domain.model.DomainLimits
+import com.crguarin.wallet.domain.model.card.CardSystemCategories
 import com.crguarin.wallet.domain.model.normalizedName
 import com.crguarin.wallet.domain.repository.CategoryRepository
+import com.crguarin.wallet.domain.repository.RecurringRepository
 import javax.inject.Inject
 
 class SaveCategoryUseCase
     @Inject
     constructor(
         private val categoryRepository: CategoryRepository,
+        private val recurringRepository: RecurringRepository,
         private val categoryNameMatcher: CategoryNameMatcher,
     ) {
         suspend operator fun invoke(category: Category): DomainResult<Long> {
@@ -62,6 +65,13 @@ class SaveCategoryUseCase
                     }
                     if (childrenCount > 0) {
                         return DomainResult.Failure(DomainError.CategoryHasChildren)
+                    }
+                    // Recurring payments and card reconciliation need the category to keep its type.
+                    if (recurringRepository.countByCategory(category.id) > 0) {
+                        return DomainResult.Failure(DomainError.CategoryHasRecurring)
+                    }
+                    if (existing.systemKey in CardSystemCategories.KEYS) {
+                        return DomainResult.Failure(DomainError.CategoryTypeMismatch)
                     }
                 }
             }
