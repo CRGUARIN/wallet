@@ -2,18 +2,37 @@ package com.crguarin.wallet.domain.usecase
 
 import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
+import com.crguarin.wallet.domain.fake.FakeAccountRepository
 import com.crguarin.wallet.domain.fake.FakeBackupDocumentStore
 import com.crguarin.wallet.domain.fake.FakeBackupRepository
+import com.crguarin.wallet.domain.fake.FakeCategoryRepository
+import com.crguarin.wallet.domain.fake.FakeRecurringRepository
+import com.crguarin.wallet.domain.fake.FakeTimeProvider
+import com.crguarin.wallet.domain.fake.testProcessDueRecurringUseCase
 import com.crguarin.wallet.domain.model.BackupPreview
 import com.crguarin.wallet.domain.model.BackupSummary
+import com.crguarin.wallet.domain.model.recurring.testAccount
+import com.crguarin.wallet.domain.model.recurring.testCategory
+import com.crguarin.wallet.domain.model.recurring.testPayment
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.test.runTest
 import org.junit.Test
+import java.time.Instant
+import java.time.LocalDate
 
 class BackupUseCasesTest {
     private val repository = FakeBackupRepository()
     private val store = FakeBackupDocumentStore()
     private val summary = BackupSummary(accounts = 3, categories = 25, transactions = 480)
+    private val today = LocalDate.of(2026, 10, 5)
+    private val recurringRepository = FakeRecurringRepository()
+    private val processDueRecurringUseCase =
+        testProcessDueRecurringUseCase(
+            recurringRepository = recurringRepository,
+            accountRepository = FakeAccountRepository().apply { setInitialData(listOf(testAccount())) },
+            categoryRepository = FakeCategoryRepository().apply { setInitialData(listOf(testCategory())) },
+            timeProvider = FakeTimeProvider(currentInstant = Instant.parse("2026-10-05T12:00:00Z")),
+        )
 
     @Test
     fun `export writes the serialized backup to the chosen document`() =
@@ -94,7 +113,7 @@ class BackupUseCasesTest {
         runTest {
             repository.importResult = DomainResult.Success(summary)
 
-            val result = ImportBackupUseCase(repository)("""{"a":1}""")
+            val result = ImportBackupUseCase(repository, processDueRecurringUseCase)("""{"a":1}""")
 
             assertThat(result).isEqualTo(DomainResult.Success(summary))
             assertThat(repository.importedJson).containsExactly("""{"a":1}""")
@@ -105,8 +124,31 @@ class BackupUseCasesTest {
         runTest {
             repository.importResult = DomainResult.Failure(DomainError.BackupInvalid("bad"))
 
-            val result = ImportBackupUseCase(repository)("x")
+            val result = ImportBackupUseCase(repository, processDueRecurringUseCase)("x")
 
             assertThat(result.errorOrNull()).isEqualTo(DomainError.BackupInvalid("bad"))
+        }
+
+    @Test
+    fun `import records the automatic charges already due in the imported data`() =
+        runTest {
+            repository.importResult = DomainResult.Success(summary)
+            recurringRepository.setInitialData(listOf(testPayment(id = 1L, startDate = today, nextDueDate = today)))
+
+            ImportBackupUseCase(repository, processDueRecurringUseCase)("{}")
+
+            assertThat(recurringRepository.completedTransactions).hasSize(1)
+            assertThat(recurringRepository.get(1L)?.nextDueDate).isEqualTo(LocalDate.of(2026, 11, 5))
+        }
+
+    @Test
+    fun `a failed import records no charges`() =
+        runTest {
+            repository.importResult = DomainResult.Failure(DomainError.BackupInvalid("bad"))
+            recurringRepository.setInitialData(listOf(testPayment(id = 1L, startDate = today, nextDueDate = today)))
+
+            ImportBackupUseCase(repository, processDueRecurringUseCase)("x")
+
+            assertThat(recurringRepository.completedTransactions).isEmpty()
         }
 }
