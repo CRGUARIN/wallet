@@ -36,12 +36,14 @@ import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewUseCase
 import com.crguarin.wallet.ui.navigation.AccountDetail
 import com.crguarin.wallet.ui.util.asStringRes
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -85,6 +87,7 @@ sealed interface AccountDetailEvent {
     ) : AccountDetailEvent
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class AccountDetailViewModel
     @Inject
@@ -105,8 +108,6 @@ class AccountDetailViewModel
     ) : ViewModel() {
         val accountId: Long = savedStateHandle.toRoute<AccountDetail>().accountId
 
-        private val today: LocalDate = timeProvider.today()
-
         private val dialogStateFlow =
             MutableStateFlow(
                 DialogState(
@@ -122,8 +123,6 @@ class AccountDetailViewModel
 
         private val _events = Channel<AccountDetailEvent>(Channel.BUFFERED)
         val events: Flow<AccountDetailEvent> = _events.receiveAsFlow()
-
-        private val currentYearMonth = YearMonth.from(timeProvider.today())
 
         private val accountFilter = TransactionFilter(accountId = accountId)
 
@@ -141,12 +140,18 @@ class AccountDetailViewModel
                         }
                 }.cachedIn(viewModelScope)
 
+        /** Today with this month's summary, re-queried when the day changes. */
+        private val todaySummaryFlow: Flow<Pair<LocalDate, MonthSummary>> =
+            timeProvider.todayFlow().flatMapLatest { today ->
+                observeMonthSummaryUseCase(YearMonth.from(today), accountId).map { summary -> today to summary }
+            }
+
         private val headerFlow =
             combine(
                 accountRepository.observeAccountWithBalance(accountId),
-                observeMonthSummaryUseCase(currentYearMonth, accountId),
+                todaySummaryFlow,
                 dialogStateFlow,
-            ) { account, monthSummary, dialogState -> Triple(account, monthSummary, dialogState) }
+            ) { account, todaySummary, dialogState -> Triple(account, todaySummary, dialogState) }
 
         private val listsFlow =
             combine(
@@ -161,7 +166,8 @@ class AccountDetailViewModel
 
         val uiState: StateFlow<AccountDetailUiState> =
             combine(headerFlow, listsFlow) { header, lists ->
-                val (account, monthSummary, dialogState) = header
+                val (account, todaySummary, dialogState) = header
+                val (today, monthSummary) = todaySummary
                 val (activeAccounts, dailyTotals, cardDetail) = lists
                 val (cardOverview, statements, lastUsedAccountId) = cardDetail
                 val recentStatements = statements.take(CARD_DETAIL_STATEMENTS_LIMIT)

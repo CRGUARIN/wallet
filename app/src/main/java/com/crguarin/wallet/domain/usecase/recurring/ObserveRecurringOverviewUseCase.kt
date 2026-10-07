@@ -31,8 +31,8 @@ class ObserveRecurringOverviewUseCase
                 recurringRepository.observeAll(),
                 accountRepository.observeAllAccounts(),
                 categoryRepository.observeCategories(includeArchived = true),
-            ) { payments, accounts, categories ->
-                val today = timeProvider.today()
+                timeProvider.todayFlow(),
+            ) { payments, accounts, categories, today ->
                 val accountsById = accounts.associateBy { it.id }
                 val categoriesById = categories.associateBy { it.id }
                 val items =

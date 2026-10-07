@@ -16,9 +16,11 @@ import com.crguarin.wallet.domain.usecase.ObserveTotalBalanceUseCase
 import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewsUseCase
 import com.crguarin.wallet.domain.usecase.recurring.ObserveUpcomingPaymentsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
 import java.time.YearMonth
@@ -48,6 +50,7 @@ data class HomeUiState(
         get() = !isLoading && recentTransactions.isEmpty()
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class HomeViewModel
     @Inject
@@ -60,34 +63,36 @@ class HomeViewModel
         observeCardOverviewsUseCase: ObserveCardOverviewsUseCase,
         observeUpcomingPaymentsUseCase: ObserveUpcomingPaymentsUseCase,
     ) : ViewModel() {
-        private val currentMonth: YearMonth = YearMonth.from(timeProvider.today())
-        private val today: LocalDate = timeProvider.today()
-
+        // Rebuilt when the day changes, so the month summary follows the calendar while the app stays open.
         val uiState: StateFlow<HomeUiState> =
-            combine(
-                combine(
-                    observeTotalBalanceUseCase(),
-                    observeMonthSummaryUseCase(currentMonth),
-                    observeAccountsUseCase(),
-                    transactionRepository.observeRecentTransactions(HOME_RECENT_LIMIT),
-                    observeCardOverviewsUseCase(),
-                ) { totalBalance, monthSummary, accounts, recentTransactions, cardOverviews ->
-                    HomeUiState(
-                        isLoading = false,
-                        totalBalance = totalBalance,
-                        monthSummary = monthSummary,
-                        accounts = accounts,
-                        recentTransactions = recentTransactions,
-                        cardOverviews = cardOverviews,
-                        today = today,
-                    )
-                },
-                observeUpcomingPaymentsUseCase(UPCOMING_DAYS),
-            ) { base, upcoming ->
-                base.copy(upcomingPayments = upcoming)
-            }.stateIn(
-                scope = viewModelScope,
-                started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = HomeUiState(isLoading = true),
-            )
+            timeProvider
+                .todayFlow()
+                .flatMapLatest { today ->
+                    combine(
+                        combine(
+                            observeTotalBalanceUseCase(),
+                            observeMonthSummaryUseCase(YearMonth.from(today)),
+                            observeAccountsUseCase(),
+                            transactionRepository.observeRecentTransactions(HOME_RECENT_LIMIT),
+                            observeCardOverviewsUseCase(),
+                        ) { totalBalance, monthSummary, accounts, recentTransactions, cardOverviews ->
+                            HomeUiState(
+                                isLoading = false,
+                                totalBalance = totalBalance,
+                                monthSummary = monthSummary,
+                                accounts = accounts,
+                                recentTransactions = recentTransactions,
+                                cardOverviews = cardOverviews,
+                                today = today,
+                            )
+                        },
+                        observeUpcomingPaymentsUseCase(UPCOMING_DAYS),
+                    ) { base, upcoming ->
+                        base.copy(upcomingPayments = upcoming)
+                    }
+                }.stateIn(
+                    scope = viewModelScope,
+                    started = SharingStarted.WhileSubscribed(5_000),
+                    initialValue = HomeUiState(isLoading = true),
+                )
     }
