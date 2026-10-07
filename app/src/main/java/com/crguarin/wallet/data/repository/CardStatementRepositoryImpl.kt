@@ -39,6 +39,12 @@ class CardStatementRepositoryImpl
                 .map { it?.toDomain() }
                 .flowOn(ioDispatcher)
 
+        override fun observeAdjustmentAmounts(accountId: Long): Flow<Map<Long, Money>> =
+            cardStatementDao
+                .observeAdjustmentAmounts(accountId)
+                .map { rows -> rows.associate { it.statementId to Money(it.amount) } }
+                .flowOn(ioDispatcher)
+
         override fun observeCardTransactions(
             accountId: Long,
             from: LocalDate,

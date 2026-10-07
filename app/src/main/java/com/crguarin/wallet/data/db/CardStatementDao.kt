@@ -22,6 +22,16 @@ interface CardStatementDao {
         closingDate: LocalDate,
     ): CardStatementEntity?
 
+    @Query(
+        """
+        SELECT s.id AS statement_id, t.amount AS amount
+        FROM card_statements s
+        INNER JOIN transactions t ON t.id = s.adjustment_transaction_id
+        WHERE s.account_id = :accountId
+        """,
+    )
+    fun observeAdjustmentAmounts(accountId: Long): Flow<List<StatementAdjustmentRow>>
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(statement: CardStatementEntity): Long
 

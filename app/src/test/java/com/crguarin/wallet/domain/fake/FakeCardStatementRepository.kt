@@ -7,6 +7,7 @@ import com.crguarin.wallet.domain.model.card.CardStatement
 import com.crguarin.wallet.domain.repository.CardStatementRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 
@@ -51,6 +52,17 @@ class FakeCardStatementRepository : CardStatementRepository {
 
     override fun observeLastStatement(accountId: Long): Flow<CardStatement?> =
         statementsFlow.map { list -> list.firstOrNull { it.accountId == accountId } }
+
+    override fun observeAdjustmentAmounts(accountId: Long): Flow<Map<Long, Money>> =
+        combine(statementsFlow, transactionsFlow) { statementList, transactionList ->
+            val amounts = transactionList.associate { it.id to it.amount }
+            statementList
+                .filter { it.accountId == accountId }
+                .mapNotNull { statement ->
+                    val amount = statement.adjustmentTransactionId?.let { amounts[it] } ?: return@mapNotNull null
+                    statement.id to amount
+                }.toMap()
+        }
 
     override fun observeCardTransactions(
         accountId: Long,

@@ -25,7 +25,6 @@ import com.crguarin.wallet.domain.model.card.CardStatement
 import com.crguarin.wallet.domain.repository.AccountRepository
 import com.crguarin.wallet.domain.repository.CardStatementRepository
 import com.crguarin.wallet.domain.repository.PreferencesRepository
-import com.crguarin.wallet.domain.repository.TransactionRepository
 import com.crguarin.wallet.domain.usecase.ArchiveAccountUseCase
 import com.crguarin.wallet.domain.usecase.DeleteAccountUseCase
 import com.crguarin.wallet.domain.usecase.ObserveDailyTotalsUseCase
@@ -103,7 +102,6 @@ class AccountDetailViewModel
         timeProvider: TimeProvider,
         observeCardOverviewUseCase: ObserveCardOverviewUseCase,
         cardStatementRepository: CardStatementRepository,
-        private val transactionRepository: TransactionRepository,
         preferencesRepository: PreferencesRepository,
     ) : ViewModel() {
         val accountId: Long = savedStateHandle.toRoute<AccountDetail>().accountId
@@ -115,6 +113,13 @@ class AccountDetailViewModel
                     showOfferArchive = false,
                 ),
             )
+
+        private data class CardDetail(
+            val overview: CardOverview?,
+            val statements: List<CardStatement>,
+            val adjustmentAmounts: Map<Long, Money>,
+            val lastUsedAccountId: Long?,
+        )
 
         private data class DialogState(
             val showDelete: Boolean,
@@ -160,8 +165,11 @@ class AccountDetailViewModel
                 combine(
                     observeCardOverviewUseCase(accountId),
                     cardStatementRepository.observeStatements(accountId),
+                    cardStatementRepository.observeAdjustmentAmounts(accountId),
                     preferencesRepository.observeUserPreferences(),
-                ) { overview, statements, preferences -> Triple(overview, statements, preferences.lastUsedAccountId) },
+                ) { overview, statements, adjustmentAmounts, preferences ->
+                    CardDetail(overview, statements, adjustmentAmounts, preferences.lastUsedAccountId)
+                },
             ) { activeAccounts, dailyTotals, cardDetail -> Triple(activeAccounts, dailyTotals, cardDetail) }
 
         val uiState: StateFlow<AccountDetailUiState> =
@@ -169,15 +177,10 @@ class AccountDetailViewModel
                 val (account, todaySummary, dialogState) = header
                 val (today, monthSummary) = todaySummary
                 val (activeAccounts, dailyTotals, cardDetail) = lists
-                val (cardOverview, statements, lastUsedAccountId) = cardDetail
+                val (cardOverview, statements, allAdjustmentAmounts, lastUsedAccountId) = cardDetail
                 val recentStatements = statements.take(CARD_DETAIL_STATEMENTS_LIMIT)
-                val adjustmentAmounts =
-                    recentStatements
-                        .mapNotNull { statement ->
-                            val adjustmentId = statement.adjustmentTransactionId ?: return@mapNotNull null
-                            val amount = transactionRepository.getTransaction(adjustmentId)?.amount
-                            if (amount != null) statement.id to amount else null
-                        }.toMap()
+                val recentIds = recentStatements.map { it.id }.toSet()
+                val adjustmentAmounts = allAdjustmentAmounts.filterKeys { it in recentIds }
                 val pending = cardOverview?.pendingStatementAmount
                 AccountDetailUiState(
                     isLoading = false,

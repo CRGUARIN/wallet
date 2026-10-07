@@ -12,6 +12,9 @@ interface CardStatementRepository {
 
     fun observeLastStatement(accountId: Long): Flow<CardStatement?>
 
+    /** Amount of the adjustment movement of every statement of the account that has one, by statement id. */
+    fun observeAdjustmentAmounts(accountId: Long): Flow<Map<Long, Money>>
+
     /** Transactions with account_id = card OR to_account_id = card, date >= from. */
     fun observeCardTransactions(
         accountId: Long,

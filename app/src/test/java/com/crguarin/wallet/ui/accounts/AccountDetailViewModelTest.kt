@@ -108,7 +108,6 @@ class AccountDetailViewModelTest {
                 observeCardOverviewUseCase =
                     ObserveCardOverviewUseCase(accountRepository, cardStatementRepository, timeProvider),
                 cardStatementRepository = cardStatementRepository,
-                transactionRepository = transactionRepository,
                 preferencesRepository = preferencesRepository,
             )
     }
@@ -392,8 +391,8 @@ class AccountDetailViewModelTest {
     fun `card detail exposes overview pending amount pay amount statements and adjustments`() =
         runTest(testDispatcher) {
             accountRepository.setInitialData(accountList = listOf(card42()))
-            cardStatementRepository.setInitialData(listOf(statement42(adjustmentTransactionId = 99L)))
-            transactionRepository.setInitialData(
+            cardStatementRepository.setInitialData(
+                listOf(statement42(adjustmentTransactionId = 99L)),
                 listOf(
                     Transaction(
                         id = 99L,
