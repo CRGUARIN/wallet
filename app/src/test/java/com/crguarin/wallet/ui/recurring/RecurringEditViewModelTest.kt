@@ -9,6 +9,7 @@ import com.crguarin.wallet.domain.fake.FakeCategoryRepository
 import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
+import com.crguarin.wallet.domain.fake.FakeTransactionRunner
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.Category
@@ -114,9 +115,10 @@ class RecurringEditViewModelTest {
                 accountRepository = accountRepository,
                 categoryRepository = categoryRepository,
                 timeProvider = timeProvider,
+                transactionRunner = FakeTransactionRunner(),
             )
         deleteUseCase = DeleteRecurringPaymentUseCase(recurringRepository)
-        setActiveUseCase = SetRecurringActiveUseCase(recurringRepository, timeProvider)
+        setActiveUseCase = SetRecurringActiveUseCase(recurringRepository, timeProvider, FakeTransactionRunner())
         val transactionRepository = FakeTransactionRepository()
         processDueUseCase =
             ProcessDueRecurringUseCase(
@@ -129,6 +131,7 @@ class RecurringEditViewModelTest {
                     categoryRepository,
                     timeProvider,
                     CheckNegativeBalanceUseCase(accountRepository, transactionRepository),
+                    FakeTransactionRunner(),
                 ),
                 timeProvider,
             )

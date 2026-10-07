@@ -10,6 +10,7 @@ import com.crguarin.wallet.domain.fake.FakePreferencesRepository
 import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
+import com.crguarin.wallet.domain.fake.FakeTransactionRunner
 import com.crguarin.wallet.domain.model.card.CardStatement
 import com.crguarin.wallet.domain.model.notifications.NotificationEvent
 import com.crguarin.wallet.domain.model.recurring.RecurringPayment
@@ -85,6 +86,7 @@ class RunDailyChecksUseCaseTest {
                 categoryRepository,
                 timeProvider,
                 CheckNegativeBalanceUseCase(accountRepository, transactionRepository),
+                FakeTransactionRunner(),
             )
         val processDue =
             ProcessDueRecurringUseCase(

@@ -7,6 +7,7 @@ import com.crguarin.wallet.domain.fake.FakeAccountRepository
 import com.crguarin.wallet.domain.fake.FakeCategoryRepository
 import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
+import com.crguarin.wallet.domain.fake.FakeTransactionRunner
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.recurring.RecurrenceFrequency
@@ -27,6 +28,7 @@ class SaveRecurringPaymentUseCaseTest {
     private lateinit var categoryRepository: FakeCategoryRepository
     private lateinit var timeProvider: FakeTimeProvider
     private lateinit var saveRecurringPaymentUseCase: SaveRecurringPaymentUseCase
+    private lateinit var transactionRunner: FakeTransactionRunner
 
     private val today = LocalDate.of(2026, 10, 5)
     private val now = Instant.parse("2026-10-05T12:00:00Z")
@@ -37,8 +39,9 @@ class SaveRecurringPaymentUseCaseTest {
         accountRepository = FakeAccountRepository()
         categoryRepository = FakeCategoryRepository()
         timeProvider = FakeTimeProvider(currentInstant = now)
+        transactionRunner = FakeTransactionRunner()
         saveRecurringPaymentUseCase =
-            SaveRecurringPaymentUseCase(recurringRepository, accountRepository, categoryRepository, timeProvider)
+            SaveRecurringPaymentUseCase(recurringRepository, accountRepository, categoryRepository, timeProvider, transactionRunner)
         accountRepository.setInitialData(listOf(testAccount()))
         categoryRepository.setInitialData(
             listOf(
@@ -384,5 +387,13 @@ class SaveRecurringPaymentUseCaseTest {
         runTest {
             assertThat(saveRecurringPaymentUseCase(testPayment(id = 99L)).errorOrNull())
                 .isEqualTo(DomainError.NotFound)
+        }
+
+    @Test
+    fun `saving reads the stored payment and writes inside one transaction`() =
+        runTest {
+            saveRecurringPaymentUseCase(testPayment(id = 0L, startDate = today))
+
+            assertThat(transactionRunner.runs).isEqualTo(1)
         }
 }

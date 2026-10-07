@@ -4,6 +4,7 @@ import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
+import com.crguarin.wallet.domain.fake.FakeTransactionRunner
 import com.crguarin.wallet.domain.model.recurring.RecurrenceFrequency
 import com.crguarin.wallet.domain.model.recurring.testPayment
 import com.google.common.truth.Truth.assertThat
@@ -18,6 +19,7 @@ class SetRecurringActiveUseCaseTest {
     private lateinit var timeProvider: FakeTimeProvider
     private lateinit var setRecurringActiveUseCase: SetRecurringActiveUseCase
     private lateinit var deleteRecurringPaymentUseCase: DeleteRecurringPaymentUseCase
+    private lateinit var transactionRunner: FakeTransactionRunner
 
     private val today = LocalDate.of(2026, 10, 5)
 
@@ -25,7 +27,8 @@ class SetRecurringActiveUseCaseTest {
     fun setUp() {
         recurringRepository = FakeRecurringRepository()
         timeProvider = FakeTimeProvider(currentInstant = Instant.parse("2026-10-05T12:00:00Z"))
-        setRecurringActiveUseCase = SetRecurringActiveUseCase(recurringRepository, timeProvider)
+        transactionRunner = FakeTransactionRunner()
+        setRecurringActiveUseCase = SetRecurringActiveUseCase(recurringRepository, timeProvider, transactionRunner)
         deleteRecurringPaymentUseCase = DeleteRecurringPaymentUseCase(recurringRepository)
     }
 
@@ -134,5 +137,17 @@ class SetRecurringActiveUseCaseTest {
             setRecurringActiveUseCase(1L, true)
             // Weekly from 2026-09-28: occurrences 09-28, 10-05, 10-12...; today is 10-05.
             assertThat(recurringRepository.get(1L)?.nextDueDate).isEqualTo(LocalDate.of(2026, 10, 5))
+        }
+
+    @Test
+    fun `pausing and resuming read and write inside one transaction`() =
+        runTest {
+            val due = LocalDate.of(2026, 10, 3)
+            recurringRepository.setInitialData(listOf(testPayment(id = 1L, startDate = due, nextDueDate = due)))
+
+            setRecurringActiveUseCase(1L, false)
+            setRecurringActiveUseCase(1L, true)
+
+            assertThat(transactionRunner.runs).isEqualTo(2)
         }
 }
