@@ -2,6 +2,8 @@ package com.crguarin.wallet.data.backup
 
 import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
+import com.crguarin.wallet.core.time.TimeProvider
+import com.crguarin.wallet.domain.model.DomainLimits
 import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -18,7 +20,9 @@ import javax.inject.Singleton
 @Singleton
 class BackupParser
     @Inject
-    constructor() {
+    constructor(
+        private val timeProvider: TimeProvider,
+    ) {
         private val json =
             Json {
                 prettyPrint = true
@@ -51,7 +55,8 @@ class BackupParser
                 } catch (e: IllegalArgumentException) {
                     return invalid("malformed content: ${e.message}")
                 }
-            return BackupValidator.validate(dto)?.let { DomainResult.Failure(it) } ?: DomainResult.Success(dto)
+            val maxTransactionDate = DomainLimits.maxTransactionDate(timeProvider.today())
+            return BackupValidator.validate(dto, maxTransactionDate)?.let { DomainResult.Failure(it) } ?: DomainResult.Success(dto)
         }
 
         private fun schemaVersionOf(root: JsonObject): Int? =

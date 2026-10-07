@@ -7,6 +7,7 @@ import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.TransactionType
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
+import java.time.LocalDate
 
 class BackupValidatorTest {
     private val valid = validBackupDto()
@@ -222,6 +223,30 @@ class BackupValidatorTest {
         assertThat(valid.categories.first { it.id == 1L }.name).isNull()
         assertThat(valid.categories.first { it.id == 2L }.systemKey).isNull()
         assertThat(BackupValidator.validate(valid)).isNull()
+    }
+
+    @Test
+    fun `two active accounts with the same name are rejected, ignoring case and spaces`() {
+        assertInvalid(valid.withAccount(1) { it.copy(name = " efectivo ") })
+    }
+
+    @Test
+    fun `an archived account may repeat an active name`() {
+        assertThat(BackupValidator.validate(valid.withAccount(1) { it.copy(name = "Efectivo", isArchived = true) })).isNull()
+    }
+
+    @Test
+    fun `duplicated category system keys are rejected`() {
+        assertInvalid(valid.withCategory(2) { it.copy(name = null, systemKey = "food", type = CategoryType.EXPENSE) })
+    }
+
+    @Test
+    fun `transactions after the latest allowed date are rejected and that date itself is valid`() {
+        val max = LocalDate.of(2027, 9, 28)
+
+        assertThat(BackupValidator.validate(valid.withTransaction(1) { it.copy(date = "2027-09-28") }, max)).isNull()
+        assertThat(BackupValidator.validate(valid.withTransaction(1) { it.copy(date = "2027-09-29") }, max))
+            .isInstanceOf(DomainError.BackupInvalid::class.java)
     }
 
     @Test

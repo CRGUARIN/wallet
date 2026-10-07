@@ -6,6 +6,7 @@ import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.DomainLimits
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.normalizedName
 import java.time.DateTimeException
 import java.time.LocalDate
 
@@ -18,22 +19,32 @@ import java.time.LocalDate
  * recurring payments and are imported without them.
  */
 object BackupValidator {
-    /** Returns null when [dto] is valid, or the [DomainError] to report otherwise. */
-    fun validate(dto: BackupDto): DomainError? {
+    /**
+     * Returns null when [dto] is valid, or the [DomainError] to report otherwise. Transactions dated
+     * after [maxTransactionDate] are rejected, like the app rejects them on save; the default
+     * applies no upper bound.
+     */
+    fun validate(
+        dto: BackupDto,
+        maxTransactionDate: LocalDate = LocalDate.MAX,
+    ): DomainError? {
         if (dto.schemaVersion != 1 && dto.schemaVersion != 2 && dto.schemaVersion != BackupDto.SCHEMA_VERSION) {
             return DomainError.BackupVersionUnsupported
         }
-        return firstReason(dto)?.let { DomainError.BackupInvalid(it) }
+        return firstReason(dto, maxTransactionDate)?.let { DomainError.BackupInvalid(it) }
     }
 
-    private fun firstReason(dto: BackupDto): String? {
+    private fun firstReason(
+        dto: BackupDto,
+        maxTransactionDate: LocalDate,
+    ): String? {
         if (dto.currency != APP_CURRENCY) return "unsupported currency '${dto.currency}'"
         val accountTypes = dto.accounts.associate { it.id to it.type }
         val recurringIds = dto.recurringPayments.map { it.id }.toSet()
         return validateAccounts(dto.accounts)
             ?: validateCategories(dto.categories)
             ?: validateRecurringPayments(dto)
-            ?: validateTransactions(dto, accountTypes, recurringIds)
+            ?: validateTransactions(dto, accountTypes, recurringIds, maxTransactionDate)
             ?: validateCardStatements(dto, accountTypes)
     }
 
@@ -52,7 +63,14 @@ object BackupValidator {
             }
             accountCardProblem(account)?.let { return it }
         }
-        return null
+        // The app keeps active account names unique (ignoring case and surrounding spaces).
+        val duplicatedName =
+            accounts
+                .filter { !it.isArchived }
+                .groupBy { it.name.normalizedName() }
+                .values
+                .firstOrNull { it.size > 1 }
+        return duplicatedName?.let { "account ${it[1].id}: duplicated active name" }
     }
 
     private fun accountCardProblem(account: AccountDto): String? {
@@ -78,6 +96,13 @@ object BackupValidator {
 
     private fun validateCategories(categories: List<CategoryDto>): String? {
         idProblem("category", categories.map { it.id })?.let { return it }
+        // System categories are looked up by key, so each key must name a single category.
+        val systemKeys = categories.mapNotNull { it.systemKey }
+        systemKeys
+            .groupBy { it }
+            .values
+            .firstOrNull { it.size > 1 }
+            ?.let { return "duplicated systemKey '${it.first()}'" }
         val byId = categories.associateBy { it.id }
         for (category in categories) {
             if (category.name == null && category.systemKey == null) return "category ${category.id}: no name or systemKey"
@@ -136,12 +161,13 @@ object BackupValidator {
         dto: BackupDto,
         accountTypes: Map<Long, AccountType>,
         recurringIds: Set<Long>,
+        maxTransactionDate: LocalDate,
     ): String? {
         idProblem("transaction", dto.transactions.map { it.id })?.let { return it }
         val accountIds = dto.accounts.map { it.id }.toSet()
         val categoriesById = dto.categories.associateBy { it.id }
         return dto.transactions.firstNotNullOfOrNull {
-            transactionProblem(it, accountIds, accountTypes, categoriesById, recurringIds)
+            transactionProblem(it, accountIds, accountTypes, categoriesById, recurringIds, maxTransactionDate)
         }
     }
 
@@ -151,12 +177,14 @@ object BackupValidator {
         accountTypes: Map<Long, AccountType>,
         categoriesById: Map<Long, CategoryDto>,
         recurringIds: Set<Long>,
+        maxTransactionDate: LocalDate,
     ): String? {
         val label = "transaction ${tx.id}"
         return when {
             tx.amount <= 0 -> "$label: amount must be positive"
             tx.amount > Money.MAX_MINOR_UNITS -> "$label: amount too large"
             !isValidDate(tx.date) -> "$label: invalid date"
+            LocalDate.parse(tx.date) > maxTransactionDate -> "$label: date after $maxTransactionDate"
             (tx.note?.length ?: 0) > DomainLimits.NOTE_MAX_LENGTH -> "$label: note too long"
             tx.accountId !in accountIds -> "$label: unknown account ${tx.accountId}"
             tx.recurringId != null && tx.recurringId !in recurringIds ->
