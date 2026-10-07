@@ -69,16 +69,19 @@ android {
             versionNameSuffix = "-debug"
         }
         release {
-            signingConfig =
-                if (hasReleaseSigning) {
-                    signingConfigs.getByName("release")
-                } else {
-                    logger.warn(
-                        "WARNING: no release signing config found (WALLET_KEYSTORE_* env vars or keystore.properties); " +
-                            "signing the release APK with the debug key. Do not publish this build.",
-                    )
-                    signingConfigs.getByName("debug")
-                }
+            if (hasReleaseSigning) {
+                signingConfig = signingConfigs.getByName("release")
+            } else {
+                logger.warn(
+                    "WARNING: no release signing config found (WALLET_KEYSTORE_* env vars or keystore.properties); " +
+                        "signing the release APK with the debug key. Do not publish this build.",
+                )
+                signingConfig = signingConfigs.getByName("debug")
+                // CI and agents build release without the keystore. The suffix shows in Settings and in
+                // exported backups, so this APK is never taken for the real one: Android would refuse to
+                // update it with a correctly signed build without uninstalling (and losing the data).
+                versionNameSuffix = "-debugkey"
+            }
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(
