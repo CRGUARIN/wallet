@@ -1,5 +1,6 @@
 package com.crguarin.wallet.domain.usecase.notifications
 
+import com.crguarin.wallet.core.result.runSuspendCatching
 import com.crguarin.wallet.domain.model.notifications.NotificationSettings
 import com.crguarin.wallet.domain.repository.DailyWorkScheduler
 import com.crguarin.wallet.domain.repository.PreferencesRepository
@@ -19,10 +20,10 @@ class OnAppStartUseCase
         private val dailyWorkScheduler: DailyWorkScheduler,
     ) {
         suspend operator fun invoke() {
-            runCatching { processDueRecurringUseCase() }
+            runSuspendCatching { processDueRecurringUseCase() }
             val settings =
-                runCatching { preferencesRepository.getNotificationSettings() }
+                runSuspendCatching { preferencesRepository.getNotificationSettings() }
                     .getOrDefault(NotificationSettings())
-            runCatching { dailyWorkScheduler.schedule(settings.hour, settings.minute, replace = false) }
+            runSuspendCatching { dailyWorkScheduler.schedule(settings.hour, settings.minute, replace = false) }
         }
     }

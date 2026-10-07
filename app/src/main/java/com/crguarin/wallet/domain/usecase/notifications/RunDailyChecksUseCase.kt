@@ -1,5 +1,6 @@
 package com.crguarin.wallet.domain.usecase.notifications
 
+import com.crguarin.wallet.core.result.runSuspendCatching
 import com.crguarin.wallet.core.time.TimeProvider
 import com.crguarin.wallet.domain.model.notifications.NotificationEvent
 import com.crguarin.wallet.domain.model.notifications.NotificationSettings
@@ -19,7 +20,7 @@ import javax.inject.Inject
  * 5. show when notifications are enabled;
  * 6. always store today as the last run date.
  *
- * Every step is isolated with `runCatching`: a failure never throws and the
+ * Every step is isolated with [runSuspendCatching]: a failure never throws and the
  * following steps still run.
  */
 class RunDailyChecksUseCase
@@ -33,20 +34,20 @@ class RunDailyChecksUseCase
     ) {
         suspend operator fun invoke() {
             val today = timeProvider.today()
-            val posted = runCatching { processDueRecurringUseCase() }.getOrDefault(emptyList())
+            val posted = runSuspendCatching { processDueRecurringUseCase() }.getOrDefault(emptyList())
             val settings =
-                runCatching { preferencesRepository.getNotificationSettings() }
+                runSuspendCatching { preferencesRepository.getNotificationSettings() }
                     .getOrDefault(NotificationSettings())
-            val lastRun = runCatching { preferencesRepository.getLastNotificationRunDate() }.getOrNull()
+            val lastRun = runSuspendCatching { preferencesRepository.getLastNotificationRunDate() }.getOrNull()
             val computed =
-                runCatching { computeNotificationEventsUseCase(lastRun, today, settings) }
+                runSuspendCatching { computeNotificationEventsUseCase(lastRun, today, settings) }
                     .getOrDefault(emptyList())
             val events =
-                computed + runCatching { postedEvents(posted, today, settings) }.getOrDefault(emptyList())
+                computed + runSuspendCatching { postedEvents(posted, today, settings) }.getOrDefault(emptyList())
             if (settings.enabled) {
-                runCatching { notificationGateway.show(events) }
+                runSuspendCatching { notificationGateway.show(events) }
             }
-            runCatching { preferencesRepository.setLastNotificationRunDate(today) }
+            runSuspendCatching { preferencesRepository.setLastNotificationRunDate(today) }
         }
 
         private fun postedEvents(

@@ -8,6 +8,7 @@ import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.components.SingletonComponent
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Entry point for [DailyChecksWorker]. WorkManager instantiates workers itself, so
@@ -38,6 +39,9 @@ class DailyChecksWorker(
             val runDailyChecks = entryPoint.runDailyChecks()
             runDailyChecks()
             Result.success()
+        } catch (e: CancellationException) {
+            // WorkManager stopped the work: let the cancellation finish the coroutine.
+            throw e
         } catch (_: Exception) {
             Result.success()
         }
