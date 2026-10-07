@@ -8,6 +8,7 @@ import com.crguarin.wallet.domain.fake.FakePreferencesRepository
 import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
+import com.crguarin.wallet.domain.fake.FakeTransactionRunner
 import com.crguarin.wallet.domain.model.ThemeMode
 import com.crguarin.wallet.domain.usecase.CheckNegativeBalanceUseCase
 import com.crguarin.wallet.domain.usecase.SaveTransactionUseCase
@@ -63,6 +64,7 @@ class MainViewModelTest {
                         categoryRepository,
                         timeProvider,
                         checkNegativeBalanceUseCase,
+                        FakeTransactionRunner(),
                     ),
                     timeProvider,
                 ),

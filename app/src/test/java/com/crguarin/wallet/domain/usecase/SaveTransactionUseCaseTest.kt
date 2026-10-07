@@ -6,6 +6,7 @@ import com.crguarin.wallet.domain.fake.FakeAccountRepository
 import com.crguarin.wallet.domain.fake.FakeCategoryRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
+import com.crguarin.wallet.domain.fake.FakeTransactionRunner
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.Category
@@ -26,6 +27,7 @@ class SaveTransactionUseCaseTest {
     private lateinit var categoryRepository: FakeCategoryRepository
     private lateinit var timeProvider: FakeTimeProvider
     private lateinit var saveTransactionUseCase: SaveTransactionUseCase
+    private lateinit var transactionRunner: FakeTransactionRunner
 
     private val baseDate = LocalDate.of(2026, 9, 28)
     private val baseInstant = Instant.parse("2026-09-28T12:00:00Z")
@@ -82,6 +84,7 @@ class SaveTransactionUseCaseTest {
                 accountRepository = accountRepository,
                 transactionRepository = transactionRepository,
             )
+        transactionRunner = FakeTransactionRunner()
         saveTransactionUseCase =
             SaveTransactionUseCase(
                 transactionRepository = transactionRepository,
@@ -89,6 +92,7 @@ class SaveTransactionUseCaseTest {
                 categoryRepository = categoryRepository,
                 timeProvider = timeProvider,
                 checkNegativeBalanceUseCase = checkNegativeBalanceUseCase,
+                transactionRunner = transactionRunner,
             )
     }
 
@@ -343,5 +347,23 @@ class SaveTransactionUseCaseTest {
             val result = saveTransactionUseCase(updatedTx)
             assertThat(result.isSuccess).isTrue()
             assertThat(result.getOrNull()!!.balanceWarning).isEqualTo(BalanceWarning.NONE)
+        }
+
+    @Test
+    fun `validation and the write run inside one transaction`() =
+        runTest {
+            val tx =
+                Transaction(
+                    type = TransactionType.EXPENSE,
+                    amount = Money(1000L),
+                    accountId = 1L,
+                    categoryId = 1L,
+                    date = baseDate,
+                    createdAt = baseInstant,
+                    updatedAt = baseInstant,
+                )
+
+            assertThat(saveTransactionUseCase(tx).isSuccess).isTrue()
+            assertThat(transactionRunner.runs).isEqualTo(1)
         }
 }

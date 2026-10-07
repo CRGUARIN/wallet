@@ -16,7 +16,7 @@ import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryNode
 import com.crguarin.wallet.domain.model.CategoryType
-import com.crguarin.wallet.domain.model.Transaction
+import com.crguarin.wallet.domain.model.DeletedTransaction
 import com.crguarin.wallet.domain.model.TransactionDaySeparators
 import com.crguarin.wallet.domain.model.TransactionDetails
 import com.crguarin.wallet.domain.model.TransactionFilter
@@ -96,7 +96,7 @@ data class TransactionsUiState(
 sealed interface TransactionsEvent {
     /** Carries the deleted transaction so each snackbar's "undo" restores its own deletion. */
     data class ShowTransactionDeleted(
-        val transaction: Transaction,
+        val deleted: DeletedTransaction,
     ) : TransactionsEvent
 
     data class ShowSnackbar(
@@ -117,10 +117,9 @@ class TransactionsViewModel
         private val observeDailyTotalsUseCase: ObserveDailyTotalsUseCase,
         private val deleteTransactionUseCase: DeleteTransactionUseCase,
         private val restoreTransactionUseCase: RestoreTransactionUseCase,
-        timeProvider: TimeProvider,
+        private val timeProvider: TimeProvider,
     ) : ViewModel() {
         private val route: Transactions = savedStateHandle.toRoute<Transactions>()
-        private val today: LocalDate = timeProvider.today()
 
         private val filterFlow: MutableStateFlow<FilterSelection> =
             MutableStateFlow(
@@ -163,7 +162,7 @@ class TransactionsViewModel
             queryFlow.flatMapLatest { query -> observeDailyTotalsUseCase(query.toTransactionFilter()) }
 
         private val panelFlow: Flow<PanelState> =
-            combine(categorySelectionFlow, sheetFlow, dailyTotalsFlow, ::PanelState)
+            combine(categorySelectionFlow, sheetFlow, dailyTotalsFlow, timeProvider.todayFlow(), ::PanelState)
 
         val uiState: StateFlow<TransactionsUiState> =
             combine(
@@ -175,7 +174,7 @@ class TransactionsViewModel
                 TransactionsUiState(
                     isLoading = false,
                     month = query.selection.month,
-                    today = today,
+                    today = panel.today,
                     type = query.selection.type,
                     accountId = query.selection.accountId,
                     categoryId = query.selection.categoryId,
@@ -191,7 +190,7 @@ class TransactionsViewModel
             }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.WhileSubscribed(5_000),
-                initialValue = TransactionsUiState(today = today, isLoading = true),
+                initialValue = TransactionsUiState(today = timeProvider.today(), isLoading = true),
             )
 
         /**
@@ -222,7 +221,7 @@ class TransactionsViewModel
 
         fun nextMonth() {
             val next = filterFlow.value.month.plusMonths(1)
-            if (next <= YearMonth.from(today).plusYears(1)) {
+            if (next <= YearMonth.from(timeProvider.today()).plusYears(1)) {
                 setMonth(next)
             }
         }
@@ -280,7 +279,7 @@ class TransactionsViewModel
             viewModelScope.launch {
                 when (val result = deleteTransactionUseCase(details.transaction.id)) {
                     is DomainResult.Success -> {
-                        _events.send(TransactionsEvent.ShowTransactionDeleted(details.transaction))
+                        _events.send(TransactionsEvent.ShowTransactionDeleted(result.value))
                     }
                     is DomainResult.Failure -> {
                         _events.send(TransactionsEvent.ShowSnackbar(result.error.asStringRes()))
@@ -289,9 +288,9 @@ class TransactionsViewModel
             }
         }
 
-        fun undoDelete(transaction: Transaction) {
+        fun undoDelete(deleted: DeletedTransaction) {
             viewModelScope.launch {
-                when (val result = restoreTransactionUseCase(transaction)) {
+                when (val result = restoreTransactionUseCase(deleted)) {
                     is DomainResult.Success -> Unit
                     is DomainResult.Failure -> {
                         _events.send(TransactionsEvent.ShowSnackbar(result.error.asStringRes()))
@@ -325,7 +324,7 @@ class TransactionsViewModel
             // The route carries ISO `yyyy-MM`. A malformed value is ignored: fall back to this month.
             return routeMonth
                 ?.let { runCatching { YearMonth.parse(it) }.getOrNull() }
-                ?: YearMonth.from(today)
+                ?: YearMonth.from(timeProvider.today())
         }
 
         private fun readType(
@@ -378,6 +377,7 @@ class TransactionsViewModel
             val categorySelection: CategorySelection,
             val sheetState: SheetState,
             val dailyTotals: Map<LocalDate, Money>,
+            val today: LocalDate,
         )
 
         private data class CategorySelection(

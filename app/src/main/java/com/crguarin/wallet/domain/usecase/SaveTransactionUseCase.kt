@@ -15,6 +15,7 @@ import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.repository.AccountRepository
 import com.crguarin.wallet.domain.repository.CategoryRepository
 import com.crguarin.wallet.domain.repository.TransactionRepository
+import com.crguarin.wallet.domain.repository.TransactionRunner
 import javax.inject.Inject
 
 class SaveTransactionUseCase
@@ -25,8 +26,16 @@ class SaveTransactionUseCase
         private val categoryRepository: CategoryRepository,
         private val timeProvider: TimeProvider,
         private val checkNegativeBalanceUseCase: CheckNegativeBalanceUseCase,
+        private val transactionRunner: TransactionRunner,
     ) {
-        suspend operator fun invoke(transaction: Transaction): DomainResult<SaveTransactionResult> {
+        /**
+         * Validates and saves [transaction] in one [TransactionRunner] block, so the accounts,
+         * category and stored transaction it was validated against cannot change before the write.
+         */
+        suspend operator fun invoke(transaction: Transaction): DomainResult<SaveTransactionResult> =
+            transactionRunner.run { validateAndSave(transaction) }
+
+        private suspend fun validateAndSave(transaction: Transaction): DomainResult<SaveTransactionResult> {
             val validated =
                 when (val result = validate(transaction)) {
                     is DomainResult.Success -> result.value

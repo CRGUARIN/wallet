@@ -2,6 +2,7 @@ package com.crguarin.wallet.data.backup
 
 import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
+import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.TransactionType
 import com.google.common.truth.Truth.assertThat
@@ -18,7 +19,7 @@ import kotlinx.serialization.json.put
 import org.junit.Test
 
 class BackupParserTest {
-    private val parser = BackupParser()
+    private val parser = BackupParser(FakeTimeProvider())
 
     private val planSample =
         """

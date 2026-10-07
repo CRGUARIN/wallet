@@ -58,7 +58,7 @@ La app de depuración se instala como `com.crguarin.wallet.debug` ("Wallet Debug
 
 ## Release firmado
 
-`assembleRelease` genera un APK minificado (R8) en `app/build/outputs/apk/release/`. Sin configuración de firma se firma con la clave de depuración y Gradle muestra un aviso: sirve para probarlo en tu teléfono, **no** para publicarlo.
+`assembleRelease` genera un APK minificado (R8) en `app/build/outputs/apk/release/`. Sin configuración de firma se firma con la clave de depuración, Gradle muestra un aviso y la versión lleva el sufijo `-debugkey` (visible en Ajustes y en los backups exportados): sirve para probarlo en tu teléfono, **no** para publicarlo ni para instalarlo sobre la app real, que luego no se podría actualizar con la firma correcta sin desinstalarla.
 
 1. Crea una clave (una sola vez) y guárdala **fuera** del repositorio:
 

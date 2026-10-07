@@ -13,6 +13,7 @@ import com.crguarin.wallet.domain.fake.FakeDailyWorkScheduler
 import com.crguarin.wallet.domain.fake.FakeNotificationGateway
 import com.crguarin.wallet.domain.fake.FakePreferencesRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
+import com.crguarin.wallet.domain.fake.testProcessDueRecurringUseCase
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.BackupSummary
@@ -69,7 +70,7 @@ class SettingsViewModelTest {
                 languageController = language,
                 exportBackupUseCase = ExportBackupUseCase(backupRepository, store),
                 previewBackupUseCase = PreviewBackupUseCase(backupRepository, store),
-                importBackupUseCase = ImportBackupUseCase(backupRepository),
+                importBackupUseCase = ImportBackupUseCase(backupRepository, testProcessDueRecurringUseCase()),
                 timeProvider = FakeTimeProvider(Instant.parse("2026-09-28T15:30:00Z")),
                 accountRepository = accounts,
                 dailyWorkScheduler = scheduler,

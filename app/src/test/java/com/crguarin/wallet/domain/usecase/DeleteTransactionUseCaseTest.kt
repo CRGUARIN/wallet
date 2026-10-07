@@ -2,7 +2,9 @@ package com.crguarin.wallet.domain.usecase
 
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.core.result.DomainError
+import com.crguarin.wallet.domain.fake.FakeCardStatementRepository
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
+import com.crguarin.wallet.domain.fake.FakeTransactionRunner
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionType
 import com.google.common.truth.Truth.assertThat
@@ -21,7 +23,7 @@ class DeleteTransactionUseCaseTest {
     @Before
     fun setUp() {
         transactionRepository = FakeTransactionRepository()
-        deleteTransactionUseCase = DeleteTransactionUseCase(transactionRepository)
+        deleteTransactionUseCase = DeleteTransactionUseCase(transactionRepository, FakeCardStatementRepository(), FakeTransactionRunner())
     }
 
     @Test

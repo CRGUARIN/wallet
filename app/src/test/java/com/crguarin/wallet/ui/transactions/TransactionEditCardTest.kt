@@ -10,6 +10,7 @@ import com.crguarin.wallet.domain.fake.FakePreferencesRepository
 import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
+import com.crguarin.wallet.domain.fake.FakeTransactionRunner
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.Category
@@ -106,8 +107,9 @@ class TransactionEditCardTest {
                 categoryRepository = categoryRepository,
                 timeProvider = timeProvider,
                 checkNegativeBalanceUseCase = checkNegativeBalanceUseCase,
+                transactionRunner = FakeTransactionRunner(),
             )
-        deleteTransactionUseCase = DeleteTransactionUseCase(transactionRepository)
+        deleteTransactionUseCase = DeleteTransactionUseCase(transactionRepository, FakeCardStatementRepository(), FakeTransactionRunner())
     }
 
     @After

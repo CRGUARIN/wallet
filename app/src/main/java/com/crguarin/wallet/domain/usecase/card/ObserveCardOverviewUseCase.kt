@@ -12,8 +12,10 @@ import com.crguarin.wallet.domain.model.card.CardStatement
 import com.crguarin.wallet.domain.model.card.StatementPaymentStatus
 import com.crguarin.wallet.domain.repository.AccountRepository
 import com.crguarin.wallet.domain.repository.CardStatementRepository
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -29,17 +31,19 @@ class ObserveCardOverviewUseCase
         private val cardStatementRepository: CardStatementRepository,
         private val timeProvider: TimeProvider,
     ) {
-        operator fun invoke(accountId: Long): Flow<CardOverview?> {
-            val today = timeProvider.today()
-            val from = today.minusMonths(CARD_HISTORY_MONTHS)
-            return combine(
-                accountRepository.observeAccountWithBalance(accountId),
-                cardStatementRepository.observeLastStatement(accountId),
-                cardStatementRepository.observeCardTransactions(accountId, from),
-            ) { accountWithBalance, lastStatement, transactions ->
-                buildOverview(accountId, accountWithBalance, lastStatement, transactions, today)
+        /** Recomputed when the day changes, so statuses such as "overdue" never go stale. */
+        @OptIn(ExperimentalCoroutinesApi::class)
+        operator fun invoke(accountId: Long): Flow<CardOverview?> =
+            timeProvider.todayFlow().flatMapLatest { today ->
+                val from = today.minusMonths(CARD_HISTORY_MONTHS)
+                combine(
+                    accountRepository.observeAccountWithBalance(accountId),
+                    cardStatementRepository.observeLastStatement(accountId),
+                    cardStatementRepository.observeCardTransactions(accountId, from),
+                ) { accountWithBalance, lastStatement, transactions ->
+                    buildOverview(accountId, accountWithBalance, lastStatement, transactions, today)
+                }
             }
-        }
 
         private fun buildOverview(
             accountId: Long,

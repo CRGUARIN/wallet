@@ -40,8 +40,8 @@ class ObserveUpcomingPaymentsUseCase
                 accountRepository.observeAllAccounts(),
                 categoryRepository.observeCategories(includeArchived = true),
                 observeCardOverviewsUseCase(),
-            ) { payments, accounts, categories, cardOverviews ->
-                val today = timeProvider.today()
+                timeProvider.todayFlow(),
+            ) { payments, accounts, categories, cardOverviews, today ->
                 val end = today.plusDays(days.toLong())
                 val accountsById = accounts.associateBy { it.id }
                 val categoriesById = categories.associateBy { it.id }

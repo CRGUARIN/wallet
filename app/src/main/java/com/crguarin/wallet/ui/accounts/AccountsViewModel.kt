@@ -47,7 +47,6 @@ class AccountsViewModel
     ) : ViewModel() {
         private val isArchivedExpandedFlow = MutableStateFlow(false)
         private val isReorderingFlow = MutableStateFlow(false)
-        private val today: LocalDate = timeProvider.today()
 
         val uiState: StateFlow<AccountsUiState> =
             combine(
@@ -55,8 +54,8 @@ class AccountsViewModel
                 observeTotalBalanceUseCase(),
                 isArchivedExpandedFlow,
                 isReorderingFlow,
-                observeCardOverviewsUseCase(),
-            ) { accounts, totalBalance, isArchivedExpanded, isReordering, cardOverviews ->
+                combine(observeCardOverviewsUseCase(), timeProvider.todayFlow(), ::Pair),
+            ) { accounts, totalBalance, isArchivedExpanded, isReordering, (cardOverviews, today) ->
                 val active = accounts.filter { !it.account.isArchived }
                 val archived = accounts.filter { it.account.isArchived }
                 AccountsUiState(

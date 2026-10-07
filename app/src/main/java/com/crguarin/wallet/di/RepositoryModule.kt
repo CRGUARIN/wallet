@@ -1,6 +1,7 @@
 package com.crguarin.wallet.di
 
 import com.crguarin.wallet.data.category.AndroidSystemCategoryNames
+import com.crguarin.wallet.data.db.RoomTransactionRunner
 import com.crguarin.wallet.data.prefs.PreferencesRepositoryImpl
 import com.crguarin.wallet.data.repository.AccountRepositoryImpl
 import com.crguarin.wallet.data.repository.CardStatementRepositoryImpl
@@ -16,6 +17,7 @@ import com.crguarin.wallet.domain.repository.PreferencesRepository
 import com.crguarin.wallet.domain.repository.RecurringRepository
 import com.crguarin.wallet.domain.repository.ReportRepository
 import com.crguarin.wallet.domain.repository.TransactionRepository
+import com.crguarin.wallet.domain.repository.TransactionRunner
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -48,6 +50,10 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindRecurringRepository(impl: RecurringRepositoryImpl): RecurringRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTransactionRunner(impl: RoomTransactionRunner): TransactionRunner
 
     @Binds
     @Singleton

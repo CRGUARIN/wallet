@@ -9,6 +9,7 @@ import com.crguarin.wallet.domain.fake.FakeCardStatementRepository
 import com.crguarin.wallet.domain.fake.FakeCategoryRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
+import com.crguarin.wallet.domain.fake.FakeTransactionRunner
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.Category
@@ -103,6 +104,7 @@ class CardReconcileViewModelTest {
                 categoryRepository = categoryRepository,
                 timeProvider = timeProvider,
                 checkNegativeBalanceUseCase = checkNegativeBalanceUseCase,
+                transactionRunner = FakeTransactionRunner(),
             )
         previewUseCase = PreviewReconciliationUseCase(accountRepository, cardStatementRepository, timeProvider)
         applyUseCase =

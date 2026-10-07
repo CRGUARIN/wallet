@@ -16,8 +16,8 @@ import org.robolectric.annotation.Config
 import java.time.LocalDate
 
 /**
- * Verifies that [MIGRATION_1_2] and [MIGRATION_2_3] preserve every row of the version-1 and
- * version-2 databases, that the full 1→2→3 chain works, and that the migrated databases open
+ * Verifies that [MIGRATION_1_2], [MIGRATION_2_3] and [MIGRATION_3_4] preserve every row of the
+ * older databases, that the full 1→2→3→4 chain works, and that the migrated databases open
  * normally with Room.
  */
 @RunWith(RobolectricTestRunner::class)
@@ -277,7 +277,7 @@ class MigrationTest {
             val database =
                 Room
                     .databaseBuilder(context, WalletDatabase::class.java, TEST_DB_ROOM)
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(*ALL_MIGRATIONS)
                     .allowMainThreadQueries()
                     .build()
             try {
@@ -491,7 +491,7 @@ class MigrationTest {
             val database =
                 Room
                     .databaseBuilder(context, WalletDatabase::class.java, TEST_DB_V3_ROOM)
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(*ALL_MIGRATIONS)
                     .allowMainThreadQueries()
                     .build()
             try {
@@ -518,11 +518,86 @@ class MigrationTest {
             }
         }
 
+    private fun transactionIndexNames(db: androidx.sqlite.db.SupportSQLiteDatabase): List<String> {
+        val names = mutableListOf<String>()
+        db.query("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'transactions'").use { cursor ->
+            while (cursor.moveToNext()) {
+                names += cursor.getString(0)
+            }
+        }
+        return names
+    }
+
+    @Test
+    fun migrate3To4_preservesAllDataAndReplacesTheAccountIndices() {
+        // Version 3 only added nullable columns and a table to version 2, so the version-2 rows fit.
+        helper.createDatabase(TEST_DB_V4, 3).apply {
+            seedVersion2(this)
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB_V4, 4, true, MIGRATION_3_4)
+
+        val indexNames = transactionIndexNames(db)
+        assertThat(indexNames).containsAtLeast(
+            "index_transactions_account_id_type_date_amount",
+            "index_transactions_to_account_id_type_date_amount",
+        )
+        assertThat(indexNames).containsNoneOf("index_transactions_account_id", "index_transactions_to_account_id")
+        assertThat(balanceOf(db, 1)).isEqualTo(-130_000L)
+        assertThat(balanceOf(db, 2)).isEqualTo(1_700_000L)
+        assertThat(balanceOf(db, 3)).isEqualTo(-50_900L)
+
+        db.close()
+    }
+
+    @Test
+    fun migrate1To4_chainPreservesVersion1Data() {
+        helper.createDatabase(TEST_DB_CHAIN_V4, 1).apply {
+            seedVersion1(this)
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB_CHAIN_V4, 4, true, *ALL_MIGRATIONS)
+
+        assertThat(balanceOf(db, 1)).isEqualTo(20_000L)
+        assertThat(balanceOf(db, 2)).isEqualTo(750_000L)
+
+        db.close()
+    }
+
+    @Test
+    fun migratedTo4Database_readsBalancesWithDaos() =
+        runTest {
+            helper.createDatabase(TEST_DB_V4_ROOM, 3).apply {
+                seedVersion2(this)
+                close()
+            }
+
+            val context = ApplicationProvider.getApplicationContext<Context>()
+            val database =
+                Room
+                    .databaseBuilder(context, WalletDatabase::class.java, TEST_DB_V4_ROOM)
+                    .addMigrations(*ALL_MIGRATIONS)
+                    .allowMainThreadQueries()
+                    .build()
+            try {
+                assertThat(database.accountDao().getAccountWithBalanceById(1)?.balance).isEqualTo(-130_000L)
+                assertThat(database.accountDao().getAccountWithBalanceById(2)?.balance).isEqualTo(1_700_000L)
+                assertThat(database.accountDao().getAccountWithBalanceById(3)?.balance).isEqualTo(-50_900L)
+            } finally {
+                database.close()
+            }
+        }
+
     private companion object {
         const val TEST_DB = "migration-test"
         const val TEST_DB_ROOM = "migration-test-room"
         const val TEST_DB_V3 = "migration-test-v3"
         const val TEST_DB_CHAIN = "migration-test-chain"
         const val TEST_DB_V3_ROOM = "migration-test-v3-room"
+        const val TEST_DB_V4 = "migration-test-v4"
+        const val TEST_DB_CHAIN_V4 = "migration-test-chain-v4"
+        const val TEST_DB_V4_ROOM = "migration-test-v4-room"
     }
 }

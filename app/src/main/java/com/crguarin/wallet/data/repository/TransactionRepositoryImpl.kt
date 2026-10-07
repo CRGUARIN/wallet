@@ -7,6 +7,7 @@ import androidx.paging.PagingData
 import androidx.paging.map
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.data.db.TransactionDao
+import com.crguarin.wallet.data.db.escapeLikePattern
 import com.crguarin.wallet.di.IoDispatcher
 import com.crguarin.wallet.domain.model.MonthSummary
 import com.crguarin.wallet.domain.model.Transaction
@@ -17,7 +18,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -37,7 +37,7 @@ class TransactionRepositoryImpl
                     accountId = filter.accountId,
                     categoryId = filter.categoryId,
                     type = filter.type,
-                    noteQuery = filter.noteQuery,
+                    noteQuery = filter.noteQuery?.escapeLikePattern(),
                 ).map { list -> list.map { it.toDomain() } }
                 .flowOn(ioDispatcher)
 
@@ -51,7 +51,7 @@ class TransactionRepositoryImpl
                         accountId = filter.accountId,
                         categoryId = filter.categoryId,
                         type = filter.type,
-                        noteQuery = filter.noteQuery,
+                        noteQuery = filter.noteQuery?.escapeLikePattern(),
                     )
                 },
             ).flow
@@ -70,45 +70,33 @@ class TransactionRepositoryImpl
                     accountId = filter.accountId,
                     categoryId = filter.categoryId,
                     type = filter.type,
-                    noteQuery = filter.noteQuery,
+                    noteQuery = filter.noteQuery?.escapeLikePattern(),
                 ).map { rows -> rows.associate { it.date to Money(it.net) } }
                 .flowOn(ioDispatcher)
 
-        override suspend fun getTransaction(id: Long): Transaction? =
-            withContext(ioDispatcher) {
-                transactionDao.getById(id)?.toDomain()
-            }
+        override suspend fun getTransaction(id: Long): Transaction? = transactionDao.getById(id)?.toDomain()
 
-        override suspend fun getTransactionDetails(id: Long): TransactionDetails? =
-            withContext(ioDispatcher) {
-                transactionDao.getWithDetailsById(id)?.toDomain()
-            }
+        override suspend fun getTransactionDetails(id: Long): TransactionDetails? = transactionDao.getWithDetailsById(id)?.toDomain()
 
         override suspend fun saveTransaction(transaction: Transaction): Long =
-            withContext(ioDispatcher) {
-                if (transaction.id == 0L) {
-                    transactionDao.insert(transaction.toEntity())
-                } else {
-                    transactionDao.update(transaction.toEntity())
-                    transaction.id
-                }
+            if (transaction.id == 0L) {
+                transactionDao.insert(transaction.toEntity())
+            } else {
+                transactionDao.update(transaction.toEntity())
+                transaction.id
             }
 
         override suspend fun deleteTransaction(id: Long) {
-            withContext(ioDispatcher) {
-                transactionDao.deleteById(id)
-            }
+            transactionDao.deleteById(id)
         }
 
         override suspend fun restoreTransaction(transaction: Transaction): Boolean =
-            withContext(ioDispatcher) {
-                try {
-                    transactionDao.insert(transaction.toEntity())
-                    true
-                } catch (_: SQLiteConstraintException) {
-                    // The account or category no longer exists, or the id was reused.
-                    false
-                }
+            try {
+                transactionDao.insert(transaction.toEntity())
+                true
+            } catch (_: SQLiteConstraintException) {
+                // The account or category no longer exists, or the id was reused.
+                false
             }
 
         override fun observeMonthSummary(
@@ -121,8 +109,5 @@ class TransactionRepositoryImpl
             from: LocalDate,
             to: LocalDate,
             accountId: Long?,
-        ): MonthSummary =
-            withContext(ioDispatcher) {
-                transactionDao.getMonthSummary(from, to, accountId).toDomain()
-            }
+        ): MonthSummary = transactionDao.getMonthSummary(from, to, accountId).toDomain()
     }

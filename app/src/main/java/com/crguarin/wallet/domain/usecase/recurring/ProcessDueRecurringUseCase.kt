@@ -1,6 +1,7 @@
 package com.crguarin.wallet.domain.usecase.recurring
 
 import com.crguarin.wallet.core.result.DomainResult
+import com.crguarin.wallet.core.result.runSuspendCatching
 import com.crguarin.wallet.core.time.TimeProvider
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.recurring.OccurrenceResult
@@ -36,9 +37,9 @@ class ProcessDueRecurringUseCase
         suspend operator fun invoke(): List<PostedOccurrence> {
             val today = timeProvider.today()
             val posted = mutableListOf<PostedOccurrence>()
-            val payments = runCatching { recurringRepository.getAll() }.getOrDefault(emptyList())
+            val payments = runSuspendCatching { recurringRepository.getAll() }.getOrDefault(emptyList())
             for (payment in payments) {
-                runCatching { processPayment(payment.id, today, posted) }
+                runSuspendCatching { processPayment(payment.id, today, posted) }
             }
             return posted
         }

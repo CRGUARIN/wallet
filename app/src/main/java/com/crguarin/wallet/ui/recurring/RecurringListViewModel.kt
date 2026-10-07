@@ -65,6 +65,9 @@ class RecurringListViewModel
                     _uiState.update { it.copy(isLoading = false, overview = overview) }
                 }
             }
+            viewModelScope.launch {
+                timeProvider.todayFlow().collect { today -> _uiState.update { it.copy(today = today) } }
+            }
         }
 
         fun openConfirm(item: RecurringItem) {

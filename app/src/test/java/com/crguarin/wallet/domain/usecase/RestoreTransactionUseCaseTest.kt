@@ -3,7 +3,10 @@ package com.crguarin.wallet.domain.usecase
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
+import com.crguarin.wallet.domain.fake.FakeCardStatementRepository
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
+import com.crguarin.wallet.domain.fake.FakeTransactionRunner
+import com.crguarin.wallet.domain.model.DeletedTransaction
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionType
 import com.google.common.truth.Truth.assertThat
@@ -34,7 +37,7 @@ class RestoreTransactionUseCaseTest {
     @Before
     fun setUp() {
         transactionRepository = FakeTransactionRepository()
-        restoreTransactionUseCase = RestoreTransactionUseCase(transactionRepository)
+        restoreTransactionUseCase = RestoreTransactionUseCase(transactionRepository, FakeCardStatementRepository(), FakeTransactionRunner())
     }
 
     @Test
@@ -44,7 +47,7 @@ class RestoreTransactionUseCaseTest {
             transactionRepository.deleteTransaction(transaction.id)
             assertThat(transactionRepository.getTransaction(transaction.id)).isNull()
 
-            val result = restoreTransactionUseCase(transaction)
+            val result = restoreTransactionUseCase(DeletedTransaction(transaction))
 
             assertThat(result.isSuccess).isTrue()
             assertThat(transactionRepository.getTransaction(transaction.id)).isEqualTo(transaction)
@@ -58,7 +61,7 @@ class RestoreTransactionUseCaseTest {
         runTest {
             transactionRepository.failRestore = true
 
-            val result = restoreTransactionUseCase(transaction)
+            val result = restoreTransactionUseCase(DeletedTransaction(transaction))
 
             assertThat(result).isEqualTo(DomainResult.Failure(DomainError.NotFound))
             assertThat(transactionRepository.getTransaction(transaction.id)).isNull()
@@ -67,7 +70,7 @@ class RestoreTransactionUseCaseTest {
     @Test
     fun `restored transaction keeps its category and dates`() =
         runTest {
-            restoreTransactionUseCase(transaction)
+            restoreTransactionUseCase(DeletedTransaction(transaction))
 
             val restored = transactionRepository.getTransaction(7L)
             assertThat(restored?.categoryId).isEqualTo(3L)

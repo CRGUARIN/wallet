@@ -3,6 +3,7 @@ package com.crguarin.wallet.core.money
 import com.google.common.truth.Truth.assertThat
 import org.junit.Test
 import java.util.Locale
+import java.util.concurrent.Executors
 
 class MoneyFormatterTest {
     private val esLocale = Locale.forLanguageTag("es-CO")
@@ -151,6 +152,32 @@ class MoneyFormatterTest {
                 val money = Money(minor)
                 assertThat(MoneyParser.parse(formatForInput(money, locale), locale)).isEqualTo(money)
             }
+        }
+    }
+
+    @Test
+    fun `cached formats keep whole and fractional amounts apart`() {
+        val locale = Locale.forLanguageTag("es-CO")
+        val whole = MoneyFormatter.format(Money(1_500_000L), locale)
+        val fractional = MoneyFormatter.format(Money(1_500_050L), locale)
+
+        assertThat(MoneyFormatter.format(Money(1_500_000L), locale)).isEqualTo(whole)
+        assertThat(MoneyFormatter.format(Money(1_500_050L), locale)).isEqualTo(fractional)
+        assertThat(whole).isNotEqualTo(fractional)
+    }
+
+    @Test
+    fun `formatting from several threads gives the same result as one thread`() {
+        val locale = Locale.forLanguageTag("es-CO")
+        val amounts = (1L..200L).map { Money(it * 123_457L) }
+        val expected = amounts.map { MoneyFormatter.format(it, locale) }
+        val pool = Executors.newFixedThreadPool(8)
+        try {
+            val results = (1..8).map { pool.submit<List<String>> { amounts.map { MoneyFormatter.format(it, locale) } } }
+
+            results.forEach { assertThat(it.get()).isEqualTo(expected) }
+        } finally {
+            pool.shutdown()
         }
     }
 }

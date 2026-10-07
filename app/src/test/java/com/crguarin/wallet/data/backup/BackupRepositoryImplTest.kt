@@ -40,7 +40,7 @@ class BackupRepositoryImplTest {
     private lateinit var target: WalletDatabase
 
     private val time = FakeTimeProvider(Instant.parse("2026-09-28T15:00:00.789Z"))
-    private val parser = BackupParser()
+    private val parser = BackupParser(time)
 
     @Before
     fun setUp() {

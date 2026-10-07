@@ -6,6 +6,7 @@ import com.crguarin.wallet.domain.fake.FakeCategoryRepository
 import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
+import com.crguarin.wallet.domain.fake.FakeTransactionRunner
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.recurring.OccurrenceResult
 import com.crguarin.wallet.domain.model.recurring.RecurrenceFrequency
@@ -52,6 +53,7 @@ class ProcessDueRecurringUseCaseTest {
                 categoryRepository,
                 timeProvider,
                 CheckNegativeBalanceUseCase(accountRepository, transactionRepository),
+                FakeTransactionRunner(),
             )
         processDueRecurringUseCase =
             ProcessDueRecurringUseCase(

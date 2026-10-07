@@ -12,6 +12,7 @@ import com.crguarin.wallet.domain.model.recurring.RecurringPayment
 import com.crguarin.wallet.domain.repository.AccountRepository
 import com.crguarin.wallet.domain.repository.CategoryRepository
 import com.crguarin.wallet.domain.repository.RecurringRepository
+import com.crguarin.wallet.domain.repository.TransactionRunner
 import java.time.LocalDate
 import javax.inject.Inject
 
@@ -32,8 +33,16 @@ class SaveRecurringPaymentUseCase
         private val accountRepository: AccountRepository,
         private val categoryRepository: CategoryRepository,
         private val timeProvider: TimeProvider,
+        private val transactionRunner: TransactionRunner,
     ) {
-        suspend operator fun invoke(payment: RecurringPayment): DomainResult<Long> {
+        /**
+         * Validation and the `nextDueDate` recalculation read the stored payment; running them in
+         * the same [TransactionRunner] block as the write keeps a charge recorded meanwhile by the
+         * daily check from being overwritten.
+         */
+        suspend operator fun invoke(payment: RecurringPayment): DomainResult<Long> = transactionRunner.run { save(payment) }
+
+        private suspend fun save(payment: RecurringPayment): DomainResult<Long> {
             if (payment.name.isBlank()) return DomainResult.Failure(DomainError.NameEmpty)
             if (payment.name.length > DomainLimits.NAME_MAX_LENGTH) {
                 return DomainResult.Failure(DomainError.NameTooLong)

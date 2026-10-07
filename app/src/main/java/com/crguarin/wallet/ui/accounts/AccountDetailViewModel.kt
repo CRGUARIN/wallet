@@ -25,7 +25,6 @@ import com.crguarin.wallet.domain.model.card.CardStatement
 import com.crguarin.wallet.domain.repository.AccountRepository
 import com.crguarin.wallet.domain.repository.CardStatementRepository
 import com.crguarin.wallet.domain.repository.PreferencesRepository
-import com.crguarin.wallet.domain.repository.TransactionRepository
 import com.crguarin.wallet.domain.usecase.ArchiveAccountUseCase
 import com.crguarin.wallet.domain.usecase.DeleteAccountUseCase
 import com.crguarin.wallet.domain.usecase.ObserveDailyTotalsUseCase
@@ -36,12 +35,14 @@ import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewUseCase
 import com.crguarin.wallet.ui.navigation.AccountDetail
 import com.crguarin.wallet.ui.util.asStringRes
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
@@ -85,6 +86,7 @@ sealed interface AccountDetailEvent {
     ) : AccountDetailEvent
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class AccountDetailViewModel
     @Inject
@@ -100,12 +102,9 @@ class AccountDetailViewModel
         timeProvider: TimeProvider,
         observeCardOverviewUseCase: ObserveCardOverviewUseCase,
         cardStatementRepository: CardStatementRepository,
-        private val transactionRepository: TransactionRepository,
         preferencesRepository: PreferencesRepository,
     ) : ViewModel() {
         val accountId: Long = savedStateHandle.toRoute<AccountDetail>().accountId
-
-        private val today: LocalDate = timeProvider.today()
 
         private val dialogStateFlow =
             MutableStateFlow(
@@ -115,6 +114,13 @@ class AccountDetailViewModel
                 ),
             )
 
+        private data class CardDetail(
+            val overview: CardOverview?,
+            val statements: List<CardStatement>,
+            val adjustmentAmounts: Map<Long, Money>,
+            val lastUsedAccountId: Long?,
+        )
+
         private data class DialogState(
             val showDelete: Boolean,
             val showOfferArchive: Boolean,
@@ -122,8 +128,6 @@ class AccountDetailViewModel
 
         private val _events = Channel<AccountDetailEvent>(Channel.BUFFERED)
         val events: Flow<AccountDetailEvent> = _events.receiveAsFlow()
-
-        private val currentYearMonth = YearMonth.from(timeProvider.today())
 
         private val accountFilter = TransactionFilter(accountId = accountId)
 
@@ -141,12 +145,18 @@ class AccountDetailViewModel
                         }
                 }.cachedIn(viewModelScope)
 
+        /** Today with this month's summary, re-queried when the day changes. */
+        private val todaySummaryFlow: Flow<Pair<LocalDate, MonthSummary>> =
+            timeProvider.todayFlow().flatMapLatest { today ->
+                observeMonthSummaryUseCase(YearMonth.from(today), accountId).map { summary -> today to summary }
+            }
+
         private val headerFlow =
             combine(
                 accountRepository.observeAccountWithBalance(accountId),
-                observeMonthSummaryUseCase(currentYearMonth, accountId),
+                todaySummaryFlow,
                 dialogStateFlow,
-            ) { account, monthSummary, dialogState -> Triple(account, monthSummary, dialogState) }
+            ) { account, todaySummary, dialogState -> Triple(account, todaySummary, dialogState) }
 
         private val listsFlow =
             combine(
@@ -155,23 +165,22 @@ class AccountDetailViewModel
                 combine(
                     observeCardOverviewUseCase(accountId),
                     cardStatementRepository.observeStatements(accountId),
+                    cardStatementRepository.observeAdjustmentAmounts(accountId),
                     preferencesRepository.observeUserPreferences(),
-                ) { overview, statements, preferences -> Triple(overview, statements, preferences.lastUsedAccountId) },
+                ) { overview, statements, adjustmentAmounts, preferences ->
+                    CardDetail(overview, statements, adjustmentAmounts, preferences.lastUsedAccountId)
+                },
             ) { activeAccounts, dailyTotals, cardDetail -> Triple(activeAccounts, dailyTotals, cardDetail) }
 
         val uiState: StateFlow<AccountDetailUiState> =
             combine(headerFlow, listsFlow) { header, lists ->
-                val (account, monthSummary, dialogState) = header
+                val (account, todaySummary, dialogState) = header
+                val (today, monthSummary) = todaySummary
                 val (activeAccounts, dailyTotals, cardDetail) = lists
-                val (cardOverview, statements, lastUsedAccountId) = cardDetail
+                val (cardOverview, statements, allAdjustmentAmounts, lastUsedAccountId) = cardDetail
                 val recentStatements = statements.take(CARD_DETAIL_STATEMENTS_LIMIT)
-                val adjustmentAmounts =
-                    recentStatements
-                        .mapNotNull { statement ->
-                            val adjustmentId = statement.adjustmentTransactionId ?: return@mapNotNull null
-                            val amount = transactionRepository.getTransaction(adjustmentId)?.amount
-                            if (amount != null) statement.id to amount else null
-                        }.toMap()
+                val recentIds = recentStatements.map { it.id }.toSet()
+                val adjustmentAmounts = allAdjustmentAmounts.filterKeys { it in recentIds }
                 val pending = cardOverview?.pendingStatementAmount
                 AccountDetailUiState(
                     isLoading = false,

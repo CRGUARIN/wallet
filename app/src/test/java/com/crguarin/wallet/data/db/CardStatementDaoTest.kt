@@ -190,6 +190,24 @@ class CardStatementDaoTest {
         }
 
     @Test
+    fun adjustmentAmounts_onlyForStatementsOfTheAccountWithAnAdjustment() =
+        runTest {
+            val accountId = createCardAccount()
+            val otherCardId = createCardAccount(name = "Otra")
+            val txId = createTransaction(accountId)
+            val otherTxId = createTransaction(otherCardId)
+            val withAdjustment =
+                cardStatementDao.insert(createStatement(accountId, LocalDate.of(2026, 9, 15), adjustmentTransactionId = txId))
+            cardStatementDao.insert(createStatement(accountId, LocalDate.of(2026, 8, 15)))
+            cardStatementDao.insert(createStatement(otherCardId, LocalDate.of(2026, 9, 15), adjustmentTransactionId = otherTxId))
+
+            cardStatementDao.observeAdjustmentAmounts(accountId).test {
+                assertThat(awaitItem()).containsExactly(StatementAdjustmentRow(statementId = withAdjustment, amount = 100_000L))
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
     fun categories_getBySystemKey() =
         runTest {
             val dao = database.categoryDao()

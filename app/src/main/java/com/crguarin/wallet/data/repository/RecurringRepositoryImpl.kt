@@ -14,7 +14,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -37,32 +36,22 @@ class RecurringRepositoryImpl
         override fun observe(id: Long): Flow<RecurringPayment?> =
             recurringPaymentDao.observeById(id).map { it?.toDomain() }.flowOn(ioDispatcher)
 
-        override suspend fun get(id: Long): RecurringPayment? =
-            withContext(ioDispatcher) {
-                recurringPaymentDao.getById(id)?.toDomain()
-            }
+        override suspend fun get(id: Long): RecurringPayment? = recurringPaymentDao.getById(id)?.toDomain()
 
-        override suspend fun getAll(): List<RecurringPayment> =
-            withContext(ioDispatcher) {
-                recurringPaymentDao.getAll().map { it.toDomain() }
-            }
+        override suspend fun getAll(): List<RecurringPayment> = recurringPaymentDao.getAll().map { it.toDomain() }
 
         override suspend fun save(payment: RecurringPayment): Long =
-            withContext(ioDispatcher) {
-                if (payment.id == 0L) {
-                    recurringPaymentDao.insert(payment.toEntity())
-                } else {
-                    recurringPaymentDao.update(payment.toEntity())
-                    payment.id
-                }
+            if (payment.id == 0L) {
+                recurringPaymentDao.insert(payment.toEntity())
+            } else {
+                recurringPaymentDao.update(payment.toEntity())
+                payment.id
             }
 
         override suspend fun delete(id: Long) {
-            withContext(ioDispatcher) {
-                walletDatabase.withTransaction {
-                    transactionDao.clearRecurringId(id)
-                    recurringPaymentDao.deleteById(id)
-                }
+            walletDatabase.withTransaction {
+                transactionDao.clearRecurringId(id)
+                recurringPaymentDao.deleteById(id)
             }
         }
 
@@ -72,31 +61,29 @@ class RecurringRepositoryImpl
             transaction: Transaction?,
             newNextDueDate: LocalDate,
         ): OccurrenceResult =
-            withContext(ioDispatcher) {
-                walletDatabase.withTransaction {
-                    val stored = recurringPaymentDao.getById(paymentId)
-                    if (stored == null || stored.nextDueDate != expectedDueDate) {
-                        return@withTransaction OccurrenceResult.AlreadyHandled
-                    }
-                    if (transaction == null) {
-                        recurringPaymentDao.updateNextDueDate(
-                            id = paymentId,
-                            nextDueDate = newNextDueDate,
-                            updatedAt = stored.updatedAt,
-                        )
-                        return@withTransaction OccurrenceResult.Skipped
-                    }
-                    val transactionId =
-                        transactionDao.insert(
-                            transaction.toEntity().copy(id = 0, recurringId = paymentId),
-                        )
+            walletDatabase.withTransaction {
+                val stored = recurringPaymentDao.getById(paymentId)
+                if (stored == null || stored.nextDueDate != expectedDueDate) {
+                    return@withTransaction OccurrenceResult.AlreadyHandled
+                }
+                if (transaction == null) {
                     recurringPaymentDao.updateNextDueDate(
                         id = paymentId,
                         nextDueDate = newNextDueDate,
-                        updatedAt = transaction.updatedAt,
+                        updatedAt = stored.updatedAt,
                     )
-                    OccurrenceResult.Recorded(transactionId)
+                    return@withTransaction OccurrenceResult.Skipped
                 }
+                val transactionId =
+                    transactionDao.insert(
+                        transaction.toEntity().copy(id = 0, recurringId = paymentId),
+                    )
+                recurringPaymentDao.updateNextDueDate(
+                    id = paymentId,
+                    nextDueDate = newNextDueDate,
+                    updatedAt = transaction.updatedAt,
+                )
+                OccurrenceResult.Recorded(transactionId)
             }
 
         override fun observeGeneratedTransactions(
@@ -108,13 +95,7 @@ class RecurringRepositoryImpl
                 .map { list -> list.map { it.toDomain() } }
                 .flowOn(ioDispatcher)
 
-        override suspend fun countByAccount(accountId: Long): Int =
-            withContext(ioDispatcher) {
-                recurringPaymentDao.countByAccount(accountId)
-            }
+        override suspend fun countByAccount(accountId: Long): Int = recurringPaymentDao.countByAccount(accountId)
 
-        override suspend fun countByCategory(categoryId: Long): Int =
-            withContext(ioDispatcher) {
-                recurringPaymentDao.countByCategory(categoryId)
-            }
+        override suspend fun countByCategory(categoryId: Long): Int = recurringPaymentDao.countByCategory(categoryId)
     }

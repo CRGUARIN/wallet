@@ -7,6 +7,7 @@ import com.crguarin.wallet.domain.model.card.CardStatement
 import com.crguarin.wallet.domain.repository.CardStatementRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import java.time.LocalDate
 
@@ -52,6 +53,17 @@ class FakeCardStatementRepository : CardStatementRepository {
     override fun observeLastStatement(accountId: Long): Flow<CardStatement?> =
         statementsFlow.map { list -> list.firstOrNull { it.accountId == accountId } }
 
+    override fun observeAdjustmentAmounts(accountId: Long): Flow<Map<Long, Money>> =
+        combine(statementsFlow, transactionsFlow) { statementList, transactionList ->
+            val amounts = transactionList.associate { it.id to it.amount }
+            statementList
+                .filter { it.accountId == accountId }
+                .mapNotNull { statement ->
+                    val amount = statement.adjustmentTransactionId?.let { amounts[it] } ?: return@mapNotNull null
+                    statement.id to amount
+                }.toMap()
+        }
+
     override fun observeCardTransactions(
         accountId: Long,
         from: LocalDate,
@@ -69,6 +81,33 @@ class FakeCardStatementRepository : CardStatementRepository {
         transactions.values
             .filter { it.date <= date }
             .fold(Money.ZERO) { acc, tx -> acc + signedEffect(tx, accountId) }
+
+    override suspend fun getStatementIdsAdjustedBy(transactionId: Long): List<Long> =
+        statements.values
+            .filter { it.adjustmentTransactionId == transactionId }
+            .map { it.id }
+            .sorted()
+
+    override suspend fun relinkAdjustment(
+        transactionId: Long,
+        statementIds: List<Long>,
+    ) {
+        for (id in statementIds) {
+            val statement = statements[id] ?: continue
+            if (statement.adjustmentTransactionId == null) {
+                statements[id] = statement.copy(adjustmentTransactionId = transactionId)
+            }
+        }
+        notifyChanged()
+    }
+
+    /** Mirrors the ON DELETE SET NULL of the adjustment link when the adjustment is deleted elsewhere. */
+    fun clearAdjustment(transactionId: Long) {
+        statements.replaceAll { _, statement ->
+            if (statement.adjustmentTransactionId == transactionId) statement.copy(adjustmentTransactionId = null) else statement
+        }
+        notifyChanged()
+    }
 
     override suspend fun saveReconciliation(
         statement: CardStatement,

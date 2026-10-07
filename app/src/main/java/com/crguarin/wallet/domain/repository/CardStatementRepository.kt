@@ -12,6 +12,9 @@ interface CardStatementRepository {
 
     fun observeLastStatement(accountId: Long): Flow<CardStatement?>
 
+    /** Amount of the adjustment movement of every statement of the account that has one, by statement id. */
+    fun observeAdjustmentAmounts(accountId: Long): Flow<Map<Long, Money>>
+
     /** Transactions with account_id = card OR to_account_id = card, date >= from. */
     fun observeCardTransactions(
         accountId: Long,
@@ -23,6 +26,18 @@ interface CardStatementRepository {
         accountId: Long,
         date: LocalDate,
     ): Money
+
+    /** Ids of the statements whose reconciliation adjustment is the transaction [transactionId]. */
+    suspend fun getStatementIdsAdjustedBy(transactionId: Long): List<Long>
+
+    /**
+     * Links [transactionId] again as the adjustment of [statementIds] that have none, when the
+     * deletion of that adjustment is undone.
+     */
+    suspend fun relinkAdjustment(
+        transactionId: Long,
+        statementIds: List<Long>,
+    )
 
     /**
      * Saves [statement] (upsert by accountId + closingDate) and, if not null, inserts [adjustment]

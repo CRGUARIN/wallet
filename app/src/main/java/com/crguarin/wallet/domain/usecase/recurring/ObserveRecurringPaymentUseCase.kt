@@ -27,11 +27,11 @@ class ObserveRecurringPaymentUseCase
                 recurringRepository.observe(id),
                 accountRepository.observeAllAccounts(),
                 categoryRepository.observeCategories(includeArchived = true),
-            ) { payment, accounts, categories ->
+                timeProvider.todayFlow(),
+            ) { payment, accounts, categories, today ->
                 if (payment == null) {
                     null
                 } else {
-                    val today = timeProvider.today()
                     payment.toItem(
                         accounts.find { it.id == payment.accountId },
                         categories.find { it.id == payment.categoryId },

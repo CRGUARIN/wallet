@@ -268,4 +268,37 @@ class TransactionRepositoryImplTest {
             assertThat(cash[day]).isEqualTo(Money(-80_000L))
             assertThat(savings[day]).isEqualTo(Money(50_000L))
         }
+
+    @Test
+    fun `note search matches percent and underscore literally`() =
+        runTest {
+            val accId =
+                accountRepository.saveAccount(
+                    Account(name = "Efectivo", type = AccountType.CASH, initialBalance = Money(0), color = 1, icon = "w", createdAt = now),
+                )
+            val catId =
+                categoryRepository.saveCategory(
+                    Category(name = "Comida", type = CategoryType.EXPENSE, color = 1, icon = "r"),
+                )
+            for (note in listOf("Descuento 50%", "Pago 500", "plan_a", "planXa")) {
+                transactionRepository.saveTransaction(
+                    Transaction(
+                        type = TransactionType.EXPENSE,
+                        amount = Money(10_000L),
+                        accountId = accId,
+                        categoryId = catId,
+                        date = LocalDate.of(2026, 9, 20),
+                        note = note,
+                        createdAt = now,
+                        updatedAt = now,
+                    ),
+                )
+            }
+
+            val percent = transactionRepository.observeTransactions(TransactionFilter(noteQuery = "50%")).first()
+            val underscore = transactionRepository.observeTransactions(TransactionFilter(noteQuery = "plan_a")).first()
+
+            assertThat(percent.map { it.transaction.note }).containsExactly("Descuento 50%")
+            assertThat(underscore.map { it.transaction.note }).containsExactly("plan_a")
+        }
 }
