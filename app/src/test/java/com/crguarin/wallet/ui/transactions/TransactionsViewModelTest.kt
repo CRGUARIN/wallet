@@ -4,9 +4,11 @@ import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.fake.FakeAccountRepository
+import com.crguarin.wallet.domain.fake.FakeCardStatementRepository
 import com.crguarin.wallet.domain.fake.FakeCategoryRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
+import com.crguarin.wallet.domain.fake.FakeTransactionRunner
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.Category
@@ -106,8 +108,18 @@ class TransactionsViewModelTest {
             observeCategoryTreeUseCase = ObserveCategoryTreeUseCase(categoryRepository),
             observeTransactionsUseCase = ObserveTransactionsUseCase(transactionRepository),
             observeDailyTotalsUseCase = ObserveDailyTotalsUseCase(transactionRepository),
-            deleteTransactionUseCase = DeleteTransactionUseCase(transactionRepository),
-            restoreTransactionUseCase = RestoreTransactionUseCase(transactionRepository),
+            deleteTransactionUseCase =
+                DeleteTransactionUseCase(
+                    transactionRepository,
+                    FakeCardStatementRepository(),
+                    FakeTransactionRunner(),
+                ),
+            restoreTransactionUseCase =
+                RestoreTransactionUseCase(
+                    transactionRepository,
+                    FakeCardStatementRepository(),
+                    FakeTransactionRunner(),
+                ),
             timeProvider = timeProvider,
         )
 
@@ -375,10 +387,10 @@ class TransactionsViewModelTest {
             viewModel.events.test {
                 viewModel.deleteTransaction(details)
                 val event = awaitItem() as TransactionsEvent.ShowTransactionDeleted
-                assertThat(event.transaction).isEqualTo(original)
+                assertThat(event.deleted.transaction).isEqualTo(original)
                 assertThat(transactionRepository.getTransaction(5L)).isNull()
 
-                viewModel.undoDelete(event.transaction)
+                viewModel.undoDelete(event.deleted)
                 advanceUntilIdle()
                 assertThat(transactionRepository.getTransaction(5L)).isEqualTo(original)
 
@@ -402,7 +414,7 @@ class TransactionsViewModelTest {
                 viewModel.deleteTransaction(secondDetails)
                 awaitItem()
 
-                viewModel.undoDelete(firstEvent.transaction)
+                viewModel.undoDelete(firstEvent.deleted)
                 advanceUntilIdle()
                 assertThat(transactionRepository.getTransaction(5L)).isEqualTo(first)
                 assertThat(transactionRepository.getTransaction(6L)).isNull()

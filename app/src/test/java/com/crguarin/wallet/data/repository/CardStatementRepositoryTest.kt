@@ -5,13 +5,17 @@ import android.database.sqlite.SQLiteConstraintException
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.crguarin.wallet.core.money.Money
+import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.data.db.AccountEntity
+import com.crguarin.wallet.data.db.RoomTransactionRunner
 import com.crguarin.wallet.data.db.TransactionEntity
 import com.crguarin.wallet.data.db.WalletDatabase
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.card.CardStatement
+import com.crguarin.wallet.domain.usecase.DeleteTransactionUseCase
+import com.crguarin.wallet.domain.usecase.RestoreTransactionUseCase
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -239,5 +243,25 @@ class CardStatementRepositoryTest {
             assertThat(
                 repository.observeCardTransactions(card, from = LocalDate.of(1970, 1, 1)).first(),
             ).hasSize(before)
+        }
+
+    @Test
+    fun `undoing the deletion of an adjustment links it to its statement again`() =
+        runTest {
+            val cardId = createAccount("Visa", AccountType.CREDIT_CARD)
+            repository.saveReconciliation(statement(cardId), adjustment(cardId))
+            val adjustmentId = repository.observeLastStatement(cardId).first()?.adjustmentTransactionId!!
+            val transactionRepository = TransactionRepositoryImpl(database.transactionDao(), Dispatchers.Unconfined)
+            val runner = RoomTransactionRunner(database)
+            val delete = DeleteTransactionUseCase(transactionRepository, repository, runner)
+            val restore = RestoreTransactionUseCase(transactionRepository, repository, runner)
+
+            val deleted = (delete(adjustmentId) as DomainResult.Success).value
+            assertThat(deleted.adjustedStatementIds).hasSize(1)
+            assertThat(repository.observeLastStatement(cardId).first()?.adjustmentTransactionId).isNull()
+
+            assertThat(restore(deleted).isSuccess).isTrue()
+            assertThat(repository.observeLastStatement(cardId).first()?.adjustmentTransactionId).isEqualTo(adjustmentId)
+            assertThat(repository.observeAdjustmentAmounts(cardId).first().values).containsExactly(Money(5_000L))
         }
 }

@@ -32,6 +32,18 @@ interface CardStatementDao {
     )
     fun observeAdjustmentAmounts(accountId: Long): Flow<List<StatementAdjustmentRow>>
 
+    @Query("SELECT id FROM card_statements WHERE adjustment_transaction_id = :transactionId")
+    suspend fun getIdsByAdjustment(transactionId: Long): List<Long>
+
+    @Query(
+        "UPDATE card_statements SET adjustment_transaction_id = :transactionId " +
+            "WHERE id IN (:statementIds) AND adjustment_transaction_id IS NULL",
+    )
+    suspend fun relinkAdjustment(
+        transactionId: Long,
+        statementIds: List<Long>,
+    ): Int
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(statement: CardStatementEntity): Long
 

@@ -109,7 +109,7 @@ class TransactionEditCardTest {
                 checkNegativeBalanceUseCase = checkNegativeBalanceUseCase,
                 transactionRunner = FakeTransactionRunner(),
             )
-        deleteTransactionUseCase = DeleteTransactionUseCase(transactionRepository)
+        deleteTransactionUseCase = DeleteTransactionUseCase(transactionRepository, FakeCardStatementRepository(), FakeTransactionRunner())
     }
 
     @After

@@ -58,6 +58,15 @@ class CardStatementRepositoryImpl
             date: LocalDate,
         ): Money = Money(transactionDao.getAccountEffectUpTo(accountId, date))
 
+        override suspend fun getStatementIdsAdjustedBy(transactionId: Long): List<Long> = cardStatementDao.getIdsByAdjustment(transactionId)
+
+        override suspend fun relinkAdjustment(
+            transactionId: Long,
+            statementIds: List<Long>,
+        ) {
+            if (statementIds.isNotEmpty()) cardStatementDao.relinkAdjustment(transactionId, statementIds)
+        }
+
         override suspend fun saveReconciliation(
             statement: CardStatement,
             adjustment: Transaction?,

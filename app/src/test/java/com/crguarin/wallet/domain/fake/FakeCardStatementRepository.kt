@@ -82,6 +82,33 @@ class FakeCardStatementRepository : CardStatementRepository {
             .filter { it.date <= date }
             .fold(Money.ZERO) { acc, tx -> acc + signedEffect(tx, accountId) }
 
+    override suspend fun getStatementIdsAdjustedBy(transactionId: Long): List<Long> =
+        statements.values
+            .filter { it.adjustmentTransactionId == transactionId }
+            .map { it.id }
+            .sorted()
+
+    override suspend fun relinkAdjustment(
+        transactionId: Long,
+        statementIds: List<Long>,
+    ) {
+        for (id in statementIds) {
+            val statement = statements[id] ?: continue
+            if (statement.adjustmentTransactionId == null) {
+                statements[id] = statement.copy(adjustmentTransactionId = transactionId)
+            }
+        }
+        notifyChanged()
+    }
+
+    /** Mirrors the ON DELETE SET NULL of the adjustment link when the adjustment is deleted elsewhere. */
+    fun clearAdjustment(transactionId: Long) {
+        statements.replaceAll { _, statement ->
+            if (statement.adjustmentTransactionId == transactionId) statement.copy(adjustmentTransactionId = null) else statement
+        }
+        notifyChanged()
+    }
+
     override suspend fun saveReconciliation(
         statement: CardStatement,
         adjustment: Transaction?,

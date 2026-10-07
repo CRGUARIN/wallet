@@ -27,6 +27,18 @@ interface CardStatementRepository {
         date: LocalDate,
     ): Money
 
+    /** Ids of the statements whose reconciliation adjustment is the transaction [transactionId]. */
+    suspend fun getStatementIdsAdjustedBy(transactionId: Long): List<Long>
+
+    /**
+     * Links [transactionId] again as the adjustment of [statementIds] that have none, when the
+     * deletion of that adjustment is undone.
+     */
+    suspend fun relinkAdjustment(
+        transactionId: Long,
+        statementIds: List<Long>,
+    )
+
     /**
      * Saves [statement] (upsert by accountId + closingDate) and, if not null, inserts [adjustment]
      * first and links it; all in one DB transaction. Returns the statement id.

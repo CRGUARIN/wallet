@@ -111,7 +111,7 @@ fun TransactionsRoute(
                             actionLabel = context.getString(R.string.action_undo),
                         )
                     if (result == SnackbarResult.ActionPerformed) {
-                        viewModel.undoDelete(event.transaction)
+                        viewModel.undoDelete(event.deleted)
                     }
                 }
                 is TransactionsEvent.ShowSnackbar -> {

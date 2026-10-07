@@ -16,7 +16,7 @@ import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryNode
 import com.crguarin.wallet.domain.model.CategoryType
-import com.crguarin.wallet.domain.model.Transaction
+import com.crguarin.wallet.domain.model.DeletedTransaction
 import com.crguarin.wallet.domain.model.TransactionDaySeparators
 import com.crguarin.wallet.domain.model.TransactionDetails
 import com.crguarin.wallet.domain.model.TransactionFilter
@@ -96,7 +96,7 @@ data class TransactionsUiState(
 sealed interface TransactionsEvent {
     /** Carries the deleted transaction so each snackbar's "undo" restores its own deletion. */
     data class ShowTransactionDeleted(
-        val transaction: Transaction,
+        val deleted: DeletedTransaction,
     ) : TransactionsEvent
 
     data class ShowSnackbar(
@@ -279,7 +279,7 @@ class TransactionsViewModel
             viewModelScope.launch {
                 when (val result = deleteTransactionUseCase(details.transaction.id)) {
                     is DomainResult.Success -> {
-                        _events.send(TransactionsEvent.ShowTransactionDeleted(details.transaction))
+                        _events.send(TransactionsEvent.ShowTransactionDeleted(result.value))
                     }
                     is DomainResult.Failure -> {
                         _events.send(TransactionsEvent.ShowSnackbar(result.error.asStringRes()))
@@ -288,9 +288,9 @@ class TransactionsViewModel
             }
         }
 
-        fun undoDelete(transaction: Transaction) {
+        fun undoDelete(deleted: DeletedTransaction) {
             viewModelScope.launch {
-                when (val result = restoreTransactionUseCase(transaction)) {
+                when (val result = restoreTransactionUseCase(deleted)) {
                     is DomainResult.Success -> Unit
                     is DomainResult.Failure -> {
                         _events.send(TransactionsEvent.ShowSnackbar(result.error.asStringRes()))
