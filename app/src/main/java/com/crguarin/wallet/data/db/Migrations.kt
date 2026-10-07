@@ -53,3 +53,27 @@ val MIGRATION_2_3: Migration =
             )
         }
     }
+
+/**
+ * Migration from schema 3 to schema 4 (balance indices). The per-account indices on `transactions`
+ * become covering indices for the balance sums; the CREATE INDEX statements below are copied
+ * verbatim from `app/schemas/com.crguarin.wallet.data.db.WalletDatabase/4.json`.
+ */
+val MIGRATION_3_4: Migration =
+    object : Migration(3, 4) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("DROP INDEX IF EXISTS `index_transactions_account_id`")
+            db.execSQL("DROP INDEX IF EXISTS `index_transactions_to_account_id`")
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_transactions_account_id_type_date_amount` ON `transactions` " +
+                    "(`account_id`, `type`, `date`, `amount`)",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_transactions_to_account_id_type_date_amount` ON `transactions` " +
+                    "(`to_account_id`, `type`, `date`, `amount`)",
+            )
+        }
+    }
+
+/** Every migration, oldest first, for the database builder and the migration tests. */
+val ALL_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)

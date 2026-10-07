@@ -32,8 +32,10 @@ import java.time.LocalDate
         ),
     ],
     indices = [
-        Index(value = ["account_id"]),
-        Index(value = ["to_account_id"]),
+        // The leading account column also covers each foreign key; type, date and amount let the
+        // balance sums (per account and type, optionally up to a date) be read from the index alone.
+        Index(value = ["account_id", "type", "date", "amount"]),
+        Index(value = ["to_account_id", "type", "date", "amount"]),
         Index(value = ["category_id"]),
         Index(value = ["date"]),
         Index(value = ["recurring_id"], name = "index_transactions_recurring_id"),

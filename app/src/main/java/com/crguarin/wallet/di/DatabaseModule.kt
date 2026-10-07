@@ -2,12 +2,11 @@ package com.crguarin.wallet.di
 
 import android.content.Context
 import androidx.room.Room
+import com.crguarin.wallet.data.db.ALL_MIGRATIONS
 import com.crguarin.wallet.data.db.AccountDao
 import com.crguarin.wallet.data.db.BackupDao
 import com.crguarin.wallet.data.db.CardStatementDao
 import com.crguarin.wallet.data.db.CategoryDao
-import com.crguarin.wallet.data.db.MIGRATION_1_2
-import com.crguarin.wallet.data.db.MIGRATION_2_3
 import com.crguarin.wallet.data.db.RecurringPaymentDao
 import com.crguarin.wallet.data.db.TransactionDao
 import com.crguarin.wallet.data.db.WalletDatabase
@@ -33,7 +32,7 @@ object DatabaseModule {
                 context,
                 WalletDatabase::class.java,
                 DATABASE_NAME,
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            ).addMigrations(*ALL_MIGRATIONS)
             .build()
 
     @Provides

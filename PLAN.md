@@ -346,7 +346,7 @@ transactions(
   installments INTEGER,             -- v2, only EXPENSE on a card
   recurring_id INTEGER              -- v3, NO foreign key (see 6.3)
 )
-INDEX(account_id), INDEX(to_account_id), INDEX(category_id), INDEX(date), INDEX(recurring_id)
+INDEX(account_id, type, date, amount), INDEX(to_account_id, type, date, amount), INDEX(category_id), INDEX(date), INDEX(recurring_id)
 
 card_statements(                    -- v2
   id INTEGER PK AUTOINCREMENT,
@@ -412,6 +412,7 @@ INDEX(account_id), INDEX(category_id), INDEX(next_due_date)
 - v1 es la base. Toda migración futura debe tener `Migration` explícita **y** test con `MigrationTestHelper`. **Prohibido** `fallbackToDestructiveMigration()` en release.
 - Migración 1→2 (Tarea 15): agrega las 3 columnas de tarjeta a `accounts`, `installments` a `transactions` y crea `card_statements`; conserva todos los datos. Test con `MigrationTestHelper` (nota: en AGP 9 los assets del source set `test` no llegan al test, así que `app/schemas` se registra como assets del source set `debug`).
 - Migración 2→3 (Tarea 16): agrega `recurring_id` a `transactions` y crea `recurring_payments` con sus índices; conserva todos los datos (el dueño tiene datos reales en v2). `recurring_id` NO tiene foreign key a propósito: agregarla obligaría a reconstruir la tabla de transacciones con los datos reales; la consistencia la garantiza `RecurringRepository.delete`, que pone a NULL los `recurring_id` en la misma transacción. Test con `MigrationTestHelper`, incluida la cadena 1→2→3.
+- Migración 3→4: reemplaza `INDEX(account_id)` e `INDEX(to_account_id)` de `transactions` por índices compuestos `(account_id|to_account_id, type, date, amount)`, que cubren las sumas de saldo (se leen solo del índice) y siguen cubriendo las foreign keys. No cambia datos ni el formato del backup. Test con `MigrationTestHelper`, incluida la cadena 1→4.
 
 ### 6.4 Seed inicial
 En el primer arranque (`RoomDatabase.Callback.onCreate` o, mejor, un `DefaultCategoriesSeeder` invocado por el onboarding) se crean las categorías por defecto con `systemKey`:
