@@ -11,7 +11,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -35,53 +34,35 @@ class AccountRepositoryImpl
         override fun observeAccountWithBalance(id: Long): Flow<AccountWithBalance?> =
             accountDao.observeAccountWithBalanceById(id).map { it?.toDomain() }.flowOn(ioDispatcher)
 
-        override suspend fun getAccountWithBalance(id: Long): AccountWithBalance? =
-            withContext(ioDispatcher) {
-                accountDao.getAccountWithBalanceById(id)?.toDomain()
-            }
+        override suspend fun getAccountWithBalance(id: Long): AccountWithBalance? = accountDao.getAccountWithBalanceById(id)?.toDomain()
 
         override fun observeAccount(id: Long): Flow<Account?> = accountDao.observeById(id).map { it?.toDomain() }.flowOn(ioDispatcher)
 
-        override suspend fun getAccount(id: Long): Account? =
-            withContext(ioDispatcher) {
-                accountDao.getById(id)?.toDomain()
-            }
+        override suspend fun getAccount(id: Long): Account? = accountDao.getById(id)?.toDomain()
 
         override fun observeAllAccounts(): Flow<List<Account>> =
             accountDao.observeAll().map { list -> list.map { it.toDomain() } }.flowOn(ioDispatcher)
 
-        override suspend fun getAllAccounts(): List<Account> =
-            withContext(ioDispatcher) {
-                accountDao.getAll().map { it.toDomain() }
-            }
+        override suspend fun getAllAccounts(): List<Account> = accountDao.getAll().map { it.toDomain() }
 
         override suspend fun saveAccount(account: Account): Long =
-            withContext(ioDispatcher) {
-                if (account.id == 0L) {
-                    accountDao.insert(account.toEntity())
-                } else {
-                    accountDao.update(account.toEntity())
-                    account.id
-                }
+            if (account.id == 0L) {
+                accountDao.insert(account.toEntity())
+            } else {
+                accountDao.update(account.toEntity())
+                account.id
             }
 
         override suspend fun deleteAccount(account: Account) {
-            withContext(ioDispatcher) {
-                accountDao.delete(account.toEntity())
-            }
+            accountDao.delete(account.toEntity())
         }
 
-        override suspend fun countTransactions(accountId: Long): Int =
-            withContext(ioDispatcher) {
-                accountDao.countTransactions(accountId)
-            }
+        override suspend fun countTransactions(accountId: Long): Int = accountDao.countTransactions(accountId)
 
         override suspend fun updateSortOrders(accountOrders: List<Pair<Long, Int>>) {
-            withContext(ioDispatcher) {
-                walletDatabase.withTransaction {
-                    for ((id, sortOrder) in accountOrders) {
-                        accountDao.updateSortOrder(id, sortOrder)
-                    }
+            walletDatabase.withTransaction {
+                for ((id, sortOrder) in accountOrders) {
+                    accountDao.updateSortOrder(id, sortOrder)
                 }
             }
         }

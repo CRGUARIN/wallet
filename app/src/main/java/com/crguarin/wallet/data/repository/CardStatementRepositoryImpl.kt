@@ -13,7 +13,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -57,40 +56,35 @@ class CardStatementRepositoryImpl
         override suspend fun getAccountEffectUpTo(
             accountId: Long,
             date: LocalDate,
-        ): Money =
-            withContext(ioDispatcher) {
-                Money(transactionDao.getAccountEffectUpTo(accountId, date))
-            }
+        ): Money = Money(transactionDao.getAccountEffectUpTo(accountId, date))
 
         override suspend fun saveReconciliation(
             statement: CardStatement,
             adjustment: Transaction?,
         ): Long =
-            withContext(ioDispatcher) {
-                walletDatabase.withTransaction {
-                    var adjustmentId: Long? = null
-                    if (adjustment != null) {
-                        adjustmentId = transactionDao.insert(adjustment.toEntity().copy(id = 0))
-                    }
-                    val existing =
-                        cardStatementDao.getByAccountAndClosing(
-                            statement.accountId,
-                            statement.closingDate,
-                        )
-                    if (existing == null) {
-                        cardStatementDao.insert(
-                            statement.toEntity().copy(id = 0, adjustmentTransactionId = adjustmentId),
-                        )
-                    } else {
-                        val linkedAdjustmentId = adjustmentId ?: existing.adjustmentTransactionId
-                        cardStatementDao.update(
-                            statement.toEntity().copy(
-                                id = existing.id,
-                                adjustmentTransactionId = linkedAdjustmentId,
-                            ),
-                        )
-                        existing.id
-                    }
+            walletDatabase.withTransaction {
+                var adjustmentId: Long? = null
+                if (adjustment != null) {
+                    adjustmentId = transactionDao.insert(adjustment.toEntity().copy(id = 0))
+                }
+                val existing =
+                    cardStatementDao.getByAccountAndClosing(
+                        statement.accountId,
+                        statement.closingDate,
+                    )
+                if (existing == null) {
+                    cardStatementDao.insert(
+                        statement.toEntity().copy(id = 0, adjustmentTransactionId = adjustmentId),
+                    )
+                } else {
+                    val linkedAdjustmentId = adjustmentId ?: existing.adjustmentTransactionId
+                    cardStatementDao.update(
+                        statement.toEntity().copy(
+                            id = existing.id,
+                            adjustmentTransactionId = linkedAdjustmentId,
+                        ),
+                    )
+                    existing.id
                 }
             }
     }
