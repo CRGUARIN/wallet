@@ -5,11 +5,13 @@
     <!-- Requested in context (recurring reminders opt-in, notification settings); never at startup. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+    <!-- Sin backup automático en la nube: los datos financieros solo salen del teléfono con el
+         backup JSON que el usuario exporta. La transferencia directa entre dispositivos (Android 12+)
+         sigue permitida por data_extraction_rules. -->
     <application
         android:name=".WalletApp"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:dataExtractionRules="@xml/data_extraction_rules"
-        android:fullBackupContent="@xml/backup_rules"
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
