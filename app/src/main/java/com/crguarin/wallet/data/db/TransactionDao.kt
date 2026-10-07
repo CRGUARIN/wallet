@@ -34,6 +34,7 @@ LEFT JOIN categories c ON t.category_id = c.id
 LEFT JOIN categories pc ON c.parent_id = pc.id
 """
 
+/** `noteQuery` must already be escaped with [escapeLikePattern]. */
 private const val TRANSACTION_FILTER_WHERE =
     """
 WHERE (:startDate IS NULL OR t.date >= :startDate)
@@ -41,7 +42,7 @@ WHERE (:startDate IS NULL OR t.date >= :startDate)
   AND (:accountId IS NULL OR t.account_id = :accountId OR t.to_account_id = :accountId)
   AND (:categoryId IS NULL OR t.category_id = :categoryId OR t.category_id IN (SELECT c2.id FROM categories c2 WHERE c2.parent_id = :categoryId))
   AND (:type IS NULL OR t.type = :type)
-  AND (:noteQuery IS NULL OR :noteQuery = '' OR t.note LIKE '%' || :noteQuery || '%')
+  AND (:noteQuery IS NULL OR :noteQuery = '' OR t.note LIKE '%' || :noteQuery || '%' ESCAPE '\')
 """
 
 @Dao

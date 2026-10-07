@@ -7,6 +7,7 @@ import androidx.paging.PagingData
 import androidx.paging.map
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.data.db.TransactionDao
+import com.crguarin.wallet.data.db.escapeLikePattern
 import com.crguarin.wallet.di.IoDispatcher
 import com.crguarin.wallet.domain.model.MonthSummary
 import com.crguarin.wallet.domain.model.Transaction
@@ -37,7 +38,7 @@ class TransactionRepositoryImpl
                     accountId = filter.accountId,
                     categoryId = filter.categoryId,
                     type = filter.type,
-                    noteQuery = filter.noteQuery,
+                    noteQuery = filter.noteQuery?.escapeLikePattern(),
                 ).map { list -> list.map { it.toDomain() } }
                 .flowOn(ioDispatcher)
 
@@ -51,7 +52,7 @@ class TransactionRepositoryImpl
                         accountId = filter.accountId,
                         categoryId = filter.categoryId,
                         type = filter.type,
-                        noteQuery = filter.noteQuery,
+                        noteQuery = filter.noteQuery?.escapeLikePattern(),
                     )
                 },
             ).flow
@@ -70,7 +71,7 @@ class TransactionRepositoryImpl
                     accountId = filter.accountId,
                     categoryId = filter.categoryId,
                     type = filter.type,
-                    noteQuery = filter.noteQuery,
+                    noteQuery = filter.noteQuery?.escapeLikePattern(),
                 ).map { rows -> rows.associate { it.date to Money(it.net) } }
                 .flowOn(ioDispatcher)
 
