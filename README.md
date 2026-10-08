@@ -10,6 +10,7 @@ Wallet es una app Android de finanzas personales que funciona **sin conexión y 
 - **Movimientos** por mes, con filtros (tipo, cuenta, categoría), búsqueda y deshacer al eliminar.
 - **Reportes con gráficas**: dona por categoría con drill-down a subcategorías, evolución mensual de ingresos y gastos, y ritmo del mes frente al anterior, con filtro por período, tipo y cuenta. Vista Balance: neto, tasa de ahorro y evolución del saldo.
 - **Inicio** con saldo total, resumen del mes, cuentas y últimos movimientos.
+- **Deudas**: lleva la cuenta de lo que te deben y de lo que debes, con abonos parciales hasta saldarlas.
 - **Backup en JSON**: exporta todos tus datos a un archivo e impórtalos después (reemplaza los datos actuales, con confirmación previa).
 - **Español e inglés** (idioma por app), **tema claro, oscuro o del sistema** y color dinámico en Android 12+.
 - Accesibilidad: descripciones para TalkBack, encabezados y soporte de fuentes grandes.
@@ -30,6 +31,13 @@ Moneda única: COP. El dinero se maneja como enteros en centavos, nunca como dec
 - Un cobro automático con fecha de hoy se registra apenas lo guardas. Si el teléfono estuvo apagado, al abrir la app se registran los cobros pendientes con su fecha real, cada uno como un movimiento normal.
 - En Ajustes > Notificaciones eliges la hora de los avisos y qué te avisa: recordatorios antes del cobro, cobros registrados, cobros por confirmar, y de cada tarjeta el corte, la fecha límite de pago y si quedó vencido.
 - Los cobros se registran aunque las notificaciones estén apagadas; en Android 13+ la app pide el permiso solo cuando activas los avisos.
+
+## Deudas
+
+- Anota desde Ajustes > Datos > Deudas lo que te deben (**Me deben**) y lo que debes (**Debo**): persona, monto, fecha, fecha límite opcional y concepto.
+- Registra **abonos** parciales hasta saldarla, o márcala como **saldada** de una vez; cada deuda muestra lo abonado, lo pendiente y si está vencida.
+- Inicio muestra cuánto te deben y cuánto debes mientras haya deudas pendientes.
+- Es un registro aparte: las deudas no crean movimientos ni cambian el saldo de tus cuentas ni los reportes. Si el préstamo salió de una cuenta, regístralo también como movimiento si quieres reflejarlo ahí.
 
 ## Capturas
 
@@ -109,7 +117,7 @@ Licencia MIT; consulta el archivo [`LICENSE`](LICENSE).
 
 ## English summary
 
-Wallet is an offline, account-free personal finance app for Android (8.0+): multiple accounts, income/expense/transfer tracking, categories and subcategories, credit cards (debt, available limit, installments, payments and statement reconciliation), recurring payments and subscriptions (automatic or confirm-first) with configurable notifications for them and for card dates, monthly transaction lists with filters, reports with a category donut, monthly evolution bars and month pace, balance view with net, savings rate and balance over time, JSON backup export/import, Spanish and English UI, and light/dark/dynamic themes. Build and verify with `./gradlew ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease` (JDK 17, Android SDK 37). See "Release firmado" above for signing the release build with `WALLET_KEYSTORE_*` environment variables or a git-ignored `keystore.properties`. The debug build installs as `com.crguarin.wallet.debug` ("Wallet Debug") alongside the release build and does not share data with it.
+Wallet is an offline, account-free personal finance app for Android (8.0+): multiple accounts, income/expense/transfer tracking, categories and subcategories, credit cards (debt, available limit, installments, payments and statement reconciliation), recurring payments and subscriptions (automatic or confirm-first) with configurable notifications for them and for card dates, a personal debts ledger (what others owe you and what you owe, with partial payments), monthly transaction lists with filters, reports with a category donut, monthly evolution bars and month pace, balance view with net, savings rate and balance over time, JSON backup export/import, Spanish and English UI, and light/dark/dynamic themes. Build and verify with `./gradlew ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease` (JDK 17, Android SDK 37). See "Release firmado" above for signing the release build with `WALLET_KEYSTORE_*` environment variables or a git-ignored `keystore.properties`. The debug build installs as `com.crguarin.wallet.debug` ("Wallet Debug") alongside the release build and does not share data with it.
 
 ### Credit cards
 
@@ -118,3 +126,7 @@ Create your card under Accounts with its credit limit, statement day and payment
 ### Recurring payments and notifications
 
 Create a subscription or bill under Settings > Data > Recurring payments: name, amount, account (it can be a card), category, how often it repeats and the next charge. **Automatic** deducts it on its own each period; **Ask me first** notifies you so you confirm the amount and date (useful when it changes, like utility bills) or skip that charge. If the phone was off, pending charges are recorded with their real date when you open the app, each as a normal transaction. Under Settings > Notifications you choose the daily reminder time and what to be notified about: reminders before the charge, recorded charges, charges to confirm, and per card the statement date, the payment due date and whether it is overdue. Charges are recorded even with notifications off; on Android 13+ the app asks for the permission only when you enable reminders.
+
+### Debts
+
+Under Settings > Data > Debts, write down what others owe you (**Owed to me**) and what you owe (**I owe**): person, amount, date, optional due date and description. Record partial payments until the debt is settled, or mark it as settled in one step; each debt shows what was paid, what is outstanding and whether it is overdue. Home shows the totals while there are outstanding debts. Debts are a separate ledger: they do not create transactions nor change account balances or reports.

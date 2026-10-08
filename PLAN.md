@@ -294,11 +294,28 @@ Un `RecurringPayment` registra UNA vez una suscripción, servicio o ingreso fijo
 - **Borrado**: borrar la regla conserva los movimientos generados (`recurring_id` → NULL en la misma transacción).
 - **Notificaciones** (Ajustes > Notificaciones, en DataStore, NO en el backup): interruptor general, hora diaria del aviso (08:00), recordatorios previos, "se registró", "por confirmar", corte/pago/vencido de tarjetas con anticipación configurable. Permiso `POST_NOTIFICATIONS` pedido en contexto (Android 13+).
 
+### 5.9 Deudas (desde la Tarea 17)
+Libreta de deudas personales: lo que **me deben** (`OWED_TO_ME`) y lo que **debo** (`I_OWE`), con abonos parciales hasta saldarlas. Es un **registro aparte**: no crea transacciones ni cambia saldos, saldo total, resumen del mes ni reportes. Los préstamos bancarios (intereses, amortización) quedan fuera (ver sección 14).
+| Campo | Tipo | Regla |
+|---|---|---|
+| personName | String | obligatorio, 1–40 chars, trim; se permiten repetidos (varias deudas con la misma persona) |
+| direction | DebtDirection | `OWED_TO_ME` o `I_OWE` |
+| amount | Money | monto inicial, > 0, ≤ `Money.MAX`; al editar no puede quedar por debajo de lo abonado (`DebtAmountBelowPaid`) |
+| date | LocalDate | inicio de la deuda; puede ser pasada, máx. hoy + 1 año |
+| dueDate | LocalDate? | fecha límite opcional, ≥ `date` (`DebtDueBeforeDate`) |
+| note | String? | concepto, máx. 200 chars |
+
+`DebtPayment` (abono): `debtId`, `amount` (> 0 y ≤ pendiente: `DebtPaymentExceedsRemaining`; si ya está saldada, `DebtAlreadySettled`), `date` (máx. hoy + 1 año), `note?`.
+- **Pendiente** = `amount − Σ abonos` (no se guarda). **Saldada** si el pendiente es 0. **Vencida** si no está saldada y `dueDate < hoy`.
+- **Marcar como saldada** registra un abono por el pendiente con fecha de hoy. Borrar un abono vuelve a subir el pendiente; borrar la deuda borra sus abonos (CASCADE).
+- Validar, leer lo abonado y escribir van en una sola transacción (`TransactionRunner`).
+- Orden: pendientes por fecha límite (sin fecha al final), luego fecha e id; saldadas de la más reciente a la más antigua.
+
 ---
 
 ## 6. Base de datos (Room)
 
-`WalletDatabase` versión 3, `exportSchema = true` (migración 1→2 en la Tarea 15 y 2→3 en la Tarea 16, ambas con test).
+`WalletDatabase` versión 5, `exportSchema = true` (migración 1→2 en la Tarea 15, 2→3 en la Tarea 16, 3→4 de índices y 4→5 en la Tarea 17, todas con test).
 
 ### 6.1 Tablas
 ```sql
@@ -381,6 +398,28 @@ recurring_payments(               -- v3
   updated_at INTEGER NOT NULL
 )
 INDEX(account_id), INDEX(category_id), INDEX(next_due_date)
+
+debts(                            -- v5
+  id INTEGER PK AUTOINCREMENT,
+  person_name TEXT NOT NULL,
+  direction TEXT NOT NULL,          -- 'OWED_TO_ME' | 'I_OWE'
+  amount INTEGER NOT NULL,          -- > 0
+  date INTEGER NOT NULL,            -- LocalDate.toEpochDay()
+  due_date INTEGER,
+  note TEXT,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+)
+
+debt_payments(                    -- v5
+  id INTEGER PK AUTOINCREMENT,
+  debt_id INTEGER NOT NULL REFERENCES debts(id) ON DELETE CASCADE,
+  amount INTEGER NOT NULL,          -- > 0
+  date INTEGER NOT NULL,
+  note TEXT,
+  created_at INTEGER NOT NULL
+)
+INDEX(debt_id)
 ```
 - `TypeConverters` para enums (por `name`), `LocalDate` (epochDay) e `Instant` (epochMillis).
 - Foreign keys **RESTRICT**: la lógica de borrado vive en los casos de uso; la BD es la última barrera.
@@ -413,6 +452,7 @@ INDEX(account_id), INDEX(category_id), INDEX(next_due_date)
 - Migración 1→2 (Tarea 15): agrega las 3 columnas de tarjeta a `accounts`, `installments` a `transactions` y crea `card_statements`; conserva todos los datos. Test con `MigrationTestHelper` (nota: en AGP 9 los assets del source set `test` no llegan al test, así que `app/schemas` se registra como assets del source set `debug`).
 - Migración 2→3 (Tarea 16): agrega `recurring_id` a `transactions` y crea `recurring_payments` con sus índices; conserva todos los datos (el dueño tiene datos reales en v2). `recurring_id` NO tiene foreign key a propósito: agregarla obligaría a reconstruir la tabla de transacciones con los datos reales; la consistencia la garantiza `RecurringRepository.delete`, que pone a NULL los `recurring_id` en la misma transacción. Test con `MigrationTestHelper`, incluida la cadena 1→2→3.
 - Migración 3→4: reemplaza `INDEX(account_id)` e `INDEX(to_account_id)` de `transactions` por índices compuestos `(account_id|to_account_id, type, date, amount)`, que cubren las sumas de saldo (se leen solo del índice) y siguen cubriendo las foreign keys. No cambia datos ni el formato del backup. Test con `MigrationTestHelper`, incluida la cadena 1→4.
+- Migración 4→5 (Tarea 17): crea `debts` y `debt_payments` (con su índice); no toca las tablas existentes. Test con `MigrationTestHelper`, incluida la cadena 1→5.
 
 ### 6.4 Seed inicial
 En el primer arranque (`RoomDatabase.Callback.onCreate` o, mejor, un `DefaultCategoriesSeeder` invocado por el onboarding) se crean las categorías por defecto con `systemKey`:
@@ -505,6 +545,9 @@ CategoryEdit(categoryId: Long? = null, parentId: Long? = null, type: CategoryTyp
 CardReconcile(accountId: Long)
 RecurringList
 RecurringEdit(paymentId: Long? = null)
+DebtList
+DebtDetail(debtId: Long)
+DebtEdit(debtId: Long? = null)
 Settings
 ```
 Deep links de notificaciones (Tarea 16, explícitos a `MainActivity`, sin intent-filters): `wallet://recurring` → `RecurringList`, `wallet://account/{accountId}` → `AccountDetail`. Se manejan una vez desde el intent de arranque y se ignoran si el onboarding no está completo.
@@ -575,7 +618,7 @@ Deep links de notificaciones (Tarea 16, explícitos a `MainActivity`, sin intent
 - Idioma: Sistema / Español / English (per-app language).
 - Tema: Sistema / Claro / Oscuro; Dynamic color on/off.
 - Categorías → pantalla Categorías.
-- Datos → **Pagos recurrentes** (la barra inferior no cambia: sigue con 5 destinos).
+- Datos → **Pagos recurrentes** y **Deudas** (la barra inferior no cambia: sigue con 5 destinos).
 - **Notificaciones**: interruptor general (pide `POST_NOTIFICATIONS` en Android 13+), hora diaria de los avisos, interruptores de recordatorios/cobros registrados/por confirmar y de corte/pago/vencido de tarjetas (estos últimos solo si hay tarjetas), botón de notificación de prueba.
 - Backup: **Exportar** / **Importar** (el resumen incluye los pagos recurrentes).
 - Acerca de: versión de la app.
@@ -587,6 +630,18 @@ Deep links de notificaciones (Tarea 16, explícitos a `MainActivity`, sin intent
 **Pago recurrente (formulario)**
 - Tipo Gasto/Ingreso, nombre, monto, cuenta (sin archivadas, con tarjetas), categoría del tipo, frecuencia + "repetir cada N", próximo cobro (con ayuda), fin (nunca/fecha), modo (automático/preguntarme con descripción), recordatorio y nota. En edición: interruptor Activo, eliminar con confirmación y últimos 6 registros generados.
 
+**Deudas (lista)**
+- Resumen: Te deben, Debes y Balance (neto). Secciones **Te deben**, **Debes** y **Saldadas** (colapsable). Cada fila: persona, concepto, pendiente ("Faltan X de Y" si hay abonos) y vencimiento ("Vencida" en rojo). FAB para agregar; estado vacío amigable.
+
+**Deuda (detalle)**
+- Encabezado con persona y sentido ("Ana te debe" / "Le debes a Ana"), pendiente, monto inicial, abonado, barra de progreso, fechas y concepto. Botones **Registrar abono** (monto prellenado con el pendiente, fecha y nota) y **Marcar como saldada**; lista de abonos con eliminar. Menú: editar y eliminar.
+
+**Deuda (formulario)**
+- Me deben / Debo, persona, monto, fecha, fecha límite opcional y concepto. En edición, eliminar con confirmación.
+
+**Inicio: tarjeta "Deudas"**
+- Te deben y Debes; solo visible si hay deudas pendientes. "Ver deudas" abre la lista.
+
 **Inicio: tarjeta "Próximos pagos"**
 - Lo de los próximos 7 días por fecha (máx. 5 filas): ocurrencias AUTO, por confirmar (con etiqueta) y el pago pendiente de cada tarjeta. Solo visible si hay algo; "Ver todos" abre la lista de recurrentes.
 
@@ -594,7 +649,7 @@ Deep links de notificaciones (Tarea 16, explícitos a `MainActivity`, sin intent
 
 ## 9. Backup (exportar / importar)
 
-- Formato JSON con kotlinx.serialization (`schemaVersion = 3` desde la Tarea 16; se acepta importar v1, v2 y v3):
+- Formato JSON con kotlinx.serialization (`schemaVersion = 4` desde la Tarea 17; se acepta importar v1, v2, v3 y v4):
 ```json
 {
   "schemaVersion": 3,
@@ -609,7 +664,8 @@ Deep links de notificaciones (Tarea 16, explícitos a `MainActivity`, sin intent
 }
 ```
 - En v2, `AccountDto` agrega `creditLimit`, `statementDay` y `paymentDueDay`; `TransactionDto` agrega `installments`; y el documento agrega `cardStatements`. Un backup v1 se importa con los defaults (sin tarjetas ni extractos).
-- En v3 (Tarea 16), `TransactionDto` agrega `recurringId` y el documento agrega `recurringPayments` (todos los campos de la regla: fechas `YYYY-MM-DD`, enums por nombre, instantes en millis). v1 y v2 se importan sin recurrentes. La configuración de notificaciones NO va en el backup (como el tema). La exportación siempre escribe la versión actual, v3 (una app 1.1.0 no puede importar un v3).
+- En v3 (Tarea 16), `TransactionDto` agrega `recurringId` y el documento agrega `recurringPayments` (todos los campos de la regla: fechas `YYYY-MM-DD`, enums por nombre, instantes en millis). v1 y v2 se importan sin recurrentes. La configuración de notificaciones NO va en el backup (como el tema). La exportación siempre escribe la versión actual (una app 1.1.0 no puede importar un v3).
+- En v4 (Tarea 17) el documento agrega `debts` (`id`, `personName`, `direction`, `amount`, `date`, `dueDate`, `note`, `createdAt`, `updatedAt`) y `debtPayments` (`id`, `debtId`, `amount`, `date`, `note`, `createdAt`). v1–v3 se importan sin deudas. Validación: ids únicos, nombre 1–40, montos > 0, fechas válidas, `dueDate ≥ date`, abonos con deuda existente y Σ abonos ≤ monto de la deuda. El resumen de importación incluye las deudas.
 - **Exportar**: Storage Access Framework `ActivityResultContracts.CreateDocument("application/json")`, nombre sugerido `wallet-backup-YYYYMMDD-HHmm.json`. Sin permisos de almacenamiento.
 - **Importar**: `OpenDocument(arrayOf("application/json"))`.
   1. Parsear y **validar completamente** antes de tocar la BD: `schemaVersion` soportado, ids únicos, referencias válidas (accountId, toAccountId, categoryId, parentId existen), reglas de 5.4 (montos > 0, transferencias con destino ≠ origen, tipo de categoría coherente, máx. 2 niveles).
@@ -787,6 +843,13 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 - Migración de BD 2→3 (tabla `recurring_payments` + `transactions.recurring_id` sin FK) y backup v3 (compatible con v1 y v2).
 - **Aceptación**: la verificación completa (`ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease`) pasa, la migración conserva los datos reales de la v2 y los flujos se probaron en dispositivo real.
 
+### Tarea 17 — Deudas
+- Libreta de deudas personales (sección 5.9): me deben / debo, abonos parciales, marcar como saldada, vencidas; sin efecto en cuentas ni reportes.
+- Tablas `debts` y `debt_payments` (migración 4→5), casos de uso con `TransactionRunner`, backup v4 (compatible con v1–v3).
+- UI: Ajustes > Datos > Deudas (lista, detalle con abonos y formulario) y tarjeta "Deudas" en Inicio.
+- Fuera de alcance: préstamos bancarios y recordatorios de vencimiento (sección 14).
+- **Aceptación**: la verificación completa (`ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease`) pasa, la migración conserva los datos reales de la v4 y los flujos se probaron en dispositivo real.
+
 ---
 
 ## 13. Convenciones de código
@@ -810,6 +873,8 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 6. Backup automático (Google Drive / carpeta local programada).
 7. Exportar CSV.
 8. Widgets de pantalla de inicio.
+9. Préstamos bancarios: tipo de cuenta `LOAN` con saldo negativo como la tarjeta (deuda = −saldo), cuota mensual como pago recurrente (transferencia hacia el préstamo) e intereses tomados del extracto del banco.
+10. Deudas: recordatorio de fecha límite en las notificaciones y opción de reflejar un préstamo o abono como movimiento de una cuenta.
 
 ---
 
@@ -832,6 +897,7 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 - [x] Tarea 14 — Balance en reportes
 - [x] Tarea 15 — Tarjetas de crédito
 - [x] Tarea 16 — Pagos recurrentes y notificaciones
+- [ ] Tarea 17 — Deudas (implementada; falta la verificación completa de la sección 11 y la prueba en dispositivo)
 
 ---
 
