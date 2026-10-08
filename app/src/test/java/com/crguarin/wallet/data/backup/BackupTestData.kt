@@ -3,6 +3,7 @@ package com.crguarin.wallet.data.backup
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.debt.DebtDirection
 import com.crguarin.wallet.domain.model.recurring.RecurrenceFrequency
 import com.crguarin.wallet.domain.model.recurring.RecurringMode
 
@@ -194,5 +195,67 @@ fun validRecurringBackupDto(): BackupDto {
                     updatedAt = 1_790_000_000_000,
                     recurringId = 1,
                 ),
+    )
+}
+
+/**
+ * A valid version 4 backup: the recurring backup plus two debts (an owed-to-me debt with a due date
+ * and two payments, and a debt I owe without due date) and their payments.
+ */
+fun validDebtBackupDto(): BackupDto {
+    val recurring = validRecurringBackupDto()
+    return recurring.copy(
+        debts =
+            listOf(
+                DebtDto(
+                    id = 1,
+                    personName = "Juan Pérez",
+                    direction = DebtDirection.OWED_TO_ME,
+                    amount = 50_000_000,
+                    date = "2026-08-01",
+                    dueDate = "2026-12-01",
+                    note = "Préstamo para la moto",
+                    createdAt = 1_790_000_000_000,
+                    updatedAt = 1_790_000_000_001,
+                ),
+                DebtDto(
+                    id = 2,
+                    personName = "María López",
+                    direction = DebtDirection.I_OWE,
+                    amount = 12_000_000,
+                    date = "2026-09-20",
+                    dueDate = null,
+                    note = null,
+                    createdAt = 1_790_000_000_002,
+                    updatedAt = 1_790_000_000_002,
+                ),
+            ),
+        debtPayments =
+            listOf(
+                DebtPaymentDto(
+                    id = 1,
+                    debtId = 1,
+                    amount = 10_000_000,
+                    date = "2026-09-01",
+                    note = "Primer abono",
+                    createdAt = 1_790_000_000_003,
+                ),
+                DebtPaymentDto(
+                    id = 2,
+                    debtId = 1,
+                    amount = 5_000_000,
+                    date = "2026-10-01",
+                    note = null,
+                    createdAt = 1_790_000_000_004,
+                ),
+                DebtPaymentDto(
+                    id = 3,
+                    debtId = 2,
+                    amount = 4_000_000,
+                    date = "2026-10-02",
+                    note = "Abono de octubre",
+                    createdAt = 1_790_000_000_005,
+                ),
+            ),
     )
 }

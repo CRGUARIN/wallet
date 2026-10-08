@@ -1,10 +1,13 @@
 package com.crguarin.wallet.data.backup
 
 import com.crguarin.wallet.core.money.Money
+import com.crguarin.wallet.data.db.DebtEntity
+import com.crguarin.wallet.data.db.DebtPaymentEntity
 import com.crguarin.wallet.data.db.RecurringPaymentEntity
 import com.crguarin.wallet.data.db.TransactionEntity
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.debt.DebtDirection
 import com.crguarin.wallet.domain.model.recurring.RecurrenceFrequency
 import com.crguarin.wallet.domain.model.recurring.RecurringMode
 import com.crguarin.wallet.domain.model.recurring.RecurringPayment
@@ -194,6 +197,105 @@ class BackupMapperTest {
 
         assertThat(exported.date).isEqualTo("2026-01-05")
         assertThat(exported.toEntity()).isEqualTo(entity)
+    }
+
+    @Test
+    fun `debt dto round trips through the entity`() {
+        val debts = validDebtBackupDto().debts
+
+        assertThat(debts.map { it.toEntity().toBackupDto() }).isEqualTo(debts)
+    }
+
+    @Test
+    fun `debt payment dto round trips through the entity`() {
+        val payments = validDebtBackupDto().debtPayments
+
+        assertThat(payments.map { it.toEntity().toBackupDto() }).isEqualTo(payments)
+    }
+
+    @Test
+    fun `debt entity round trips through the dto`() {
+        val entities =
+            listOf(
+                DebtEntity(
+                    id = 1,
+                    personName = "Juan Pérez",
+                    direction = DebtDirection.OWED_TO_ME,
+                    amount = 50_000_000,
+                    date = LocalDate.of(2026, 8, 1),
+                    dueDate = LocalDate.of(2026, 12, 1),
+                    note = "Préstamo para la moto",
+                    createdAt = Instant.ofEpochMilli(1_790_000_000_000),
+                    updatedAt = Instant.ofEpochMilli(1_790_000_000_001),
+                ),
+                DebtEntity(
+                    id = 2,
+                    personName = "María López",
+                    direction = DebtDirection.I_OWE,
+                    amount = 12_000_000,
+                    date = LocalDate.of(2026, 9, 20),
+                    createdAt = Instant.ofEpochMilli(1_790_000_000_002),
+                    updatedAt = Instant.ofEpochMilli(1_790_000_000_002),
+                ),
+            )
+
+        assertThat(entities.map { it.toBackupDto().toEntity() }).isEqualTo(entities)
+    }
+
+    @Test
+    fun `debt payment entity round trips through the dto`() {
+        val entities =
+            listOf(
+                DebtPaymentEntity(
+                    id = 1,
+                    debtId = 1,
+                    amount = 10_000_000,
+                    date = LocalDate.of(2026, 9, 1),
+                    note = "Primer abono",
+                    createdAt = Instant.ofEpochMilli(1_790_000_000_003),
+                ),
+                DebtPaymentEntity(
+                    id = 2,
+                    debtId = 2,
+                    amount = 4_000_000,
+                    date = LocalDate.of(2026, 10, 2),
+                    createdAt = Instant.ofEpochMilli(1_790_000_000_004),
+                ),
+            )
+
+        assertThat(entities.map { it.toBackupDto().toEntity() }).isEqualTo(entities)
+    }
+
+    @Test
+    fun `debt dates map to ISO dates and the optional fields to null`() {
+        val withDue =
+            DebtEntity(
+                id = 1,
+                personName = "Juan",
+                direction = DebtDirection.OWED_TO_ME,
+                amount = 100,
+                date = LocalDate.of(2026, 8, 1),
+                dueDate = LocalDate.of(2026, 12, 1),
+                createdAt = Instant.EPOCH,
+                updatedAt = Instant.EPOCH,
+            ).toBackupDto()
+        val withoutDue =
+            DebtEntity(
+                id = 2,
+                personName = "María",
+                direction = DebtDirection.I_OWE,
+                amount = 100,
+                date = LocalDate.of(2026, 9, 20),
+                createdAt = Instant.EPOCH,
+                updatedAt = Instant.EPOCH,
+            ).toBackupDto()
+
+        assertThat(withDue.date).isEqualTo("2026-08-01")
+        assertThat(withDue.dueDate).isEqualTo("2026-12-01")
+        assertThat(withoutDue.dueDate).isNull()
+        assertThat(withoutDue.note).isNull()
+        assertThat(withoutDue.direction).isEqualTo(DebtDirection.I_OWE)
+        assertThat(withoutDue.createdAt).isEqualTo(0L)
     }
 
     private fun autoMonthly() =

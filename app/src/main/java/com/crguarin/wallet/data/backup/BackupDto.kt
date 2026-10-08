@@ -3,6 +3,7 @@ package com.crguarin.wallet.data.backup
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.debt.DebtDirection
 import com.crguarin.wallet.domain.model.recurring.RecurrenceFrequency
 import com.crguarin.wallet.domain.model.recurring.RecurringMode
 import kotlinx.serialization.Serializable
@@ -15,7 +16,8 @@ import kotlinx.serialization.Serializable
  * [AccountDto.paymentDueDay], [TransactionDto.installments]) and [BackupDto.cardStatements].
  * Version 3 adds recurring payments ([BackupDto.recurringPayments] and
  * [TransactionDto.recurringId]).
- * An older app version (schema 1 or 2, e.g. app 1.1.0) cannot import a version 3 backup: its
+ * Version 4 adds debts ([BackupDto.debts] and [BackupDto.debtPayments]).
+ * An older app version (schema 1, 2 or 3) cannot import a version 4 backup: its
  * parser reports `BackupVersionUnsupported` for any version other than the ones it knows.
  */
 @Serializable
@@ -29,9 +31,11 @@ data class BackupDto(
     val transactions: List<TransactionDto>,
     val cardStatements: List<CardStatementDto> = emptyList(),
     val recurringPayments: List<RecurringPaymentDto> = emptyList(),
+    val debts: List<DebtDto> = emptyList(),
+    val debtPayments: List<DebtPaymentDto> = emptyList(),
 ) {
     companion object {
-        const val SCHEMA_VERSION = 3
+        const val SCHEMA_VERSION = 4
     }
 }
 
@@ -113,5 +117,28 @@ data class CardStatementDto(
     val minimumPayment: Long? = null,
     val statedInterestAndFees: Long? = null,
     val adjustmentTransactionId: Long? = null,
+    val createdAt: Long,
+)
+
+@Serializable
+data class DebtDto(
+    val id: Long,
+    val personName: String,
+    val direction: DebtDirection,
+    val amount: Long,
+    val date: String,
+    val dueDate: String? = null,
+    val note: String? = null,
+    val createdAt: Long,
+    val updatedAt: Long,
+)
+
+@Serializable
+data class DebtPaymentDto(
+    val id: Long,
+    val debtId: Long,
+    val amount: Long,
+    val date: String,
+    val note: String? = null,
     val createdAt: Long,
 )

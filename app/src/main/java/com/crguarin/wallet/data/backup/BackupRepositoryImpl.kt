@@ -71,10 +71,14 @@ class BackupRepositoryImpl
                 transactions = backupDao.getTransactions().map { it.toBackupDto() },
                 cardStatements = backupDao.getCardStatements().map { it.toBackupDto() },
                 recurringPayments = backupDao.getRecurringPayments().map { it.toBackupDto() },
+                debts = backupDao.getDebts().map { it.toBackupDto() },
+                debtPayments = backupDao.getDebtPayments().map { it.toBackupDto() },
             )
 
         /** Must run inside a transaction: any exception rolls everything back. */
         private suspend fun replaceAll(dto: BackupDto) {
+            backupDao.deleteAllDebtPayments()
+            backupDao.deleteAllDebts()
             backupDao.deleteAllCardStatements()
             backupDao.deleteAllTransactions()
             backupDao.deleteAllRecurringPayments()
@@ -89,6 +93,8 @@ class BackupRepositoryImpl
             backupDao.insertRecurringPayments(dto.recurringPayments.map { it.toEntity() })
             backupDao.insertTransactions(dto.transactions.map { it.toEntity() })
             backupDao.insertCardStatements(dto.cardStatements.map { it.toEntity() })
+            backupDao.insertDebts(dto.debts.map { it.toEntity() })
+            backupDao.insertDebtPayments(dto.debtPayments.map { it.toEntity() })
         }
 
         /** The last-used account may not exist in the imported data; leaving it would point to nothing. */
@@ -106,6 +112,7 @@ class BackupRepositoryImpl
                 transactions = transactions.size,
                 cardStatements = cardStatements.size,
                 recurringPayments = recurringPayments.size,
+                debts = debts.size,
             )
 
         private inline fun <T> guarded(block: () -> DomainResult<T>): DomainResult<T> =

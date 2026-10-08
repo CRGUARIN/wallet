@@ -5,6 +5,7 @@ import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.debt.DebtDirection
 import com.google.common.truth.Truth.assertThat
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -69,7 +70,7 @@ class BackupParserTest {
 
         assertThat(root.keys)
             .containsAtLeast("schemaVersion", "appVersion", "exportedAt", "currency", "accounts", "categories", "transactions")
-        assertThat(root["schemaVersion"]!!.jsonPrimitive.content).isEqualTo("3")
+        assertThat(root["schemaVersion"]!!.jsonPrimitive.content).isEqualTo("4")
         assertThat(root["currency"]!!.jsonPrimitive.content).isEqualTo("COP")
         assertThat(root["exportedAt"]!!.jsonPrimitive.content).isEqualTo("2026-09-28T15:00:00Z")
 
@@ -115,7 +116,7 @@ class BackupParserTest {
 
     @Test
     fun `output is pretty printed`() {
-        assertThat(parser.encode(validBackupDto())).contains("\n    \"schemaVersion\": 3")
+        assertThat(parser.encode(validBackupDto())).contains("\n    \"schemaVersion\": 4")
     }
 
     @Test
@@ -148,7 +149,7 @@ class BackupParserTest {
             buildJsonObject {
                 root.forEach { (key, value) ->
                     when (key) {
-                        "recurringPayments" -> Unit
+                        "recurringPayments", "debts", "debtPayments" -> Unit
                         "transactions" ->
                             put(
                                 key,
@@ -176,12 +177,71 @@ class BackupParserTest {
 
     @Test
     fun `a version 3 backup with recurring payments parses`() {
-        val dto = decodeToDto(parser.encode(validRecurringBackupDto()))
+        val dto = decodeToDto(parser.encode(validRecurringBackupDto().copy(schemaVersion = 3)))
 
         assertThat(dto.schemaVersion).isEqualTo(3)
         assertThat(dto.recurringPayments).hasSize(2)
         assertThat(dto.recurringPayments.single { it.id == 1L }.name).isEqualTo("Netflix")
         assertThat(dto.transactions.single { it.id == 6L }.recurringId).isEqualTo(1L)
+    }
+
+    @Test
+    fun `a version 3 file without debts decodes with empty debt lists`() {
+        val root = Json.parseToJsonElement(parser.encode(validRecurringBackupDto())).jsonObject
+        val withoutDebts = JsonObject(root.filterKeys { it != "debts" && it != "debtPayments" } + ("schemaVersion" to JsonPrimitive(3)))
+
+        val dto = decodeToDto(withoutDebts.toString())
+
+        assertThat(dto.schemaVersion).isEqualTo(3)
+        assertThat(dto.debts).isEmpty()
+        assertThat(dto.debtPayments).isEmpty()
+        assertThat(dto.recurringPayments).hasSize(2)
+    }
+
+    @Test
+    fun `a version 4 backup with debts parses`() {
+        val dto = decodeToDto(parser.encode(validDebtBackupDto()))
+
+        assertThat(dto.schemaVersion).isEqualTo(4)
+        assertThat(dto.debts.map { it.id }).containsExactly(1L, 2L).inOrder()
+        assertThat(dto.debts.single { it.id == 1L }.direction).isEqualTo(DebtDirection.OWED_TO_ME)
+        assertThat(dto.debts.single { it.id == 2L }.dueDate).isNull()
+        assertThat(dto.debtPayments.map { it.id }).containsExactly(1L, 2L, 3L).inOrder()
+        assertThat(dto.debtPayments.single { it.id == 3L }.debtId).isEqualTo(2L)
+    }
+
+    @Test
+    fun `version 4 writes debts and payments with the documented format`() {
+        val root = Json.parseToJsonElement(parser.encode(validDebtBackupDto())).jsonObject
+        val debts = root["debts"]!!.jsonArray
+        val payments = root["debtPayments"]!!.jsonArray
+
+        assertThat(debts).hasSize(2)
+        val owed = debts.first().jsonObject
+        assertThat(owed["direction"]!!.jsonPrimitive.content).isEqualTo("OWED_TO_ME")
+        assertThat(owed["amount"]!!.jsonPrimitive.isString).isFalse()
+        assertThat(owed["amount"]!!.jsonPrimitive.content).isEqualTo("50000000")
+        assertThat(owed["date"]!!.jsonPrimitive.content).isEqualTo("2026-08-01")
+        assertThat(owed["dueDate"]!!.jsonPrimitive.content).isEqualTo("2026-12-01")
+        assertThat(owed["createdAt"]!!.jsonPrimitive.content).isEqualTo("1790000000000")
+        val iOwe = debts.last().jsonObject
+        assertThat(iOwe["direction"]!!.jsonPrimitive.content).isEqualTo("I_OWE")
+        assertThat(iOwe["dueDate"]).isEqualTo(JsonNull)
+
+        assertThat(payments).hasSize(3)
+        val first = payments.first().jsonObject
+        assertThat(first["debtId"]!!.jsonPrimitive.content).isEqualTo("1")
+        assertThat(first["date"]!!.jsonPrimitive.content).isEqualTo("2026-09-01")
+        assertThat(first["note"]!!.jsonPrimitive.content).isEqualTo("Primer abono")
+        assertThat(payments.single { it.jsonObject["id"]!!.jsonPrimitive.content == "2" }.jsonObject["note"]).isEqualTo(JsonNull)
+    }
+
+    @Test
+    fun `unknown debt direction is invalid`() {
+        val encoded = parser.encode(validDebtBackupDto())
+
+        assertThat(error(encoded.replace("\"direction\": \"OWED_TO_ME\"", "\"direction\": \"OTHER\"")))
+            .isInstanceOf(DomainError.BackupInvalid::class.java)
     }
 
     @Test
@@ -219,15 +279,16 @@ class BackupParserTest {
     }
 
     @Test
-    fun `schema versions 1 2 and 3 are accepted`() {
+    fun `schema versions 1 to 4 are accepted`() {
         assertThat(parser.decode(planSample).isSuccess).isTrue()
         assertThat(parser.decode(parser.encode(validCardBackupDto().copy(schemaVersion = 2))).isSuccess).isTrue()
-        assertThat(parser.decode(parser.encode(validRecurringBackupDto())).isSuccess).isTrue()
+        assertThat(parser.decode(parser.encode(validRecurringBackupDto().copy(schemaVersion = 3))).isSuccess).isTrue()
+        assertThat(parser.decode(parser.encode(validDebtBackupDto())).isSuccess).isTrue()
     }
 
     @Test
-    fun `schema versions other than 1 2 and 3 are unsupported`() {
-        for (version in listOf(0, 4, 7, -1)) {
+    fun `schema versions other than 1 to 4 are unsupported`() {
+        for (version in listOf(0, 5, 7, -1)) {
             assertThat(error(planSample.replace("\"schemaVersion\": 1", "\"schemaVersion\": $version")))
                 .isEqualTo(DomainError.BackupVersionUnsupported)
         }
@@ -264,7 +325,7 @@ class BackupParserTest {
     fun `a different schema version is unsupported even if the rest has another shape`() {
         val future: JsonObject =
             buildJsonObject {
-                put("schemaVersion", 4)
+                put("schemaVersion", 5)
                 put("data", JsonArray(listOf(JsonPrimitive("something else"))))
             }
         assertThat(error(future.toString())).isEqualTo(DomainError.BackupVersionUnsupported)

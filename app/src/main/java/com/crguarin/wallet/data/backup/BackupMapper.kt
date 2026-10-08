@@ -4,6 +4,8 @@ import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.data.db.AccountEntity
 import com.crguarin.wallet.data.db.CardStatementEntity
 import com.crguarin.wallet.data.db.CategoryEntity
+import com.crguarin.wallet.data.db.DebtEntity
+import com.crguarin.wallet.data.db.DebtPaymentEntity
 import com.crguarin.wallet.data.db.RecurringPaymentEntity
 import com.crguarin.wallet.data.db.TransactionEntity
 import com.crguarin.wallet.domain.model.recurring.RecurringPayment
@@ -216,4 +218,52 @@ fun RecurringPaymentDto.toDomain(): RecurringPayment =
         isActive = isActive,
         createdAt = Instant.ofEpochMilli(createdAt),
         updatedAt = Instant.ofEpochMilli(updatedAt),
+    )
+
+fun DebtEntity.toBackupDto(): DebtDto =
+    DebtDto(
+        id = id,
+        personName = personName,
+        direction = direction,
+        amount = amount,
+        date = date.toString(),
+        dueDate = dueDate?.toString(),
+        note = note,
+        createdAt = createdAt.toEpochMilli(),
+        updatedAt = updatedAt.toEpochMilli(),
+    )
+
+/** Assumes the dates of [DebtDto] were already validated by [BackupValidator]. */
+fun DebtDto.toEntity(): DebtEntity =
+    DebtEntity(
+        id = id,
+        personName = personName,
+        direction = direction,
+        amount = amount,
+        date = LocalDate.parse(date),
+        dueDate = dueDate?.let(LocalDate::parse),
+        note = note,
+        createdAt = Instant.ofEpochMilli(createdAt),
+        updatedAt = Instant.ofEpochMilli(updatedAt),
+    )
+
+fun DebtPaymentEntity.toBackupDto(): DebtPaymentDto =
+    DebtPaymentDto(
+        id = id,
+        debtId = debtId,
+        amount = amount,
+        date = date.toString(),
+        note = note,
+        createdAt = createdAt.toEpochMilli(),
+    )
+
+/** Assumes [DebtPaymentDto.date] was already validated by [BackupValidator]. */
+fun DebtPaymentDto.toEntity(): DebtPaymentEntity =
+    DebtPaymentEntity(
+        id = id,
+        debtId = debtId,
+        amount = amount,
+        date = LocalDate.parse(date),
+        note = note,
+        createdAt = Instant.ofEpochMilli(createdAt),
     )
