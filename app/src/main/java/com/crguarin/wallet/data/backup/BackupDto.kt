@@ -17,7 +17,8 @@ import kotlinx.serialization.Serializable
  * Version 3 adds recurring payments ([BackupDto.recurringPayments] and
  * [TransactionDto.recurringId]).
  * Version 4 adds debts ([BackupDto.debts] and [BackupDto.debtPayments]).
- * An older app version (schema 1, 2 or 3) cannot import a version 4 backup: its
+ * Version 5 adds the transit card fare ([AccountDto.fare]).
+ * An older app version (schema 1 to 4) cannot import a version 5 backup: its
  * parser reports `BackupVersionUnsupported` for any version other than the ones it knows.
  */
 @Serializable
@@ -35,7 +36,7 @@ data class BackupDto(
     val debtPayments: List<DebtPaymentDto> = emptyList(),
 ) {
     companion object {
-        const val SCHEMA_VERSION = 4
+        const val SCHEMA_VERSION = 5
     }
 }
 
@@ -55,6 +56,7 @@ data class AccountDto(
     val creditLimit: Long? = null,
     val statementDay: Int? = null,
     val paymentDueDay: Int? = null,
+    val fare: Long? = null,
 )
 
 @Serializable

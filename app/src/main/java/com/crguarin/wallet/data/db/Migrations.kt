@@ -96,5 +96,15 @@ val MIGRATION_4_5: Migration =
         }
     }
 
+/**
+ * Migration from schema 5 to schema 6 (transit cards): adds the nullable `accounts.fare` column.
+ */
+val MIGRATION_5_6: Migration =
+    object : Migration(5, 6) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL("ALTER TABLE accounts ADD COLUMN fare INTEGER")
+        }
+    }
+
 /** Every migration, oldest first, for the database builder and the migration tests. */
-val ALL_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+val ALL_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)

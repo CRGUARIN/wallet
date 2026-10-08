@@ -190,7 +190,7 @@ class SaveAccountUseCaseTest {
                     sortOrder = 99,
                 )
             val firstId = saveAccountUseCase(base).getOrNull()!!
-            val secondId = saveAccountUseCase(base.copy(name = "Ahorros")).getOrNull()!!
+            val secondId = saveAccountUseCase(base.copy(name = "Ahorros", color = 2)).getOrNull()!!
 
             val first = accountRepository.getAccount(firstId)!!
             val second = accountRepository.getAccount(secondId)!!
@@ -245,4 +245,84 @@ class SaveAccountUseCaseTest {
                 )
             assertThat(result.errorOrNull()).isEqualTo(DomainError.NotFound)
         }
+
+    @Test
+    fun `new account with a color used by an active account fails with ColorInUse`() =
+        runTest {
+            accountRepository.setInitialData(listOf(savingsAccount(id = 1L, color = 7)))
+
+            val result = saveAccountUseCase(cashAccount(color = 7))
+
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.ColorInUse)
+            assertThat(accountRepository.getAllAccounts()).hasSize(1)
+        }
+
+    @Test
+    fun `archived account does not block its color`() =
+        runTest {
+            accountRepository.setInitialData(listOf(savingsAccount(id = 1L, color = 7).copy(isArchived = true)))
+
+            val result = saveAccountUseCase(cashAccount(color = 7))
+
+            assertThat(result.isSuccess).isTrue()
+        }
+
+    @Test
+    fun `editing an account to a color used by another active account fails with ColorInUse`() =
+        runTest {
+            accountRepository.setInitialData(
+                listOf(savingsAccount(id = 1L, color = 7), savingsAccount(id = 2L, color = 8).copy(name = "Ahorros 2")),
+            )
+
+            val result = saveAccountUseCase(savingsAccount(id = 2L, color = 8).copy(name = "Ahorros 2", color = 7))
+
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.ColorInUse)
+            assertThat(accountRepository.getAccount(2L)?.color).isEqualTo(8)
+        }
+
+    @Test
+    fun `an unchanged color shared by two accounts still saves`() =
+        runTest {
+            val second = savingsAccount(id = 2L, color = 7).copy(name = "Ahorros 2")
+            accountRepository.setInitialData(listOf(savingsAccount(id = 1L, color = 7), second))
+
+            val result = saveAccountUseCase(second.copy(initialBalance = Money(2_000L)))
+
+            assertThat(result.isSuccess).isTrue()
+            assertThat(accountRepository.getAccount(2L)?.initialBalance).isEqualTo(Money(2_000L))
+        }
+
+    @Test
+    fun `editing an account keeps its own color without a clash`() =
+        runTest {
+            accountRepository.setInitialData(listOf(savingsAccount(id = 1L, color = 7)))
+
+            val result = saveAccountUseCase(savingsAccount(id = 1L, color = 7).copy(name = "Ahorros 2"))
+
+            assertThat(result.isSuccess).isTrue()
+            assertThat(accountRepository.getAccount(1L)?.color).isEqualTo(7)
+        }
+
+    private fun savingsAccount(
+        id: Long,
+        color: Int,
+    ) = Account(
+        id = id,
+        name = "Nómina",
+        type = AccountType.SAVINGS,
+        initialBalance = Money(1_000L),
+        color = color,
+        icon = "savings",
+        createdAt = now,
+    )
+
+    private fun cashAccount(color: Int) =
+        Account(
+            name = "Efectivo",
+            type = AccountType.CASH,
+            initialBalance = Money.ZERO,
+            color = color,
+            icon = "wallet",
+            createdAt = now,
+        )
 }

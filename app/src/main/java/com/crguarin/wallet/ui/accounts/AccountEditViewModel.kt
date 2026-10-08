@@ -14,6 +14,7 @@ import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
+import com.crguarin.wallet.domain.model.ColorRules
 import com.crguarin.wallet.domain.model.DomainLimits
 import com.crguarin.wallet.domain.model.normalizedName
 import com.crguarin.wallet.domain.repository.AccountRepository
@@ -45,7 +46,10 @@ data class AccountEditUiState(
     val creditLimitText: String = "",
     val statementDayText: String = "",
     val paymentDueDayText: String = "",
+    val fareText: String = "",
     val color: Int = WalletPalette.colors.first(),
+    /** Colors of the other active accounts; the picker shows them crossed out. */
+    val usedColors: Set<Int> = emptySet(),
     val icon: String = "wallet",
     val includeInTotal: Boolean = true,
     val originalInitialBalance: Money = Money.ZERO,
@@ -57,10 +61,14 @@ data class AccountEditUiState(
     val creditLimitErrorRes: Int? = null,
     val statementDayErrorRes: Int? = null,
     val paymentDueDayErrorRes: Int? = null,
+    val fareErrorRes: Int? = null,
     val generalErrorRes: Int? = null,
 ) {
     val isCreditCard: Boolean
         get() = type == AccountType.CREDIT_CARD
+
+    val isTransitCard: Boolean
+        get() = type == AccountType.TRANSIT_CARD
 
     /** The type selector is locked in edit mode when the account has transactions. */
     val isTypeLocked: Boolean
@@ -84,7 +92,8 @@ data class AccountEditUiState(
                 amountErrorRes == null &&
                 creditLimitErrorRes == null &&
                 statementDayErrorRes == null &&
-                paymentDueDayErrorRes == null
+                paymentDueDayErrorRes == null &&
+                fareErrorRes == null
 }
 
 sealed interface AccountEditEvent {
@@ -122,6 +131,13 @@ class AccountEditViewModel
         init {
             viewModelScope.launch {
                 existingAccounts = accountRepository.getAllAccounts()
+                val usedColors = ColorRules.usedAccountColors(existingAccounts, targetAccountId?.takeIf { it > 0 })
+                _uiState.update { it.copy(usedColors = usedColors) }
+                if (targetAccountId == null || targetAccountId <= 0) {
+                    _uiState.update {
+                        it.copy(color = ColorRules.firstFreeColor(WalletPalette.colors, usedColors))
+                    }
+                }
                 if (targetAccountId != null && targetAccountId > 0) {
                     _uiState.update { it.copy(isLoading = true, isEditMode = true, accountId = targetAccountId) }
                     val account = accountRepository.getAccount(targetAccountId)
@@ -147,6 +163,7 @@ class AccountEditViewModel
                                     } ?: "",
                                 statementDayText = account.statementDay?.toString() ?: "",
                                 paymentDueDayText = account.paymentDueDay?.toString() ?: "",
+                                fareText = account.fare?.let { formatForInput(it) } ?: "",
                                 color = account.color,
                                 icon = account.icon,
                                 includeInTotal = account.includeInTotal,
@@ -183,7 +200,14 @@ class AccountEditViewModel
 
         fun setType(type: AccountType) {
             if (_uiState.value.isTypeLocked) return
-            _uiState.update { it.copy(type = type, icon = iconAfterTypeChange(type, it.icon)) }
+            _uiState.update {
+                it.copy(
+                    type = type,
+                    icon = iconAfterTypeChange(type, it.icon),
+                    // The fare error only concerns transit cards; saving checks the fare again.
+                    fareErrorRes = if (type == AccountType.TRANSIT_CARD) it.fareErrorRes else null,
+                )
+            }
         }
 
         fun setInitialBalanceText(text: String) {
@@ -213,6 +237,16 @@ class AccountEditViewModel
                 it.copy(
                     paymentDueDayText = text,
                     paymentDueDayErrorRes = cardDayError(text),
+                    generalErrorRes = null,
+                )
+            }
+        }
+
+        fun setFareText(text: String) {
+            _uiState.update {
+                it.copy(
+                    fareText = text,
+                    fareErrorRes = if (parseFare(text) == null) R.string.error_fare_invalid else null,
                     generalErrorRes = null,
                 )
             }
@@ -273,6 +307,13 @@ class AccountEditViewModel
                 }
             }
 
+            val isTransit = state.type == AccountType.TRANSIT_CARD
+            val fare = if (isTransit) parseFare(state.fareText) else null
+            if (isTransit && fare == null) {
+                _uiState.update { it.copy(fareErrorRes = R.string.error_fare_invalid) }
+                return
+            }
+
             _uiState.update { it.copy(isSaving = true, generalErrorRes = null) }
             viewModelScope.launch {
                 val account =
@@ -297,6 +338,7 @@ class AccountEditViewModel
                         creditLimit = creditLimit,
                         statementDay = statementDay,
                         paymentDueDay = paymentDueDay,
+                        fare = fare,
                     )
 
                 when (val result = saveAccountUseCase(account)) {
@@ -340,3 +382,6 @@ private fun cardDayError(text: String): Int? {
     if (parseCardDay(text) == null) return R.string.card_error_day_invalid
     return null
 }
+
+/** Fare per trip from the form: a positive amount, or null when it is missing or not greater than zero. */
+private fun parseFare(text: String): Money? = MoneyParser.parseNonNegative(text)?.takeIf { it > Money.ZERO }

@@ -9,6 +9,7 @@ import com.crguarin.wallet.ui.util.asStringRes
 private const val ICON_WALLET = "wallet"
 private const val ICON_SAVINGS = "savings"
 private const val ICON_CREDIT_CARD = "credit_card"
+private const val ICON_TRANSIT = "directions_bus"
 
 /** Swaps the default icon of the previous type for the default icon of [newType]; custom icons are kept. */
 fun iconAfterTypeChange(
@@ -22,6 +23,12 @@ fun iconAfterTypeChange(
             ICON_CREDIT_CARD
         newType == AccountType.CASH && currentIcon == ICON_CREDIT_CARD -> ICON_WALLET
         newType == AccountType.SAVINGS && currentIcon == ICON_CREDIT_CARD -> ICON_SAVINGS
+        newType == AccountType.TRANSIT_CARD &&
+            (currentIcon == ICON_WALLET || currentIcon == ICON_SAVINGS || currentIcon == ICON_CREDIT_CARD) ->
+            ICON_TRANSIT
+        newType == AccountType.CASH && currentIcon == ICON_TRANSIT -> ICON_WALLET
+        newType == AccountType.SAVINGS && currentIcon == ICON_TRANSIT -> ICON_SAVINGS
+        newType == AccountType.CREDIT_CARD && currentIcon == ICON_TRANSIT -> ICON_CREDIT_CARD
         else -> currentIcon
     }
 

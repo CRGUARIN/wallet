@@ -41,6 +41,26 @@ class AccountFormRulesTest {
     }
 
     @Test
+    fun `selecting a transit card swaps the default icons for directions_bus`() {
+        assertThat(iconAfterTypeChange(AccountType.TRANSIT_CARD, "wallet")).isEqualTo("directions_bus")
+        assertThat(iconAfterTypeChange(AccountType.TRANSIT_CARD, "savings")).isEqualTo("directions_bus")
+        assertThat(iconAfterTypeChange(AccountType.TRANSIT_CARD, "credit_card")).isEqualTo("directions_bus")
+    }
+
+    @Test
+    fun `leaving a transit card restores the default icon of the new type`() {
+        assertThat(iconAfterTypeChange(AccountType.CASH, "directions_bus")).isEqualTo("wallet")
+        assertThat(iconAfterTypeChange(AccountType.SAVINGS, "directions_bus")).isEqualTo("savings")
+        assertThat(iconAfterTypeChange(AccountType.CREDIT_CARD, "directions_bus")).isEqualTo("credit_card")
+    }
+
+    @Test
+    fun `custom icons survive transit card type changes`() {
+        assertThat(iconAfterTypeChange(AccountType.TRANSIT_CARD, "bank")).isEqualTo("bank")
+        assertThat(iconAfterTypeChange(AccountType.CASH, "bank")).isEqualTo("bank")
+    }
+
+    @Test
     fun `parseCardDay accepts 1 to 31`() {
         assertThat(parseCardDay("1")).isEqualTo(1)
         assertThat(parseCardDay("15")).isEqualTo(15)

@@ -22,6 +22,7 @@ fun AccountEntity.toDomain(): Account =
         creditLimit = creditLimit?.let { Money(it) },
         statementDay = statementDay,
         paymentDueDay = paymentDueDay,
+        fare = fare?.let { Money(it) },
     )
 
 fun Account.toEntity(): AccountEntity =
@@ -40,6 +41,7 @@ fun Account.toEntity(): AccountEntity =
         creditLimit = creditLimit?.minorUnits,
         statementDay = statementDay,
         paymentDueDay = paymentDueDay,
+        fare = fare?.minorUnits,
     )
 
 fun DbAccountWithBalance.toDomain(): AccountWithBalance =

@@ -420,10 +420,20 @@ fun CategoryEditScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.semantics { heading() },
                 )
+                // The selected color stays enabled even when another category of this type also uses it.
+                val disabledColors = uiState.usedColors - uiState.color
                 ColorPicker(
                     selectedColor = uiState.color,
                     onColorSelected = onColorChange,
+                    disabledColors = disabledColors,
                 )
+                if (disabledColors.isNotEmpty()) {
+                    Text(
+                        text = stringResource(R.string.category_color_in_use_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
 
             // Ícono

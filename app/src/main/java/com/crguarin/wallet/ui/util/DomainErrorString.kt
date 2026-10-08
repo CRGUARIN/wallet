@@ -41,6 +41,8 @@ fun DomainError.asStringRes(): Int =
         is DomainError.DebtDateAfterPayments -> R.string.error_debt_date_after_payments
         is DomainError.DebtDirectionLocked -> R.string.error_debt_direction_locked
         is DomainError.CardDayInvalid -> R.string.card_error_day_invalid
+        is DomainError.FareInvalid -> R.string.error_fare_invalid
+        is DomainError.ColorInUse -> R.string.error_color_in_use
         is DomainError.AccountTypeChangeNotAllowed -> R.string.error_account_type_change_not_allowed
         is DomainError.BackupInvalid -> R.string.error_backup_invalid
         is DomainError.BackupVersionUnsupported -> R.string.error_backup_version_unsupported

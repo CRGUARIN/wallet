@@ -87,7 +87,7 @@ class SaveAccountCardTest {
             assertThat(accountRepository.getAccount(debtId)?.initialBalance).isEqualTo(Money(-200_000L))
 
             val favorId =
-                saveAccountUseCase(card(initialBalance = Money(50_000L)).copy(name = "Otra"))
+                saveAccountUseCase(card(initialBalance = Money(50_000L)).copy(name = "Otra", color = 2))
                     .getOrNull()!!
             assertThat(accountRepository.getAccount(favorId)?.initialBalance).isEqualTo(Money(50_000L))
         }

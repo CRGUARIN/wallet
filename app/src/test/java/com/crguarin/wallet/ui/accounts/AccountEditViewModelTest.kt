@@ -10,6 +10,7 @@ import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.repository.AccountRepository
 import com.crguarin.wallet.domain.usecase.SaveAccountUseCase
+import com.crguarin.wallet.ui.theme.WalletPalette
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -447,5 +448,151 @@ class AccountEditViewModelTest {
                 assertThat(accountRepository.getAccount(12L)?.initialBalance).isEqualTo(Money(-250_000L))
                 cancelAndIgnoreRemainingEvents()
             }
+        }
+
+    @Test
+    fun `new account starts with the first palette color that no other account uses`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(listOf(existingAccount.copy(color = WalletPalette.colors.first())))
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to null))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+
+            val state = viewModel.uiState.value
+            assertThat(state.usedColors).containsExactly(WalletPalette.colors.first())
+            assertThat(state.color).isEqualTo(WalletPalette.colors[1])
+        }
+
+    @Test
+    fun `archived accounts free their color for a new account`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                listOf(existingAccount.copy(color = WalletPalette.colors.first(), isArchived = true)),
+            )
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to null))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+
+            val state = viewModel.uiState.value
+            assertThat(state.usedColors).isEmpty()
+            assertThat(state.color).isEqualTo(WalletPalette.colors.first())
+        }
+
+    @Test
+    fun `edit mode does not list the account's own color as used`() =
+        runTest(testDispatcher) {
+            val other = existingAccount.copy(id = 11L, name = "Nequi", color = WalletPalette.colors[2])
+            accountRepository.setInitialData(listOf(existingAccount.copy(color = WalletPalette.colors[1]), other))
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to 10L))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+
+            val state = viewModel.uiState.value
+            assertThat(state.color).isEqualTo(WalletPalette.colors[1])
+            assertThat(state.usedColors).containsExactly(WalletPalette.colors[2])
+        }
+
+    @Test
+    fun `saving a color used by another account reports the color in use error`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(listOf(existingAccount.copy(color = WalletPalette.colors[1])))
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to null))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+            viewModel.setName("Efectivo")
+            viewModel.setInitialBalanceText("50000")
+            viewModel.setColor(WalletPalette.colors[1])
+
+            viewModel.saveAccount()
+
+            assertThat(viewModel.uiState.value.generalErrorRes).isEqualTo(R.string.error_color_in_use)
+            assertThat(accountRepository.getAllAccounts()).hasSize(1)
+        }
+
+    @Test
+    fun `selecting a transit card swaps the default icon for directions_bus`() =
+        runTest(testDispatcher) {
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to null))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+
+            viewModel.setType(AccountType.TRANSIT_CARD)
+
+            val state = viewModel.uiState.value
+            assertThat(state.isTransitCard).isTrue()
+            assertThat(state.icon).isEqualTo("directions_bus")
+        }
+
+    @Test
+    fun `transit card needs a fare greater than zero`() =
+        runTest(testDispatcher) {
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to null))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+            viewModel.setName("Cívica")
+            viewModel.setType(AccountType.TRANSIT_CARD)
+            viewModel.setInitialBalanceText("10500")
+
+            viewModel.setFareText("0")
+            assertThat(viewModel.uiState.value.fareErrorRes).isEqualTo(R.string.error_fare_invalid)
+            assertThat(viewModel.uiState.value.isSaveEnabled).isFalse()
+
+            viewModel.setFareText("3500")
+            assertThat(viewModel.uiState.value.fareErrorRes).isNull()
+            assertThat(viewModel.uiState.value.isSaveEnabled).isTrue()
+        }
+
+    @Test
+    fun `saving a transit card without a fare reports the error and does not save`() =
+        runTest(testDispatcher) {
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to null))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+            viewModel.setName("Cívica")
+            viewModel.setType(AccountType.TRANSIT_CARD)
+            viewModel.setInitialBalanceText("10500")
+
+            viewModel.saveAccount()
+
+            assertThat(viewModel.uiState.value.fareErrorRes).isEqualTo(R.string.error_fare_invalid)
+            assertThat(accountRepository.getAllAccounts()).isEmpty()
+        }
+
+    @Test
+    fun `saving a transit card stores its fare and keeps the card fields empty`() =
+        runTest(testDispatcher) {
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to null))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+            viewModel.setName("Cívica")
+            viewModel.setType(AccountType.TRANSIT_CARD)
+            viewModel.setInitialBalanceText("10500")
+            viewModel.setFareText("3500")
+
+            viewModel.events.test {
+                viewModel.saveAccount()
+                assertThat(awaitItem()).isEqualTo(AccountEditEvent.NavigateBack)
+
+                val saved = accountRepository.getAllAccounts().single()
+                assertThat(saved.type).isEqualTo(AccountType.TRANSIT_CARD)
+                assertThat(saved.initialBalance).isEqualTo(Money(1_050_000L))
+                assertThat(saved.fare).isEqualTo(Money(350_000L))
+                assertThat(saved.creditLimit).isNull()
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `edit mode loads the fare of a transit card`() =
+        runTest(testDispatcher) {
+            val card =
+                existingAccount.copy(
+                    id = 12L,
+                    name = "Cívica",
+                    type = AccountType.TRANSIT_CARD,
+                    initialBalance = Money(1_050_000L),
+                    icon = "directions_bus",
+                    fare = Money(350_000L),
+                )
+            accountRepository.setInitialData(listOf(card))
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to 12L))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+
+            val state = viewModel.uiState.value
+            assertThat(state.fareText).isEqualTo("3500")
+            assertThat(state.isSaveEnabled).isTrue()
         }
 }

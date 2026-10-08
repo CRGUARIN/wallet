@@ -16,9 +16,9 @@ import org.robolectric.annotation.Config
 import java.time.LocalDate
 
 /**
- * Verifies that [MIGRATION_1_2], [MIGRATION_2_3], [MIGRATION_3_4] and [MIGRATION_4_5] preserve every
- * row of the older databases, that the full 1→2→3→4 and 1→5 chains work, and that the migrated
- * databases open normally with Room.
+ * Verifies that [MIGRATION_1_2], [MIGRATION_2_3], [MIGRATION_3_4], [MIGRATION_4_5] and [MIGRATION_5_6]
+ * preserve every row of the older databases, that the full 1→2→3→4, 1→5 and 1→6 chains work, and that
+ * the migrated databases open normally with Room.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -727,6 +727,74 @@ class MigrationTest {
         db.close()
     }
 
+    @Test
+    fun migrate5To6_preservesAllDataAndAddsNullFare() {
+        helper.createDatabase(TEST_DB_V6, 5).apply {
+            seedVersion4(this)
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB_V6, 6, true, MIGRATION_5_6)
+
+        // Every existing row keeps its values, and the new column is empty for all of them.
+        db.query("SELECT COUNT(*) AS count FROM accounts").use { cursor ->
+            cursor.moveToFirst()
+            assertThat(cursor.readLong("count")).isEqualTo(3L)
+        }
+        db.query("SELECT COUNT(*) AS count FROM accounts WHERE fare IS NULL").use { cursor ->
+            cursor.moveToFirst()
+            assertThat(cursor.readLong("count")).isEqualTo(3L)
+        }
+        db.query("SELECT COUNT(*) AS count FROM transactions").use { cursor ->
+            cursor.moveToFirst()
+            assertThat(cursor.readLong("count")).isEqualTo(6L)
+        }
+        db.query("SELECT COUNT(*) AS count FROM recurring_payments").use { cursor ->
+            cursor.moveToFirst()
+            assertThat(cursor.readLong("count")).isEqualTo(1L)
+        }
+        assertThat(balanceOf(db, 1)).isEqualTo(-130_000L)
+        assertThat(balanceOf(db, 2)).isEqualTo(1_700_000L)
+        assertThat(balanceOf(db, 3)).isEqualTo(-96_800L)
+
+        // A transit card stores its fare in minor units.
+        db.execSQL(
+            "INSERT INTO accounts (name, type, currency_code, initial_balance, color, icon, include_in_total, " +
+                "is_archived, sort_order, created_at, fare) " +
+                "VALUES ('Cívica', 'TRANSIT_CARD', 'COP', 0, -16711936, 'directions_bus', 1, 0, 3, $createdAt, 350000)",
+        )
+        db.query("SELECT type, fare FROM accounts WHERE name = 'Cívica'").use { cursor ->
+            cursor.moveToFirst()
+            assertThat(cursor.readString("type")).isEqualTo("TRANSIT_CARD")
+            assertThat(cursor.readLong("fare")).isEqualTo(350_000L)
+        }
+
+        db.close()
+    }
+
+    @Test
+    fun migrate1To6_chainPreservesVersion1DataAndLeavesFareEmpty() {
+        helper.createDatabase(TEST_DB_CHAIN_V6, 1).apply {
+            seedVersion1(this)
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB_CHAIN_V6, 6, true, *ALL_MIGRATIONS)
+
+        db.query("SELECT COUNT(*) AS count FROM transactions").use { cursor ->
+            cursor.moveToFirst()
+            assertThat(cursor.readLong("count")).isEqualTo(3L)
+        }
+        db.query("SELECT COUNT(*) AS count FROM accounts WHERE fare IS NULL").use { cursor ->
+            cursor.moveToFirst()
+            assertThat(cursor.readLong("count")).isEqualTo(2L)
+        }
+        assertThat(balanceOf(db, 1)).isEqualTo(20_000L)
+        assertThat(balanceOf(db, 2)).isEqualTo(750_000L)
+
+        db.close()
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
         const val TEST_DB_ROOM = "migration-test-room"
@@ -738,5 +806,7 @@ class MigrationTest {
         const val TEST_DB_V4_ROOM = "migration-test-v4-room"
         const val TEST_DB_V5 = "migration-test-v5"
         const val TEST_DB_CHAIN_V5 = "migration-test-chain-v5"
+        const val TEST_DB_V6 = "migration-test-v6"
+        const val TEST_DB_CHAIN_V6 = "migration-test-chain-v6"
     }
 }

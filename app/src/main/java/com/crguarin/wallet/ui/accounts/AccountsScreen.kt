@@ -423,6 +423,7 @@ internal fun AccountItemRow(
                         AccountType.CASH -> stringResource(R.string.account_type_cash)
                         AccountType.SAVINGS -> stringResource(R.string.account_type_savings)
                         AccountType.CREDIT_CARD -> stringResource(R.string.account_type_credit_card)
+                        AccountType.TRANSIT_CARD -> stringResource(R.string.account_type_transit_card)
                     }
                 Text(
                     text =
@@ -463,6 +464,17 @@ internal fun AccountItemRow(
                 CardRowBalance(
                     overview = cardOverview,
                     today = today,
+                )
+            } else if (item.account.type == AccountType.TRANSIT_CARD) {
+                TransitRowBalance(
+                    balance = item.balance,
+                    fare = item.account.fare,
+                    balanceColor =
+                        if (isArchived) {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurface
+                        },
                 )
             } else {
                 MoneyText(

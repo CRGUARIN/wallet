@@ -17,41 +17,63 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.R
 import com.crguarin.wallet.ui.theme.WalletPalette
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.contentColorOver
 
+private const val DISABLED_ALPHA = 0.35f
+
+/**
+ * Color swatches. [disabledColors] are shown dimmed and crossed out, and cannot be picked; the
+ * selected color is never disabled.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ColorPicker(
     selectedColor: Int,
     onColorSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    disabledColors: Set<Int> = emptySet(),
     colors: List<Int> = WalletPalette.colors,
 ) {
     val colorLabel = stringResource(R.string.cd_color)
+    val colorInUseLabel = stringResource(R.string.cd_color_in_use)
+    val crossColor = MaterialTheme.colorScheme.onSurface
 
     FlowRow(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         colors.forEach { colorInt ->
             val isSelected = colorInt == selectedColor
+            val isDisabled = !isSelected && colorInt in disabledColors
             val color = Color(colorInt)
 
             Box(
                 modifier =
                     Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
+                        .size(40.dp)
+                        // Before the background so the swatch is dimmed and the line drawn on top is not.
+                        .then(
+                            if (isDisabled) {
+                                Modifier.crossedOut(crossColor)
+                            } else {
+                                Modifier
+                            },
+                        ).clip(CircleShape)
                         .background(color)
                         .then(
                             if (isSelected) {
@@ -59,15 +81,17 @@ fun ColorPicker(
                             } else {
                                 Modifier
                             },
-                        ).semantics { contentDescription = colorLabel }
-                        .clickable { onColorSelected(colorInt) },
+                        ).semantics {
+                            contentDescription = if (isDisabled) colorInUseLabel else colorLabel
+                            if (isDisabled) disabled()
+                        }.clickable(enabled = !isDisabled) { onColorSelected(colorInt) },
                 contentAlignment = Alignment.Center,
             ) {
                 if (isSelected) {
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = stringResource(R.string.cd_selected),
-                        tint = Color.White,
+                        tint = contentColorOver(color),
                         modifier = Modifier.size(24.dp),
                     )
                 }
@@ -76,6 +100,19 @@ fun ColorPicker(
     }
 }
 
+/** Dims what follows in the chain and draws a full-opacity diagonal line over it. */
+private fun Modifier.crossedOut(lineColor: Color): Modifier =
+    drawWithContent {
+        drawContent()
+        val inset = size.width * 0.25f
+        drawLine(
+            color = lineColor,
+            start = Offset(inset, size.height - inset),
+            end = Offset(size.width - inset, inset),
+            strokeWidth = 2.dp.toPx(),
+        )
+    }.alpha(DISABLED_ALPHA)
+
 @Preview(name = "Light Mode", showBackground = true)
 @Composable
 private fun ColorPickerPreviewLight() {
@@ -83,6 +120,7 @@ private fun ColorPickerPreviewLight() {
         ColorPicker(
             selectedColor = WalletPalette.colors.first(),
             onColorSelected = {},
+            disabledColors = setOf(0xFFC62828.toInt(), 0xFF42A5F5.toInt()),
         )
     }
 }
@@ -94,6 +132,7 @@ private fun ColorPickerPreviewDark() {
         ColorPicker(
             selectedColor = WalletPalette.colors.first(),
             onColorSelected = {},
+            disabledColors = setOf(0xFFC62828.toInt(), 0xFF42A5F5.toInt()),
         )
     }
 }

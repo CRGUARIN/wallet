@@ -12,6 +12,7 @@ import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryNameMatcher
 import com.crguarin.wallet.domain.model.CategoryNode
 import com.crguarin.wallet.domain.model.CategoryType
+import com.crguarin.wallet.domain.model.ColorRules
 import com.crguarin.wallet.domain.model.DomainLimits
 import com.crguarin.wallet.domain.model.SystemCategoryNames
 import com.crguarin.wallet.domain.model.buildCategoryTree
@@ -62,6 +63,8 @@ data class CategoryEditUiState(
     val isParentDisabled: Boolean = false,
     val parentOptions: List<Category> = emptyList(),
     val color: Int = WalletPalette.colors.first(),
+    /** Colors of other categories of [type] outside this family; the picker shows them disabled. */
+    val usedColors: Set<Int> = emptySet(),
     val icon: String = "restaurant",
     val isSaving: Boolean = false,
     val nameErrorRes: Int? = null,
@@ -162,6 +165,7 @@ class CategoryEditViewModel
                                 color = category.color,
                                 icon = category.icon,
                                 systemKey = category.systemKey,
+                                usedColors = usedColorsFor(category.type, category.parentId, category.id),
                             )
                         }
                         refreshParentOptions(category.type, category.id)
@@ -169,7 +173,8 @@ class CategoryEditViewModel
                         _uiState.update { it.copy(isLoading = false, notFound = true) }
                     }
                 } else {
-                    var initialColor = WalletPalette.colors.first()
+                    val initialUsedColors = usedColorsFor(initialType, initialParentId, null)
+                    var initialColor = ColorRules.firstFreeColor(WalletPalette.colors, initialUsedColors)
                     if (initialParentId != null) {
                         val parent = categoryRepository.getCategory(initialParentId)
                         if (parent != null) {
@@ -188,11 +193,32 @@ class CategoryEditViewModel
                             parentId = initialParentId,
                             color = initialColor,
                             icon = defaultIcon,
+                            usedColors = initialUsedColors,
                         )
                     }
                     refreshParentOptions(initialType, null)
                 }
             }
+        }
+
+        private fun usedColorsFor(
+            type: CategoryType,
+            parentId: Long?,
+            categoryId: Long?,
+        ): Set<Int> = ColorRules.usedCategoryColors(existingCategories, type, categoryId, parentId)
+
+        /**
+         * Recomputes the colors taken by other categories. A color that now clashes moves to the
+         * parent's color, or to the first free color for a root.
+         */
+        private fun withUsedColors(state: CategoryEditUiState): CategoryEditUiState {
+            val usedColors = usedColorsFor(state.type, state.parentId, state.categoryId)
+            if (state.color !in usedColors) return state.copy(usedColors = usedColors)
+            val parent = existingCategories.firstOrNull { it.id == state.parentId }
+            return state.copy(
+                usedColors = usedColors,
+                color = parent?.color ?: ColorRules.firstFreeColor(WalletPalette.colors, usedColors),
+            )
         }
 
         private fun refreshParentOptions(
@@ -236,7 +262,7 @@ class CategoryEditViewModel
         fun setType(newType: CategoryType) {
             if (_uiState.value.isTypeLocked) return
             viewModelScope.launch {
-                _uiState.update { it.copy(type = newType, parentId = null) }
+                _uiState.update { withUsedColors(it.copy(type = newType, parentId = null)) }
                 refreshParentOptions(newType, _uiState.value.categoryId)
             }
         }
@@ -256,20 +282,22 @@ class CategoryEditViewModel
                 val isTypeLocked = newParentId != null || txCount > 0
 
                 _uiState.update {
-                    it.copy(
-                        parentId = newParentId,
-                        color = newColor,
-                        isTypeLocked = isTypeLocked,
-                        nameErrorRes =
-                            if (it.name.isNotBlank()) {
-                                if (isDuplicateName(it.name.trim(), newParentId, it.type, it.categoryId)) {
-                                    DomainError.NameDuplicated.asStringRes()
+                    withUsedColors(
+                        it.copy(
+                            parentId = newParentId,
+                            color = newColor,
+                            isTypeLocked = isTypeLocked,
+                            nameErrorRes =
+                                if (it.name.isNotBlank()) {
+                                    if (isDuplicateName(it.name.trim(), newParentId, it.type, it.categoryId)) {
+                                        DomainError.NameDuplicated.asStringRes()
+                                    } else {
+                                        null
+                                    }
                                 } else {
-                                    null
-                                }
-                            } else {
-                                it.nameErrorRes
-                            },
+                                    it.nameErrorRes
+                                },
+                        ),
                     )
                 }
             }

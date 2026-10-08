@@ -28,6 +28,7 @@ fun AccountEntity.toBackupDto(): AccountDto =
         creditLimit = creditLimit,
         statementDay = statementDay,
         paymentDueDay = paymentDueDay,
+        fare = fare,
     )
 
 fun AccountDto.toEntity(): AccountEntity =
@@ -46,6 +47,7 @@ fun AccountDto.toEntity(): AccountEntity =
         creditLimit = creditLimit,
         statementDay = statementDay,
         paymentDueDay = paymentDueDay,
+        fare = fare,
     )
 
 fun CategoryEntity.toBackupDto(): CategoryDto =

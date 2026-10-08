@@ -70,7 +70,7 @@ class BackupParserTest {
 
         assertThat(root.keys)
             .containsAtLeast("schemaVersion", "appVersion", "exportedAt", "currency", "accounts", "categories", "transactions")
-        assertThat(root["schemaVersion"]!!.jsonPrimitive.content).isEqualTo("4")
+        assertThat(root["schemaVersion"]!!.jsonPrimitive.content).isEqualTo("5")
         assertThat(root["currency"]!!.jsonPrimitive.content).isEqualTo("COP")
         assertThat(root["exportedAt"]!!.jsonPrimitive.content).isEqualTo("2026-09-28T15:00:00Z")
 
@@ -90,6 +90,7 @@ class BackupParserTest {
             "creditLimit",
             "statementDay",
             "paymentDueDay",
+            "fare",
         )
         assertThat(account["type"]!!.jsonPrimitive.content).isEqualTo("CASH")
         assertThat(account["initialBalance"]!!.jsonPrimitive.isString).isFalse()
@@ -116,7 +117,7 @@ class BackupParserTest {
 
     @Test
     fun `output is pretty printed`() {
-        assertThat(parser.encode(validBackupDto())).contains("\n    \"schemaVersion\": 4")
+        assertThat(parser.encode(validBackupDto())).contains("\n    \"schemaVersion\": 5")
     }
 
     @Test
@@ -200,7 +201,7 @@ class BackupParserTest {
 
     @Test
     fun `a version 4 backup with debts parses`() {
-        val dto = decodeToDto(parser.encode(validDebtBackupDto()))
+        val dto = decodeToDto(parser.encode(validDebtBackupDto().copy(schemaVersion = 4)))
 
         assertThat(dto.schemaVersion).isEqualTo(4)
         assertThat(dto.debts.map { it.id }).containsExactly(1L, 2L).inOrder()
@@ -279,16 +280,43 @@ class BackupParserTest {
     }
 
     @Test
-    fun `schema versions 1 to 4 are accepted`() {
-        assertThat(parser.decode(planSample).isSuccess).isTrue()
-        assertThat(parser.decode(parser.encode(validCardBackupDto().copy(schemaVersion = 2))).isSuccess).isTrue()
-        assertThat(parser.decode(parser.encode(validRecurringBackupDto().copy(schemaVersion = 3))).isSuccess).isTrue()
-        assertThat(parser.decode(parser.encode(validDebtBackupDto())).isSuccess).isTrue()
+    fun `a version 5 backup keeps the transit fare and writes it as a plain number`() {
+        val dto = decodeToDto(parser.encode(validTransitBackupDto()))
+
+        assertThat(dto.schemaVersion).isEqualTo(5)
+        assertThat(dto.accounts.single { it.type == AccountType.TRANSIT_CARD }.fare).isEqualTo(350_000L)
+        assertThat(dto.accounts.filter { it.type != AccountType.TRANSIT_CARD }.map { it.fare }).containsExactly(null, null, null)
+
+        val root = Json.parseToJsonElement(parser.encode(validTransitBackupDto())).jsonObject
+        val transit = root["accounts"]!!.jsonArray.single { it.jsonObject["type"]!!.jsonPrimitive.content == "TRANSIT_CARD" }
+        assertThat(transit.jsonObject["fare"]!!.jsonPrimitive.isString).isFalse()
+        assertThat(transit.jsonObject["fare"]!!.jsonPrimitive.content).isEqualTo("350000")
     }
 
     @Test
-    fun `schema versions other than 1 to 4 are unsupported`() {
-        for (version in listOf(0, 5, 7, -1)) {
+    fun `a version 4 file without the fare key is accepted with null fares`() {
+        val root = Json.parseToJsonElement(parser.encode(validCardBackupDto().copy(schemaVersion = 4))).jsonObject
+        val accounts = JsonArray(root["accounts"]!!.jsonArray.map { JsonObject(it.jsonObject.filterKeys { key -> key != "fare" }) })
+        val withoutFare = JsonObject(root + ("accounts" to accounts)).toString()
+
+        val dto = decodeToDto(withoutFare)
+
+        assertThat(dto.schemaVersion).isEqualTo(4)
+        assertThat(dto.accounts.map { it.fare }).containsExactly(null, null, null)
+    }
+
+    @Test
+    fun `schema versions 1 to 5 are accepted`() {
+        assertThat(parser.decode(planSample).isSuccess).isTrue()
+        assertThat(parser.decode(parser.encode(validCardBackupDto().copy(schemaVersion = 2))).isSuccess).isTrue()
+        assertThat(parser.decode(parser.encode(validRecurringBackupDto().copy(schemaVersion = 3))).isSuccess).isTrue()
+        assertThat(parser.decode(parser.encode(validDebtBackupDto().copy(schemaVersion = 4))).isSuccess).isTrue()
+        assertThat(parser.decode(parser.encode(validTransitBackupDto())).isSuccess).isTrue()
+    }
+
+    @Test
+    fun `schema versions other than 1 to 5 are unsupported`() {
+        for (version in listOf(0, 6, 7, -1)) {
             assertThat(error(planSample.replace("\"schemaVersion\": 1", "\"schemaVersion\": $version")))
                 .isEqualTo(DomainError.BackupVersionUnsupported)
         }
@@ -325,7 +353,7 @@ class BackupParserTest {
     fun `a different schema version is unsupported even if the rest has another shape`() {
         val future: JsonObject =
             buildJsonObject {
-                put("schemaVersion", 5)
+                put("schemaVersion", 6)
                 put("data", JsonArray(listOf(JsonPrimitive("something else"))))
             }
         assertThat(error(future.toString())).isEqualTo(DomainError.BackupVersionUnsupported)

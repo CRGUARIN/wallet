@@ -12,12 +12,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -30,8 +33,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -92,6 +97,7 @@ fun AccountDetailRoute(
     viewModel: AccountDetailViewModel? = safeHiltViewModel(),
     onPayCardClick: (fromAccountId: Long?, toAccountId: Long, initialAmountMinor: Long?) -> Unit = { _, _, _ -> },
     onReconcileClick: (accountId: Long) -> Unit = {},
+    onRechargeClick: (fromAccountId: Long?, toAccountId: Long) -> Unit = { _, _ -> },
 ) {
     if (viewModel == null) {
         AccountDetailScreen(
@@ -125,6 +131,17 @@ fun AccountDetailRoute(
                 is AccountDetailEvent.ShowSnackbar -> {
                     snackbarHostState.showSnackbar(context.getString(event.messageRes))
                 }
+                is AccountDetailEvent.TripRegistered -> {
+                    val result =
+                        snackbarHostState.showSnackbar(
+                            message = context.getString(R.string.transit_trip_registered),
+                            actionLabel = context.getString(R.string.action_undo),
+                            duration = SnackbarDuration.Short,
+                        )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoTrip(event.transactionId)
+                    }
+                }
             }
         }
     }
@@ -147,6 +164,9 @@ fun AccountDetailRoute(
             onPayCardClick(uiState.payFromAccountId, viewModel.accountId, uiState.payAmountMinor)
         },
         onReconcileClick = { onReconcileClick(viewModel.accountId) },
+        onRegisterTripClick = viewModel::onRegisterTripClick,
+        onRechargeClick = { onRechargeClick(uiState.rechargeFromAccountId, viewModel.accountId) },
+        onConfirmTrip = viewModel::confirmTripDespiteBalance,
         snackbarHostState = snackbarHostState,
         modifier = modifier,
     )
@@ -172,6 +192,9 @@ fun AccountDetailScreen(
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     onPayCardClick: () -> Unit = {},
     onReconcileClick: () -> Unit = {},
+    onRegisterTripClick: () -> Unit = {},
+    onRechargeClick: () -> Unit = {},
+    onConfirmTrip: () -> Unit = {},
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val account = uiState.accountWithBalance?.account
@@ -352,6 +375,49 @@ fun AccountDetailScreen(
                             )
                         }
                     }
+                } else if (account.type == AccountType.TRANSIT_CARD) {
+                    item(key = "header") {
+                        TransitCardSummaryCard(
+                            account = account,
+                            balance = balance,
+                            monthSummary = uiState.monthSummary,
+                        )
+                    }
+                    if (!account.isArchived) {
+                        item(key = "transit_actions") {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Button(
+                                    onClick = onRegisterTripClick,
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.DirectionsBus,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(text = stringResource(R.string.transit_action_trip))
+                                }
+                                if (uiState.canTransfer) {
+                                    OutlinedButton(
+                                        onClick = onRechargeClick,
+                                        modifier = Modifier.weight(1f),
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Add,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(text = stringResource(R.string.transit_action_recharge))
+                                    }
+                                }
+                            }
+                        }
+                    }
                 } else {
                     item(key = "header") {
                         AccountHeaderCard(
@@ -485,6 +551,17 @@ fun AccountDetailScreen(
             message = stringResource(R.string.account_detail_cannot_delete_has_transactions_message),
             confirmText = stringResource(R.string.action_archive),
             onConfirm = onConfirmArchiveInsteadOfDelete,
+            onDismiss = onDismissDialogs,
+        )
+    }
+
+    // Trip Confirm Dialog (the balance cannot pay the trip)
+    if (uiState.showTripNegativeDialog) {
+        ConfirmDialog(
+            title = stringResource(R.string.transit_trip_negative_title),
+            message = stringResource(R.string.transit_trip_negative_message),
+            confirmText = stringResource(R.string.transit_trip_negative_confirm),
+            onConfirm = onConfirmTrip,
             onDismiss = onDismissDialogs,
         )
     }

@@ -73,33 +73,39 @@ internal fun AccountHeaderCard(
             HorizontalDivider()
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
-                text = stringResource(R.string.account_detail_month_summary),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                SummaryAmount(
-                    label = stringResource(R.string.account_detail_income),
-                    amount = monthSummary.income,
-                    type = TransactionType.INCOME,
-                )
-                SummaryAmount(
-                    label = stringResource(R.string.account_detail_expense),
-                    amount = monthSummary.expense,
-                    type = TransactionType.EXPENSE,
-                )
-                SummaryAmount(
-                    label = stringResource(R.string.account_detail_net),
-                    amount = monthSummary.net,
-                )
-            }
+            MonthSummarySection(monthSummary = monthSummary)
         }
+    }
+}
+
+/** Income, expense and net of the month; shared by the account and card headers. */
+@Composable
+internal fun MonthSummarySection(monthSummary: MonthSummary) {
+    Text(
+        text = stringResource(R.string.account_detail_month_summary),
+        style = MaterialTheme.typography.titleSmall,
+        fontWeight = FontWeight.SemiBold,
+        color = MaterialTheme.colorScheme.primary,
+    )
+    Spacer(modifier = Modifier.height(12.dp))
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        SummaryAmount(
+            label = stringResource(R.string.account_detail_income),
+            amount = monthSummary.income,
+            type = TransactionType.INCOME,
+        )
+        SummaryAmount(
+            label = stringResource(R.string.account_detail_expense),
+            amount = monthSummary.expense,
+            type = TransactionType.EXPENSE,
+        )
+        SummaryAmount(
+            label = stringResource(R.string.account_detail_net),
+            amount = monthSummary.net,
+        )
     }
 }
 
@@ -159,6 +165,7 @@ internal fun AccountIdentityRow(account: Account) {
                     AccountType.CASH -> stringResource(R.string.account_type_cash)
                     AccountType.SAVINGS -> stringResource(R.string.account_type_savings)
                     AccountType.CREDIT_CARD -> stringResource(R.string.account_type_credit_card)
+                    AccountType.TRANSIT_CARD -> stringResource(R.string.account_type_transit_card)
                 }
             Text(
                 text = typeText,

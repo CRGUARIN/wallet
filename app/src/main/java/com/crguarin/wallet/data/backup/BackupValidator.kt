@@ -14,9 +14,10 @@ import java.time.LocalDate
  * Pure validation of a decoded [BackupDto]. Runs before the database is touched, so it must
  * reject anything that would violate a business rule or a foreign key on insert.
  *
- * Accepts schema versions 1 to 4: a version 1 backup carries no card fields and is
+ * Accepts schema versions 1 to 5: a version 1 backup carries no card fields and is
  * imported with the defaults (no credit cards, no statements); versions 1 and 2 carry no
- * recurring payments and versions 1 to 3 carry no debts, and they are imported without them.
+ * recurring payments, versions 1 to 3 carry no debts and versions 1 to 4 carry no transit fare,
+ * and they are imported without them.
  */
 object BackupValidator {
     /**
@@ -62,7 +63,7 @@ object BackupValidator {
                 account.initialBalance < 0 && account.type != AccountType.CREDIT_CARD ->
                     return "account ${account.id}: negative initial balance"
             }
-            accountCardProblem(account)?.let { return it }
+            accountTypeProblem(account)?.let { return it }
         }
         // The app keeps active account names unique (ignoring case and surrounding spaces).
         val duplicatedName =
@@ -74,8 +75,11 @@ object BackupValidator {
         return duplicatedName?.let { "account ${it[1].id}: duplicated active name" }
     }
 
-    private fun accountCardProblem(account: AccountDto): String? {
+    private fun accountTypeProblem(account: AccountDto): String? {
         val label = "account ${account.id}"
+        if (account.type != AccountType.TRANSIT_CARD && account.fare != null) {
+            return "$label: fare on a non-transit account"
+        }
         return if (account.type == AccountType.CREDIT_CARD) {
             when {
                 account.creditLimit == null -> "$label: card without credit limit"
@@ -90,8 +94,20 @@ object BackupValidator {
                 account.creditLimit != null -> "$label: credit limit on a non-card account"
                 account.statementDay != null -> "$label: statement day on a non-card account"
                 account.paymentDueDay != null -> "$label: payment due day on a non-card account"
+                account.type == AccountType.TRANSIT_CARD -> transitFareProblem(account)
                 else -> null
             }
+        }
+    }
+
+    private fun transitFareProblem(account: AccountDto): String? {
+        val label = "account ${account.id}"
+        val fare = account.fare
+        return when {
+            fare == null -> "$label: transit card without fare"
+            fare <= 0 -> "$label: fare must be positive"
+            fare > Money.MAX_MINOR_UNITS -> "$label: fare too large"
+            else -> null
         }
     }
 

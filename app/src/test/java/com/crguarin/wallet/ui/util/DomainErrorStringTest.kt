@@ -44,6 +44,8 @@ class DomainErrorStringTest {
                 DomainError.DebtDateAfterPayments,
                 DomainError.DebtDirectionLocked,
                 DomainError.CardDayInvalid,
+                DomainError.FareInvalid,
+                DomainError.ColorInUse,
                 DomainError.AccountTypeChangeNotAllowed,
                 DomainError.BackupInvalid("corrupted"),
                 DomainError.BackupVersionUnsupported,

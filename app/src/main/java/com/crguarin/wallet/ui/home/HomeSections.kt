@@ -58,6 +58,7 @@ import com.crguarin.wallet.domain.model.card.CardOverview
 import com.crguarin.wallet.domain.model.recurring.UpcomingKind
 import com.crguarin.wallet.domain.model.recurring.UpcomingPayment
 import com.crguarin.wallet.ui.accounts.CardRowBalance
+import com.crguarin.wallet.ui.accounts.TransitRowBalance
 import com.crguarin.wallet.ui.components.IconCatalog
 import com.crguarin.wallet.ui.components.MoneyText
 import java.time.LocalDate
@@ -360,6 +361,12 @@ internal fun AccountsRow(
                         CardRowBalance(
                             overview = cardOverview,
                             today = today,
+                            horizontalAlignment = Alignment.Start,
+                        )
+                    } else if (item.account.type == AccountType.TRANSIT_CARD) {
+                        TransitRowBalance(
+                            balance = item.balance,
+                            fare = item.account.fare,
                             horizontalAlignment = Alignment.Start,
                         )
                     } else {

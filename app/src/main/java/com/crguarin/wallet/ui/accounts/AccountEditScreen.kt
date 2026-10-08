@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.CreditCard
+import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Savings
 import androidx.compose.material3.Button
@@ -113,6 +114,7 @@ fun AccountEditRoute(
         onCreditLimitChanged = viewModel::setCreditLimitText,
         onStatementDayChanged = viewModel::setStatementDayText,
         onPaymentDueDayChanged = viewModel::setPaymentDueDayText,
+        onFareChanged = viewModel::setFareText,
         onColorSelected = viewModel::setColor,
         onIconSelected = viewModel::setIcon,
         onIncludeInTotalChanged = viewModel::setIncludeInTotal,
@@ -139,6 +141,7 @@ fun AccountEditScreen(
     onCreditLimitChanged: (String) -> Unit = {},
     onStatementDayChanged: (String) -> Unit = {},
     onPaymentDueDayChanged: (String) -> Unit = {},
+    onFareChanged: (String) -> Unit = {},
 ) {
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -243,6 +246,21 @@ fun AccountEditScreen(
                     icon = Icons.Default.CreditCard,
                     label = stringResource(R.string.account_type_credit_card),
                 )
+                AccountTypeEditOption(
+                    type = AccountType.TRANSIT_CARD,
+                    isSelected = uiState.type == AccountType.TRANSIT_CARD,
+                    enabled = !uiState.isTypeLocked,
+                    onClick = { onTypeChanged(AccountType.TRANSIT_CARD) },
+                    icon = Icons.Default.DirectionsBus,
+                    label = stringResource(R.string.account_type_transit_card),
+                )
+            }
+            if (uiState.isTransitCard) {
+                Text(
+                    text = stringResource(R.string.account_type_transit_card_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             if (uiState.isTypeLocked) {
                 Text(
@@ -258,10 +276,10 @@ fun AccountEditScreen(
                     value = uiState.initialBalanceText,
                     onValueChange = onInitialBalanceChanged,
                     label =
-                        if (uiState.isCreditCard) {
-                            stringResource(R.string.card_current_debt_label)
-                        } else {
-                            stringResource(R.string.account_edit_initial_balance_label)
+                        when {
+                            uiState.isCreditCard -> stringResource(R.string.card_current_debt_label)
+                            uiState.isTransitCard -> stringResource(R.string.transit_current_balance_label)
+                            else -> stringResource(R.string.account_edit_initial_balance_label)
                         },
                     errorMessage = uiState.amountErrorRes?.let { stringResource(it) },
                     modifier = Modifier.fillMaxWidth(),
@@ -340,6 +358,26 @@ fun AccountEditScreen(
                 )
             }
 
+            if (uiState.isTransitCard) {
+                Column {
+                    AmountTextField(
+                        value = uiState.fareText,
+                        onValueChange = onFareChanged,
+                        label = stringResource(R.string.transit_fare_label),
+                        errorMessage = uiState.fareErrorRes?.let { stringResource(it) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    if (uiState.fareErrorRes == null) {
+                        Text(
+                            text = stringResource(R.string.transit_fare_supporting),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(start = 16.dp, top = 4.dp),
+                        )
+                    }
+                }
+            }
+
             // Color Picker
             Text(
                 text = stringResource(R.string.account_edit_color_label),
@@ -348,10 +386,19 @@ fun AccountEditScreen(
                 modifier = Modifier.semantics { heading() },
             )
 
+            val disabledColors = uiState.usedColors - uiState.color
             ColorPicker(
                 selectedColor = uiState.color,
                 onColorSelected = onColorSelected,
+                disabledColors = disabledColors,
             )
+            if (disabledColors.isNotEmpty()) {
+                Text(
+                    text = stringResource(R.string.account_color_in_use_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
 
             // Icon Picker
             Text(

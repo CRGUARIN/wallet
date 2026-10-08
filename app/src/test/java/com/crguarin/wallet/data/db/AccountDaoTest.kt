@@ -401,4 +401,19 @@ class AccountDaoTest {
             accountDao.delete(account)
             assertThat(accountDao.getById(accId)).isNull()
         }
+
+    @Test
+    fun transitCard_keepsItsFareAndCashAccountsHaveNone() =
+        runTest {
+            val transitId =
+                accountDao.insert(
+                    createAccount(name = "Cívica", type = AccountType.TRANSIT_CARD, icon = "directions_bus").copy(fare = 350_000L),
+                )
+            val cashId = accountDao.insert(createAccount(name = "Efectivo"))
+
+            val transit = accountDao.getById(transitId)!!
+            assertThat(transit.type).isEqualTo(AccountType.TRANSIT_CARD)
+            assertThat(transit.fare).isEqualTo(350_000L)
+            assertThat(accountDao.getById(cashId)!!.fare).isNull()
+        }
 }

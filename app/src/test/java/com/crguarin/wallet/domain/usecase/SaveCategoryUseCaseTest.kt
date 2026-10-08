@@ -4,6 +4,7 @@ import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.domain.fake.FakeCategoryRepository
 import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeSystemCategoryNames
+import com.crguarin.wallet.domain.fake.FakeTransactionRunner
 import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryNameMatcher
 import com.crguarin.wallet.domain.model.CategoryType
@@ -19,6 +20,9 @@ class SaveCategoryUseCaseTest {
     private lateinit var recurringRepository: FakeRecurringRepository
     private lateinit var systemCategoryNames: FakeSystemCategoryNames
     private lateinit var saveCategoryUseCase: SaveCategoryUseCase
+    private val red = 0xFFEF5350.toInt()
+    private val blue = 0xFF42A5F5.toInt()
+    private val green = 0xFF66BB6A.toInt()
 
     @Before
     fun setUp() {
@@ -26,7 +30,12 @@ class SaveCategoryUseCaseTest {
         recurringRepository = FakeRecurringRepository()
         systemCategoryNames = FakeSystemCategoryNames()
         saveCategoryUseCase =
-            SaveCategoryUseCase(categoryRepository, recurringRepository, CategoryNameMatcher(systemCategoryNames))
+            SaveCategoryUseCase(
+                categoryRepository,
+                recurringRepository,
+                CategoryNameMatcher(systemCategoryNames),
+                FakeTransactionRunner(),
+            )
     }
 
     @Test
@@ -355,7 +364,7 @@ class SaveCategoryUseCaseTest {
 
             val id =
                 saveCategoryUseCase(
-                    Category(name = "B", type = CategoryType.EXPENSE, color = 1, icon = "home", sortOrder = 0, isArchived = true),
+                    Category(name = "B", type = CategoryType.EXPENSE, color = 2, icon = "home", sortOrder = 0, isArchived = true),
                 ).getOrNull()!!
 
             val saved = categoryRepository.getCategory(id)!!
@@ -398,4 +407,151 @@ class SaveCategoryUseCaseTest {
 
             assertThat(result.isSuccess).isTrue()
         }
+
+    @Test
+    fun `fails when another root of the same type already uses the color`() =
+        runTest {
+            categoryRepository.setInitialData(listOf(category(id = 1L, name = "Comida", color = red)))
+
+            val result = saveCategoryUseCase(category(name = "Ocio", color = red))
+
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.ColorInUse)
+        }
+
+    @Test
+    fun `same color is allowed in the other type`() =
+        runTest {
+            categoryRepository.setInitialData(listOf(category(id = 1L, name = "Comida", color = red)))
+
+            val result = saveCategoryUseCase(category(name = "Regalos", color = red, type = CategoryType.INCOME))
+
+            assertThat(result.isSuccess).isTrue()
+        }
+
+    @Test
+    fun `subcategory may use the color of its parent`() =
+        runTest {
+            categoryRepository.setInitialData(listOf(category(id = 1L, name = "Comida", color = red)))
+
+            val result = saveCategoryUseCase(category(name = "Restaurantes", color = red, parentId = 1L))
+
+            assertThat(result.isSuccess).isTrue()
+        }
+
+    @Test
+    fun `subcategory may not use the color of another root`() =
+        runTest {
+            categoryRepository.setInitialData(
+                listOf(
+                    category(id = 1L, name = "Comida", color = red),
+                    category(id = 2L, name = "Transporte", color = blue),
+                ),
+            )
+
+            val result = saveCategoryUseCase(category(name = "Gasolina", color = red, parentId = 2L))
+
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.ColorInUse)
+        }
+
+    @Test
+    fun `archived category does not block its color`() =
+        runTest {
+            categoryRepository.setInitialData(
+                listOf(category(id = 1L, name = "Comida", color = red, isArchived = true)),
+            )
+
+            val result = saveCategoryUseCase(category(name = "Ocio", color = red))
+
+            assertThat(result.isSuccess).isTrue()
+        }
+
+    @Test
+    fun `unchanged color of an existing category saves even when another family repeats it`() =
+        runTest {
+            categoryRepository.setInitialData(
+                listOf(
+                    category(id = 1L, name = "Comida", color = red),
+                    category(id = 2L, name = "Ocio", color = red),
+                ),
+            )
+
+            val result = saveCategoryUseCase(categoryRepository.getCategory(2L)!!.copy(name = "Entretenimiento"))
+
+            assertThat(result.isSuccess).isTrue()
+        }
+
+    @Test
+    fun `moving a subcategory to another root checks its color again`() =
+        runTest {
+            categoryRepository.setInitialData(
+                listOf(
+                    category(id = 1L, name = "Comida", color = red),
+                    category(id = 2L, name = "Transporte", color = blue),
+                    category(id = 3L, name = "Taxi", color = blue, parentId = 2L),
+                ),
+            )
+
+            val result = saveCategoryUseCase(categoryRepository.getCategory(3L)!!.copy(parentId = 1L))
+
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.ColorInUse)
+        }
+
+    @Test
+    fun `changing a root color moves only its subcategories that had the old color`() =
+        runTest {
+            categoryRepository.setInitialData(
+                listOf(
+                    category(id = 1L, name = "Comida", color = red),
+                    category(id = 2L, name = "Restaurantes", color = red, parentId = 1L),
+                    category(id = 3L, name = "Super", color = blue, parentId = 1L),
+                    category(id = 4L, name = "Ocio", color = red),
+                    category(id = 5L, name = "Cine", color = red, parentId = 4L),
+                ),
+            )
+
+            val result = saveCategoryUseCase(categoryRepository.getCategory(1L)!!.copy(color = green))
+
+            assertThat(result.isSuccess).isTrue()
+            assertThat(categoryRepository.getCategory(1L)?.color).isEqualTo(green)
+            assertThat(categoryRepository.getCategory(2L)?.color).isEqualTo(green)
+            assertThat(categoryRepository.getCategory(3L)?.color).isEqualTo(blue)
+            assertThat(categoryRepository.getCategory(4L)?.color).isEqualTo(red)
+            assertThat(categoryRepository.getCategory(5L)?.color).isEqualTo(red)
+        }
+
+    @Test
+    fun `root color change to a color used by another root is rejected and nothing moves`() =
+        runTest {
+            categoryRepository.setInitialData(
+                listOf(
+                    category(id = 1L, name = "Comida", color = red),
+                    category(id = 2L, name = "Restaurantes", color = red, parentId = 1L),
+                    category(id = 3L, name = "Transporte", color = blue),
+                ),
+            )
+
+            val result = saveCategoryUseCase(categoryRepository.getCategory(1L)!!.copy(color = blue))
+
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.ColorInUse)
+            assertThat(categoryRepository.getCategory(1L)?.color).isEqualTo(red)
+            assertThat(categoryRepository.getCategory(2L)?.color).isEqualTo(red)
+        }
+
+    private fun category(
+        id: Long = 0L,
+        name: String,
+        color: Int,
+        type: CategoryType = CategoryType.EXPENSE,
+        parentId: Long? = null,
+        isArchived: Boolean = false,
+    ): Category =
+        Category(
+            id = id,
+            name = name,
+            type = type,
+            parentId = parentId,
+            color = color,
+            icon = "restaurant",
+            isArchived = isArchived,
+        )
 }

@@ -117,6 +117,28 @@
     <string name="account_type_cash">Efectivo</string>
     <string name="account_type_savings">Cuenta de ahorros</string>
     <string name="account_type_credit_card">Tarjeta de crédito</string>
+    <string name="account_type_transit_card">Tarjeta de transporte</string>
+    <string name="account_type_transit_card_hint">Como la Cívica: la recargas y cada viaje descuenta la tarifa</string>
+    <string name="transit_fare_label">Tarifa por viaje</string>
+    <string name="transit_fare_supporting">Se descuenta en cada viaje</string>
+    <string name="transit_current_balance_label">Saldo actual de la tarjeta</string>
+    <string name="transit_fare_value">Tarifa: %1$s</string>
+    <string name="transit_low_balance">Saldo insuficiente para un viaje</string>
+    <string name="transit_low_balance_short">Recarga pronto</string>
+    <string name="transit_action_trip">Registrar viaje</string>
+    <string name="transit_action_recharge">Recargar</string>
+    <string name="transit_trip_registered">Viaje registrado</string>
+    <string name="transit_trip_negative_title">Saldo insuficiente</string>
+    <string name="transit_trip_negative_message">La tarjeta quedará en negativo. ¿Registrar el viaje de todas formas?</string>
+    <string name="transit_trip_negative_confirm">Registrar</string>
+    <plurals name="transit_trips_left">
+        <item quantity="one">Alcanza para %d viaje</item>
+        <item quantity="other">Alcanza para %d viajes</item>
+    </plurals>
+    <plurals name="transit_trips_short">
+        <item quantity="one">%d viaje</item>
+        <item quantity="other">%d viajes</item>
+    </plurals>
     <string name="account_default_cash_name">Efectivo</string>
 
     <!-- Pantalla Cuentas -->
@@ -174,6 +196,9 @@
     <!-- Descripciones de contenido (accesibilidad) -->
     <string name="cd_selected">Seleccionado</string>
     <string name="cd_color">Color</string>
+    <string name="cd_color_in_use">Color en uso</string>
+    <string name="category_color_in_use_hint">Los colores tachados ya los usa otra categoría de este tipo</string>
+    <string name="account_color_in_use_hint">Los colores tachados ya los usa otra cuenta</string>
     <string name="cd_icon">Ícono</string>
     <string name="cd_delete_transaction">Eliminar movimiento</string>
 
@@ -298,6 +323,8 @@
     <string name="error_backup_version_unsupported">Versión de copia de seguridad no soportada</string>
     <string name="error_backup_failed">No se pudo completar la operación de backup. Tus datos actuales no se modificaron.</string>
     <string name="error_account_type_change_not_allowed">No se puede cambiar el tipo de una cuenta con movimientos</string>
+    <string name="error_fare_invalid">Ingresa una tarifa mayor que cero</string>
+    <string name="error_color_in_use">Ese color ya está en uso. Elige otro.</string>
 
     <!-- Categorías del sistema - Gastos -->
     <string name="category_food">Alimentación</string>
@@ -695,4 +722,18 @@
         <item quantity="one">Este backup no trae deudas: se borrará %d deuda que tienes registrada.</item>
         <item quantity="other">Este backup no trae deudas: se borrarán %d deudas que tienes registradas.</item>
     </plurals>
+
+    <!-- Íconos -->
+    <string name="icon_group_money">Dinero</string>
+    <string name="icon_group_food">Comida y bebida</string>
+    <string name="icon_group_transport">Transporte</string>
+    <string name="icon_group_home">Hogar</string>
+    <string name="icon_group_health">Salud y cuidado personal</string>
+    <string name="icon_group_shopping">Compras</string>
+    <string name="icon_group_leisure">Ocio</string>
+    <string name="icon_group_family">Familia y educación</string>
+    <string name="icon_group_tech">Tecnología y servicios</string>
+    <string name="icon_group_other">Otros</string>
+    <string name="icons_show_all">Ver todos los íconos</string>
+    <string name="icons_show_less">Ver menos</string>
 </resources>

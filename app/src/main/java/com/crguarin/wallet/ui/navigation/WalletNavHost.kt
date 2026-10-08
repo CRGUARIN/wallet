@@ -159,6 +159,15 @@ fun WalletNavHost(
                 onViewAllTransactions = { accountId ->
                     navController.navigate(Transactions(accountId = accountId))
                 },
+                onRechargeClick = { fromAccountId, toAccountId ->
+                    navController.navigate(
+                        TransactionEdit(
+                            initialType = com.crguarin.wallet.domain.model.TransactionType.TRANSFER,
+                            accountId = fromAccountId,
+                            toAccountId = toAccountId,
+                        ),
+                    )
+                },
                 onPayCardClick = { fromAccountId, toAccountId, initialAmountMinor ->
                     navController.navigate(
                         TransactionEdit(

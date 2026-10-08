@@ -115,6 +115,28 @@
     <string name="account_type_cash">Cash</string>
     <string name="account_type_savings">Savings account</string>
     <string name="account_type_credit_card">Credit card</string>
+    <string name="account_type_transit_card">Transit card</string>
+    <string name="account_type_transit_card_hint">Like a metro card: top it up and each trip deducts the fare</string>
+    <string name="transit_fare_label">Fare per trip</string>
+    <string name="transit_fare_supporting">Deducted on every trip</string>
+    <string name="transit_current_balance_label">Current card balance</string>
+    <string name="transit_fare_value">Fare: %1$s</string>
+    <string name="transit_low_balance">Not enough for a trip</string>
+    <string name="transit_low_balance_short">Top up soon</string>
+    <string name="transit_action_trip">Log a trip</string>
+    <string name="transit_action_recharge">Top up</string>
+    <string name="transit_trip_registered">Trip logged</string>
+    <string name="transit_trip_negative_title">Not enough balance</string>
+    <string name="transit_trip_negative_message">The card will go negative. Log the trip anyway?</string>
+    <string name="transit_trip_negative_confirm">Log trip</string>
+    <plurals name="transit_trips_left">
+        <item quantity="one">Enough for %d trip</item>
+        <item quantity="other">Enough for %d trips</item>
+    </plurals>
+    <plurals name="transit_trips_short">
+        <item quantity="one">%d trip</item>
+        <item quantity="other">%d trips</item>
+    </plurals>
     <string name="account_default_cash_name">Cash</string>
 
     <!-- Accounts screen -->
@@ -172,6 +194,9 @@
     <!-- Content descriptions (accessibility) -->
     <string name="cd_selected">Selected</string>
     <string name="cd_color">Color</string>
+    <string name="cd_color_in_use">Color in use</string>
+    <string name="category_color_in_use_hint">Crossed-out colors are used by another category of this type</string>
+    <string name="account_color_in_use_hint">Crossed-out colors are used by another account</string>
     <string name="cd_icon">Icon</string>
     <string name="cd_delete_transaction">Delete transaction</string>
 
@@ -294,6 +319,8 @@
     <string name="error_backup_version_unsupported">Unsupported backup version</string>
     <string name="error_backup_failed">The backup operation could not be completed. Your current data was not changed.</string>
     <string name="error_account_type_change_not_allowed">Cannot change the type of an account with transactions</string>
+    <string name="error_fare_invalid">Enter a fare greater than zero</string>
+    <string name="error_color_in_use">That color is already in use. Pick another one.</string>
 
     <!-- System Categories - Expense -->
     <string name="category_food">Food</string>
@@ -691,4 +718,18 @@
         <item quantity="one">This backup has no debts: the %d debt you have recorded will be deleted.</item>
         <item quantity="other">This backup has no debts: the %d debts you have recorded will be deleted.</item>
     </plurals>
+
+    <!-- Icons -->
+    <string name="icon_group_money">Money</string>
+    <string name="icon_group_food">Food and drink</string>
+    <string name="icon_group_transport">Transport</string>
+    <string name="icon_group_home">Home</string>
+    <string name="icon_group_health">Health and personal care</string>
+    <string name="icon_group_shopping">Shopping</string>
+    <string name="icon_group_leisure">Leisure</string>
+    <string name="icon_group_family">Family and education</string>
+    <string name="icon_group_tech">Tech and services</string>
+    <string name="icon_group_other">Other</string>
+    <string name="icons_show_all">Show all icons</string>
+    <string name="icons_show_less">Show fewer</string>
 </resources>

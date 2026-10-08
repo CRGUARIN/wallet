@@ -68,6 +68,10 @@ sealed interface DomainError {
 
     data object CardDayInvalid : DomainError
 
+    data object FareInvalid : DomainError
+
+    data object ColorInUse : DomainError
+
     data object AccountTypeChangeNotAllowed : DomainError
 
     data class BackupInvalid(

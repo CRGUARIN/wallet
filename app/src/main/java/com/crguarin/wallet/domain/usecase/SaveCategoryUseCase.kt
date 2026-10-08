@@ -4,11 +4,13 @@ import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryNameMatcher
+import com.crguarin.wallet.domain.model.ColorRules
 import com.crguarin.wallet.domain.model.DomainLimits
 import com.crguarin.wallet.domain.model.card.CardSystemCategories
 import com.crguarin.wallet.domain.model.normalizedName
 import com.crguarin.wallet.domain.repository.CategoryRepository
 import com.crguarin.wallet.domain.repository.RecurringRepository
+import com.crguarin.wallet.domain.repository.TransactionRunner
 import javax.inject.Inject
 
 class SaveCategoryUseCase
@@ -17,8 +19,12 @@ class SaveCategoryUseCase
         private val categoryRepository: CategoryRepository,
         private val recurringRepository: RecurringRepository,
         private val categoryNameMatcher: CategoryNameMatcher,
+        private val transactionRunner: TransactionRunner,
     ) {
-        suspend operator fun invoke(category: Category): DomainResult<Long> {
+        /** Checks read the stored categories, so they run in the same transaction as the write. */
+        suspend operator fun invoke(category: Category): DomainResult<Long> = transactionRunner.run { save(category) }
+
+        private suspend fun save(category: Category): DomainResult<Long> {
             val trimmedName = category.name?.trim()
             if (category.name != null) {
                 if (trimmedName.isNullOrEmpty()) {
@@ -87,6 +93,14 @@ class SaveCategoryUseCase
                 }
             }
 
+            // Same color is fine across types, and inside one family (a root and its subcategories).
+            if (!keepsColor(existing, category)) {
+                val usedColors = ColorRules.usedCategoryColors(allInType, category.type, category.id, category.parentId)
+                if (category.color in usedColors) {
+                    return DomainResult.Failure(DomainError.ColorInUse)
+                }
+            }
+
             // Order and archived state are owned by storage: an edit keeps them (moving to another
             // parent appends it there), and a new category goes after its siblings.
             val appendedSortOrder = (siblings.maxOfOrNull { it.sortOrder } ?: -1) + 1
@@ -106,6 +120,23 @@ class SaveCategoryUseCase
                     category.copy(name = trimmedName, isArchived = false, sortOrder = appendedSortOrder)
                 }
             val id = categoryRepository.saveCategory(categoryToSave)
+            val previousColor = existing?.color
+            if (previousColor != null && category.parentId == null && previousColor != category.color) {
+                // Subcategories still on the previous root color follow the root, so the family keeps one color.
+                allInType
+                    .filter { it.parentId == id && it.color == previousColor }
+                    .forEach { categoryRepository.saveCategory(it.copy(color = category.color)) }
+            }
             return DomainResult.Success(id)
         }
+
+        /** A color that is not changing (same type and family) is saved even if it repeats another category's. */
+        private fun keepsColor(
+            existing: Category?,
+            category: Category,
+        ): Boolean =
+            existing != null &&
+                existing.color == category.color &&
+                existing.type == category.type &&
+                existing.parentId == category.parentId
     }

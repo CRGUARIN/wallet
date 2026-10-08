@@ -9,6 +9,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import com.crguarin.wallet.R
 import com.crguarin.wallet.domain.model.AccountType
+import com.crguarin.wallet.ui.theme.WalletPalette
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
@@ -215,6 +216,42 @@ class AccountEditScreenTest {
 
         composeRule
             .onNodeWithText("El tipo no se puede cambiar porque la cuenta tiene movimientos")
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun `transit card form asks for the fare and shows the colors used by other accounts`() {
+        composeRule.setContent {
+            WalletTheme {
+                AccountEditScreen(
+                    uiState =
+                        AccountEditUiState(
+                            name = "Cívica",
+                            type = AccountType.TRANSIT_CARD,
+                            icon = "directions_bus",
+                            color = WalletPalette.colors[1],
+                            usedColors = setOf(WalletPalette.colors[0], WalletPalette.colors[1]),
+                        ),
+                    onNavigateBack = {},
+                    onNameChanged = {},
+                    onTypeChanged = {},
+                    onInitialBalanceChanged = {},
+                    onColorSelected = {},
+                    onIconSelected = {},
+                    onIncludeInTotalChanged = {},
+                    onSaveClick = {},
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithText("Como la Cívica: la recargas y cada viaje descuenta la tarifa")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Tarifa por viaje").performScrollTo().assertIsDisplayed()
+        composeRule
+            .onNodeWithText("Los colores tachados ya los usa otra cuenta")
             .performScrollTo()
             .assertIsDisplayed()
     }

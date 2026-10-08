@@ -22,16 +22,19 @@ import com.crguarin.wallet.domain.model.TransactionFilter
 import com.crguarin.wallet.domain.model.TransactionListEntry
 import com.crguarin.wallet.domain.model.card.CardOverview
 import com.crguarin.wallet.domain.model.card.CardStatement
+import com.crguarin.wallet.domain.model.transit.TransitMath
 import com.crguarin.wallet.domain.repository.AccountRepository
 import com.crguarin.wallet.domain.repository.CardStatementRepository
 import com.crguarin.wallet.domain.repository.PreferencesRepository
 import com.crguarin.wallet.domain.usecase.ArchiveAccountUseCase
 import com.crguarin.wallet.domain.usecase.DeleteAccountUseCase
+import com.crguarin.wallet.domain.usecase.DeleteTransactionUseCase
 import com.crguarin.wallet.domain.usecase.ObserveDailyTotalsUseCase
 import com.crguarin.wallet.domain.usecase.ObserveMonthSummaryUseCase
 import com.crguarin.wallet.domain.usecase.ObserveTransactionsUseCase
 import com.crguarin.wallet.domain.usecase.UnarchiveAccountUseCase
 import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewUseCase
+import com.crguarin.wallet.domain.usecase.transit.RegisterTripUseCase
 import com.crguarin.wallet.ui.navigation.AccountDetail
 import com.crguarin.wallet.ui.util.asStringRes
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -76,13 +79,32 @@ data class AccountDetailUiState(
     val payFromAccountId: Long? = null,
     /** Pending statement amount in minor units, or null when there is nothing to pay. */
     val payAmountMinor: Long? = null,
-)
+    /** Asks before a trip the balance cannot pay. */
+    val showTripNegativeDialog: Boolean = false,
+    /** Default source account for topping up this transit card, or null when there is none. */
+    val rechargeFromAccountId: Long? = null,
+) {
+    val isTransitCard: Boolean
+        get() = accountWithBalance?.account?.type == AccountType.TRANSIT_CARD
+
+    /** Whole trips the balance still pays; 0 without a fare. */
+    val tripsLeft: Int
+        get() = accountWithBalance?.let { TransitMath.tripsLeft(it.balance, it.account.fare) } ?: 0
+
+    val isLowTransitBalance: Boolean
+        get() = accountWithBalance?.let { TransitMath.isLowBalance(it.balance, it.account.fare) } ?: false
+}
 
 sealed interface AccountDetailEvent {
     data object NavigateBack : AccountDetailEvent
 
     data class ShowSnackbar(
         @StringRes val messageRes: Int,
+    ) : AccountDetailEvent
+
+    /** A trip was registered; the screen offers to undo it with [transactionId]. */
+    data class TripRegistered(
+        val transactionId: Long,
     ) : AccountDetailEvent
 }
 
@@ -99,6 +121,8 @@ class AccountDetailViewModel
         private val archiveAccountUseCase: ArchiveAccountUseCase,
         private val unarchiveAccountUseCase: UnarchiveAccountUseCase,
         private val deleteAccountUseCase: DeleteAccountUseCase,
+        private val registerTripUseCase: RegisterTripUseCase,
+        private val deleteTransactionUseCase: DeleteTransactionUseCase,
         timeProvider: TimeProvider,
         observeCardOverviewUseCase: ObserveCardOverviewUseCase,
         cardStatementRepository: CardStatementRepository,
@@ -111,6 +135,7 @@ class AccountDetailViewModel
                 DialogState(
                     showDelete = false,
                     showOfferArchive = false,
+                    showTripNegative = false,
                 ),
             )
 
@@ -124,6 +149,7 @@ class AccountDetailViewModel
         private data class DialogState(
             val showDelete: Boolean,
             val showOfferArchive: Boolean,
+            val showTripNegative: Boolean,
         )
 
         private val _events = Channel<AccountDetailEvent>(Channel.BUFFERED)
@@ -196,6 +222,8 @@ class AccountDetailViewModel
                     adjustmentAmounts = adjustmentAmounts,
                     payFromAccountId = payFromAccountIdOf(activeAccounts, lastUsedAccountId),
                     payAmountMinor = pending?.takeIf { it > Money.ZERO }?.minorUnits,
+                    showTripNegativeDialog = dialogState.showTripNegative,
+                    rechargeFromAccountId = rechargeFromAccountIdOf(activeAccounts, lastUsedAccountId, accountId),
                 )
             }.stateIn(
                 scope = viewModelScope,
@@ -210,7 +238,47 @@ class AccountDetailViewModel
         }
 
         fun dismissDialogs() {
-            dialogStateFlow.update { it.copy(showDelete = false, showOfferArchive = false) }
+            dialogStateFlow.update { it.copy(showDelete = false, showOfferArchive = false, showTripNegative = false) }
+        }
+
+        /** Registers a trip, asking first when the balance cannot pay it. */
+        fun onRegisterTripClick() {
+            if (uiState.value.isLowTransitBalance) {
+                dialogStateFlow.update { it.copy(showTripNegative = true) }
+            } else {
+                registerTrip()
+            }
+        }
+
+        fun confirmTripDespiteBalance() {
+            dismissDialogs()
+            registerTrip()
+        }
+
+        fun undoTrip(transactionId: Long) {
+            viewModelScope.launch {
+                when (val result = deleteTransactionUseCase(transactionId)) {
+                    is DomainResult.Success -> Unit
+                    is DomainResult.Failure -> {
+                        if (result.error != DomainError.NotFound) {
+                            _events.send(AccountDetailEvent.ShowSnackbar(result.error.asStringRes()))
+                        }
+                    }
+                }
+            }
+        }
+
+        private fun registerTrip() {
+            viewModelScope.launch {
+                when (val result = registerTripUseCase(accountId)) {
+                    is DomainResult.Success -> {
+                        _events.send(AccountDetailEvent.TripRegistered(result.value.transactionId))
+                    }
+                    is DomainResult.Failure -> {
+                        _events.send(AccountDetailEvent.ShowSnackbar(result.error.asStringRes()))
+                    }
+                }
+            }
         }
 
         fun deleteAccount() {
@@ -266,12 +334,33 @@ class AccountDetailViewModel
 /**
  * Default source account for paying a card: the last used account when it is an active
  * non-card account, otherwise the first active non-card account in the user's order.
+ * Transit cards cannot pay a card either.
  */
 private fun payFromAccountIdOf(
     activeAccounts: List<AccountWithBalance>,
     lastUsedAccountId: Long?,
 ): Long? {
-    val candidates = activeAccounts.map { it.account }.filter { it.type != AccountType.CREDIT_CARD }
+    val candidates =
+        activeAccounts
+            .map { it.account }
+            .filter { it.type != AccountType.CREDIT_CARD && it.type != AccountType.TRANSIT_CARD }
+    return candidates.firstOrNull { it.id == lastUsedAccountId }?.id
+        ?: candidates.minByOrNull { it.sortOrder }?.id
+}
+
+/**
+ * Default source account for topping up a transit card: the last used cash or savings account
+ * other than [targetAccountId], otherwise the first one in the user's order.
+ */
+private fun rechargeFromAccountIdOf(
+    activeAccounts: List<AccountWithBalance>,
+    lastUsedAccountId: Long?,
+    targetAccountId: Long,
+): Long? {
+    val candidates =
+        activeAccounts
+            .map { it.account }
+            .filter { it.id != targetAccountId && (it.type == AccountType.CASH || it.type == AccountType.SAVINGS) }
     return candidates.firstOrNull { it.id == lastUsedAccountId }?.id
         ?: candidates.minByOrNull { it.sortOrder }?.id
 }

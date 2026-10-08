@@ -249,7 +249,7 @@ class BackupRepositoryImplTest {
             val exported = (repository(source).exportBackup() as DomainResult.Success).value
             val dto = (parser.decode(exported) as DomainResult.Success).value
 
-            assertThat(dto.schemaVersion).isEqualTo(4)
+            assertThat(dto.schemaVersion).isEqualTo(5)
             assertThat(dto.appVersion).isEqualTo("1.0.0")
             assertThat(dto.currency).isEqualTo("COP")
             assertThat(dto.exportedAt).isEqualTo("2026-09-28T15:00:00Z")
@@ -290,7 +290,7 @@ class BackupRepositoryImplTest {
             populate(target)
             val before = snapshot(target)
 
-            val result = repository(target).importBackup(parser.encode(validBackupDto().copy(schemaVersion = 5)))
+            val result = repository(target).importBackup(parser.encode(validBackupDto().copy(schemaVersion = 6)))
 
             assertThat(result.errorOrNull()).isEqualTo(DomainError.BackupVersionUnsupported)
             assertThat(snapshot(target)).isEqualTo(before)
@@ -440,6 +440,24 @@ class BackupRepositoryImplTest {
                     .single { it.id == 4L }
                     .installments,
             ).isEqualTo(3)
+        }
+
+    @Test
+    fun `round trip version 5 keeps the transit card fare and its top-up`() =
+        runTest {
+            val transit = validTransitBackupDto()
+
+            val result = repository(target).importBackup(parser.encode(transit))
+
+            assertThat(result).isEqualTo(
+                DomainResult.Success(BackupSummary(accounts = 4, categories = 5, transactions = 6, cardStatements = 2)),
+            )
+            assertThat(target.accountDao().getById(4L)?.fare).isEqualTo(350_000L)
+            assertThat(target.accountDao().getById(4L)?.type).isEqualTo(AccountType.TRANSIT_CARD)
+            assertThat(target.accountDao().getById(1L)?.fare).isNull()
+            val exported = (repository(target).exportBackup() as DomainResult.Success).value
+            val decoded = (parser.decode(exported) as DomainResult.Success).value
+            assertThat(decoded.copy(exportedAt = transit.exportedAt, appVersion = transit.appVersion)).isEqualTo(transit)
         }
 
     @Test

@@ -6,10 +6,12 @@ import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.fake.FakeAccountRepository
 import com.crguarin.wallet.domain.fake.FakeCardStatementRepository
+import com.crguarin.wallet.domain.fake.FakeCategoryRepository
 import com.crguarin.wallet.domain.fake.FakePreferencesRepository
 import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
+import com.crguarin.wallet.domain.fake.FakeTransactionRunner
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.Transaction
@@ -17,12 +19,16 @@ import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.card.CardStatement
 import com.crguarin.wallet.domain.model.card.StatementPaymentStatus
 import com.crguarin.wallet.domain.usecase.ArchiveAccountUseCase
+import com.crguarin.wallet.domain.usecase.CheckNegativeBalanceUseCase
 import com.crguarin.wallet.domain.usecase.DeleteAccountUseCase
+import com.crguarin.wallet.domain.usecase.DeleteTransactionUseCase
 import com.crguarin.wallet.domain.usecase.ObserveDailyTotalsUseCase
 import com.crguarin.wallet.domain.usecase.ObserveMonthSummaryUseCase
 import com.crguarin.wallet.domain.usecase.ObserveTransactionsUseCase
+import com.crguarin.wallet.domain.usecase.SaveTransactionUseCase
 import com.crguarin.wallet.domain.usecase.UnarchiveAccountUseCase
 import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewUseCase
+import com.crguarin.wallet.domain.usecase.transit.RegisterTripUseCase
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -55,6 +61,9 @@ class AccountDetailViewModelTest {
     private lateinit var archiveAccountUseCase: ArchiveAccountUseCase
     private lateinit var unarchiveAccountUseCase: UnarchiveAccountUseCase
     private lateinit var deleteAccountUseCase: DeleteAccountUseCase
+    private lateinit var categoryRepository: FakeCategoryRepository
+    private lateinit var registerTripUseCase: RegisterTripUseCase
+    private lateinit var deleteTransactionUseCase: DeleteTransactionUseCase
     private lateinit var savedStateHandle: SavedStateHandle
     private lateinit var viewModel: AccountDetailViewModel
 
@@ -85,6 +94,22 @@ class AccountDetailViewModelTest {
         archiveAccountUseCase = ArchiveAccountUseCase(accountRepository)
         unarchiveAccountUseCase = UnarchiveAccountUseCase(accountRepository)
         deleteAccountUseCase = DeleteAccountUseCase(accountRepository, FakeRecurringRepository())
+        categoryRepository = FakeCategoryRepository()
+        registerTripUseCase =
+            RegisterTripUseCase(
+                accountRepository,
+                categoryRepository,
+                SaveTransactionUseCase(
+                    transactionRepository,
+                    accountRepository,
+                    categoryRepository,
+                    timeProvider,
+                    CheckNegativeBalanceUseCase(accountRepository, transactionRepository),
+                    FakeTransactionRunner(),
+                ),
+                timeProvider,
+            )
+        deleteTransactionUseCase = DeleteTransactionUseCase(transactionRepository, cardStatementRepository, FakeTransactionRunner())
 
         // Mock savedStateHandle for SavedStateHandle.toRoute<AccountDetail>()
         savedStateHandle = SavedStateHandle(mapOf("accountId" to 42L))
@@ -104,6 +129,8 @@ class AccountDetailViewModelTest {
                 archiveAccountUseCase = archiveAccountUseCase,
                 unarchiveAccountUseCase = unarchiveAccountUseCase,
                 deleteAccountUseCase = deleteAccountUseCase,
+                registerTripUseCase = registerTripUseCase,
+                deleteTransactionUseCase = deleteTransactionUseCase,
                 timeProvider = timeProvider,
                 observeCardOverviewUseCase =
                     ObserveCardOverviewUseCase(accountRepository, cardStatementRepository, timeProvider),
@@ -448,6 +475,185 @@ class AccountDetailViewModelTest {
                 assertThat(state.cardOverview?.paymentStatus).isEqualTo(StatementPaymentStatus.PAID)
                 assertThat(state.cardOverview?.pendingStatementAmount).isEqualTo(Money.ZERO)
                 assertThat(state.payAmountMinor).isNull()
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    private fun transitCard(fare: Money? = Money(350_000L)) =
+        account.copy(
+            name = "Cívica",
+            type = AccountType.TRANSIT_CARD,
+            initialBalance = Money(1_000_000L),
+            icon = "directions_bus",
+            fare = fare,
+        )
+
+    @Test
+    fun `transit card exposes the trips left and a balance that is not low`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                accountList = listOf(transitCard()),
+                balanceMap = mapOf(42L to Money(1_050_000L)),
+            )
+
+            viewModel.uiState.test {
+                val state = awaitItem()
+                assertThat(state.isTransitCard).isTrue()
+                assertThat(state.tripsLeft).isEqualTo(3)
+                assertThat(state.isLowTransitBalance).isFalse()
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `registering a trip creates an expense for the fare and emits TripRegistered`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                accountList = listOf(transitCard()),
+                balanceMap = mapOf(42L to Money(1_050_000L)),
+            )
+
+            viewModel.events.test {
+                viewModel.onRegisterTripClick()
+
+                val event = awaitItem() as AccountDetailEvent.TripRegistered
+                val trip = transactionRepository.getTransaction(event.transactionId)
+                assertThat(trip?.type).isEqualTo(TransactionType.EXPENSE)
+                assertThat(trip?.amount).isEqualTo(Money(350_000L))
+                assertThat(trip?.accountId).isEqualTo(42L)
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `a trip the balance cannot pay asks for confirmation before registering`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                accountList = listOf(transitCard()),
+                balanceMap = mapOf(42L to Money(200_000L)),
+            )
+
+            viewModel.uiState.test {
+                assertThat(awaitItem().isLowTransitBalance).isTrue()
+
+                viewModel.events.test {
+                    viewModel.onRegisterTripClick()
+                    expectNoEvents()
+                    cancelAndIgnoreRemainingEvents()
+                }
+                assertThat(awaitItem().showTripNegativeDialog).isTrue()
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `confirming a trip on a low balance registers it`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                accountList = listOf(transitCard()),
+                balanceMap = mapOf(42L to Money(200_000L)),
+            )
+
+            viewModel.uiState.test {
+                awaitItem()
+                viewModel.onRegisterTripClick()
+                assertThat(awaitItem().showTripNegativeDialog).isTrue()
+
+                viewModel.events.test {
+                    viewModel.confirmTripDespiteBalance()
+
+                    val event = awaitItem() as AccountDetailEvent.TripRegistered
+                    assertThat(transactionRepository.getTransaction(event.transactionId)?.amount)
+                        .isEqualTo(Money(350_000L))
+
+                    cancelAndIgnoreRemainingEvents()
+                }
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `registering a trip without a fare reports the error`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(listOf(transitCard(fare = null)))
+
+            viewModel.events.test {
+                viewModel.onRegisterTripClick()
+
+                val event = awaitItem() as AccountDetailEvent.ShowSnackbar
+                assertThat(event.messageRes).isEqualTo(R.string.error_fare_invalid)
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `undo removes the trip that was just registered`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                accountList = listOf(transitCard()),
+                balanceMap = mapOf(42L to Money(1_050_000L)),
+            )
+
+            viewModel.events.test {
+                viewModel.onRegisterTripClick()
+                val event = awaitItem() as AccountDetailEvent.TripRegistered
+                assertThat(transactionRepository.getTransaction(event.transactionId)).isNotNull()
+
+                viewModel.undoTrip(event.transactionId)
+                assertThat(transactionRepository.getTransaction(event.transactionId)).isNull()
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `recharge source is the last used cash or savings account other than the card`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                accountList =
+                    listOf(
+                        transitCard(),
+                        activeAccount(id = 1L, name = "Efectivo").copy(type = AccountType.CASH, sortOrder = 0),
+                        activeAccount(id = 2L, name = "Ahorros").copy(sortOrder = 1),
+                        activeAccount(id = 7L, name = "RappiCard").copy(
+                            type = AccountType.CREDIT_CARD,
+                            icon = "credit_card",
+                            sortOrder = 2,
+                        ),
+                    ),
+            )
+
+            viewModel.uiState.test {
+                assertThat(awaitItem().rechargeFromAccountId).isEqualTo(1L)
+
+                preferencesRepository.setLastUsedAccountId(2L)
+                assertThat(awaitItem().rechargeFromAccountId).isEqualTo(2L)
+
+                preferencesRepository.setLastUsedAccountId(7L)
+                assertThat(awaitItem().rechargeFromAccountId).isEqualTo(1L)
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `a transit card is never the source of a card payment`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                accountList =
+                    listOf(
+                        transitCard().copy(sortOrder = 0),
+                        activeAccount(id = 1L, name = "Efectivo").copy(type = AccountType.CASH, sortOrder = 1),
+                    ),
+            )
+
+            viewModel.uiState.test {
+                assertThat(awaitItem().payFromAccountId).isEqualTo(1L)
 
                 cancelAndIgnoreRemainingEvents()
             }

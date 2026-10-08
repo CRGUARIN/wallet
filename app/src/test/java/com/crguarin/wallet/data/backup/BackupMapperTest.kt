@@ -5,6 +5,7 @@ import com.crguarin.wallet.data.db.DebtEntity
 import com.crguarin.wallet.data.db.DebtPaymentEntity
 import com.crguarin.wallet.data.db.RecurringPaymentEntity
 import com.crguarin.wallet.data.db.TransactionEntity
+import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.debt.DebtDirection
@@ -63,6 +64,20 @@ class BackupMapperTest {
         assertThat(entity.statementDay).isEqualTo(15)
         assertThat(entity.paymentDueDay).isEqualTo(5)
         assertThat(entity.initialBalance).isEqualTo(-2_000_000L)
+    }
+
+    @Test
+    fun `transit fare round trips through the entity in minor units`() {
+        val transit = validTransitBackupDto().accounts.single { it.type == AccountType.TRANSIT_CARD }
+
+        assertThat(transit.toEntity().fare).isEqualTo(350_000L)
+        assertThat(transit.toEntity().toBackupDto()).isEqualTo(transit)
+    }
+
+    @Test
+    fun `accounts without a fare map to a null fare both ways`() {
+        assertThat(dto.accounts.map { it.toEntity().fare }).containsExactly(null, null).inOrder()
+        assertThat(dto.accounts.map { it.toEntity().toBackupDto().fare }).containsExactly(null, null).inOrder()
     }
 
     @Test

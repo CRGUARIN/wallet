@@ -28,4 +28,8 @@ data class Account(
      * Day of month (1..31) when payment is due. Only applies to [AccountType.CREDIT_CARD].
      */
     val paymentDueDay: Int? = null,
+    /**
+     * Fare deducted per trip. Only applies to [AccountType.TRANSIT_CARD]; null for other types.
+     */
+    val fare: Money? = null,
 )

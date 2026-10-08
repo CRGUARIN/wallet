@@ -259,3 +259,43 @@ fun validDebtBackupDto(): BackupDto {
             ),
     )
 }
+
+/**
+ * A valid version 5 backup: the card backup plus a transit card (account 4) with a fare and
+ * one top-up transfer from the cash account into it.
+ */
+fun validTransitBackupDto(): BackupDto {
+    val card = validCardBackupDto()
+    return card.copy(
+        accounts =
+            card.accounts +
+                AccountDto(
+                    id = 4,
+                    name = "Cívica",
+                    type = AccountType.TRANSIT_CARD,
+                    currencyCode = "COP",
+                    initialBalance = 0,
+                    color = 0xFF00838F.toInt(),
+                    icon = "directions_bus",
+                    includeInTotal = true,
+                    isArchived = false,
+                    sortOrder = 3,
+                    createdAt = 1_790_000_000_003,
+                    fare = 350_000,
+                ),
+        transactions =
+            card.transactions +
+                TransactionDto(
+                    id = 6,
+                    type = TransactionType.TRANSFER,
+                    amount = 3_500_000,
+                    accountId = 1,
+                    toAccountId = 4,
+                    categoryId = null,
+                    date = "2026-09-20",
+                    note = "Recarga",
+                    createdAt = 1_790_000_000_000,
+                    updatedAt = 1_790_000_000_000,
+                ),
+    )
+}

@@ -37,4 +37,6 @@ data class AccountEntity(
     val statementDay: Int? = null,
     @ColumnInfo(name = "payment_due_day")
     val paymentDueDay: Int? = null,
+    @ColumnInfo(name = "fare")
+    val fare: Long? = null,
 )

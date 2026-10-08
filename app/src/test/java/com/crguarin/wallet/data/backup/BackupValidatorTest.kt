@@ -45,19 +45,21 @@ class BackupValidatorTest {
 
     @Test
     fun `unsupported schema version is reported as such`() {
-        assertThat(BackupValidator.validate(valid.copy(schemaVersion = 5))).isEqualTo(DomainError.BackupVersionUnsupported)
+        assertThat(BackupValidator.validate(valid.copy(schemaVersion = 6))).isEqualTo(DomainError.BackupVersionUnsupported)
         assertThat(BackupValidator.validate(valid.copy(schemaVersion = 0))).isEqualTo(DomainError.BackupVersionUnsupported)
     }
 
     @Test
-    fun `schema versions 1 to 4 are accepted`() {
+    fun `schema versions 1 to 5 are accepted`() {
         assertThat(BackupValidator.validate(valid.copy(schemaVersion = 1))).isNull()
         assertThat(BackupValidator.validate(valid.copy(schemaVersion = 2))).isNull()
         assertThat(BackupValidator.validate(valid.copy(schemaVersion = 3))).isNull()
         assertThat(BackupValidator.validate(valid.copy(schemaVersion = 4))).isNull()
+        assertThat(BackupValidator.validate(valid.copy(schemaVersion = 5))).isNull()
         assertThat(BackupValidator.validate(validCardBackupDto())).isNull()
         assertThat(BackupValidator.validate(validRecurringBackupDto())).isNull()
         assertThat(BackupValidator.validate(validDebtBackupDto())).isNull()
+        assertThat(BackupValidator.validate(validTransitBackupDto())).isNull()
     }
 
     @Test
@@ -596,5 +598,52 @@ class BackupValidatorTest {
     fun `a single payment larger than its debt is rejected`() {
         assertThat(invalidReason(debtBackup.withDebt(2) { it.copy(amount = 3_000_000) }))
             .isEqualTo("debt payment 3: payments exceed the amount of debt 2")
+    }
+
+    private val transit = validTransitBackupDto()
+
+    private fun BackupDto.withTransitAccount(change: (AccountDto) -> AccountDto) =
+        copy(accounts = accounts.map { if (it.type == AccountType.TRANSIT_CARD) change(it) else it })
+
+    @Test
+    fun `valid transit backup passes and keeps the fare`() {
+        assertThat(BackupValidator.validate(transit)).isNull()
+        assertThat(transit.accounts.single { it.type == AccountType.TRANSIT_CARD }.fare).isEqualTo(350_000L)
+    }
+
+    @Test
+    fun `transit card without fare or with a zero or negative fare is rejected`() {
+        assertThat(invalidReason(transit.withTransitAccount { it.copy(fare = null) }))
+            .isEqualTo("account 4: transit card without fare")
+        assertThat(invalidReason(transit.withTransitAccount { it.copy(fare = 0) })).isEqualTo("account 4: fare must be positive")
+        assertThat(invalidReason(transit.withTransitAccount { it.copy(fare = -5) })).isEqualTo("account 4: fare must be positive")
+    }
+
+    @Test
+    fun `transit fare above the maximum is rejected and the maximum itself is valid`() {
+        assertThat(invalidReason(transit.withTransitAccount { it.copy(fare = Money.MAX_MINOR_UNITS + 1) }))
+            .isEqualTo("account 4: fare too large")
+        assertThat(BackupValidator.validate(transit.withTransitAccount { it.copy(fare = Money.MAX_MINOR_UNITS) })).isNull()
+    }
+
+    @Test
+    fun `fare on a cash, savings or credit card account is rejected`() {
+        assertThat(invalidReason(valid.withAccount { it.copy(fare = 350_000) }))
+            .isEqualTo("account 1: fare on a non-transit account")
+        assertThat(invalidReason(validCardBackupDto().withCardAccount { it.copy(fare = 350_000) }))
+            .isEqualTo("account 3: fare on a non-transit account")
+    }
+
+    @Test
+    fun `transit card cannot carry card fields or a negative balance`() {
+        assertThat(invalidReason(transit.withTransitAccount { it.copy(creditLimit = 1_000_000) }))
+            .isEqualTo("account 4: credit limit on a non-card account")
+        assertThat(invalidReason(transit.withTransitAccount { it.copy(initialBalance = -1) }))
+            .isEqualTo("account 4: negative initial balance")
+    }
+
+    @Test
+    fun `transit card with a zero balance is valid`() {
+        assertThat(BackupValidator.validate(transit.withTransitAccount { it.copy(initialBalance = 0) })).isNull()
     }
 }
