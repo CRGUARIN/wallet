@@ -8,7 +8,8 @@ import androidx.room.Query
 /**
  * Bulk reads and writes used by the backup import/export. Rows keep their ids, and the delete
  * methods are ordered by the foreign keys: card statements first (they point to transactions),
- * then transactions, recurring payments, subcategories, root categories, accounts.
+ * then transactions, recurring payments, subcategories, root categories, accounts. Debt payments
+ * are deleted before debts, and debts are inserted before their payments.
  */
 @Dao
 interface BackupDao {
@@ -26,6 +27,18 @@ interface BackupDao {
 
     @Query("SELECT * FROM recurring_payments ORDER BY id")
     suspend fun getRecurringPayments(): List<RecurringPaymentEntity>
+
+    @Query("SELECT * FROM debts ORDER BY id")
+    suspend fun getDebts(): List<DebtEntity>
+
+    @Query("SELECT * FROM debt_payments ORDER BY id")
+    suspend fun getDebtPayments(): List<DebtPaymentEntity>
+
+    @Query("DELETE FROM debt_payments")
+    suspend fun deleteAllDebtPayments()
+
+    @Query("DELETE FROM debts")
+    suspend fun deleteAllDebts()
 
     @Query("DELETE FROM card_statements")
     suspend fun deleteAllCardStatements()
@@ -59,4 +72,10 @@ interface BackupDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertCardStatements(statements: List<CardStatementEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertDebts(debts: List<DebtEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertDebtPayments(payments: List<DebtPaymentEntity>)
 }

@@ -12,6 +12,9 @@ import com.crguarin.wallet.ui.accounts.AccountsRoute
 import com.crguarin.wallet.ui.cards.CardReconcileRoute
 import com.crguarin.wallet.ui.categories.CategoriesRoute
 import com.crguarin.wallet.ui.categories.CategoryEditRoute
+import com.crguarin.wallet.ui.debts.DebtDetailRoute
+import com.crguarin.wallet.ui.debts.DebtEditRoute
+import com.crguarin.wallet.ui.debts.DebtListRoute
 import com.crguarin.wallet.ui.home.HomeRoute
 import com.crguarin.wallet.ui.onboarding.OnboardingRoute
 import com.crguarin.wallet.ui.recurring.RecurringEditRoute
@@ -81,6 +84,9 @@ fun WalletNavHost(
                 },
                 onViewAllRecurring = {
                     navController.navigate(RecurringList)
+                },
+                onViewDebts = {
+                    navController.navigate(DebtList)
                 },
             )
         }
@@ -153,6 +159,15 @@ fun WalletNavHost(
                 onViewAllTransactions = { accountId ->
                     navController.navigate(Transactions(accountId = accountId))
                 },
+                onRechargeClick = { fromAccountId, toAccountId ->
+                    navController.navigate(
+                        TransactionEdit(
+                            initialType = com.crguarin.wallet.domain.model.TransactionType.TRANSFER,
+                            accountId = fromAccountId,
+                            toAccountId = toAccountId,
+                        ),
+                    )
+                },
                 onPayCardClick = { fromAccountId, toAccountId, initialAmountMinor ->
                     navController.navigate(
                         TransactionEdit(
@@ -206,6 +221,9 @@ fun WalletNavHost(
                 onRecurringClick = {
                     navController.navigate(RecurringList)
                 },
+                onDebtsClick = {
+                    navController.navigate(DebtList)
+                },
             )
         }
         composable<CardReconcile> {
@@ -237,6 +255,35 @@ fun WalletNavHost(
                 onNavigateBack = { navController.popBackStack() },
                 onTransactionClick = { transactionId ->
                     navController.navigate(TransactionEdit(transactionId = transactionId))
+                },
+            )
+        }
+        composable<DebtList> {
+            DebtListRoute(
+                onNavigateBack = { navController.popBackStack() },
+                onAddClick = { navController.navigate(DebtEdit()) },
+                onDebtClick = { debtId ->
+                    navController.navigate(DebtDetail(debtId = debtId))
+                },
+            )
+        }
+        composable<DebtDetail> {
+            DebtDetailRoute(
+                onNavigateBack = { navController.popBackStack() },
+                onEditClick = { debtId ->
+                    navController.navigate(DebtEdit(debtId = debtId))
+                },
+            )
+        }
+        composable<DebtEdit> {
+            DebtEditRoute(
+                onNavigateBack = { navController.popBackStack() },
+                // Deleting from the editor opened by a detail screen leaves the detail, which no longer exists.
+                onDeleted = {
+                    navController.navigate(DebtList) {
+                        popUpTo(DebtList) { inclusive = false }
+                        launchSingleTop = true
+                    }
                 },
             )
         }

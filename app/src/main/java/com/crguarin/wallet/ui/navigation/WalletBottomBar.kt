@@ -1,23 +1,35 @@
 package com.crguarin.wallet.ui.navigation
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.automirrored.outlined.ReceiptLong
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.PieChart
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
@@ -29,37 +41,43 @@ enum class TopLevelDestination(
     val route: Any,
     val routeClass: KClass<*>,
     @StringRes val labelRes: Int,
-    val icon: ImageVector,
+    val selectedIcon: ImageVector,
+    val unselectedIcon: ImageVector,
 ) {
     HOME(
         route = Home,
         routeClass = Home::class,
         labelRes = R.string.nav_home,
-        icon = Icons.Default.Home,
+        selectedIcon = Icons.Filled.Home,
+        unselectedIcon = Icons.Outlined.Home,
     ),
     TRANSACTIONS(
         route = Transactions(),
         routeClass = Transactions::class,
         labelRes = R.string.nav_transactions,
-        icon = Icons.AutoMirrored.Filled.ReceiptLong,
+        selectedIcon = Icons.AutoMirrored.Filled.ReceiptLong,
+        unselectedIcon = Icons.AutoMirrored.Outlined.ReceiptLong,
     ),
     REPORTS(
         route = Reports,
         routeClass = Reports::class,
         labelRes = R.string.nav_reports,
-        icon = Icons.Default.PieChart,
+        selectedIcon = Icons.Filled.PieChart,
+        unselectedIcon = Icons.Outlined.PieChart,
     ),
     ACCOUNTS(
         route = Accounts,
         routeClass = Accounts::class,
         labelRes = R.string.nav_accounts,
-        icon = Icons.Default.AccountBalanceWallet,
+        selectedIcon = Icons.Filled.AccountBalanceWallet,
+        unselectedIcon = Icons.Outlined.AccountBalanceWallet,
     ),
     SETTINGS(
         route = Settings,
         routeClass = Settings::class,
         labelRes = R.string.nav_settings,
-        icon = Icons.Default.Settings,
+        selectedIcon = Icons.Filled.Settings,
+        unselectedIcon = Icons.Outlined.Settings,
     ),
 }
 
@@ -102,38 +120,54 @@ fun WalletBottomBar(
     val rootIndex = ownerRootIndex(stackTabs)
     val ownerTab = ownerTopLevelDestination(stackTabs)
 
-    NavigationBar(modifier = modifier) {
-        TopLevelDestination.entries.forEach { destination ->
-            NavigationBarItem(
-                selected = destination == ownerTab,
-                onClick = {
-                    val rootEntry = backStack.getOrNull(rootIndex)
-                    if (destination == ownerTab && rootEntry != null) {
-                        // Tapping the owning tab pops back to its root instead of restoring the
-                        // saved stack (which would show the nested screen again). Already at the
-                        // root: nothing to do.
-                        if (rootEntry != backStack.last()) {
-                            navController.popBackStack(rootEntry.destination.id, inclusive = false)
+    Column(modifier = modifier) {
+        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+        NavigationBar(
+            containerColor = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp,
+        ) {
+            TopLevelDestination.entries.forEach { destination ->
+                val selected = destination == ownerTab
+                NavigationBarItem(
+                    selected = selected,
+                    onClick = {
+                        val rootEntry = backStack.getOrNull(rootIndex)
+                        if (destination == ownerTab && rootEntry != null) {
+                            // Tapping the owning tab pops back to its root instead of restoring the
+                            // saved stack (which would show the nested screen again). Already at the
+                            // root: nothing to do.
+                            if (rootEntry != backStack.last()) {
+                                navController.popBackStack(rootEntry.destination.id, inclusive = false)
+                            }
+                        } else {
+                            navController.navigateToTopLevelDestination(destination.route)
                         }
-                    } else {
-                        navController.navigateToTopLevelDestination(destination.route)
-                    }
-                },
-                icon = {
-                    Icon(
-                        imageVector = destination.icon,
-                        contentDescription = stringResource(destination.labelRes),
-                    )
-                },
-                label = {
-                    // With 5 destinations and font scale 2.0 the label must not wrap or overlap.
-                    Text(
-                        text = stringResource(destination.labelRes),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                },
-            )
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = if (selected) destination.selectedIcon else destination.unselectedIcon,
+                            contentDescription = stringResource(destination.labelRes),
+                        )
+                    },
+                    label = {
+                        // With 5 destinations and font scale 2.0 the label must not wrap or overlap.
+                        Text(
+                            text = stringResource(destination.labelRes),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            fontWeight = if (selected) FontWeight.SemiBold else null,
+                        )
+                    },
+                    colors =
+                        NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.onSurface,
+                            selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                            indicatorColor = Color.Transparent,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        ),
+                )
+            }
         }
     }
 }

@@ -9,6 +9,8 @@ import com.crguarin.wallet.data.db.AccountEntity
 import com.crguarin.wallet.data.db.BackupDao
 import com.crguarin.wallet.data.db.CardStatementEntity
 import com.crguarin.wallet.data.db.CategoryEntity
+import com.crguarin.wallet.data.db.DebtEntity
+import com.crguarin.wallet.data.db.DebtPaymentEntity
 import com.crguarin.wallet.data.db.RecurringPaymentEntity
 import com.crguarin.wallet.data.db.TransactionEntity
 import com.crguarin.wallet.data.db.WalletDatabase
@@ -19,6 +21,7 @@ import com.crguarin.wallet.domain.model.BackupSummary
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.UserPreferences
+import com.crguarin.wallet.domain.model.debt.DebtDirection
 import com.crguarin.wallet.domain.model.recurring.RecurringMode
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
@@ -81,6 +84,8 @@ class BackupRepositoryImplTest {
         val transactions: List<TransactionEntity>,
         val statements: List<CardStatementEntity>,
         val payments: List<RecurringPaymentEntity>,
+        val debts: List<DebtEntity>,
+        val debtPayments: List<DebtPaymentEntity>,
         val balances: List<Pair<Long, Long>>,
     )
 
@@ -91,6 +96,8 @@ class BackupRepositoryImplTest {
             transactions = database.backupDao().getTransactions(),
             statements = database.backupDao().getCardStatements(),
             payments = database.backupDao().getRecurringPayments(),
+            debts = database.backupDao().getDebts(),
+            debtPayments = database.backupDao().getDebtPayments(),
             balances =
                 database
                     .accountDao()
@@ -242,7 +249,7 @@ class BackupRepositoryImplTest {
             val exported = (repository(source).exportBackup() as DomainResult.Success).value
             val dto = (parser.decode(exported) as DomainResult.Success).value
 
-            assertThat(dto.schemaVersion).isEqualTo(3)
+            assertThat(dto.schemaVersion).isEqualTo(5)
             assertThat(dto.appVersion).isEqualTo("1.0.0")
             assertThat(dto.currency).isEqualTo("COP")
             assertThat(dto.exportedAt).isEqualTo("2026-09-28T15:00:00Z")
@@ -283,7 +290,7 @@ class BackupRepositoryImplTest {
             populate(target)
             val before = snapshot(target)
 
-            val result = repository(target).importBackup(parser.encode(validBackupDto().copy(schemaVersion = 4)))
+            val result = repository(target).importBackup(parser.encode(validBackupDto().copy(schemaVersion = 6)))
 
             assertThat(result.errorOrNull()).isEqualTo(DomainError.BackupVersionUnsupported)
             assertThat(snapshot(target)).isEqualTo(before)
@@ -415,7 +422,7 @@ class BackupRepositoryImplTest {
         runTest {
             val card = validCardBackupDto()
 
-            val result = repository(target).importBackup(parser.encode(card))
+            val result = repository(target).importBackup(parser.encode(card.copy(schemaVersion = 2)))
 
             assertThat(result).isEqualTo(DomainResult.Success(BackupSummary(3, 5, 5, cardStatements = 2)))
             val exported = (repository(target).exportBackup() as DomainResult.Success).value
@@ -433,6 +440,24 @@ class BackupRepositoryImplTest {
                     .single { it.id == 4L }
                     .installments,
             ).isEqualTo(3)
+        }
+
+    @Test
+    fun `round trip version 5 keeps the transit card fare and its top-up`() =
+        runTest {
+            val transit = validTransitBackupDto()
+
+            val result = repository(target).importBackup(parser.encode(transit))
+
+            assertThat(result).isEqualTo(
+                DomainResult.Success(BackupSummary(accounts = 4, categories = 5, transactions = 6, cardStatements = 2)),
+            )
+            assertThat(target.accountDao().getById(4L)?.fare).isEqualTo(350_000L)
+            assertThat(target.accountDao().getById(4L)?.type).isEqualTo(AccountType.TRANSIT_CARD)
+            assertThat(target.accountDao().getById(1L)?.fare).isNull()
+            val exported = (repository(target).exportBackup() as DomainResult.Success).value
+            val decoded = (parser.decode(exported) as DomainResult.Success).value
+            assertThat(decoded.copy(exportedAt = transit.exportedAt, appVersion = transit.appVersion)).isEqualTo(transit)
         }
 
     @Test
@@ -459,7 +484,7 @@ class BackupRepositoryImplTest {
         runTest {
             val backup = validRecurringBackupDto()
 
-            val result = repository(target).importBackup(parser.encode(backup))
+            val result = repository(target).importBackup(parser.encode(backup.copy(schemaVersion = 3)))
 
             assertThat(result).isEqualTo(
                 DomainResult.Success(BackupSummary(3, 5, 6, cardStatements = 2, recurringPayments = 2)),
@@ -567,6 +592,97 @@ class BackupRepositoryImplTest {
             assertThat(summary).isEqualTo(
                 DomainResult.Success(BackupSummary(3, 5, 6, cardStatements = 2, recurringPayments = 2)),
             )
+            assertThat(snapshot(target)).isEqualTo(before)
+        }
+
+    @Test
+    fun `round trip version 4 keeps debts and their payments`() =
+        runTest {
+            val backup = validDebtBackupDto()
+
+            val result = repository(target).importBackup(parser.encode(backup))
+
+            assertThat(result).isEqualTo(
+                DomainResult.Success(BackupSummary(3, 5, 6, cardStatements = 2, recurringPayments = 2, debts = 2)),
+            )
+            val debts = target.backupDao().getDebts()
+            assertThat(debts.map { it.id }).containsExactly(1L, 2L).inOrder()
+            val owed = debts.single { it.id == 1L }
+            assertThat(owed.personName).isEqualTo("Juan Pérez")
+            assertThat(owed.direction).isEqualTo(DebtDirection.OWED_TO_ME)
+            assertThat(owed.amount).isEqualTo(50_000_000L)
+            assertThat(owed.dueDate).isEqualTo(LocalDate.of(2026, 12, 1))
+            assertThat(owed.note).isEqualTo("Préstamo para la moto")
+            assertThat(debts.single { it.id == 2L }.dueDate).isNull()
+            val payments = target.backupDao().getDebtPayments()
+            assertThat(payments.map { it.id }).containsExactly(1L, 2L, 3L).inOrder()
+            assertThat(payments.single { it.id == 2L }.date).isEqualTo(LocalDate.of(2026, 10, 1))
+            assertThat(payments.single { it.id == 3L }.debtId).isEqualTo(2L)
+
+            val exported = (repository(target).exportBackup() as DomainResult.Success).value
+            val decoded = (parser.decode(exported) as DomainResult.Success).value
+            assertThat(decoded.copy(exportedAt = backup.exportedAt, appVersion = backup.appVersion)).isEqualTo(backup)
+        }
+
+    @Test
+    fun `export then import keeps debts and their payments`() =
+        runTest {
+            repository(source).importBackup(parser.encode(validDebtBackupDto()))
+            val exported = (repository(source).exportBackup() as DomainResult.Success).value
+
+            repository(target).importBackup(exported)
+
+            assertThat(snapshot(target).debtPayments).hasSize(3)
+            assertThat(snapshot(target)).isEqualTo(snapshot(source))
+        }
+
+    @Test
+    fun `importing replaces existing debts and their payments`() =
+        runTest {
+            val backup = validDebtBackupDto()
+            repository(target).importBackup(parser.encode(backup))
+            assertThat(target.backupDao().getDebtPayments()).hasSize(3)
+
+            val replacement =
+                backup.copy(
+                    debts = backup.debts.filter { it.id == 2L },
+                    debtPayments = backup.debtPayments.filter { it.debtId == 2L },
+                )
+            val result = repository(target).importBackup(parser.encode(replacement))
+
+            assertThat(result.getOrNull()?.debts).isEqualTo(1)
+            assertThat(target.backupDao().getDebts().map { it.id }).containsExactly(2L)
+            assertThat(target.backupDao().getDebtPayments().map { it.id }).containsExactly(3L)
+        }
+
+    @Test
+    fun `importing a backup without debts removes the existing ones`() =
+        runTest {
+            repository(target).importBackup(parser.encode(validDebtBackupDto()))
+
+            val result = repository(target).importBackup(parser.encode(validRecurringBackupDto()))
+
+            assertThat(result.getOrNull()?.debts).isEqualTo(0)
+            assertThat(target.backupDao().getDebts()).isEmpty()
+            assertThat(target.backupDao().getDebtPayments()).isEmpty()
+        }
+
+    @Test
+    fun `failure inserting the debt payments rolls back to the previous data`() =
+        runTest {
+            repository(target).importBackup(parser.encode(validDebtBackupDto()))
+            val before = snapshot(target)
+            val real = target.backupDao()
+            val failing =
+                object : BackupDao by real {
+                    override suspend fun insertDebtPayments(payments: List<DebtPaymentEntity>) {
+                        error("disk failure")
+                    }
+                }
+
+            val result = repository(target, dao = failing).importBackup(parser.encode(validBackupDto()))
+
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.BackupFailed)
             assertThat(snapshot(target)).isEqualTo(before)
         }
 }

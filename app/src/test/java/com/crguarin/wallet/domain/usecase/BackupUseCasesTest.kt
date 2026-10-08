@@ -6,11 +6,13 @@ import com.crguarin.wallet.domain.fake.FakeAccountRepository
 import com.crguarin.wallet.domain.fake.FakeBackupDocumentStore
 import com.crguarin.wallet.domain.fake.FakeBackupRepository
 import com.crguarin.wallet.domain.fake.FakeCategoryRepository
+import com.crguarin.wallet.domain.fake.FakeDebtRepository
 import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.testProcessDueRecurringUseCase
 import com.crguarin.wallet.domain.model.BackupPreview
 import com.crguarin.wallet.domain.model.BackupSummary
+import com.crguarin.wallet.domain.model.debt.testDebt
 import com.crguarin.wallet.domain.model.recurring.testAccount
 import com.crguarin.wallet.domain.model.recurring.testCategory
 import com.crguarin.wallet.domain.model.recurring.testPayment
@@ -72,7 +74,7 @@ class BackupUseCasesTest {
             store.readResult = DomainResult.Success("""{"a":1}""")
             repository.parseResult = DomainResult.Success(summary)
 
-            val result = PreviewBackupUseCase(repository, store)("content://docs/2")
+            val result = PreviewBackupUseCase(repository, store, FakeDebtRepository())("content://docs/2")
 
             assertThat(result).isEqualTo(DomainResult.Success(BackupPreview("""{"a":1}""", summary)))
             assertThat(store.readUris).containsExactly("content://docs/2")
@@ -80,11 +82,37 @@ class BackupUseCasesTest {
         }
 
     @Test
+    fun `preview counts the stored debts that a backup without debts would delete`() =
+        runTest {
+            store.readResult = DomainResult.Success("""{"a":1}""")
+            repository.parseResult = DomainResult.Success(summary.copy(debts = 0))
+            val debts = FakeDebtRepository()
+            debts.setInitialData(listOf(testDebt(id = 1L), testDebt(id = 2L)))
+
+            val result = PreviewBackupUseCase(repository, store, debts)("content://docs/2")
+
+            assertThat((result as DomainResult.Success).value.debtsLost).isEqualTo(2)
+        }
+
+    @Test
+    fun `preview warns about no debts when the backup brings its own`() =
+        runTest {
+            store.readResult = DomainResult.Success("""{"a":1}""")
+            repository.parseResult = DomainResult.Success(summary.copy(debts = 1))
+            val debts = FakeDebtRepository()
+            debts.setInitialData(listOf(testDebt(id = 1L)))
+
+            val result = PreviewBackupUseCase(repository, store, debts)("content://docs/2")
+
+            assertThat((result as DomainResult.Success).value.debtsLost).isEqualTo(0)
+        }
+
+    @Test
     fun `preview fails when the file cannot be read and does not parse`() =
         runTest {
             store.readResult = DomainResult.Failure(DomainError.BackupFailed)
 
-            val result = PreviewBackupUseCase(repository, store)("content://docs/2")
+            val result = PreviewBackupUseCase(repository, store, FakeDebtRepository())("content://docs/2")
 
             assertThat(result.errorOrNull()).isEqualTo(DomainError.BackupFailed)
             assertThat(repository.parsedJson).isEmpty()
@@ -95,7 +123,7 @@ class BackupUseCasesTest {
         runTest {
             repository.parseResult = DomainResult.Failure(DomainError.BackupVersionUnsupported)
 
-            val result = PreviewBackupUseCase(repository, store)("content://docs/2")
+            val result = PreviewBackupUseCase(repository, store, FakeDebtRepository())("content://docs/2")
 
             assertThat(result.errorOrNull()).isEqualTo(DomainError.BackupVersionUnsupported)
         }
@@ -103,7 +131,7 @@ class BackupUseCasesTest {
     @Test
     fun `preview never imports`() =
         runTest {
-            PreviewBackupUseCase(repository, store)("content://docs/2")
+            PreviewBackupUseCase(repository, store, FakeDebtRepository())("content://docs/2")
 
             assertThat(repository.importedJson).isEmpty()
         }

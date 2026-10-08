@@ -93,7 +93,7 @@ fun MoneyText(
 
     Text(
         text = text,
-        style = style,
+        style = style.merge(TextStyle(fontFeatureSettings = "tnum")),
         color = textColor,
         modifier = modifier.semantics { contentDescription = description },
     )

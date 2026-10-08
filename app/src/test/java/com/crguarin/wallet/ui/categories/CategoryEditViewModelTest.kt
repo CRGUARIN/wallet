@@ -2,9 +2,11 @@ package com.crguarin.wallet.ui.categories
 
 import androidx.lifecycle.SavedStateHandle
 import app.cash.turbine.test
+import com.crguarin.wallet.R
 import com.crguarin.wallet.domain.fake.FakeCategoryRepository
 import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeSystemCategoryNames
+import com.crguarin.wallet.domain.fake.FakeTransactionRunner
 import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryNameMatcher
 import com.crguarin.wallet.domain.model.CategoryType
@@ -71,7 +73,12 @@ class CategoryEditViewModelTest {
             )
         recurringRepository = FakeRecurringRepository()
         saveCategoryUseCase =
-            SaveCategoryUseCase(categoryRepository, recurringRepository, CategoryNameMatcher(systemCategoryNames))
+            SaveCategoryUseCase(
+                categoryRepository,
+                recurringRepository,
+                CategoryNameMatcher(systemCategoryNames),
+                FakeTransactionRunner(),
+            )
         deleteCategoryUseCase = DeleteCategoryUseCase(categoryRepository, recurringRepository)
         reassignAndDeleteCategoryUseCase = ReassignAndDeleteCategoryUseCase(categoryRepository)
         archiveCategoryUseCase = ArchiveCategoryUseCase(categoryRepository)
@@ -409,6 +416,121 @@ class CategoryEditViewModelTest {
                 val saved = categoryRepository.getCategory(navigateBack.savedCategoryId!!)
                 assertThat(saved?.name).isEqualTo("Alquiler de autos")
             }
+        }
+
+    @Test
+    fun `new root starts with the first color that no other root of its type uses`() =
+        runTest(testDispatcher) {
+            val savedStateHandle =
+                SavedStateHandle(
+                    mapOf(
+                        "categoryId" to null,
+                        "parentId" to null,
+                        "type" to CategoryType.EXPENSE,
+                    ),
+                )
+            val viewModel = createViewModel(savedStateHandle)
+
+            // Food (Red 400) and Vehículo (Blue 400) are taken, so the first free color is Red 800.
+            val state = viewModel.uiState.value
+            assertThat(state.color).isEqualTo(0xFFC62828.toInt())
+            assertThat(state.usedColors).containsExactly(systemFoodCategory.color, customParentCategory.color)
+        }
+
+    @Test
+    fun `edit mode does not list the colors of its own family`() =
+        runTest(testDispatcher) {
+            categoryRepository.saveCategory(
+                Category(
+                    id = 21L,
+                    name = "Taller",
+                    type = CategoryType.EXPENSE,
+                    parentId = 20L,
+                    color = 0xFF26C6DA.toInt(),
+                    icon = "build",
+                ),
+            )
+            val savedStateHandle =
+                SavedStateHandle(
+                    mapOf(
+                        "categoryId" to 20L,
+                        "parentId" to null,
+                        "type" to CategoryType.EXPENSE,
+                    ),
+                )
+            val viewModel = createViewModel(savedStateHandle)
+
+            val state = viewModel.uiState.value
+            assertThat(state.color).isEqualTo(customParentCategory.color)
+            assertThat(state.usedColors).containsExactly(systemFoodCategory.color)
+        }
+
+    @Test
+    fun `new subcategory keeps the parent color and does not list it as used`() =
+        runTest(testDispatcher) {
+            val savedStateHandle =
+                SavedStateHandle(
+                    mapOf(
+                        "categoryId" to null,
+                        "parentId" to 20L,
+                        "type" to CategoryType.EXPENSE,
+                    ),
+                )
+            val viewModel = createViewModel(savedStateHandle)
+
+            val state = viewModel.uiState.value
+            assertThat(state.color).isEqualTo(customParentCategory.color)
+            assertThat(state.usedColors).containsExactly(systemFoodCategory.color)
+        }
+
+    @Test
+    fun `changing type moves a color that clashes in the new type to a free one`() =
+        runTest(testDispatcher) {
+            categoryRepository.saveCategory(
+                Category(
+                    id = 30L,
+                    name = "Bonificación",
+                    type = CategoryType.INCOME,
+                    color = 0xFFC62828.toInt(),
+                    icon = "work",
+                ),
+            )
+            val savedStateHandle =
+                SavedStateHandle(
+                    mapOf(
+                        "categoryId" to null,
+                        "parentId" to null,
+                        "type" to CategoryType.EXPENSE,
+                    ),
+                )
+            val viewModel = createViewModel(savedStateHandle)
+            assertThat(viewModel.uiState.value.color).isEqualTo(0xFFC62828.toInt())
+
+            viewModel.setType(CategoryType.INCOME)
+
+            val state = viewModel.uiState.value
+            assertThat(state.usedColors).containsExactly(0xFFC62828.toInt())
+            assertThat(state.color).isEqualTo(0xFFEF5350.toInt())
+        }
+
+    @Test
+    fun `saving a color used by another category of the same type shows the color in use error`() =
+        runTest(testDispatcher) {
+            val savedStateHandle =
+                SavedStateHandle(
+                    mapOf(
+                        "categoryId" to null,
+                        "parentId" to null,
+                        "type" to CategoryType.EXPENSE,
+                    ),
+                )
+            val viewModel = createViewModel(savedStateHandle)
+
+            viewModel.setName("Nueva")
+            viewModel.setColor(customParentCategory.color)
+            viewModel.saveCategory()
+
+            assertThat(viewModel.uiState.value.generalErrorRes).isEqualTo(R.string.error_color_in_use)
         }
 
     private fun createViewModel(savedStateHandle: SavedStateHandle): CategoryEditViewModel =

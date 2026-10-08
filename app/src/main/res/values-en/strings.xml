@@ -115,6 +115,28 @@
     <string name="account_type_cash">Cash</string>
     <string name="account_type_savings">Savings account</string>
     <string name="account_type_credit_card">Credit card</string>
+    <string name="account_type_transit_card">Transit card</string>
+    <string name="account_type_transit_card_hint">Like a metro card: top it up and each trip deducts the fare</string>
+    <string name="transit_fare_label">Fare per trip</string>
+    <string name="transit_fare_supporting">Deducted on every trip</string>
+    <string name="transit_current_balance_label">Current card balance</string>
+    <string name="transit_fare_value">Fare: %1$s</string>
+    <string name="transit_low_balance">Not enough for a trip</string>
+    <string name="transit_low_balance_short">Top up soon</string>
+    <string name="transit_action_trip">Log a trip</string>
+    <string name="transit_action_recharge">Top up</string>
+    <string name="transit_trip_registered">Trip logged</string>
+    <string name="transit_trip_negative_title">Not enough balance</string>
+    <string name="transit_trip_negative_message">The card will go negative. Log the trip anyway?</string>
+    <string name="transit_trip_negative_confirm">Log trip</string>
+    <plurals name="transit_trips_left">
+        <item quantity="one">Enough for %d trip</item>
+        <item quantity="other">Enough for %d trips</item>
+    </plurals>
+    <plurals name="transit_trips_short">
+        <item quantity="one">%d trip</item>
+        <item quantity="other">%d trips</item>
+    </plurals>
     <string name="account_default_cash_name">Cash</string>
 
     <!-- Accounts screen -->
@@ -172,6 +194,9 @@
     <!-- Content descriptions (accessibility) -->
     <string name="cd_selected">Selected</string>
     <string name="cd_color">Color</string>
+    <string name="cd_color_in_use">Color in use</string>
+    <string name="category_color_in_use_hint">Crossed-out colors are used by another category of this type</string>
+    <string name="account_color_in_use_hint">Crossed-out colors are used by another account</string>
     <string name="cd_icon">Icon</string>
     <string name="cd_delete_transaction">Delete transaction</string>
 
@@ -294,6 +319,8 @@
     <string name="error_backup_version_unsupported">Unsupported backup version</string>
     <string name="error_backup_failed">The backup operation could not be completed. Your current data was not changed.</string>
     <string name="error_account_type_change_not_allowed">Cannot change the type of an account with transactions</string>
+    <string name="error_fare_invalid">Enter a fare greater than zero</string>
+    <string name="error_color_in_use">That color is already in use. Pick another one.</string>
 
     <!-- System Categories - Expense -->
     <string name="category_food">Food</string>
@@ -545,6 +572,13 @@
     <string name="error_recurring_interval">Enter a number between 1 and 12</string>
     <string name="error_account_has_recurring">This account has recurring payments. Delete them or move them to another account first.</string>
     <string name="error_category_has_recurring">This category has recurring payments. Move them to another category first.</string>
+    <string name="error_debt_amount_below_paid">The amount can\'t be lower than what was already paid</string>
+    <string name="error_debt_payment_exceeds_remaining">The payment is greater than the outstanding amount</string>
+    <string name="error_debt_due_before_date">The due date can\'t be before the debt date</string>
+    <string name="error_debt_already_settled">This debt is already settled</string>
+    <string name="error_debt_payment_before_date">The payment can\'t be before the debt date</string>
+    <string name="error_debt_date_after_payments">The debt date can\'t be after its first payment</string>
+    <string name="error_debt_direction_locked">You can\'t change the type of a debt that already has payments</string>
 
     <!-- Upcoming payments (Home) -->
     <string name="home_upcoming_title">Upcoming payments</string>
@@ -625,4 +659,77 @@
         <item quantity="one">%2$s payment is due in %1$d day</item>
         <item quantity="other">%2$s payment is due in %1$d days</item>
     </plurals>
+    <!-- Debts -->
+    <string name="debts_title">Debts</string>
+    <string name="debts_settings_subtitle">What others owe you and what you owe</string>
+    <string name="debts_new">New debt</string>
+    <string name="debts_edit">Edit debt</string>
+    <string name="debts_add">Add debt</string>
+    <string name="debts_empty_title">No debts</string>
+    <string name="debts_empty_message">Write down what others owe you and what you owe so you never lose track.</string>
+    <string name="debts_total_owed_to_me">Owed to you</string>
+    <string name="debts_total_i_owe">You owe</string>
+    <string name="debts_total_net">Balance</string>
+    <string name="debts_section_settled">Settled</string>
+    <string name="debts_direction_owed_to_me">Owed to me</string>
+    <string name="debts_direction_i_owe">I owe</string>
+    <string name="debts_person_label">Person</string>
+    <string name="debts_amount_label">Amount</string>
+    <string name="debts_date_label">Date</string>
+    <string name="debts_due_date_label">Due date</string>
+    <string name="debts_due_date_none">No due date</string>
+    <string name="debts_due_date_clear">Remove due date</string>
+    <string name="debts_note_label">Description (optional)</string>
+    <string name="debts_save">Save</string>
+    <string name="debts_delete">Delete debt</string>
+    <string name="debts_delete_title">Delete debt?</string>
+    <string name="debts_delete_message">The debt with %1$s and all its payments will be deleted.</string>
+    <string name="debts_remaining_of">%1$s left of %2$s</string>
+    <string name="debts_original_label">Original amount</string>
+    <string name="debts_paid_label">Paid</string>
+    <string name="debts_remaining_label">Outstanding</string>
+    <string name="debts_since">Since %1$s</string>
+    <string name="debts_due_on">Due %1$s</string>
+    <string name="debts_overdue">Overdue</string>
+    <string name="debts_settled_badge">Settled</string>
+    <string name="debts_detail_owed_to_me">%1$s owes you</string>
+    <string name="debts_detail_i_owe">You owe %1$s</string>
+    <string name="debts_add_payment">Record payment</string>
+    <string name="debts_settle">Mark as settled</string>
+    <string name="debts_settle_title">Mark as settled?</string>
+    <string name="debts_settle_message">A payment of %1$s dated today will be recorded.</string>
+    <string name="debts_payments_title">Payments</string>
+    <string name="debts_payments_empty">No payments yet.</string>
+    <string name="debts_payment_dialog_title">New payment</string>
+    <string name="debts_payment_note_label">Note (optional)</string>
+    <string name="debts_payment_delete">Delete payment</string>
+    <string name="debts_payment_delete_title">Delete payment?</string>
+    <string name="debts_payment_delete_message">The %1$s payment will be deleted and the outstanding amount will go back up.</string>
+    <string name="debts_payment_recorded">Payment recorded</string>
+    <string name="debts_payment_deleted">Payment deleted</string>
+    <string name="debts_settled_message">Debt settled</string>
+    <string name="debts_view_all">View debts</string>
+    <string name="backup_summary_append">%1$s, %2$s</string>
+    <plurals name="backup_summary_debts">
+        <item quantity="one">%d debt</item>
+        <item quantity="other">%d debts</item>
+    </plurals>
+    <plurals name="backup_import_debts_lost">
+        <item quantity="one">This backup has no debts: the %d debt you have recorded will be deleted.</item>
+        <item quantity="other">This backup has no debts: the %d debts you have recorded will be deleted.</item>
+    </plurals>
+
+    <!-- Icons -->
+    <string name="icon_group_money">Money</string>
+    <string name="icon_group_food">Food and drink</string>
+    <string name="icon_group_transport">Transport</string>
+    <string name="icon_group_home">Home</string>
+    <string name="icon_group_health">Health and personal care</string>
+    <string name="icon_group_shopping">Shopping</string>
+    <string name="icon_group_leisure">Leisure</string>
+    <string name="icon_group_family">Family and education</string>
+    <string name="icon_group_tech">Tech and services</string>
+    <string name="icon_group_other">Other</string>
+    <string name="icons_show_all">Show all icons</string>
+    <string name="icons_show_less">Show fewer</string>
 </resources>

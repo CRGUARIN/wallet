@@ -55,6 +55,7 @@ fun HomeRoute(
     onUpcomingPendingClick: () -> Unit = {},
     onUpcomingCardClick: (Long) -> Unit = {},
     onViewAllRecurring: () -> Unit = {},
+    onViewDebts: () -> Unit = {},
     viewModel: HomeViewModel? = safeHiltViewModel(),
 ) {
     if (viewModel == null) {
@@ -69,6 +70,7 @@ fun HomeRoute(
             onUpcomingPendingClick = onUpcomingPendingClick,
             onUpcomingCardClick = onUpcomingCardClick,
             onViewAllRecurring = onViewAllRecurring,
+            onViewDebts = onViewDebts,
             modifier = modifier,
         )
         return
@@ -87,6 +89,7 @@ fun HomeRoute(
         onUpcomingPendingClick = onUpcomingPendingClick,
         onUpcomingCardClick = onUpcomingCardClick,
         onViewAllRecurring = onViewAllRecurring,
+        onViewDebts = onViewDebts,
         modifier = modifier,
     )
 }
@@ -105,6 +108,7 @@ fun HomeScreen(
     onUpcomingPendingClick: () -> Unit = {},
     onUpcomingCardClick: (Long) -> Unit = {},
     onViewAllRecurring: () -> Unit = {},
+    onViewDebts: () -> Unit = {},
 ) {
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -159,6 +163,18 @@ fun HomeScreen(
                         onUpcomingPendingClick = onUpcomingPendingClick,
                         onUpcomingCardClick = onUpcomingCardClick,
                         onViewAllRecurring = onViewAllRecurring,
+                        modifier = Modifier.animateItem(),
+                    )
+                }
+            }
+
+            val debts = uiState.debts
+            if (debts != null && debts.hasActive) {
+                item(key = "debts") {
+                    HomeDebtsCard(
+                        debts = debts,
+                        onViewDebts = onViewDebts,
+                        modifier = Modifier.animateItem(),
                     )
                 }
             }

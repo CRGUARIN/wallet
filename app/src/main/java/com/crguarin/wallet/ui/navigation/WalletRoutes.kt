@@ -72,6 +72,19 @@ data class RecurringEdit(
 )
 
 @Serializable
+data object DebtList
+
+@Serializable
+data class DebtDetail(
+    val debtId: Long,
+)
+
+@Serializable
+data class DebtEdit(
+    val debtId: Long? = null,
+)
+
+@Serializable
 data object Settings
 
 /**

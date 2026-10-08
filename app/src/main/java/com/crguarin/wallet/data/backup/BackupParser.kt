@@ -43,7 +43,8 @@ class BackupParser
                     return invalid("not a JSON object: ${e.message}")
                 }
             schemaVersionOf(root)?.let { version ->
-                if (version != 1 && version != 2 && version != BackupDto.SCHEMA_VERSION) {
+                // Every version from 1 up to the current one is readable; older files lack the newer sections.
+                if (version !in 1..BackupDto.SCHEMA_VERSION) {
                     return DomainResult.Failure(DomainError.BackupVersionUnsupported)
                 }
             }

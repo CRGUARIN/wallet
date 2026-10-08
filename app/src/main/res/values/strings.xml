@@ -117,6 +117,28 @@
     <string name="account_type_cash">Efectivo</string>
     <string name="account_type_savings">Cuenta de ahorros</string>
     <string name="account_type_credit_card">Tarjeta de crédito</string>
+    <string name="account_type_transit_card">Tarjeta de transporte</string>
+    <string name="account_type_transit_card_hint">Como la Cívica: la recargas y cada viaje descuenta la tarifa</string>
+    <string name="transit_fare_label">Tarifa por viaje</string>
+    <string name="transit_fare_supporting">Se descuenta en cada viaje</string>
+    <string name="transit_current_balance_label">Saldo actual de la tarjeta</string>
+    <string name="transit_fare_value">Tarifa: %1$s</string>
+    <string name="transit_low_balance">Saldo insuficiente para un viaje</string>
+    <string name="transit_low_balance_short">Recarga pronto</string>
+    <string name="transit_action_trip">Registrar viaje</string>
+    <string name="transit_action_recharge">Recargar</string>
+    <string name="transit_trip_registered">Viaje registrado</string>
+    <string name="transit_trip_negative_title">Saldo insuficiente</string>
+    <string name="transit_trip_negative_message">La tarjeta quedará en negativo. ¿Registrar el viaje de todas formas?</string>
+    <string name="transit_trip_negative_confirm">Registrar</string>
+    <plurals name="transit_trips_left">
+        <item quantity="one">Alcanza para %d viaje</item>
+        <item quantity="other">Alcanza para %d viajes</item>
+    </plurals>
+    <plurals name="transit_trips_short">
+        <item quantity="one">%d viaje</item>
+        <item quantity="other">%d viajes</item>
+    </plurals>
     <string name="account_default_cash_name">Efectivo</string>
 
     <!-- Pantalla Cuentas -->
@@ -174,6 +196,9 @@
     <!-- Descripciones de contenido (accesibilidad) -->
     <string name="cd_selected">Seleccionado</string>
     <string name="cd_color">Color</string>
+    <string name="cd_color_in_use">Color en uso</string>
+    <string name="category_color_in_use_hint">Los colores tachados ya los usa otra categoría de este tipo</string>
+    <string name="account_color_in_use_hint">Los colores tachados ya los usa otra cuenta</string>
     <string name="cd_icon">Ícono</string>
     <string name="cd_delete_transaction">Eliminar movimiento</string>
 
@@ -298,6 +323,8 @@
     <string name="error_backup_version_unsupported">Versión de copia de seguridad no soportada</string>
     <string name="error_backup_failed">No se pudo completar la operación de backup. Tus datos actuales no se modificaron.</string>
     <string name="error_account_type_change_not_allowed">No se puede cambiar el tipo de una cuenta con movimientos</string>
+    <string name="error_fare_invalid">Ingresa una tarifa mayor que cero</string>
+    <string name="error_color_in_use">Ese color ya está en uso. Elige otro.</string>
 
     <!-- Categorías del sistema - Gastos -->
     <string name="category_food">Alimentación</string>
@@ -549,6 +576,13 @@
     <string name="error_recurring_interval">Ingresa un número entre 1 y 12</string>
     <string name="error_account_has_recurring">La cuenta tiene pagos recurrentes. Elimínalos o cámbialos de cuenta primero.</string>
     <string name="error_category_has_recurring">La categoría tiene pagos recurrentes. Cámbialos de categoría primero.</string>
+    <string name="error_debt_amount_below_paid">El monto no puede ser menor que lo ya abonado</string>
+    <string name="error_debt_payment_exceeds_remaining">El abono supera lo que falta por pagar</string>
+    <string name="error_debt_due_before_date">La fecha límite no puede ser anterior a la fecha de la deuda</string>
+    <string name="error_debt_already_settled">Esta deuda ya está saldada</string>
+    <string name="error_debt_payment_before_date">El abono no puede ser anterior a la fecha de la deuda</string>
+    <string name="error_debt_date_after_payments">La fecha de la deuda no puede ser posterior a su primer abono</string>
+    <string name="error_debt_direction_locked">No se puede cambiar el tipo de una deuda que ya tiene abonos</string>
 
     <!-- Próximos pagos (Inicio) -->
     <string name="home_upcoming_title">Próximos pagos</string>
@@ -629,4 +663,77 @@
         <item quantity="one">El pago de %2$s vence en %1$d día</item>
         <item quantity="other">El pago de %2$s vence en %1$d días</item>
     </plurals>
+    <!-- Deudas -->
+    <string name="debts_title">Deudas</string>
+    <string name="debts_settings_subtitle">Lo que te deben y lo que debes</string>
+    <string name="debts_new">Nueva deuda</string>
+    <string name="debts_edit">Editar deuda</string>
+    <string name="debts_add">Agregar deuda</string>
+    <string name="debts_empty_title">Sin deudas</string>
+    <string name="debts_empty_message">Anota lo que te deben y lo que debes para no perderle el rastro.</string>
+    <string name="debts_total_owed_to_me">Te deben</string>
+    <string name="debts_total_i_owe">Debes</string>
+    <string name="debts_total_net">Balance</string>
+    <string name="debts_section_settled">Saldadas</string>
+    <string name="debts_direction_owed_to_me">Me deben</string>
+    <string name="debts_direction_i_owe">Debo</string>
+    <string name="debts_person_label">Persona</string>
+    <string name="debts_amount_label">Monto</string>
+    <string name="debts_date_label">Fecha</string>
+    <string name="debts_due_date_label">Fecha límite</string>
+    <string name="debts_due_date_none">Sin fecha límite</string>
+    <string name="debts_due_date_clear">Quitar fecha límite</string>
+    <string name="debts_note_label">Concepto (opcional)</string>
+    <string name="debts_save">Guardar</string>
+    <string name="debts_delete">Eliminar deuda</string>
+    <string name="debts_delete_title">¿Eliminar deuda?</string>
+    <string name="debts_delete_message">Se eliminará la deuda con %1$s y todos sus abonos.</string>
+    <string name="debts_remaining_of">Faltan %1$s de %2$s</string>
+    <string name="debts_original_label">Monto inicial</string>
+    <string name="debts_paid_label">Abonado</string>
+    <string name="debts_remaining_label">Pendiente</string>
+    <string name="debts_since">Desde el %1$s</string>
+    <string name="debts_due_on">Vence el %1$s</string>
+    <string name="debts_overdue">Vencida</string>
+    <string name="debts_settled_badge">Saldada</string>
+    <string name="debts_detail_owed_to_me">%1$s te debe</string>
+    <string name="debts_detail_i_owe">Le debes a %1$s</string>
+    <string name="debts_add_payment">Registrar abono</string>
+    <string name="debts_settle">Marcar como saldada</string>
+    <string name="debts_settle_title">¿Marcar como saldada?</string>
+    <string name="debts_settle_message">Se registrará un abono por %1$s con fecha de hoy.</string>
+    <string name="debts_payments_title">Abonos</string>
+    <string name="debts_payments_empty">Aún no hay abonos.</string>
+    <string name="debts_payment_dialog_title">Nuevo abono</string>
+    <string name="debts_payment_note_label">Nota (opcional)</string>
+    <string name="debts_payment_delete">Eliminar abono</string>
+    <string name="debts_payment_delete_title">¿Eliminar abono?</string>
+    <string name="debts_payment_delete_message">Se eliminará el abono de %1$s y el pendiente volverá a subir.</string>
+    <string name="debts_payment_recorded">Abono registrado</string>
+    <string name="debts_payment_deleted">Abono eliminado</string>
+    <string name="debts_settled_message">Deuda saldada</string>
+    <string name="debts_view_all">Ver deudas</string>
+    <string name="backup_summary_append">%1$s, %2$s</string>
+    <plurals name="backup_summary_debts">
+        <item quantity="one">%d deuda</item>
+        <item quantity="other">%d deudas</item>
+    </plurals>
+    <plurals name="backup_import_debts_lost">
+        <item quantity="one">Este backup no trae deudas: se borrará %d deuda que tienes registrada.</item>
+        <item quantity="other">Este backup no trae deudas: se borrarán %d deudas que tienes registradas.</item>
+    </plurals>
+
+    <!-- Íconos -->
+    <string name="icon_group_money">Dinero</string>
+    <string name="icon_group_food">Comida y bebida</string>
+    <string name="icon_group_transport">Transporte</string>
+    <string name="icon_group_home">Hogar</string>
+    <string name="icon_group_health">Salud y cuidado personal</string>
+    <string name="icon_group_shopping">Compras</string>
+    <string name="icon_group_leisure">Ocio</string>
+    <string name="icon_group_family">Familia y educación</string>
+    <string name="icon_group_tech">Tecnología y servicios</string>
+    <string name="icon_group_other">Otros</string>
+    <string name="icons_show_all">Ver todos los íconos</string>
+    <string name="icons_show_less">Ver menos</string>
 </resources>

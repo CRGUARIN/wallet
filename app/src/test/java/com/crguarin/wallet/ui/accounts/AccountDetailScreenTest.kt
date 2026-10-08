@@ -67,6 +67,9 @@ class AccountDetailScreenTest {
         onTransactionClick: (Long) -> Unit = {},
         onPayCardClick: () -> Unit = {},
         onReconcileClick: () -> Unit = {},
+        onRegisterTripClick: () -> Unit = {},
+        onRechargeClick: () -> Unit = {},
+        onConfirmTrip: () -> Unit = {},
         entries: List<TransactionListEntry> = emptyList(),
     ) {
         WalletTheme {
@@ -86,6 +89,9 @@ class AccountDetailScreenTest {
                 onDismissDialogs = onDismissDialogs,
                 onPayCardClick = onPayCardClick,
                 onReconcileClick = onReconcileClick,
+                onRegisterTripClick = onRegisterTripClick,
+                onRechargeClick = onRechargeClick,
+                onConfirmTrip = onConfirmTrip,
             )
         }
     }
@@ -283,5 +289,114 @@ class AccountDetailScreenTest {
         composeRule.onNodeWithContentDescription("Más opciones").performClick()
 
         composeRule.onNodeWithText("Transferir desde esta cuenta").assertDoesNotExist()
+    }
+
+    private val transitAccount =
+        sampleAccount.copy(
+            id = 9L,
+            name = "Cívica",
+            type = AccountType.TRANSIT_CARD,
+            initialBalance = Money(1_050_000L),
+            icon = "directions_bus",
+            fare = Money(350_000L),
+        )
+
+    // The header pushes the action row to the bottom edge of the default screen.
+    @Test
+    @Config(qualifiers = "es-w1000dp-h3000dp")
+    fun `transit card header shows the trips left and the trip and top up actions`() {
+        composeRule.setContent {
+            TestScreen(
+                uiState =
+                    baseState.copy(
+                        accountWithBalance = AccountWithBalance(transitAccount, Money(1_050_000L)),
+                        canTransfer = true,
+                    ),
+            )
+        }
+
+        composeRule.onNodeWithText("Alcanza para 3 viajes").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Registrar viaje").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Recargar").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `transit card that cannot pay one trip warns about the low balance`() {
+        composeRule.setContent {
+            TestScreen(
+                uiState =
+                    baseState.copy(
+                        accountWithBalance = AccountWithBalance(transitAccount, Money(200_000L)),
+                    ),
+            )
+        }
+
+        composeRule.onNodeWithText("Saldo insuficiente para un viaje").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `archived transit card hides the trip actions`() {
+        composeRule.setContent {
+            TestScreen(
+                uiState =
+                    baseState.copy(
+                        accountWithBalance =
+                            AccountWithBalance(transitAccount.copy(isArchived = true), Money(1_050_000L)),
+                        canTransfer = true,
+                    ),
+            )
+        }
+
+        composeRule.onNodeWithText("Registrar viaje").assertDoesNotExist()
+        composeRule.onNodeWithText("Recargar").assertDoesNotExist()
+    }
+
+    // The header pushes the action row to the bottom edge of the default screen.
+    @Test
+    @Config(qualifiers = "es-w1000dp-h3000dp")
+    fun `trip and top up buttons call back`() {
+        var tripClicked = false
+        var rechargeClicked = false
+
+        composeRule.setContent {
+            TestScreen(
+                uiState =
+                    baseState.copy(
+                        accountWithBalance = AccountWithBalance(transitAccount, Money(1_050_000L)),
+                        canTransfer = true,
+                    ),
+                onRegisterTripClick = { tripClicked = true },
+                onRechargeClick = { rechargeClicked = true },
+            )
+        }
+
+        composeRule.onNodeWithText("Registrar viaje").performScrollTo().performClick()
+        composeRule.onNodeWithText("Recargar").performScrollTo().performClick()
+
+        assertThat(tripClicked).isTrue()
+        assertThat(rechargeClicked).isTrue()
+    }
+
+    @Test
+    fun `trip that would leave the card negative asks for confirmation`() {
+        var confirmed = false
+
+        composeRule.setContent {
+            TestScreen(
+                uiState =
+                    baseState.copy(
+                        accountWithBalance = AccountWithBalance(transitAccount, Money(200_000L)),
+                        showTripNegativeDialog = true,
+                    ),
+                onConfirmTrip = { confirmed = true },
+            )
+        }
+
+        composeRule
+            .onNodeWithText("La tarjeta quedará en negativo. ¿Registrar el viaje de todas formas?")
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Registrar").performClick()
+
+        assertThat(confirmed).isTrue()
     }
 }

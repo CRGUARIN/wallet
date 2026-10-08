@@ -22,6 +22,7 @@ fun SettingsRoute(
     onCategoriesClick: () -> Unit,
     modifier: Modifier = Modifier,
     onRecurringClick: () -> Unit = {},
+    onDebtsClick: () -> Unit = {},
     viewModel: SettingsViewModel? = safeHiltViewModel(),
 ) {
     if (viewModel == null) {
@@ -37,6 +38,7 @@ fun SettingsRoute(
             onConfirmImport = {},
             onDismissImport = {},
             onRecurringClick = onRecurringClick,
+            onDebtsClick = onDebtsClick,
             modifier = modifier,
         )
         return
@@ -79,6 +81,7 @@ fun SettingsRoute(
         onDismissImport = viewModel::dismissImport,
         snackbarHostState = snackbarHostState,
         onRecurringClick = onRecurringClick,
+        onDebtsClick = onDebtsClick,
         onNotificationsEnabledChanged = viewModel::setNotificationsEnabled,
         onNotificationTimeChanged = viewModel::setNotificationTime,
         onRecurringRemindersChanged = viewModel::setRecurringReminders,

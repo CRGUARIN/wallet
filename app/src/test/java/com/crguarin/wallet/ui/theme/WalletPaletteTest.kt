@@ -57,4 +57,24 @@ class WalletPaletteTest {
             assertThat(seederColors).isNotEmpty()
             assertThat(WalletPalette.colors).containsAtLeastElementsIn(seederColors)
         }
+
+    @Test
+    fun `WalletPalette has unique colors and starts with red`() {
+        assertThat(WalletPalette.colors).hasSize(30)
+        assertThat(WalletPalette.colors).containsNoDuplicates()
+        assertThat(WalletPalette.defaultColor).isEqualTo(0xFFEF5350.toInt())
+    }
+
+    @Test
+    fun `seeded root categories have unique colors per type`() =
+        runTest {
+            seeder.seedIfNeeded()
+
+            val roots = database.categoryDao().getAll().filter { it.parentId == null }
+
+            assertThat(roots).isNotEmpty()
+            roots.groupBy { it.type }.values.forEach { rootsOfType ->
+                assertThat(rootsOfType.map { it.color }).containsNoDuplicates()
+            }
+        }
 }

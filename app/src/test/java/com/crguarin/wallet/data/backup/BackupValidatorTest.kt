@@ -45,17 +45,21 @@ class BackupValidatorTest {
 
     @Test
     fun `unsupported schema version is reported as such`() {
-        assertThat(BackupValidator.validate(valid.copy(schemaVersion = 4))).isEqualTo(DomainError.BackupVersionUnsupported)
+        assertThat(BackupValidator.validate(valid.copy(schemaVersion = 6))).isEqualTo(DomainError.BackupVersionUnsupported)
         assertThat(BackupValidator.validate(valid.copy(schemaVersion = 0))).isEqualTo(DomainError.BackupVersionUnsupported)
     }
 
     @Test
-    fun `schema versions 1 2 and 3 are accepted`() {
+    fun `schema versions 1 to 5 are accepted`() {
         assertThat(BackupValidator.validate(valid.copy(schemaVersion = 1))).isNull()
         assertThat(BackupValidator.validate(valid.copy(schemaVersion = 2))).isNull()
         assertThat(BackupValidator.validate(valid.copy(schemaVersion = 3))).isNull()
+        assertThat(BackupValidator.validate(valid.copy(schemaVersion = 4))).isNull()
+        assertThat(BackupValidator.validate(valid.copy(schemaVersion = 5))).isNull()
         assertThat(BackupValidator.validate(validCardBackupDto())).isNull()
         assertThat(BackupValidator.validate(validRecurringBackupDto())).isNull()
+        assertThat(BackupValidator.validate(validDebtBackupDto())).isNull()
+        assertThat(BackupValidator.validate(validTransitBackupDto())).isNull()
     }
 
     @Test
@@ -477,5 +481,169 @@ class BackupValidatorTest {
         assertThat(BackupValidator.validate(recurring.withTransaction(1) { it.copy(recurringId = null) })).isNull()
         assertThat(BackupValidator.validate(recurring.withTransaction(1) { it.copy(recurringId = 2) })).isNull()
         assertThat(BackupValidator.validate(recurring)).isNull()
+    }
+
+    private val debtBackup = validDebtBackupDto()
+
+    private fun invalidReason(dto: BackupDto): String? = (BackupValidator.validate(dto) as? DomainError.BackupInvalid)?.reason
+
+    private fun BackupDto.withDebt(
+        id: Long,
+        change: (DebtDto) -> DebtDto,
+    ) = copy(debts = debts.map { if (it.id == id) change(it) else it })
+
+    private fun BackupDto.withPayment(
+        id: Long,
+        change: (DebtPaymentDto) -> DebtPaymentDto,
+    ) = copy(debtPayments = debtPayments.map { if (it.id == id) change(it) else it })
+
+    @Test
+    fun `valid debt backup passes and debts are optional`() {
+        assertThat(BackupValidator.validate(debtBackup)).isNull()
+        assertThat(BackupValidator.validate(debtBackup.copy(debts = emptyList(), debtPayments = emptyList()))).isNull()
+    }
+
+    @Test
+    fun `non-positive and duplicated debt ids are rejected`() {
+        assertInvalid(debtBackup.withDebt(1) { it.copy(id = 0) })
+        assertInvalid(debtBackup.withDebt(2) { it.copy(id = 1) })
+        assertThat(invalidReason(debtBackup.withDebt(2) { it.copy(id = 1) })).isEqualTo("duplicated debt id")
+    }
+
+    @Test
+    fun `non-positive and duplicated debt payment ids are rejected`() {
+        assertInvalid(debtBackup.withPayment(1) { it.copy(id = 0) })
+        assertInvalid(debtBackup.withPayment(2) { it.copy(id = 1) })
+        assertThat(invalidReason(debtBackup.withPayment(2) { it.copy(id = 1) })).isEqualTo("duplicated debt payment id")
+    }
+
+    @Test
+    fun `empty or blank debt name is rejected and the limit is 40 characters`() {
+        assertInvalid(debtBackup.withDebt(1) { it.copy(personName = "") })
+        assertInvalid(debtBackup.withDebt(1) { it.copy(personName = "   ") })
+        assertInvalid(debtBackup.withDebt(1) { it.copy(personName = "a".repeat(41)) })
+        assertThat(BackupValidator.validate(debtBackup.withDebt(1) { it.copy(personName = "a".repeat(40)) })).isNull()
+    }
+
+    @Test
+    fun `debt amount must be between 1 and the maximum`() {
+        assertThat(invalidReason(debtBackup.withDebt(1) { it.copy(amount = 0) })).isEqualTo("debt 1: amount must be positive")
+        assertInvalid(debtBackup.withDebt(1) { it.copy(amount = -5) })
+        assertThat(invalidReason(debtBackup.withDebt(1) { it.copy(amount = Money.MAX_MINOR_UNITS + 1) }))
+            .isEqualTo("debt 1: amount too large")
+        assertThat(BackupValidator.validate(debtBackup.withDebt(1) { it.copy(amount = Money.MAX_MINOR_UNITS) })).isNull()
+    }
+
+    @Test
+    fun `invalid debt dates are rejected`() {
+        assertThat(invalidReason(debtBackup.withDebt(1) { it.copy(date = "01/08/2026") })).isEqualTo("debt 1: invalid date")
+        assertThat(invalidReason(debtBackup.withDebt(1) { it.copy(dueDate = "2026-13-40") })).isEqualTo("debt 1: invalid due date")
+    }
+
+    @Test
+    fun `due date before the debt date is rejected and the same day is valid`() {
+        assertThat(invalidReason(debtBackup.withDebt(1) { it.copy(dueDate = "2026-07-31") }))
+            .isEqualTo("debt 1: due date before date")
+        assertThat(BackupValidator.validate(debtBackup.withDebt(1) { it.copy(dueDate = "2026-08-01") })).isNull()
+    }
+
+    @Test
+    fun `debt note longer than 200 is rejected and exactly 200 is valid`() {
+        assertInvalid(debtBackup.withDebt(1) { it.copy(note = "n".repeat(201)) })
+        assertThat(BackupValidator.validate(debtBackup.withDebt(1) { it.copy(note = "n".repeat(200)) })).isNull()
+    }
+
+    @Test
+    fun `payment with an unknown debt is rejected`() {
+        assertThat(invalidReason(debtBackup.withPayment(1) { it.copy(debtId = 99) }))
+            .isEqualTo("debt payment 1: unknown debt 99")
+    }
+
+    @Test
+    fun `payment amount must be between 1 and the maximum`() {
+        assertThat(invalidReason(debtBackup.withPayment(1) { it.copy(amount = 0) }))
+            .isEqualTo("debt payment 1: amount must be positive")
+        assertInvalid(debtBackup.withPayment(1) { it.copy(amount = -5) })
+        assertThat(invalidReason(debtBackup.withPayment(1) { it.copy(amount = Money.MAX_MINOR_UNITS + 1) }))
+            .isEqualTo("debt payment 1: amount too large")
+    }
+
+    @Test
+    fun `payment with an invalid date or a note longer than 200 is rejected`() {
+        assertThat(invalidReason(debtBackup.withPayment(2) { it.copy(date = "not-a-date") }))
+            .isEqualTo("debt payment 2: invalid date")
+        assertInvalid(debtBackup.withPayment(2) { it.copy(note = "n".repeat(201)) })
+        assertThat(BackupValidator.validate(debtBackup.withPayment(2) { it.copy(note = "n".repeat(200)) })).isNull()
+    }
+
+    @Test
+    fun `payment dated before its debt is rejected and the same day is valid`() {
+        // Debt 1 starts on 2026-08-01.
+        assertThat(invalidReason(debtBackup.withPayment(1) { it.copy(date = "2026-07-31") }))
+            .isEqualTo("debt payment 1: date before the debt date")
+        assertThat(BackupValidator.validate(debtBackup.withPayment(1) { it.copy(date = "2026-08-01") })).isNull()
+    }
+
+    @Test
+    fun `payments that add up to more than the debt amount are rejected and the exact amount is valid`() {
+        // Debt 1 is 50M and has payments of 10M and 5M: a 40M payment settles it exactly.
+        assertThat(BackupValidator.validate(debtBackup.withPayment(2) { it.copy(amount = 40_000_000) })).isNull()
+        assertThat(invalidReason(debtBackup.withPayment(2) { it.copy(amount = 40_000_001) }))
+            .isEqualTo("debt payment 2: payments exceed the amount of debt 1")
+        // Debt 2 is 12M and has one payment of 4M.
+        assertInvalid(debtBackup.withPayment(3) { it.copy(amount = 12_000_001) })
+    }
+
+    @Test
+    fun `a single payment larger than its debt is rejected`() {
+        assertThat(invalidReason(debtBackup.withDebt(2) { it.copy(amount = 3_000_000) }))
+            .isEqualTo("debt payment 3: payments exceed the amount of debt 2")
+    }
+
+    private val transit = validTransitBackupDto()
+
+    private fun BackupDto.withTransitAccount(change: (AccountDto) -> AccountDto) =
+        copy(accounts = accounts.map { if (it.type == AccountType.TRANSIT_CARD) change(it) else it })
+
+    @Test
+    fun `valid transit backup passes and keeps the fare`() {
+        assertThat(BackupValidator.validate(transit)).isNull()
+        assertThat(transit.accounts.single { it.type == AccountType.TRANSIT_CARD }.fare).isEqualTo(350_000L)
+    }
+
+    @Test
+    fun `transit card without fare or with a zero or negative fare is rejected`() {
+        assertThat(invalidReason(transit.withTransitAccount { it.copy(fare = null) }))
+            .isEqualTo("account 4: transit card without fare")
+        assertThat(invalidReason(transit.withTransitAccount { it.copy(fare = 0) })).isEqualTo("account 4: fare must be positive")
+        assertThat(invalidReason(transit.withTransitAccount { it.copy(fare = -5) })).isEqualTo("account 4: fare must be positive")
+    }
+
+    @Test
+    fun `transit fare above the maximum is rejected and the maximum itself is valid`() {
+        assertThat(invalidReason(transit.withTransitAccount { it.copy(fare = Money.MAX_MINOR_UNITS + 1) }))
+            .isEqualTo("account 4: fare too large")
+        assertThat(BackupValidator.validate(transit.withTransitAccount { it.copy(fare = Money.MAX_MINOR_UNITS) })).isNull()
+    }
+
+    @Test
+    fun `fare on a cash, savings or credit card account is rejected`() {
+        assertThat(invalidReason(valid.withAccount { it.copy(fare = 350_000) }))
+            .isEqualTo("account 1: fare on a non-transit account")
+        assertThat(invalidReason(validCardBackupDto().withCardAccount { it.copy(fare = 350_000) }))
+            .isEqualTo("account 3: fare on a non-transit account")
+    }
+
+    @Test
+    fun `transit card cannot carry card fields or a negative balance`() {
+        assertThat(invalidReason(transit.withTransitAccount { it.copy(creditLimit = 1_000_000) }))
+            .isEqualTo("account 4: credit limit on a non-card account")
+        assertThat(invalidReason(transit.withTransitAccount { it.copy(initialBalance = -1) }))
+            .isEqualTo("account 4: negative initial balance")
+    }
+
+    @Test
+    fun `transit card with a zero balance is valid`() {
+        assertThat(BackupValidator.validate(transit.withTransitAccount { it.copy(initialBalance = 0) })).isNull()
     }
 }

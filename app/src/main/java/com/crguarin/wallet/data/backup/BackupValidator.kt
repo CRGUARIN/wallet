@@ -14,9 +14,10 @@ import java.time.LocalDate
  * Pure validation of a decoded [BackupDto]. Runs before the database is touched, so it must
  * reject anything that would violate a business rule or a foreign key on insert.
  *
- * Accepts schema versions 1, 2 and 3: a version 1 backup carries no card fields and is
+ * Accepts schema versions 1 to 5: a version 1 backup carries no card fields and is
  * imported with the defaults (no credit cards, no statements); versions 1 and 2 carry no
- * recurring payments and are imported without them.
+ * recurring payments, versions 1 to 3 carry no debts and versions 1 to 4 carry no transit fare,
+ * and they are imported without them.
  */
 object BackupValidator {
     /**
@@ -28,7 +29,7 @@ object BackupValidator {
         dto: BackupDto,
         maxTransactionDate: LocalDate = LocalDate.MAX,
     ): DomainError? {
-        if (dto.schemaVersion != 1 && dto.schemaVersion != 2 && dto.schemaVersion != BackupDto.SCHEMA_VERSION) {
+        if (dto.schemaVersion !in 1..BackupDto.SCHEMA_VERSION) {
             return DomainError.BackupVersionUnsupported
         }
         return firstReason(dto, maxTransactionDate)?.let { DomainError.BackupInvalid(it) }
@@ -46,6 +47,7 @@ object BackupValidator {
             ?: validateRecurringPayments(dto)
             ?: validateTransactions(dto, accountTypes, recurringIds, maxTransactionDate)
             ?: validateCardStatements(dto, accountTypes)
+            ?: validateDebts(dto)
     }
 
     private fun validateAccounts(accounts: List<AccountDto>): String? {
@@ -61,7 +63,7 @@ object BackupValidator {
                 account.initialBalance < 0 && account.type != AccountType.CREDIT_CARD ->
                     return "account ${account.id}: negative initial balance"
             }
-            accountCardProblem(account)?.let { return it }
+            accountTypeProblem(account)?.let { return it }
         }
         // The app keeps active account names unique (ignoring case and surrounding spaces).
         val duplicatedName =
@@ -73,8 +75,11 @@ object BackupValidator {
         return duplicatedName?.let { "account ${it[1].id}: duplicated active name" }
     }
 
-    private fun accountCardProblem(account: AccountDto): String? {
+    private fun accountTypeProblem(account: AccountDto): String? {
         val label = "account ${account.id}"
+        if (account.type != AccountType.TRANSIT_CARD && account.fare != null) {
+            return "$label: fare on a non-transit account"
+        }
         return if (account.type == AccountType.CREDIT_CARD) {
             when {
                 account.creditLimit == null -> "$label: card without credit limit"
@@ -89,8 +94,20 @@ object BackupValidator {
                 account.creditLimit != null -> "$label: credit limit on a non-card account"
                 account.statementDay != null -> "$label: statement day on a non-card account"
                 account.paymentDueDay != null -> "$label: payment due day on a non-card account"
+                account.type == AccountType.TRANSIT_CARD -> transitFareProblem(account)
                 else -> null
             }
+        }
+    }
+
+    private fun transitFareProblem(account: AccountDto): String? {
+        val label = "account ${account.id}"
+        val fare = account.fare
+        return when {
+            fare == null -> "$label: transit card without fare"
+            fare <= 0 -> "$label: fare must be positive"
+            fare > Money.MAX_MINOR_UNITS -> "$label: fare too large"
+            else -> null
         }
     }
 
@@ -273,6 +290,48 @@ object BackupValidator {
         val adjustmentId = statement.adjustmentTransactionId ?: return true
         val transaction = transactionsById[adjustmentId] ?: return false
         return transaction.accountId == statement.accountId
+    }
+
+    private fun validateDebts(dto: BackupDto): String? {
+        idProblem("debt", dto.debts.map { it.id })?.let { return it }
+        dto.debts.firstNotNullOfOrNull { debtProblem(it) }?.let { return it }
+        idProblem("debt payment", dto.debtPayments.map { it.id })?.let { return it }
+        val debtsById = dto.debts.associateBy { it.id }
+        val paidByDebt = mutableMapOf<Long, Long>()
+        for (payment in dto.debtPayments) {
+            val label = "debt payment ${payment.id}"
+            val debt = debtsById[payment.debtId] ?: return "$label: unknown debt ${payment.debtId}"
+            when {
+                payment.amount <= 0 -> return "$label: amount must be positive"
+                payment.amount > Money.MAX_MINOR_UNITS -> return "$label: amount too large"
+                !isValidDate(payment.date) -> return "$label: invalid date"
+                (payment.note?.length ?: 0) > DomainLimits.NOTE_MAX_LENGTH -> return "$label: note too long"
+                LocalDate.parse(payment.date) < LocalDate.parse(debt.date) -> return "$label: date before the debt date"
+            }
+            // Each payment is at most Money.MAX_MINOR_UNITS and the running total never exceeds the debt
+            // amount, so the sum cannot overflow.
+            val paid = (paidByDebt[payment.debtId] ?: 0L) + payment.amount
+            if (paid > debt.amount) return "$label: payments exceed the amount of debt ${payment.debtId}"
+            paidByDebt[payment.debtId] = paid
+        }
+        return null
+    }
+
+    private fun debtProblem(debt: DebtDto): String? {
+        val label = "debt ${debt.id}"
+        val name = debt.personName.trim()
+        return when {
+            name.isEmpty() -> "$label: empty name"
+            name.length > DomainLimits.NAME_MAX_LENGTH -> "$label: name too long"
+            debt.amount <= 0 -> "$label: amount must be positive"
+            debt.amount > Money.MAX_MINOR_UNITS -> "$label: amount too large"
+            !isValidDate(debt.date) -> "$label: invalid date"
+            debt.dueDate != null && !isValidDate(debt.dueDate) -> "$label: invalid due date"
+            debt.dueDate != null && LocalDate.parse(debt.dueDate) < LocalDate.parse(debt.date) ->
+                "$label: due date before date"
+            (debt.note?.length ?: 0) > DomainLimits.NOTE_MAX_LENGTH -> "$label: note too long"
+            else -> null
+        }
     }
 
     private fun idProblem(

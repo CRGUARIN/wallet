@@ -8,10 +8,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -25,12 +23,10 @@ import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -46,6 +42,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.R
@@ -57,9 +54,18 @@ import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.card.CardOverview
 import com.crguarin.wallet.domain.model.recurring.UpcomingKind
 import com.crguarin.wallet.domain.model.recurring.UpcomingPayment
+import com.crguarin.wallet.domain.model.transit.TransitMath
 import com.crguarin.wallet.ui.accounts.CardRowBalance
+import com.crguarin.wallet.ui.accounts.TransitRowBalance
+import com.crguarin.wallet.ui.accounts.showPaymentReminder
+import com.crguarin.wallet.ui.components.HeroCard
 import com.crguarin.wallet.ui.components.IconCatalog
 import com.crguarin.wallet.ui.components.MoneyText
+import com.crguarin.wallet.ui.components.SectionCard
+import com.crguarin.wallet.ui.components.StoryAvatar
+import com.crguarin.wallet.ui.components.bounceClick
+import com.crguarin.wallet.ui.theme.WalletBrushes
+import com.crguarin.wallet.ui.theme.walletSemanticColors
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
@@ -73,40 +79,29 @@ internal fun UpcomingPaymentsCard(
     onUpcomingPendingClick: () -> Unit,
     onUpcomingCardClick: (Long) -> Unit,
     onViewAllRecurring: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = stringResource(R.string.home_upcoming_title),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.semantics { heading() },
+    SectionCard(modifier = modifier) {
+        SectionHeader(title = stringResource(R.string.home_upcoming_title))
+        Spacer(modifier = Modifier.height(8.dp))
+        payments.take(5).forEach { payment ->
+            UpcomingPaymentRow(
+                payment = payment,
+                today = today,
+                onClick = {
+                    when (payment.kind) {
+                        UpcomingKind.RECURRING -> onUpcomingRecurringClick(payment.refId)
+                        UpcomingKind.RECURRING_PENDING -> onUpcomingPendingClick()
+                        UpcomingKind.CARD_PAYMENT -> onUpcomingCardClick(payment.refId)
+                    }
+                },
             )
-            Spacer(modifier = Modifier.height(8.dp))
-            payments.take(5).forEach { payment ->
-                UpcomingPaymentRow(
-                    payment = payment,
-                    today = today,
-                    onClick = {
-                        when (payment.kind) {
-                            UpcomingKind.RECURRING -> onUpcomingRecurringClick(payment.refId)
-                            UpcomingKind.RECURRING_PENDING -> onUpcomingPendingClick()
-                            UpcomingKind.CARD_PAYMENT -> onUpcomingCardClick(payment.refId)
-                        }
-                    },
-                )
-            }
-            TextButton(
-                onClick = onViewAllRecurring,
-                modifier = Modifier.align(Alignment.End),
-            ) {
-                Text(text = stringResource(R.string.home_view_all))
-            }
+        }
+        TextButton(
+            onClick = onViewAllRecurring,
+            modifier = Modifier.align(Alignment.End),
+        ) {
+            Text(text = stringResource(R.string.home_view_all))
         }
     }
 }
@@ -182,29 +177,21 @@ internal fun UpcomingPaymentRow(
     }
 }
 
+/** Headline card with the signature gradient: the total balance of every active account. */
 @Composable
 internal fun TotalBalanceCard(totalBalance: Money) {
-    Card(
-        colors =
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-            ),
-        shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = stringResource(R.string.accounts_total_balance),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-            MoneyText(
-                amount = totalBalance,
-                style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-        }
+    HeroCard {
+        Text(
+            text = stringResource(R.string.accounts_total_balance),
+            style = MaterialTheme.typography.titleSmall,
+            color = LocalContentColor.current.copy(alpha = 0.85f),
+        )
+        Spacer(modifier = Modifier.height(6.dp))
+        MoneyText(
+            amount = totalBalance,
+            style = MaterialTheme.typography.headlineLarge,
+            color = LocalContentColor.current,
+        )
     }
 }
 
@@ -214,58 +201,42 @@ internal fun MonthSummaryCard(
     monthSummary: MonthSummary,
     onViewReports: () -> Unit,
 ) {
-    Card(
-        colors =
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface,
-            ),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            Text(
-                text = stringResource(R.string.account_detail_month_summary),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.semantics { heading() },
+    SectionCard {
+        SectionHeader(title = stringResource(R.string.account_detail_month_summary))
+        Spacer(modifier = Modifier.height(12.dp))
+        // FlowRow so the three amounts wrap instead of overlapping with large font scales.
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            SummaryColumn(
+                label = stringResource(R.string.account_detail_income),
+                amount = monthSummary.income,
+                type = TransactionType.INCOME,
             )
-            Spacer(modifier = Modifier.height(12.dp))
-            // FlowRow so the three amounts wrap instead of overlapping with large font scales.
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                SummaryColumn(
-                    label = stringResource(R.string.account_detail_income),
-                    amount = monthSummary.income,
-                    type = TransactionType.INCOME,
-                )
-                SummaryColumn(
-                    label = stringResource(R.string.account_detail_expense),
-                    amount = monthSummary.expense,
-                    type = TransactionType.EXPENSE,
-                )
-                SummaryColumn(
-                    label = stringResource(R.string.account_detail_net),
-                    amount = monthSummary.net,
-                )
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            TextButton(
-                onClick = onViewReports,
-                modifier = Modifier.align(Alignment.End),
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PieChart,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text(text = stringResource(R.string.home_view_reports))
-            }
+            SummaryColumn(
+                label = stringResource(R.string.account_detail_expense),
+                amount = monthSummary.expense,
+                type = TransactionType.EXPENSE,
+            )
+            SummaryColumn(
+                label = stringResource(R.string.account_detail_net),
+                amount = monthSummary.net,
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        TextButton(
+            onClick = onViewReports,
+            modifier = Modifier.align(Alignment.End),
+        ) {
+            Icon(
+                imageVector = Icons.Default.PieChart,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Spacer(modifier = Modifier.width(4.dp))
+            Text(text = stringResource(R.string.home_view_reports))
         }
     }
 }
@@ -276,17 +247,38 @@ internal fun SummaryColumn(
     amount: Money,
     type: TransactionType? = null,
 ) {
+    val semanticColors = MaterialTheme.walletSemanticColors
+    // Colored dot before the label: income, expense, or neutral for the net and for zero totals.
+    val dotColor =
+        when (type) {
+            TransactionType.INCOME -> semanticColors.income
+            TransactionType.EXPENSE -> semanticColors.expense
+            TransactionType.TRANSFER -> semanticColors.transfer
+            null -> MaterialTheme.colorScheme.onSurfaceVariant
+        }
     Column {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Spacer(
+                modifier =
+                    Modifier
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(dotColor),
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Spacer(modifier = Modifier.height(2.dp))
         MoneyText(
             amount = amount,
             type = type,
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            // Indented so the amount lines up with the label, after the dot.
+            modifier = Modifier.padding(start = 14.dp),
         )
     }
 }
@@ -305,6 +297,10 @@ internal fun SectionHeader(
     )
 }
 
+/**
+ * Accounts as Instagram-style stories: a colored circle per account, with a warm ring when the
+ * account needs attention (a card payment reminder or a transit card that cannot pay one trip).
+ */
 @Composable
 internal fun AccountsRow(
     accounts: List<AccountWithBalance>,
@@ -312,117 +308,166 @@ internal fun AccountsRow(
     cardOverviews: Map<Long, CardOverview> = emptyMap(),
     today: LocalDate = LocalDate.now(),
 ) {
-    // A plain scrollable Row (few accounts) so every tile takes the height of the tallest one:
-    // card tiles show an extra "available" line.
     Row(
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        modifier =
-            Modifier
-                .horizontalScroll(rememberScrollState())
-                .height(IntrinsicSize.Min),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        modifier = Modifier.horizontalScroll(rememberScrollState()),
     ) {
         accounts.forEach { item ->
             val cardOverview = cardOverviews[item.account.id]
-            OutlinedCard(
-                onClick = { onAccountClick(item.account.id) },
-                shape = RoundedCornerShape(16.dp),
-                modifier =
-                    Modifier
-                        .width(170.dp)
-                        .fillMaxHeight(),
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Box(
-                        modifier =
-                            Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color(item.account.color)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = IconCatalog.get(item.account.icon),
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(22.dp),
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        text = item.account.name,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    if (item.account.type == AccountType.CREDIT_CARD && cardOverview != null) {
-                        CardRowBalance(
-                            overview = cardOverview,
-                            today = today,
-                            horizontalAlignment = Alignment.Start,
-                        )
-                    } else {
-                        MoneyText(
-                            amount = item.balance,
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+            val color = Color(item.account.color)
+            val needsAttention =
+                when {
+                    cardOverview != null && item.account.type == AccountType.CREDIT_CARD ->
+                        showPaymentReminder(cardOverview.paymentStatus, cardOverview.pendingStatementDueDate, today)
+                    item.account.type == AccountType.TRANSIT_CARD -> TransitMath.isLowBalance(item.balance, item.account.fare)
+                    else -> false
                 }
-            }
+            StoryAvatar(
+                icon = IconCatalog.get(item.account.icon),
+                color = color,
+                label = item.account.name,
+                onClick = { onAccountClick(item.account.id) },
+                ring = if (needsAttention) WalletBrushes.attentionRing else WalletBrushes.storyRing(color),
+                itemWidth = 136.dp,
+                subtitle = {
+                    when {
+                        cardOverview != null && item.account.type == AccountType.CREDIT_CARD ->
+                            CardRowBalance(
+                                overview = cardOverview,
+                                today = today,
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            )
+                        item.account.type == AccountType.TRANSIT_CARD ->
+                            TransitRowBalance(
+                                balance = item.balance,
+                                fare = item.account.fare,
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                            )
+                        else ->
+                            MoneyText(
+                                amount = item.balance,
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                    }
+                },
+            )
         }
     }
 }
 
 private const val STACKED_FONT_SCALE = 1.3f
 
+/** One quick action of the Home screen: the label and icon, the color it is drawn in, and the type it creates. */
+private data class QuickAction(
+    val label: String,
+    val icon: ImageVector,
+    val color: Color,
+    val type: TransactionType,
+)
+
 @Composable
 internal fun QuickActions(
     canTransfer: Boolean,
     onQuickAction: (TransactionType) -> Unit,
 ) {
+    val semanticColors = MaterialTheme.walletSemanticColors
+    val actions =
+        listOfNotNull(
+            QuickAction(
+                label = stringResource(R.string.type_expense),
+                icon = Icons.Default.ArrowDownward,
+                color = semanticColors.expense,
+                type = TransactionType.EXPENSE,
+            ),
+            QuickAction(
+                label = stringResource(R.string.type_income),
+                icon = Icons.Default.ArrowUpward,
+                color = semanticColors.income,
+                type = TransactionType.INCOME,
+            ),
+            QuickAction(
+                label = stringResource(R.string.type_transfer),
+                icon = Icons.Default.SwapHoriz,
+                color = semanticColors.transfer,
+                type = TransactionType.TRANSFER,
+            ).takeIf { canTransfer },
+        )
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         SectionHeader(title = stringResource(R.string.home_quick_actions))
         // Large font scales do not fit three buttons side by side: stack them instead.
         val stacked = LocalDensity.current.fontScale > STACKED_FONT_SCALE
-        val buttons: @Composable (Modifier) -> Unit = { buttonModifier ->
-            QuickActionButton(
-                label = stringResource(R.string.type_expense),
-                icon = Icons.Default.ArrowDownward,
-                onClick = { onQuickAction(TransactionType.EXPENSE) },
-                modifier = buttonModifier,
-            )
-            QuickActionButton(
-                label = stringResource(R.string.type_income),
-                icon = Icons.Default.ArrowUpward,
-                onClick = { onQuickAction(TransactionType.INCOME) },
-                modifier = buttonModifier,
-            )
-            if (canTransfer) {
-                QuickActionButton(
-                    label = stringResource(R.string.type_transfer),
-                    icon = Icons.Default.SwapHoriz,
-                    onClick = { onQuickAction(TransactionType.TRANSFER) },
-                    modifier = buttonModifier,
-                )
-            }
-        }
         if (stacked) {
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                buttons(Modifier.fillMaxWidth())
+                actions.forEach { action ->
+                    QuickActionButton(
+                        label = action.label,
+                        icon = action.icon,
+                        onClick = { onQuickAction(action.type) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
         } else {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                buttons(Modifier.weight(1f))
+                actions.forEach { action ->
+                    QuickActionItem(
+                        label = action.label,
+                        icon = action.icon,
+                        color = action.color,
+                        onClick = { onQuickAction(action.type) },
+                    )
+                }
             }
         }
+    }
+}
+
+/** Circular quick action: a tinted circle with the icon and the label below it. */
+@Composable
+internal fun QuickActionItem(
+    label: String,
+    icon: ImageVector,
+    color: Color,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier =
+            Modifier
+                .clip(MaterialTheme.shapes.medium)
+                .bounceClick(onClick = onClick)
+                .padding(vertical = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(56.dp)
+                    .clip(CircleShape)
+                    .background(color.copy(alpha = 0.14f)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(24.dp),
+            )
+        }
+        Spacer(modifier = Modifier.height(6.dp))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

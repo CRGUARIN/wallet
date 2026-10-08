@@ -8,12 +8,14 @@ import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.MonthSummary
 import com.crguarin.wallet.domain.model.TransactionDetails
 import com.crguarin.wallet.domain.model.card.CardOverview
+import com.crguarin.wallet.domain.model.debt.DebtsOverview
 import com.crguarin.wallet.domain.model.recurring.UpcomingPayment
 import com.crguarin.wallet.domain.repository.TransactionRepository
 import com.crguarin.wallet.domain.usecase.ObserveAccountsUseCase
 import com.crguarin.wallet.domain.usecase.ObserveMonthSummaryUseCase
 import com.crguarin.wallet.domain.usecase.ObserveTotalBalanceUseCase
 import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewsUseCase
+import com.crguarin.wallet.domain.usecase.debt.ObserveDebtsOverviewUseCase
 import com.crguarin.wallet.domain.usecase.recurring.ObserveUpcomingPaymentsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -41,6 +43,8 @@ data class HomeUiState(
     val cardOverviews: Map<Long, CardOverview> = emptyMap(),
     val today: LocalDate = LocalDate.now(),
     val upcomingPayments: List<UpcomingPayment> = emptyList(),
+    /** Debts overview; null until it is loaded. The debts card shows only when there are active debts. */
+    val debts: DebtsOverview? = null,
 ) {
     /** A transfer needs at least two active accounts. */
     val canTransfer: Boolean
@@ -62,6 +66,7 @@ class HomeViewModel
         timeProvider: TimeProvider,
         observeCardOverviewsUseCase: ObserveCardOverviewsUseCase,
         observeUpcomingPaymentsUseCase: ObserveUpcomingPaymentsUseCase,
+        observeDebtsOverviewUseCase: ObserveDebtsOverviewUseCase,
     ) : ViewModel() {
         // Rebuilt when the day changes, so the month summary follows the calendar while the app stays open.
         val uiState: StateFlow<HomeUiState> =
@@ -87,8 +92,9 @@ class HomeViewModel
                             )
                         },
                         observeUpcomingPaymentsUseCase(UPCOMING_DAYS),
-                    ) { base, upcoming ->
-                        base.copy(upcomingPayments = upcoming)
+                        observeDebtsOverviewUseCase(),
+                    ) { base, upcoming, debts ->
+                        base.copy(upcomingPayments = upcoming, debts = debts)
                     }
                 }.stateIn(
                     scope = viewModelScope,

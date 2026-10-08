@@ -49,18 +49,30 @@ class SaveAccountUseCase
                         return DomainResult.Failure(DomainError.CardDayInvalid)
                     }
                     // Cards may hold a negative initialBalance (current debt) or a positive one.
-                    account
+                    account.copy(fare = null)
                 } else {
                     if (account.initialBalance < Money.ZERO) {
                         return DomainResult.Failure(DomainError.AmountInvalid)
                     }
-                    account.copy(creditLimit = null, statementDay = null, paymentDueDay = null)
+                    if (account.type == AccountType.TRANSIT_CARD) {
+                        val fare = account.fare
+                        if (fare == null || fare <= Money.ZERO || fare > Money.MAX) {
+                            return DomainResult.Failure(DomainError.FareInvalid)
+                        }
+                        account.copy(creditLimit = null, statementDay = null, paymentDueDay = null)
+                    } else {
+                        account.copy(creditLimit = null, statementDay = null, paymentDueDay = null, fare = null)
+                    }
                 }
 
             val normalizedCandidate = trimmedName.normalizedName()
             val activeAccounts = allAccounts.filter { !it.isArchived && it.id != account.id }
             if (activeAccounts.any { it.name.normalizedName() == normalizedCandidate }) {
                 return DomainResult.Failure(DomainError.NameDuplicated)
+            }
+            // A color belongs to one active account. Editing an account that already has this color is allowed.
+            if (existing?.color != account.color && activeAccounts.any { it.color == account.color }) {
+                return DomainResult.Failure(DomainError.ColorInUse)
             }
 
             // createdAt, sortOrder and isArchived are owned by the domain, not by the edit form.

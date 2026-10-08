@@ -119,14 +119,23 @@ class DomainResultTest {
                 DomainError.RecurringIntervalInvalid,
                 DomainError.AccountHasRecurring,
                 DomainError.CategoryHasRecurring,
+                DomainError.DebtAmountBelowPaid,
+                DomainError.DebtPaymentExceedsRemaining,
+                DomainError.DebtDueBeforeDate,
+                DomainError.DebtAlreadySettled,
+                DomainError.DebtPaymentBeforeDate,
+                DomainError.DebtDateAfterPayments,
+                DomainError.DebtDirectionLocked,
                 DomainError.CardDayInvalid,
+                DomainError.FareInvalid,
+                DomainError.ColorInUse,
                 DomainError.AccountTypeChangeNotAllowed,
                 DomainError.BackupInvalid(reason = "Corrupt JSON"),
                 DomainError.BackupVersionUnsupported,
                 DomainError.BackupFailed,
             )
 
-        assertThat(errors).hasSize(28)
+        assertThat(errors).hasSize(37)
 
         for (err in errors) {
             val description =
@@ -154,7 +163,16 @@ class DomainResultTest {
                     DomainError.RecurringIntervalInvalid -> "RecurringIntervalInvalid"
                     DomainError.AccountHasRecurring -> "AccountHasRecurring"
                     DomainError.CategoryHasRecurring -> "CategoryHasRecurring"
+                    DomainError.DebtAmountBelowPaid -> "DebtAmountBelowPaid"
+                    DomainError.DebtPaymentExceedsRemaining -> "DebtPaymentExceedsRemaining"
+                    DomainError.DebtDueBeforeDate -> "DebtDueBeforeDate"
+                    DomainError.DebtAlreadySettled -> "DebtAlreadySettled"
+                    DomainError.DebtPaymentBeforeDate -> "DebtPaymentBeforeDate"
+                    DomainError.DebtDateAfterPayments -> "DebtDateAfterPayments"
+                    DomainError.DebtDirectionLocked -> "DebtDirectionLocked"
                     DomainError.CardDayInvalid -> "CardDayInvalid"
+                    DomainError.FareInvalid -> "FareInvalid"
+                    DomainError.ColorInUse -> "ColorInUse"
                     DomainError.AccountTypeChangeNotAllowed -> "AccountTypeChangeNotAllowed"
                     is DomainError.BackupInvalid -> "BackupInvalid(${err.reason})"
                     DomainError.BackupVersionUnsupported -> "BackupVersionUnsupported"

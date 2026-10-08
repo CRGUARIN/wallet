@@ -4,4 +4,5 @@ enum class AccountType {
     CASH,
     SAVINGS,
     CREDIT_CARD,
+    TRANSIT_CARD,
 }
