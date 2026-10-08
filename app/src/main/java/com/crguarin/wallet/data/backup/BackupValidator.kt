@@ -290,6 +290,7 @@ object BackupValidator {
                 payment.amount > Money.MAX_MINOR_UNITS -> return "$label: amount too large"
                 !isValidDate(payment.date) -> return "$label: invalid date"
                 (payment.note?.length ?: 0) > DomainLimits.NOTE_MAX_LENGTH -> return "$label: note too long"
+                LocalDate.parse(payment.date) < LocalDate.parse(debt.date) -> return "$label: date before the debt date"
             }
             // Each payment is at most Money.MAX_MINOR_UNITS and the running total never exceeds the debt
             // amount, so the sum cannot overflow.

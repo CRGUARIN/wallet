@@ -168,9 +168,16 @@ fun SettingsScreen(
     }
 
     uiState.pendingImport?.let { summary ->
+        val debtsLost = uiState.pendingImportDebtsLost
+        val debtsWarning =
+            if (debtsLost > 0) {
+                "\n\n" + pluralStringResource(R.plurals.backup_import_debts_lost, debtsLost, debtsLost)
+            } else {
+                ""
+            }
         ConfirmDialog(
             title = stringResource(R.string.backup_import_confirm_title),
-            message = "${summaryText(summary)}\n\n${stringResource(R.string.backup_import_warning)}",
+            message = "${summaryText(summary)}\n\n${stringResource(R.string.backup_import_warning)}$debtsWarning",
             confirmText = stringResource(R.string.backup_import_confirm_action),
             isDestructive = true,
             onConfirm = onConfirmImport,

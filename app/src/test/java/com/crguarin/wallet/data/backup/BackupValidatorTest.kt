@@ -575,6 +575,14 @@ class BackupValidatorTest {
     }
 
     @Test
+    fun `payment dated before its debt is rejected and the same day is valid`() {
+        // Debt 1 starts on 2026-08-01.
+        assertThat(invalidReason(debtBackup.withPayment(1) { it.copy(date = "2026-07-31") }))
+            .isEqualTo("debt payment 1: date before the debt date")
+        assertThat(BackupValidator.validate(debtBackup.withPayment(1) { it.copy(date = "2026-08-01") })).isNull()
+    }
+
+    @Test
     fun `payments that add up to more than the debt amount are rejected and the exact amount is valid`() {
         // Debt 1 is 50M and has payments of 10M and 5M: a 40M payment settles it exactly.
         assertThat(BackupValidator.validate(debtBackup.withPayment(2) { it.copy(amount = 40_000_000) })).isNull()

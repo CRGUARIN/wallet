@@ -142,12 +142,24 @@ class DebtPaymentUseCasesTest {
         runTest {
             seedDebt()
 
-            val result = addDebtPaymentUseCase(1L, Money(1_000L), today.minusMonths(2), null)
+            // The debt is dated ten days ago: a payment on that same day is the earliest allowed.
+            val result = addDebtPaymentUseCase(1L, Money(1_000L), today.minusDays(10), null)
 
             val saved = debtRepository.getPayment((result as DomainResult.Success).value)
-            assertThat(saved?.date).isEqualTo(today.minusMonths(2))
+            assertThat(saved?.date).isEqualTo(today.minusDays(10))
             assertThat(saved?.createdAt).isEqualTo(now)
             assertThat(saved?.debtId).isEqualTo(1L)
+        }
+
+    @Test
+    fun `payment dated before the debt fails with DebtPaymentBeforeDate`() =
+        runTest {
+            seedDebt()
+
+            val result = addDebtPaymentUseCase(1L, Money(1_000L), today.minusDays(11), null)
+
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.DebtPaymentBeforeDate)
+            assertThat(paidOf(1L)).isEqualTo(0L)
         }
 
     @Test
@@ -174,6 +186,17 @@ class DebtPaymentUseCasesTest {
             assertThat(saved?.note).isNull()
             assertThat(saved?.createdAt).isEqualTo(now)
             assertThat(paidOf(1L)).isEqualTo(100_000L)
+        }
+
+    @Test
+    fun `settle of a debt dated in the future records the payment on the debt date`() =
+        runTest {
+            val debtDate = today.plusDays(20)
+            debtRepository.setInitialData(listOf(testDebt(id = 1L, date = debtDate)))
+
+            val result = settleDebtUseCase(1L)
+
+            assertThat(debtRepository.getPayment((result as DomainResult.Success).value)?.date).isEqualTo(debtDate)
         }
 
     @Test

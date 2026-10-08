@@ -39,6 +39,8 @@ data class SettingsUiState(
     val isBusy: Boolean = false,
     /** Summary of a validated backup waiting for the user's confirmation to replace their data. */
     val pendingImport: BackupSummary? = null,
+    /** Debts stored now that confirming [pendingImport] would delete because the backup has none. */
+    val pendingImportDebtsLost: Int = 0,
     val notificationSettings: NotificationSettings = NotificationSettings(),
     /** True when at least one credit card exists: shows the card notification controls. */
     val hasCreditCard: Boolean = false,
@@ -199,7 +201,13 @@ class SettingsViewModel
                 when (val result = previewBackupUseCase(uri)) {
                     is DomainResult.Success -> {
                         pendingImportJson = result.value.json
-                        _uiState.update { it.copy(isBusy = false, pendingImport = result.value.summary) }
+                        _uiState.update {
+                            it.copy(
+                                isBusy = false,
+                                pendingImport = result.value.summary,
+                                pendingImportDebtsLost = result.value.debtsLost,
+                            )
+                        }
                     }
                     is DomainResult.Failure -> finishBusy(result.error.asStringRes())
                 }
@@ -243,6 +251,6 @@ class SettingsViewModel
 
         private fun clearPendingImport() {
             pendingImportJson = null
-            _uiState.update { it.copy(pendingImport = null) }
+            _uiState.update { it.copy(pendingImport = null, pendingImportDebtsLost = 0) }
         }
     }

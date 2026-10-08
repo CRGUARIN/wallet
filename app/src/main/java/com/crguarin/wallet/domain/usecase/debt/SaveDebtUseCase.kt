@@ -11,8 +11,9 @@ import com.crguarin.wallet.domain.repository.TransactionRunner
 import javax.inject.Inject
 
 /**
- * Creates or edits a debt. Editing cannot lower the amount below what was already paid, and
- * keeps the original `createdAt`. Dates may be in the past, but not beyond one year ahead.
+ * Creates or edits a debt. Editing cannot lower the amount below what was already paid, change
+ * the direction once there are payments or move the date after the first payment, and keeps
+ * the original `createdAt`. Dates may be in the past, but not beyond one year ahead.
  */
 class SaveDebtUseCase
     @Inject
@@ -42,7 +43,15 @@ class SaveDebtUseCase
                 return DomainResult.Success(id)
             }
             val existing = debtRepository.getDebt(debt.id) ?: return DomainResult.Failure(DomainError.NotFound)
-            if (debt.amount < debtRepository.getPaid(debt.id)) return DomainResult.Failure(DomainError.DebtAmountBelowPaid)
+            val paid = debtRepository.getPaid(debt.id)
+            if (debt.amount < paid) return DomainResult.Failure(DomainError.DebtAmountBelowPaid)
+            if (debt.direction != existing.direction && paid.isPositive) {
+                return DomainResult.Failure(DomainError.DebtDirectionLocked)
+            }
+            val firstPayment = debtRepository.getFirstPaymentDate(debt.id)
+            if (firstPayment != null && debt.date.isAfter(firstPayment)) {
+                return DomainResult.Failure(DomainError.DebtDateAfterPayments)
+            }
             val id =
                 debtRepository.saveDebt(
                     debt.copy(personName = name, note = note, createdAt = existing.createdAt, updatedAt = now),

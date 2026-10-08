@@ -13,7 +13,8 @@ import javax.inject.Inject
 
 /**
  * Records a partial payment ("abono") of a debt. The amount may not exceed what is still
- * outstanding; a payment that equals the outstanding amount settles the debt.
+ * outstanding; a payment that equals the outstanding amount settles the debt. It cannot be
+ * dated before the debt.
  */
 class AddDebtPaymentUseCase
     @Inject
@@ -47,6 +48,7 @@ class AddDebtPaymentUseCase
             if (date.isAfter(DomainLimits.maxTransactionDate(timeProvider.today()))) {
                 return DomainResult.Failure(DomainError.DateOutOfRange)
             }
+            if (date.isBefore(debt.date)) return DomainResult.Failure(DomainError.DebtPaymentBeforeDate)
             val id =
                 debtRepository.insertPayment(
                     DebtPayment(

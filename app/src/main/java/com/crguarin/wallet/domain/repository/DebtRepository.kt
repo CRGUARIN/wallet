@@ -5,6 +5,7 @@ import com.crguarin.wallet.domain.model.debt.Debt
 import com.crguarin.wallet.domain.model.debt.DebtPayment
 import com.crguarin.wallet.domain.model.debt.DebtSummary
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
 
 interface DebtRepository {
     /** Every debt with the sum of its payments. */
@@ -20,6 +21,11 @@ interface DebtRepository {
     suspend fun getPaid(debtId: Long): Money
 
     suspend fun getPayment(id: Long): DebtPayment?
+
+    /** Date of the oldest payment of the debt, or null when it has none. */
+    suspend fun getFirstPaymentDate(debtId: Long): LocalDate?
+
+    suspend fun countDebts(): Int
 
     /** Inserts when `debt.id == 0`, otherwise updates. Returns the id. */
     suspend fun saveDebt(debt: Debt): Long

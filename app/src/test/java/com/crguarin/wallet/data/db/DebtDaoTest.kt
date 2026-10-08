@@ -74,6 +74,20 @@ class DebtDaoTest {
     )
 
     @Test
+    fun getFirstPaymentDate_returnsTheOldestPaymentOfThatDebtOrNull() =
+        runTest {
+            val first = debtDao.insert(debt())
+            val second = debtDao.insert(debt(name = "Luis"))
+            debtDao.insertPayment(payment(first, date = LocalDate.of(2026, 9, 20)))
+            debtDao.insertPayment(payment(first, date = LocalDate.of(2026, 9, 3)))
+            debtDao.insertPayment(payment(second, date = LocalDate.of(2026, 9, 2)))
+
+            assertThat(debtDao.getFirstPaymentDate(first)).isEqualTo(LocalDate.of(2026, 9, 3))
+            assertThat(debtDao.getFirstPaymentDate(debtDao.insert(debt(name = "Eva")))).isNull()
+            assertThat(debtDao.count()).isEqualTo(3)
+        }
+
+    @Test
     fun insertAndGet_roundTripsEveryField() =
         runTest {
             val id = debtDao.insert(debt())

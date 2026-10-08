@@ -553,6 +553,9 @@
     <string name="error_debt_payment_exceeds_remaining">El abono supera lo que falta por pagar</string>
     <string name="error_debt_due_before_date">La fecha límite no puede ser anterior a la fecha de la deuda</string>
     <string name="error_debt_already_settled">Esta deuda ya está saldada</string>
+    <string name="error_debt_payment_before_date">El abono no puede ser anterior a la fecha de la deuda</string>
+    <string name="error_debt_date_after_payments">La fecha de la deuda no puede ser posterior a su primer abono</string>
+    <string name="error_debt_direction_locked">No se puede cambiar el tipo de una deuda que ya tiene abonos</string>
 
     <!-- Próximos pagos (Inicio) -->
     <string name="home_upcoming_title">Próximos pagos</string>
@@ -687,5 +690,9 @@
     <plurals name="backup_summary_debts">
         <item quantity="one">%d deuda</item>
         <item quantity="other">%d deudas</item>
+    </plurals>
+    <plurals name="backup_import_debts_lost">
+        <item quantity="one">Este backup no trae deudas: se borrará %d deuda que tienes registrada.</item>
+        <item quantity="other">Este backup no trae deudas: se borrarán %d deudas que tienes registradas.</item>
     </plurals>
 </resources>

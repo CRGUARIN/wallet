@@ -299,16 +299,17 @@ Libreta de deudas personales: lo que **me deben** (`OWED_TO_ME`) y lo que **debo
 | Campo | Tipo | Regla |
 |---|---|---|
 | personName | String | obligatorio, 1–40 chars, trim; se permiten repetidos (varias deudas con la misma persona) |
-| direction | DebtDirection | `OWED_TO_ME` o `I_OWE` |
+| direction | DebtDirection | `OWED_TO_ME` o `I_OWE`; no se puede cambiar si ya tiene abonos (`DebtDirectionLocked`) |
 | amount | Money | monto inicial, > 0, ≤ `Money.MAX`; al editar no puede quedar por debajo de lo abonado (`DebtAmountBelowPaid`) |
-| date | LocalDate | inicio de la deuda; puede ser pasada, máx. hoy + 1 año |
+| date | LocalDate | inicio de la deuda; puede ser pasada, máx. hoy + 1 año; al editar no puede quedar después del primer abono (`DebtDateAfterPayments`) |
 | dueDate | LocalDate? | fecha límite opcional, ≥ `date` (`DebtDueBeforeDate`) |
 | note | String? | concepto, máx. 200 chars |
 
-`DebtPayment` (abono): `debtId`, `amount` (> 0 y ≤ pendiente: `DebtPaymentExceedsRemaining`; si ya está saldada, `DebtAlreadySettled`), `date` (máx. hoy + 1 año), `note?`.
+`DebtPayment` (abono): `debtId`, `amount` (> 0 y ≤ pendiente: `DebtPaymentExceedsRemaining`; si ya está saldada, `DebtAlreadySettled`), `date` (≥ fecha de la deuda: `DebtPaymentBeforeDate`; máx. hoy + 1 año), `note?`.
 - **Pendiente** = `amount − Σ abonos` (no se guarda). **Saldada** si el pendiente es 0. **Vencida** si no está saldada y `dueDate < hoy`.
-- **Marcar como saldada** registra un abono por el pendiente con fecha de hoy. Borrar un abono vuelve a subir el pendiente; borrar la deuda borra sus abonos (CASCADE).
+- **Marcar como saldada** registra un abono por el pendiente con fecha de hoy (o la de la deuda, si es futura). Borrar un abono vuelve a subir el pendiente; borrar la deuda borra sus abonos (CASCADE).
 - Validar, leer lo abonado y escribir van en una sola transacción (`TransactionRunner`).
+- Importar un backup sin deudas (p. ej. de versiones 1–3) borra las existentes: el diálogo de confirmación lo advierte con la cantidad.
 - Orden: pendientes por fecha límite (sin fecha al final), luego fecha e id; saldadas de la más reciente a la más antigua.
 
 ---

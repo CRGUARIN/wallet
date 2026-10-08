@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
+import java.time.LocalDate
 
 @Dao
 interface DebtDao {
@@ -35,6 +36,12 @@ interface DebtDao {
 
     @Query("SELECT COALESCE(SUM(amount), 0) FROM debt_payments WHERE debt_id = :debtId")
     suspend fun getPaid(debtId: Long): Long
+
+    @Query("SELECT MIN(date) FROM debt_payments WHERE debt_id = :debtId")
+    suspend fun getFirstPaymentDate(debtId: Long): LocalDate?
+
+    @Query("SELECT COUNT(*) FROM debts")
+    suspend fun count(): Int
 
     @Query("SELECT * FROM debt_payments WHERE id = :id")
     suspend fun getPaymentById(id: Long): DebtPaymentEntity?

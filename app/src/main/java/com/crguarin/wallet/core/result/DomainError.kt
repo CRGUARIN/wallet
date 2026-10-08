@@ -60,6 +60,12 @@ sealed interface DomainError {
 
     data object DebtAlreadySettled : DomainError
 
+    data object DebtPaymentBeforeDate : DomainError
+
+    data object DebtDateAfterPayments : DomainError
+
+    data object DebtDirectionLocked : DomainError
+
     data object CardDayInvalid : DomainError
 
     data object AccountTypeChangeNotAllowed : DomainError

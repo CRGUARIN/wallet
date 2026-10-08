@@ -549,6 +549,9 @@
     <string name="error_debt_payment_exceeds_remaining">The payment is greater than the outstanding amount</string>
     <string name="error_debt_due_before_date">The due date can\'t be before the debt date</string>
     <string name="error_debt_already_settled">This debt is already settled</string>
+    <string name="error_debt_payment_before_date">The payment can\'t be before the debt date</string>
+    <string name="error_debt_date_after_payments">The debt date can\'t be after its first payment</string>
+    <string name="error_debt_direction_locked">You can\'t change the type of a debt that already has payments</string>
 
     <!-- Upcoming payments (Home) -->
     <string name="home_upcoming_title">Upcoming payments</string>
@@ -683,5 +686,9 @@
     <plurals name="backup_summary_debts">
         <item quantity="one">%d debt</item>
         <item quantity="other">%d debts</item>
+    </plurals>
+    <plurals name="backup_import_debts_lost">
+        <item quantity="one">This backup has no debts: the %d debt you have recorded will be deleted.</item>
+        <item quantity="other">This backup has no debts: the %d debts you have recorded will be deleted.</item>
     </plurals>
 </resources>

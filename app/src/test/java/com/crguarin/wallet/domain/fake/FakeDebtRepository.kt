@@ -8,6 +8,7 @@ import com.crguarin.wallet.domain.repository.DebtRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import java.time.LocalDate
 
 /**
  * In-memory [DebtRepository]. Observers re-read the maps whenever [changes] is bumped. Payments
@@ -67,6 +68,10 @@ class FakeDebtRepository : DebtRepository {
     override suspend fun getPaid(debtId: Long): Money = paidOf(debtId)
 
     override suspend fun getPayment(id: Long): DebtPayment? = payments[id]
+
+    override suspend fun getFirstPaymentDate(debtId: Long): LocalDate? = paymentsOf(debtId).minOfOrNull { it.date }
+
+    override suspend fun countDebts(): Int = debts.size
 
     override suspend fun saveDebt(debt: Debt): Long {
         val id = if (debt.id == 0L) nextDebtId++ else debt.id

@@ -9,7 +9,8 @@ import com.crguarin.wallet.domain.repository.TransactionRunner
 import javax.inject.Inject
 
 /**
- * Settles a debt in one step: records a payment of exactly the outstanding amount, dated today.
+ * Settles a debt in one step: records a payment of exactly the outstanding amount, dated today
+ * (or on the debt date, if that is later).
  */
 class SettleDebtUseCase
     @Inject
@@ -29,7 +30,8 @@ class SettleDebtUseCase
                     DebtPayment(
                         debtId = debtId,
                         amount = remaining,
-                        date = timeProvider.today(),
+                        // A debt dated in the future is settled on its own date, never before it.
+                        date = maxOf(timeProvider.today(), debt.date),
                         note = null,
                         createdAt = timeProvider.now(),
                     ),

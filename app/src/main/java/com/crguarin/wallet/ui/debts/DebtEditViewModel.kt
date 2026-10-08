@@ -320,7 +320,7 @@ class DebtEditViewModel
                     _uiState.update { it.copy(personNameErrorRes = error.asStringRes()) }
                 is DomainError.AmountInvalid, is DomainError.DebtAmountBelowPaid ->
                     _uiState.update { it.copy(amountErrorRes = error.asStringRes()) }
-                is DomainError.DateOutOfRange ->
+                is DomainError.DateOutOfRange, is DomainError.DebtDateAfterPayments ->
                     _uiState.update { it.copy(dateErrorRes = error.asStringRes()) }
                 is DomainError.DebtDueBeforeDate ->
                     _uiState.update { it.copy(dueDateErrorRes = error.asStringRes()) }

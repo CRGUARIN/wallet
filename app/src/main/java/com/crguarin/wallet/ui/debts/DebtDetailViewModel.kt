@@ -103,7 +103,7 @@ class DebtDetailViewModel
                     showPaymentDialog = true,
                     paymentAmountText = formatForInput(summary.remaining),
                     paymentAmountErrorRes = null,
-                    paymentDate = it.today,
+                    paymentDate = maxOf(it.today, summary.debt.date),
                     paymentDateErrorRes = null,
                     paymentNote = "",
                     paymentNoteErrorRes = null,
@@ -269,7 +269,7 @@ class DebtDetailViewModel
             when (error) {
                 is DomainError.AmountInvalid, is DomainError.DebtPaymentExceedsRemaining ->
                     _uiState.update { it.copy(paymentAmountErrorRes = error.asStringRes()) }
-                is DomainError.DateOutOfRange ->
+                is DomainError.DateOutOfRange, is DomainError.DebtPaymentBeforeDate ->
                     _uiState.update { it.copy(paymentDateErrorRes = error.asStringRes()) }
                 is DomainError.NoteTooLong ->
                     _uiState.update { it.copy(paymentNoteErrorRes = error.asStringRes()) }

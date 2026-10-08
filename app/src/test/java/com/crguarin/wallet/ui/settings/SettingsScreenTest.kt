@@ -228,6 +228,22 @@ class SettingsScreenTest {
     }
 
     @Test
+    fun `confirmation dialog warns about the debts a backup without debts deletes`() {
+        show(SettingsUiState(pendingImport = BackupSummary(3, 25, 480), pendingImportDebtsLost = 2))
+
+        composeRule
+            .onNodeWithText("Este backup no trae deudas: se borrarán 2 deudas que tienes registradas.", substring = true)
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun `confirmation dialog has no debts warning when nothing is lost`() {
+        show(SettingsUiState(pendingImport = BackupSummary(3, 25, 480)))
+
+        composeRule.onNodeWithText("Este backup no trae deudas", substring = true).assertDoesNotExist()
+    }
+
+    @Test
     fun `summary uses singular forms`() {
         show(SettingsUiState(pendingImport = BackupSummary(1, 1, 1)))
 

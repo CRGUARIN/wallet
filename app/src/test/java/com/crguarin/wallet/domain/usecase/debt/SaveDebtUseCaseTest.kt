@@ -162,6 +162,30 @@ class SaveDebtUseCaseTest {
         }
 
     @Test
+    fun `edit cannot change the direction of a debt with payments`() =
+        runTest {
+            debtRepository.setInitialData(listOf(testDebt(id = 1L)), listOf(testDebtPayment(id = 1L, debtId = 1L)))
+
+            val result = saveDebtUseCase(testDebt(id = 1L, direction = DebtDirection.I_OWE))
+
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.DebtDirectionLocked)
+            assertThat(debtRepository.getDebt(1L)?.direction).isEqualTo(DebtDirection.OWED_TO_ME)
+        }
+
+    @Test
+    fun `edit cannot move the date after the first payment`() =
+        runTest {
+            val payment = testDebtPayment(id = 1L, debtId = 1L, date = LocalDate.of(2026, 9, 10))
+            debtRepository.setInitialData(listOf(testDebt(id = 1L, date = LocalDate.of(2026, 9, 1))), listOf(payment))
+
+            val after = saveDebtUseCase(testDebt(id = 1L, date = LocalDate.of(2026, 9, 11)))
+            val sameDay = saveDebtUseCase(testDebt(id = 1L, date = LocalDate.of(2026, 9, 10)))
+
+            assertThat(after.errorOrNull()).isEqualTo(DomainError.DebtDateAfterPayments)
+            assertThat(sameDay.isSuccess).isTrue()
+        }
+
+    @Test
     fun `edit to an amount below what was paid fails with DebtAmountBelowPaid`() =
         runTest {
             debtRepository.setInitialData(

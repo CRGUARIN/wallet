@@ -11,6 +11,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -44,6 +45,10 @@ class DebtRepositoryImpl
         override suspend fun getPaid(debtId: Long): Money = Money(debtDao.getPaid(debtId))
 
         override suspend fun getPayment(id: Long): DebtPayment? = debtDao.getPaymentById(id)?.toDomain()
+
+        override suspend fun getFirstPaymentDate(debtId: Long): LocalDate? = debtDao.getFirstPaymentDate(debtId)
+
+        override suspend fun countDebts(): Int = debtDao.count()
 
         override suspend fun saveDebt(debt: Debt): Long =
             if (debt.id == 0L) {
