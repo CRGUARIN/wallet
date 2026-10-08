@@ -16,9 +16,9 @@ import org.robolectric.annotation.Config
 import java.time.LocalDate
 
 /**
- * Verifies that [MIGRATION_1_2], [MIGRATION_2_3] and [MIGRATION_3_4] preserve every row of the
- * older databases, that the full 1→2→3→4 chain works, and that the migrated databases open
- * normally with Room.
+ * Verifies that [MIGRATION_1_2], [MIGRATION_2_3], [MIGRATION_3_4] and [MIGRATION_4_5] preserve every
+ * row of the older databases, that the full 1→2→3→4 and 1→5 chains work, and that the migrated
+ * databases open normally with Room.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
@@ -143,6 +143,23 @@ class MigrationTest {
                 "minimum_payment, stated_interest_fees, adjustment_transaction_id, created_at) " +
                 "VALUES (3, ${LocalDate.of(2026, 8, 25).toEpochDay()}, ${LocalDate.of(2026, 9, 15).toEpochDay()}, " +
                 "100000, 10000, 2000, 5, $createdAt)",
+        )
+    }
+
+    /** Version 2 data plus one recurring payment and the transaction it generated (version 4 columns). */
+    private fun seedVersion4(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+        seedVersion2(db)
+        db.execSQL(
+            "INSERT INTO recurring_payments (name, type, amount, account_id, category_id, note, frequency, " +
+                "`interval`, start_date, next_due_date, end_date, mode, reminder_days_before, is_active, " +
+                "created_at, updated_at) " +
+                "VALUES ('Netflix', 'EXPENSE', 45900, 3, 4, 'Mensual', 'MONTHLY', 1, ${date1.toEpochDay()}, " +
+                "${date1.plusMonths(1).toEpochDay()}, NULL, 'AUTO', 2, 1, $createdAt, $createdAt)",
+        )
+        db.execSQL(
+            "INSERT INTO transactions (type, amount, account_id, to_account_id, category_id, date, note, " +
+                "created_at, updated_at, installments, recurring_id) " +
+                "VALUES ('EXPENSE', 45900, 3, NULL, 4, ${date1.toEpochDay()}, 'Netflix', $createdAt, $createdAt, NULL, 1)",
         )
     }
 
@@ -590,6 +607,126 @@ class MigrationTest {
             }
         }
 
+    @Test
+    fun migrate4To5_preservesAllDataAndAddsDebtTables() {
+        helper.createDatabase(TEST_DB_V5, 4).apply {
+            seedVersion4(this)
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB_V5, 5, true, MIGRATION_4_5)
+
+        // Every existing table keeps its rows.
+        db.query("SELECT COUNT(*) AS count FROM accounts").use { cursor ->
+            cursor.moveToFirst()
+            assertThat(cursor.readLong("count")).isEqualTo(3L)
+        }
+        db.query("SELECT COUNT(*) AS count FROM transactions").use { cursor ->
+            cursor.moveToFirst()
+            assertThat(cursor.readLong("count")).isEqualTo(6L)
+        }
+        db.query("SELECT COUNT(*) AS count FROM card_statements").use { cursor ->
+            cursor.moveToFirst()
+            assertThat(cursor.readLong("count")).isEqualTo(1L)
+        }
+        db.query("SELECT name, amount, next_due_date FROM recurring_payments").use { cursor ->
+            assertThat(cursor.count).isEqualTo(1)
+            cursor.moveToFirst()
+            assertThat(cursor.readString("name")).isEqualTo("Netflix")
+            assertThat(cursor.readLong("amount")).isEqualTo(45_900L)
+            assertThat(cursor.readLong("next_due_date")).isEqualTo(date1.plusMonths(1).toEpochDay())
+        }
+        db.query("SELECT recurring_id FROM transactions WHERE note = 'Netflix'").use { cursor ->
+            cursor.moveToFirst()
+            assertThat(cursor.readLong("recurring_id")).isEqualTo(1L)
+        }
+        // Balances match the pre-migration rows, including the recurring expense.
+        assertThat(balanceOf(db, 1)).isEqualTo(-130_000L)
+        assertThat(balanceOf(db, 2)).isEqualTo(1_700_000L)
+        assertThat(balanceOf(db, 3)).isEqualTo(-96_800L)
+
+        // The debt tables start empty and accept debts and payments linked by debt_id.
+        db.query("SELECT COUNT(*) AS count FROM debts").use { cursor ->
+            cursor.moveToFirst()
+            assertThat(cursor.readLong("count")).isEqualTo(0L)
+        }
+        db.execSQL(
+            "INSERT INTO debts (person_name, direction, amount, date, due_date, note, created_at, updated_at) " +
+                "VALUES ('Ana', 'OWED_TO_ME', 150000, ${date1.toEpochDay()}, ${date3.toEpochDay()}, 'Almuerzo', " +
+                "$createdAt, $createdAt)",
+        )
+        db.execSQL(
+            "INSERT INTO debt_payments (debt_id, amount, date, note, created_at) " +
+                "VALUES (1, 50000, ${date2.toEpochDay()}, NULL, $createdAt)",
+        )
+        db.query("SELECT person_name, direction, due_date FROM debts").use { cursor ->
+            cursor.moveToFirst()
+            assertThat(cursor.readString("person_name")).isEqualTo("Ana")
+            assertThat(cursor.readString("direction")).isEqualTo("OWED_TO_ME")
+            assertThat(cursor.readLong("due_date")).isEqualTo(date3.toEpochDay())
+        }
+        db.query("SELECT SUM(amount) AS paid FROM debt_payments WHERE debt_id = 1").use { cursor ->
+            cursor.moveToFirst()
+            assertThat(cursor.readLong("paid")).isEqualTo(50_000L)
+        }
+
+        // The payment index exists with its generated name.
+        db
+            .query("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'debt_payments'")
+            .use { cursor ->
+                val names = mutableListOf<String?>()
+                while (cursor.moveToNext()) {
+                    names += cursor.readString("name")
+                }
+                assertThat(names).containsExactly("index_debt_payments_debt_id")
+            }
+
+        db.close()
+    }
+
+    @Test
+    fun migrate1To5_chainPreservesVersion1DataAndStartsDebtsEmpty() {
+        helper.createDatabase(TEST_DB_CHAIN_V5, 1).apply {
+            seedVersion1(this)
+            close()
+        }
+
+        val db = helper.runMigrationsAndValidate(TEST_DB_CHAIN_V5, 5, true, *ALL_MIGRATIONS)
+
+        db.query("SELECT type, amount, note FROM transactions ORDER BY id").use { cursor ->
+            assertThat(cursor.count).isEqualTo(3)
+            cursor.moveToFirst()
+            assertThat(cursor.readString("type")).isEqualTo("INCOME")
+            assertThat(cursor.readLong("amount")).isEqualTo(200_000L)
+            cursor.moveToNext()
+            assertThat(cursor.readString("type")).isEqualTo("EXPENSE")
+            assertThat(cursor.readLong("amount")).isEqualTo(30_000L)
+            cursor.moveToNext()
+            assertThat(cursor.readString("type")).isEqualTo("TRANSFER")
+            assertThat(cursor.readLong("amount")).isEqualTo(50_000L)
+        }
+        db.query("SELECT COUNT(*) AS count FROM recurring_payments").use { cursor ->
+            cursor.moveToFirst()
+            assertThat(cursor.readLong("count")).isEqualTo(0L)
+        }
+        db.query("SELECT COUNT(*) AS count FROM card_statements").use { cursor ->
+            cursor.moveToFirst()
+            assertThat(cursor.readLong("count")).isEqualTo(0L)
+        }
+        db.query("SELECT COUNT(*) AS count FROM debts").use { cursor ->
+            cursor.moveToFirst()
+            assertThat(cursor.readLong("count")).isEqualTo(0L)
+        }
+        db.query("SELECT COUNT(*) AS count FROM debt_payments").use { cursor ->
+            cursor.moveToFirst()
+            assertThat(cursor.readLong("count")).isEqualTo(0L)
+        }
+        assertThat(balanceOf(db, 1)).isEqualTo(20_000L)
+        assertThat(balanceOf(db, 2)).isEqualTo(750_000L)
+
+        db.close()
+    }
+
     private companion object {
         const val TEST_DB = "migration-test"
         const val TEST_DB_ROOM = "migration-test-room"
@@ -599,5 +736,7 @@ class MigrationTest {
         const val TEST_DB_V4 = "migration-test-v4"
         const val TEST_DB_CHAIN_V4 = "migration-test-chain-v4"
         const val TEST_DB_V4_ROOM = "migration-test-v4-room"
+        const val TEST_DB_V5 = "migration-test-v5"
+        const val TEST_DB_CHAIN_V5 = "migration-test-chain-v5"
     }
 }

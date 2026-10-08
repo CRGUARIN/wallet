@@ -75,5 +75,26 @@ val MIGRATION_3_4: Migration =
         }
     }
 
+/**
+ * Migration from schema 4 to schema 5 (debts). The `debts` and `debt_payments` CREATE TABLE and
+ * index statements below are copied verbatim from the generated
+ * `app/schemas/com.crguarin.wallet.data.db.WalletDatabase/5.json`. Debts are a standalone ledger,
+ * so no existing table changes.
+ */
+val MIGRATION_4_5: Migration =
+    object : Migration(4, 5) {
+        override fun migrate(db: SupportSQLiteDatabase) {
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `debts` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `person_name` TEXT NOT NULL, `direction` TEXT NOT NULL, `amount` INTEGER NOT NULL, `date` INTEGER NOT NULL, `due_date` INTEGER, `note` TEXT, `created_at` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL)",
+            )
+            db.execSQL(
+                "CREATE TABLE IF NOT EXISTS `debt_payments` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `debt_id` INTEGER NOT NULL, `amount` INTEGER NOT NULL, `date` INTEGER NOT NULL, `note` TEXT, `created_at` INTEGER NOT NULL, FOREIGN KEY(`debt_id`) REFERENCES `debts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+            )
+            db.execSQL(
+                "CREATE INDEX IF NOT EXISTS `index_debt_payments_debt_id` ON `debt_payments` (`debt_id`)",
+            )
+        }
+    }
+
 /** Every migration, oldest first, for the database builder and the migration tests. */
-val ALL_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+val ALL_MIGRATIONS: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)

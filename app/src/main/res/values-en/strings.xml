@@ -545,6 +545,10 @@
     <string name="error_recurring_interval">Enter a number between 1 and 12</string>
     <string name="error_account_has_recurring">This account has recurring payments. Delete them or move them to another account first.</string>
     <string name="error_category_has_recurring">This category has recurring payments. Move them to another category first.</string>
+    <string name="error_debt_amount_below_paid">The amount can\'t be lower than what was already paid</string>
+    <string name="error_debt_payment_exceeds_remaining">The payment is greater than the outstanding amount</string>
+    <string name="error_debt_due_before_date">The due date can\'t be before the debt date</string>
+    <string name="error_debt_already_settled">This debt is already settled</string>
 
     <!-- Upcoming payments (Home) -->
     <string name="home_upcoming_title">Upcoming payments</string>

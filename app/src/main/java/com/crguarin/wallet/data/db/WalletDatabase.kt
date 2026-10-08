@@ -11,8 +11,10 @@ import androidx.room.TypeConverters
         TransactionEntity::class,
         CardStatementEntity::class,
         RecurringPaymentEntity::class,
+        DebtEntity::class,
+        DebtPaymentEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 @TypeConverters(Converters::class)
@@ -26,6 +28,8 @@ abstract class WalletDatabase : RoomDatabase() {
     abstract fun cardStatementDao(): CardStatementDao
 
     abstract fun recurringPaymentDao(): RecurringPaymentDao
+
+    abstract fun debtDao(): DebtDao
 
     abstract fun backupDao(): BackupDao
 }

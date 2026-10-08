@@ -119,6 +119,10 @@ class DomainResultTest {
                 DomainError.RecurringIntervalInvalid,
                 DomainError.AccountHasRecurring,
                 DomainError.CategoryHasRecurring,
+                DomainError.DebtAmountBelowPaid,
+                DomainError.DebtPaymentExceedsRemaining,
+                DomainError.DebtDueBeforeDate,
+                DomainError.DebtAlreadySettled,
                 DomainError.CardDayInvalid,
                 DomainError.AccountTypeChangeNotAllowed,
                 DomainError.BackupInvalid(reason = "Corrupt JSON"),
@@ -126,7 +130,7 @@ class DomainResultTest {
                 DomainError.BackupFailed,
             )
 
-        assertThat(errors).hasSize(28)
+        assertThat(errors).hasSize(32)
 
         for (err in errors) {
             val description =
@@ -154,6 +158,10 @@ class DomainResultTest {
                     DomainError.RecurringIntervalInvalid -> "RecurringIntervalInvalid"
                     DomainError.AccountHasRecurring -> "AccountHasRecurring"
                     DomainError.CategoryHasRecurring -> "CategoryHasRecurring"
+                    DomainError.DebtAmountBelowPaid -> "DebtAmountBelowPaid"
+                    DomainError.DebtPaymentExceedsRemaining -> "DebtPaymentExceedsRemaining"
+                    DomainError.DebtDueBeforeDate -> "DebtDueBeforeDate"
+                    DomainError.DebtAlreadySettled -> "DebtAlreadySettled"
                     DomainError.CardDayInvalid -> "CardDayInvalid"
                     DomainError.AccountTypeChangeNotAllowed -> "AccountTypeChangeNotAllowed"
                     is DomainError.BackupInvalid -> "BackupInvalid(${err.reason})"

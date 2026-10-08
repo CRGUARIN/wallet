@@ -549,6 +549,10 @@
     <string name="error_recurring_interval">Ingresa un número entre 1 y 12</string>
     <string name="error_account_has_recurring">La cuenta tiene pagos recurrentes. Elimínalos o cámbialos de cuenta primero.</string>
     <string name="error_category_has_recurring">La categoría tiene pagos recurrentes. Cámbialos de categoría primero.</string>
+    <string name="error_debt_amount_below_paid">El monto no puede ser menor que lo ya abonado</string>
+    <string name="error_debt_payment_exceeds_remaining">El abono supera lo que falta por pagar</string>
+    <string name="error_debt_due_before_date">La fecha límite no puede ser anterior a la fecha de la deuda</string>
+    <string name="error_debt_already_settled">Esta deuda ya está saldada</string>
 
     <!-- Próximos pagos (Inicio) -->
     <string name="home_upcoming_title">Próximos pagos</string>

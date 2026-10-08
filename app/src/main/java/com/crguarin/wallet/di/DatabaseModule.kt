@@ -7,6 +7,7 @@ import com.crguarin.wallet.data.db.AccountDao
 import com.crguarin.wallet.data.db.BackupDao
 import com.crguarin.wallet.data.db.CardStatementDao
 import com.crguarin.wallet.data.db.CategoryDao
+import com.crguarin.wallet.data.db.DebtDao
 import com.crguarin.wallet.data.db.RecurringPaymentDao
 import com.crguarin.wallet.data.db.TransactionDao
 import com.crguarin.wallet.data.db.WalletDatabase
@@ -52,4 +53,7 @@ object DatabaseModule {
 
     @Provides
     fun provideRecurringPaymentDao(database: WalletDatabase): RecurringPaymentDao = database.recurringPaymentDao()
+
+    @Provides
+    fun provideDebtDao(database: WalletDatabase): DebtDao = database.debtDao()
 }

@@ -52,6 +52,14 @@ sealed interface DomainError {
 
     data object CategoryHasRecurring : DomainError
 
+    data object DebtAmountBelowPaid : DomainError
+
+    data object DebtPaymentExceedsRemaining : DomainError
+
+    data object DebtDueBeforeDate : DomainError
+
+    data object DebtAlreadySettled : DomainError
+
     data object CardDayInvalid : DomainError
 
     data object AccountTypeChangeNotAllowed : DomainError
