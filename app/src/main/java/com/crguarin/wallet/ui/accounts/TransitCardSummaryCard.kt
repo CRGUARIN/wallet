@@ -4,11 +4,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,7 +21,9 @@ import com.crguarin.wallet.core.money.MoneyFormatter
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.MonthSummary
 import com.crguarin.wallet.domain.model.transit.TransitMath
+import com.crguarin.wallet.ui.components.MoneySign
 import com.crguarin.wallet.ui.components.MoneyText
+import com.crguarin.wallet.ui.components.SectionCard
 
 /** Header of a transit card: the balance, the fare per trip and how many trips the balance still pays. */
 @Composable
@@ -38,28 +35,23 @@ fun TransitCardSummaryCard(
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val fare = account.fare
-    Card(
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Column(
-            modifier = Modifier.padding(20.dp),
-        ) {
-            AccountIdentityRow(account = account)
+    Column(modifier = modifier.fillMaxWidth()) {
+        AccountHeaderBlock(accentColor = Color(account.color)) { contentColor ->
+            AccountIdentityRow(account = account, contentColor = contentColor)
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Text(
                 text = stringResource(R.string.transit_current_balance_label),
                 style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = contentColor.copy(alpha = 0.85f),
             )
             Spacer(modifier = Modifier.height(4.dp))
-            MoneyText(
+            HeaderAmount(
                 amount = balance,
+                contentColor = contentColor,
                 style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                sign = MoneySign.NONE,
             )
 
             if (fare != null) {
@@ -67,7 +59,7 @@ fun TransitCardSummaryCard(
                 Text(
                     text = stringResource(R.string.transit_fare_value, MoneyFormatter.format(fare, locale)),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = contentColor.copy(alpha = 0.85f),
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 if (TransitMath.isLowBalance(balance, fare)) {
@@ -75,7 +67,7 @@ fun TransitCardSummaryCard(
                         text = stringResource(R.string.transit_low_balance),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.error,
+                        color = contentColor,
                     )
                 } else {
                     val trips = TransitMath.tripsLeft(balance, fare)
@@ -83,15 +75,15 @@ fun TransitCardSummaryCard(
                         text = pluralStringResource(R.plurals.transit_trips_left, trips, trips),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = contentColor,
                     )
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.height(16.dp))
-            HorizontalDivider()
-            Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
+        SectionCard(contentPadding = AccountSectionPadding) {
             MonthSummarySection(monthSummary = monthSummary)
         }
     }

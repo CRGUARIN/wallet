@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Add
@@ -33,6 +32,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
@@ -62,10 +62,12 @@ import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.card.CardOverview
 import com.crguarin.wallet.ui.components.EmptyState
+import com.crguarin.wallet.ui.components.HeroCard
 import com.crguarin.wallet.ui.components.IconCatalog
 import com.crguarin.wallet.ui.components.LoadingState
 import com.crguarin.wallet.ui.components.MoneyText
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.contentColorOver
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 import java.time.Instant
 import java.time.LocalDate
@@ -189,27 +191,18 @@ fun AccountsScreen(
             ) {
                 // Total Balance Card
                 item(key = "total_balance_card") {
-                    Card(
-                        colors =
-                            CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                            ),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(modifier = Modifier.padding(20.dp)) {
-                            Text(
-                                text = stringResource(R.string.accounts_total_balance),
-                                style = MaterialTheme.typography.titleSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            MoneyText(
-                                amount = uiState.totalBalance,
-                                style = MaterialTheme.typography.headlineMedium,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
-                        }
+                    HeroCard {
+                        Text(
+                            text = stringResource(R.string.accounts_total_balance),
+                            style = MaterialTheme.typography.titleSmall,
+                            color = LocalContentColor.current.copy(alpha = 0.85f),
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        MoneyText(
+                            amount = uiState.totalBalance,
+                            style = MaterialTheme.typography.headlineLarge,
+                            color = LocalContentColor.current,
+                        )
                     }
                 }
 
@@ -273,7 +266,7 @@ fun AccountsScreen(
                     item(key = "archived_header") {
                         OutlinedCard(
                             onClick = onToggleArchivedExpanded,
-                            shape = RoundedCornerShape(12.dp),
+                            shape = MaterialTheme.shapes.large,
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
@@ -358,6 +351,7 @@ internal fun AccountItemRow(
     cardOverview: CardOverview? = null,
     today: LocalDate = LocalDate.now(),
 ) {
+    val accountColor = Color(item.account.color)
     Card(
         onClick =
             if (!isReordering) {
@@ -365,17 +359,17 @@ internal fun AccountItemRow(
             } else {
                 {}
             },
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.large,
         colors =
             CardDefaults.cardColors(
                 containerColor =
                     if (isArchived) {
-                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                        MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.6f)
                     } else {
-                        MaterialTheme.colorScheme.surface
+                        MaterialTheme.colorScheme.surfaceContainerLow
                     },
             ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (isArchived) 0.dp else 1.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         modifier = modifier.fillMaxWidth(),
     ) {
         Row(
@@ -390,13 +384,13 @@ internal fun AccountItemRow(
                     Modifier
                         .size(44.dp)
                         .clip(CircleShape)
-                        .background(Color(item.account.color).copy(alpha = if (isArchived) 0.5f else 1f)),
+                        .background(accountColor.copy(alpha = if (isArchived) 0.5f else 1f)),
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
                     imageVector = IconCatalog.get(item.account.icon),
                     contentDescription = null,
-                    tint = Color.White,
+                    tint = contentColorOver(accountColor),
                     modifier = Modifier.size(24.dp),
                 )
             }
@@ -406,8 +400,7 @@ internal fun AccountItemRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = item.account.name,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+                    style = MaterialTheme.typography.titleSmall,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                     color =

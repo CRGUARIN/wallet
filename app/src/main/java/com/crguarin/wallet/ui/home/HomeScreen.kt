@@ -163,6 +163,7 @@ fun HomeScreen(
                         onUpcomingPendingClick = onUpcomingPendingClick,
                         onUpcomingCardClick = onUpcomingCardClick,
                         onViewAllRecurring = onViewAllRecurring,
+                        modifier = Modifier.animateItem(),
                     )
                 }
             }
@@ -173,6 +174,7 @@ fun HomeScreen(
                     HomeDebtsCard(
                         debts = debts,
                         onViewDebts = onViewDebts,
+                        modifier = Modifier.animateItem(),
                     )
                 }
             }
