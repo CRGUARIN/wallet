@@ -301,7 +301,9 @@ class AccountDetailScreenTest {
             fare = Money(350_000L),
         )
 
+    // The header pushes the action row to the bottom edge of the default screen.
     @Test
+    @Config(qualifiers = "es-w1000dp-h3000dp")
     fun `transit card header shows the trips left and the trip and top up actions`() {
         composeRule.setContent {
             TestScreen(
@@ -349,7 +351,9 @@ class AccountDetailScreenTest {
         composeRule.onNodeWithText("Recargar").assertDoesNotExist()
     }
 
+    // The header pushes the action row to the bottom edge of the default screen.
     @Test
+    @Config(qualifiers = "es-w1000dp-h3000dp")
     fun `trip and top up buttons call back`() {
         var tripClicked = false
         var rechargeClicked = false
