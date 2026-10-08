@@ -18,6 +18,7 @@ import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.card.CardStatement
 import com.crguarin.wallet.domain.model.card.StatementPaymentStatus
+import com.crguarin.wallet.domain.repository.TransactionRunner
 import com.crguarin.wallet.domain.usecase.ArchiveAccountUseCase
 import com.crguarin.wallet.domain.usecase.CheckNegativeBalanceUseCase
 import com.crguarin.wallet.domain.usecase.DeleteAccountUseCase
@@ -30,6 +31,7 @@ import com.crguarin.wallet.domain.usecase.UnarchiveAccountUseCase
 import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewUseCase
 import com.crguarin.wallet.domain.usecase.transit.RegisterTripUseCase
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -64,6 +66,7 @@ class AccountDetailViewModelTest {
     private lateinit var deleteAccountUseCase: DeleteAccountUseCase
     private lateinit var categoryRepository: FakeCategoryRepository
     private lateinit var registerTripUseCase: RegisterTripUseCase
+    private lateinit var tripRunner: GatedTransactionRunner
     private lateinit var deleteTransactionUseCase: DeleteTransactionUseCase
     private lateinit var savedStateHandle: SavedStateHandle
     private lateinit var viewModel: AccountDetailViewModel
@@ -96,6 +99,7 @@ class AccountDetailViewModelTest {
         unarchiveAccountUseCase = UnarchiveAccountUseCase(accountRepository)
         deleteAccountUseCase = DeleteAccountUseCase(accountRepository, FakeRecurringRepository())
         categoryRepository = FakeCategoryRepository()
+        tripRunner = GatedTransactionRunner()
         registerTripUseCase =
             RegisterTripUseCase(
                 accountRepository,
@@ -109,6 +113,7 @@ class AccountDetailViewModelTest {
                     FakeTransactionRunner(),
                 ),
                 timeProvider,
+                tripRunner,
             )
         deleteTransactionUseCase = DeleteTransactionUseCase(transactionRepository, cardStatementRepository, FakeTransactionRunner())
 
@@ -532,6 +537,50 @@ class AccountDetailViewModelTest {
         }
 
     @Test
+    fun `a second tap while the first trip is still being registered is ignored`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                accountList = listOf(transitCard()),
+                balanceMap = mapOf(42L to Money.ZERO),
+            )
+            tripRunner.holdNextRuns()
+
+            viewModel.events.test {
+                viewModel.onRegisterTripClick()
+                viewModel.onRegisterTripClick()
+                tripRunner.release()
+
+                val event = awaitItem() as AccountDetailEvent.TripRegistered
+                expectNoEvents()
+                assertThat(tripRunner.runs).isEqualTo(1)
+                assertThat(transactionRepository.getTransaction(event.transactionId)).isNotNull()
+                assertThat(transactionRepository.getTransaction(event.transactionId + 1)).isNull()
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `a new tap registers another trip once the previous one has finished`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                accountList = listOf(transitCard()),
+                balanceMap = mapOf(42L to Money(1_050_000L)),
+            )
+
+            viewModel.events.test {
+                viewModel.onRegisterTripClick()
+                val first = awaitItem() as AccountDetailEvent.TripRegistered
+                viewModel.onRegisterTripClick()
+                val second = awaitItem() as AccountDetailEvent.TripRegistered
+
+                assertThat(second.transactionId).isNotEqualTo(first.transactionId)
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
     fun `a zero balance registers the credit trip directly`() =
         runTest(testDispatcher) {
             accountRepository.setInitialData(
@@ -703,4 +752,26 @@ class AccountDetailViewModelTest {
                 cancelAndIgnoreRemainingEvents()
             }
         }
+
+    /** Runs blocks directly, or parks them until [release] so a test can keep a registration in flight. */
+    private class GatedTransactionRunner : TransactionRunner {
+        private var gate: CompletableDeferred<Unit>? = null
+
+        var runs: Int = 0
+            private set
+
+        fun holdNextRuns() {
+            gate = CompletableDeferred()
+        }
+
+        fun release() {
+            gate?.complete(Unit)
+        }
+
+        override suspend fun <T> run(block: suspend () -> T): T {
+            runs++
+            gate?.await()
+            return block()
+        }
+    }
 }

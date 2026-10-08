@@ -248,7 +248,10 @@ class AccountDetailViewModel
             dialogStateFlow.update { it.copy(showDelete = false, showOfferArchive = false) }
         }
 
-        /** Registers a trip; the use case refuses it while the credit trip is still owed. */
+        /**
+         * Registers a trip; the use case refuses it while the credit trip is still owed. Taps while a
+         * registration is still running are ignored: `canRegisterTrip` only updates once Room re-emits.
+         */
         fun onRegisterTripClick() {
             registerTrip()
         }

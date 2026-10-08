@@ -216,20 +216,14 @@ class AccountEditViewModel
         fun setType(type: AccountType) {
             if (_uiState.value.isTypeLocked) return
             _uiState.update {
-                // Only a transit card can owe the credit trip. Leaving the type clears that debt instead
-                // of saving the typed amount as a positive balance.
-                val dropsCredit = it.transitBalanceNegative && type != AccountType.TRANSIT_CARD
                 val next =
                     it.copy(
                         type = type,
                         icon = iconAfterTypeChange(type, it.icon),
                         // The fare error only concerns transit cards; saving checks the fare again.
                         fareErrorRes = if (type == AccountType.TRANSIT_CARD) it.fareErrorRes else null,
-                        transitBalanceNegative = it.transitBalanceNegative && !dropsCredit,
-                        initialBalanceText = if (dropsCredit) formatForInput(Money.ZERO) else it.initialBalanceText,
-                        amountErrorRes = if (dropsCredit) null else it.amountErrorRes,
                     )
-                next.withTransitCreditCheck()
+                next.keepingBalanceSign(previousType = it.type).withTransitCreditCheck()
             }
         }
 
@@ -428,6 +422,31 @@ private fun transitCreditError(state: AccountEditUiState): Int? {
     val fare = parseFare(state.fareText) ?: return null
     return if (amount > fare) R.string.error_transit_credit_too_large else null
 }
+
+/**
+ * Keeps the sign of the balance across a type change. The amount field is always non-negative and each
+ * type expresses the sign differently (transit switch, card debt, never negative), so reinterpreting
+ * the same text would flip it. A negative transit balance becomes a debt on a card, a card debt
+ * entering transit turns the switch on, and either one is reset for types that cannot hold it.
+ */
+private fun AccountEditUiState.keepingBalanceSign(previousType: AccountType): AccountEditUiState =
+    when {
+        previousType == AccountType.TRANSIT_CARD && transitBalanceNegative ->
+            when (type) {
+                AccountType.TRANSIT_CARD -> this
+                AccountType.CREDIT_CARD -> copy(transitBalanceNegative = false)
+                else -> copy(initialBalanceText = formatForInput(Money.ZERO), transitBalanceNegative = false, amountErrorRes = null)
+            }
+        previousType == AccountType.CREDIT_CARD && type != AccountType.CREDIT_CARD -> {
+            val debt = MoneyParser.parseNonNegative(initialBalanceText)
+            when {
+                debt == null || debt <= Money.ZERO -> this
+                type == AccountType.TRANSIT_CARD -> copy(transitBalanceNegative = true)
+                else -> copy(initialBalanceText = formatForInput(Money.ZERO), amountErrorRes = null)
+            }
+        }
+        else -> this
+    }
 
 /** Re-validates the credit-too-large error, leaving other amount errors untouched. */
 private fun AccountEditUiState.withTransitCreditCheck(): AccountEditUiState {

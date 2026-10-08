@@ -9,10 +9,15 @@ import com.crguarin.wallet.domain.fake.FakeTransactionRepository
 import com.crguarin.wallet.domain.fake.FakeTransactionRunner
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
+import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryType
+import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.card.BalanceWarning
+import com.crguarin.wallet.domain.repository.AccountRepository
+import com.crguarin.wallet.domain.repository.TransactionRepository
+import com.crguarin.wallet.domain.repository.TransactionRunner
 import com.crguarin.wallet.domain.usecase.CheckNegativeBalanceUseCase
 import com.crguarin.wallet.domain.usecase.SaveTransactionUseCase
 import com.google.common.truth.Truth.assertThat
@@ -26,6 +31,7 @@ class RegisterTripUseCaseTest {
     private lateinit var categoryRepository: FakeCategoryRepository
     private lateinit var transactionRepository: FakeTransactionRepository
     private lateinit var timeProvider: FakeTimeProvider
+    private lateinit var transactionRunner: FakeTransactionRunner
     private lateinit var registerTripUseCase: RegisterTripUseCase
 
     private val now = Instant.parse("2026-09-28T10:00:00Z")
@@ -60,6 +66,7 @@ class RegisterTripUseCaseTest {
         categoryRepository = FakeCategoryRepository()
         transactionRepository = FakeTransactionRepository()
         timeProvider = FakeTimeProvider(now)
+        transactionRunner = FakeTransactionRunner()
         val saveTransactionUseCase =
             SaveTransactionUseCase(
                 transactionRepository,
@@ -69,7 +76,8 @@ class RegisterTripUseCaseTest {
                 CheckNegativeBalanceUseCase(accountRepository, transactionRepository),
                 FakeTransactionRunner(),
             )
-        registerTripUseCase = RegisterTripUseCase(accountRepository, categoryRepository, saveTransactionUseCase, timeProvider)
+        registerTripUseCase =
+            RegisterTripUseCase(accountRepository, categoryRepository, saveTransactionUseCase, timeProvider, transactionRunner)
     }
 
     @Test
@@ -207,6 +215,90 @@ class RegisterTripUseCaseTest {
             assertThat(registerTripUseCase(1L).errorOrNull()).isEqualTo(DomainError.TransitCreditUsed)
             assertThat(transactionRepository.getTransaction(1L)).isNull()
         }
+
+    @Test
+    fun `a rejected trip runs inside the transaction runner and saves nothing`() =
+        runTest {
+            categoryRepository.setInitialData(listOf(transport, publicTransport))
+            accountRepository.setInitialData(listOf(card), balanceMap = mapOf(1L to Money(-1L)))
+
+            val result = registerTripUseCase(1L)
+
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.TransitCreditUsed)
+            assertThat(transactionRunner.runs).isEqualTo(1)
+            assertThat(transactionRepository.getTransaction(1L)).isNull()
+        }
+
+    @Test
+    fun `a registered trip runs inside the transaction runner`() =
+        runTest {
+            categoryRepository.setInitialData(listOf(transport, publicTransport))
+            accountRepository.setInitialData(listOf(card))
+
+            registerTripUseCase(1L).getOrNull()!!
+
+            assertThat(transactionRunner.runs).isEqualTo(1)
+        }
+
+    @Test
+    fun `the balance check and the save happen in the same transaction block`() =
+        runTest {
+            categoryRepository.setInitialData(listOf(transport, publicTransport))
+            accountRepository.setInitialData(listOf(card))
+            val runner = DepthTrackingRunner()
+            val insideAtBalanceRead = mutableListOf<Boolean>()
+            val insideAtSave = mutableListOf<Boolean>()
+            val trackedAccounts =
+                object : AccountRepository by accountRepository {
+                    override suspend fun getAccountWithBalance(id: Long): AccountWithBalance? {
+                        insideAtBalanceRead += runner.depth > 0
+                        return accountRepository.getAccountWithBalance(id)
+                    }
+                }
+            val trackedTransactions =
+                object : TransactionRepository by transactionRepository {
+                    override suspend fun saveTransaction(transaction: Transaction): Long {
+                        insideAtSave += runner.depth > 0
+                        return transactionRepository.saveTransaction(transaction)
+                    }
+                }
+            val useCase =
+                RegisterTripUseCase(
+                    trackedAccounts,
+                    categoryRepository,
+                    SaveTransactionUseCase(
+                        trackedTransactions,
+                        trackedAccounts,
+                        categoryRepository,
+                        timeProvider,
+                        CheckNegativeBalanceUseCase(trackedAccounts, trackedTransactions),
+                        FakeTransactionRunner(),
+                    ),
+                    timeProvider,
+                    runner,
+                )
+
+            useCase(1L).getOrNull()!!
+
+            assertThat(insideAtBalanceRead).contains(true)
+            assertThat(insideAtBalanceRead).doesNotContain(false)
+            assertThat(insideAtSave).containsExactly(true)
+        }
+
+    /** Counts how many blocks are open, so a test can tell whether a call happened inside one. */
+    private class DepthTrackingRunner : TransactionRunner {
+        var depth: Int = 0
+            private set
+
+        override suspend fun <T> run(block: suspend () -> T): T {
+            depth++
+            try {
+                return block()
+            } finally {
+                depth--
+            }
+        }
+    }
 
     @Test
     fun `reports a negative balance warning when the trip leaves the card below zero`() =
