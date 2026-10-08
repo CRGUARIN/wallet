@@ -2,7 +2,9 @@ package com.crguarin.wallet.ui.transactions
 
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -188,11 +190,11 @@ class TransactionEditCardScreenTest {
             onConfirmNegativeBalance = { confirmed = true },
         )
 
-        composeRule.onNodeWithText("Superas el cupo").assertIsDisplayed()
+        composeRule.onNodeWithText("¿Superar el cupo?").assertIsDisplayed()
         composeRule
-            .onNodeWithText("La deuda superará el cupo. ¿Guardar?")
+            .onNodeWithText("Con este movimiento, la deuda supera el cupo de la tarjeta.")
             .assertIsDisplayed()
-        composeRule.onNodeWithText("Confirmar").performClick()
+        composeRule.onNode(hasText("Guardar") and hasAnyAncestor(isDialog())).performClick()
 
         assertThat(confirmed).isTrue()
     }
@@ -207,7 +209,7 @@ class TransactionEditCardScreenTest {
         )
 
         composeRule
-            .onNodeWithText("La cuenta quedará en negativo. ¿Guardar?")
+            .onNodeWithText("El saldo no alcanza para este movimiento.")
             .assertIsDisplayed()
     }
 }

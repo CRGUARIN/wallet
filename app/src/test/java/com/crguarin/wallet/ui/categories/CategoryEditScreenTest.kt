@@ -134,10 +134,10 @@ class CategoryEditScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("Categoría con movimientos").assertIsDisplayed()
+        composeRule.onNodeWithText("Categoría en uso").assertIsDisplayed()
         composeRule
             .onNodeWithText(
-                "Tiene 5 movimientos. Archívala o reasigna sus movimientos para eliminarla.",
+                "Tiene 5 movimientos. Puedes archivarla, o pasar sus movimientos a otra categoría y eliminarla.",
             ).assertIsDisplayed()
 
         composeRule.onNodeWithText("Archivar").performClick()

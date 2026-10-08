@@ -218,7 +218,7 @@ class SettingsScreenTest {
 
         composeRule.onNodeWithText("¿Importar datos?").assertIsDisplayed()
         composeRule.onNodeWithText("3 cuentas, 25 categorías, 480 movimientos", substring = true).assertIsDisplayed()
-        composeRule.onNodeWithText("Reemplazará todos tus datos actuales", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Se reemplazarán todos tus datos actuales", substring = true).assertIsDisplayed()
 
         composeRule.onNodeWithText("Importar").performClick()
         composeRule.onNodeWithText("Cancelar").performClick()
@@ -232,7 +232,7 @@ class SettingsScreenTest {
         show(SettingsUiState(pendingImport = BackupSummary(3, 25, 480), pendingImportDebtsLost = 2))
 
         composeRule
-            .onNodeWithText("El backup no trae deudas: se borrarán 2 deudas registradas.", substring = true)
+            .onNodeWithText("El backup no incluye deudas: se borrarán 2 deudas registradas.", substring = true)
             .assertIsDisplayed()
     }
 
@@ -240,7 +240,7 @@ class SettingsScreenTest {
     fun `confirmation dialog has no debts warning when nothing is lost`() {
         show(SettingsUiState(pendingImport = BackupSummary(3, 25, 480)))
 
-        composeRule.onNodeWithText("El backup no trae deudas", substring = true).assertDoesNotExist()
+        composeRule.onNodeWithText("El backup no incluye deudas", substring = true).assertDoesNotExist()
     }
 
     @Test
@@ -265,7 +265,7 @@ class SettingsScreenTest {
         show(SettingsUiState(pendingImport = BackupSummary(2, 4, 6)))
 
         composeRule.onNodeWithText("2 accounts, 4 categories, 6 transactions", substring = true).assertIsDisplayed()
-        composeRule.onNodeWithText("Replaces all current data", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("This replaces all your current data", substring = true).assertIsDisplayed()
     }
 
     @Test

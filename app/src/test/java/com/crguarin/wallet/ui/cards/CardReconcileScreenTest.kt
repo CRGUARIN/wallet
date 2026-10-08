@@ -165,7 +165,7 @@ class CardReconcileScreenTest {
             .performClick()
         assertThat(reviewed).isTrue()
 
-        composeRule.onNodeWithText("Ajustar igual").performScrollTo().performClick()
+        composeRule.onNodeWithText("Ajustar de todos modos").performScrollTo().performClick()
         assertThat(forced).isTrue()
 
         composeRule.onNodeWithText("Guardar conciliación").performScrollTo().performClick()

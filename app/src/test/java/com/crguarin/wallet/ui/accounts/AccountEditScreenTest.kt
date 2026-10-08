@@ -102,7 +102,7 @@ class AccountEditScreenTest {
         composeRule.onNodeWithText("Editar cuenta").assertIsDisplayed()
         composeRule
             .onNodeWithText(
-                "Cambiarlo afecta el saldo actual.",
+                "Cambiar el saldo inicial también cambia el saldo actual.",
             ).performScrollTo()
             .assertIsDisplayed()
     }
@@ -253,7 +253,7 @@ class AccountEditScreenTest {
             .assertIsDisplayed()
         composeRule.onNodeWithText("Tarifa por viaje").performScrollTo().assertIsDisplayed()
         composeRule
-            .onNodeWithText("Tachados: en uso por otra cuenta")
+            .onNodeWithText("Los colores tachados ya los usa otra cuenta")
             .performScrollTo()
             .assertIsDisplayed()
     }
@@ -322,6 +322,6 @@ class AccountEditScreenTest {
             .onNodeWithText("No puede superar la tarifa")
             .performScrollTo()
             .assertIsDisplayed()
-        composeRule.onNodeWithText("Escribe cuánto debes. No puede superar la tarifa").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Escribe cuánto debes, hasta una tarifa").performScrollTo().assertIsDisplayed()
     }
 }

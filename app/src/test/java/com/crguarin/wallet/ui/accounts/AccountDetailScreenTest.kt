@@ -223,7 +223,7 @@ class AccountDetailScreenTest {
             )
         }
 
-        composeRule.onNodeWithText("Eliminar cuenta").assertIsDisplayed()
+        composeRule.onNodeWithText("¿Eliminar cuenta?").assertIsDisplayed()
         composeRule.onNodeWithText("Eliminar").performClick()
         assertThat(confirmDeleteClicked).isTrue()
     }
@@ -352,7 +352,7 @@ class AccountDetailScreenTest {
         }
 
         composeRule
-            .onNodeWithText("Viaje a crédito usado. Recarga")
+            .onNodeWithText("Debes el viaje a crédito")
             .performScrollTo()
             .assertIsDisplayed()
         composeRule.onNodeWithText("Registrar viaje").performScrollTo().assertIsNotEnabled()
