@@ -427,13 +427,13 @@ class HomeScreenTest {
             owedToMe =
                 listOf(
                     DebtSummary(
-                        debt = testDebt(id = 1L, personName = "Ana", amount = Money(500_000L)),
+                        debt = testDebt(id = 1L, personName = "Ana", amount = Money(750_000L)),
                         paid = Money.ZERO,
                     ),
                 ),
             iOwe = emptyList(),
             settled = emptyList(),
-            totalOwedToMe = Money(500_000L),
+            totalOwedToMe = Money(750_000L),
             totalIOwe = Money.ZERO,
         )
 
@@ -482,7 +482,8 @@ class HomeScreenTest {
         showDebts(debts = activeDebts(), onViewDebts = { viewDebtsClicks++ })
 
         composeRule.onNodeWithText("Te deben").assertIsDisplayed()
-        composeRule.onNodeWithText("+ $ 5.000").assertIsDisplayed()
+        // Not 5.000: the month summary already shows "+ $ 5.000" as income.
+        composeRule.onNodeWithText("+ $ 7.500").assertIsDisplayed()
         composeRule.onNodeWithText("Ver deudas").performClick()
 
         assertThat(viewDebtsClicks).isEqualTo(1)
