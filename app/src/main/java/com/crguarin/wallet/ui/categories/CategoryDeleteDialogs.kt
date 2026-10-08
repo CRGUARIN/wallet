@@ -28,6 +28,7 @@ internal fun CategoryDeleteDialogs(
             ConfirmDialog(
                 title = stringResource(R.string.category_delete_confirm_title),
                 message = stringResource(R.string.category_delete_confirm_message),
+                confirmText = stringResource(R.string.action_delete),
                 isDestructive = true,
                 onConfirm = onConfirmSimpleDelete,
                 onDismiss = onDismiss,

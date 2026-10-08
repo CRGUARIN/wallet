@@ -216,12 +216,18 @@ class AccountEditViewModel
         fun setType(type: AccountType) {
             if (_uiState.value.isTypeLocked) return
             _uiState.update {
+                // Only a transit card can owe the credit trip. Leaving the type clears that debt instead
+                // of saving the typed amount as a positive balance.
+                val dropsCredit = it.transitBalanceNegative && type != AccountType.TRANSIT_CARD
                 val next =
                     it.copy(
                         type = type,
                         icon = iconAfterTypeChange(type, it.icon),
                         // The fare error only concerns transit cards; saving checks the fare again.
                         fareErrorRes = if (type == AccountType.TRANSIT_CARD) it.fareErrorRes else null,
+                        transitBalanceNegative = it.transitBalanceNegative && !dropsCredit,
+                        initialBalanceText = if (dropsCredit) formatForInput(Money.ZERO) else it.initialBalanceText,
+                        amountErrorRes = if (dropsCredit) null else it.amountErrorRes,
                     )
                 next.withTransitCreditCheck()
             }

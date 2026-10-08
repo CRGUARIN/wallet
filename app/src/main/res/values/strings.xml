@@ -26,14 +26,14 @@
     <string name="transaction_edit_yesterday">Ayer</string>
     <string name="transaction_edit_note_label">Nota (opcional)</string>
     <string name="transaction_edit_note_counter">%1$d/%2$d</string>
-    <string name="transaction_edit_negative_balance_title">La cuenta quedará en negativo</string>
-    <string name="transaction_edit_negative_balance_message">La cuenta quedará en negativo. ¿Guardar?</string>
+    <string name="transaction_edit_negative_balance_title">¿Dejar la cuenta en negativo?</string>
+    <string name="transaction_edit_negative_balance_message">El saldo no alcanza para este movimiento.</string>
     <string name="transaction_edit_no_accounts_title">Sin cuentas activas</string>
     <string name="transaction_edit_no_accounts_message">Crea una cuenta para registrar movimientos.</string>
     <string name="transaction_edit_transfer_needs_accounts_title">Necesitas otra cuenta</string>
-    <string name="transaction_edit_transfer_needs_accounts_message">Necesitas al menos dos cuentas activas.</string>
+    <string name="transaction_edit_transfer_needs_accounts_message">Para transferir necesitas dos cuentas activas.</string>
     <string name="transaction_edit_delete_title">¿Eliminar movimiento?</string>
-    <string name="transaction_edit_delete_message">Se eliminará este movimiento.</string>
+    <string name="transaction_edit_delete_message">Esta acción no se puede deshacer.</string>
     <string name="accounts_title">Cuentas</string>
     <string name="account_detail_title">Detalle de cuenta</string>
     <string name="account_edit_title">Editar cuenta</string>
@@ -59,10 +59,10 @@
     <string name="action_unarchive">Desarchivar</string>
     <string name="action_reassign_and_delete">Reasignar y eliminar</string>
     <string name="category_delete_confirm_title">¿Eliminar categoría?</string>
-    <string name="category_delete_confirm_message">Se eliminará esta categoría.</string>
+    <string name="category_delete_confirm_message">Esta acción no se puede deshacer.</string>
     <string name="category_delete_has_children_title">No se puede eliminar</string>
-    <string name="category_delete_has_children_message">Tiene subcategorías. Elimínalas, muévelas o archívala.</string>
-    <string name="category_delete_has_transactions_title">Categoría con movimientos</string>
+    <string name="category_delete_has_children_message">Tiene subcategorías. Muévelas o elimínalas primero, o archiva la categoría.</string>
+    <string name="category_delete_has_transactions_title">Categoría en uso</string>
     <string name="category_archived_success">Categoría archivada</string>
     <string name="category_unarchived_success">Categoría desarchivada</string>
     <string name="categories_empty_expense_title">Sin categorías de gastos</string>
@@ -78,8 +78,8 @@
         <item quantity="other">Archivadas (%d)</item>
     </plurals>
     <plurals name="category_delete_has_transactions_message">
-        <item quantity="one">Tiene %d movimiento. Archívala o reasigna sus movimientos para eliminarla.</item>
-        <item quantity="other">Tiene %d movimientos. Archívala o reasigna sus movimientos para eliminarla.</item>
+        <item quantity="one">Tiene %d movimiento. Puedes archivarla, o pasar el movimiento a otra categoría y eliminarla.</item>
+        <item quantity="other">Tiene %d movimientos. Puedes archivarla, o pasar sus movimientos a otra categoría y eliminarla.</item>
     </plurals>
 
     <!-- Acciones comunes -->
@@ -125,10 +125,10 @@
     <string name="transit_fare_value">Tarifa: %1$s</string>
     <string name="transit_credit_available">Solo queda el viaje a crédito</string>
     <string name="transit_credit_available_short">Viaje a crédito</string>
-    <string name="transit_credit_used">Viaje a crédito usado. Recarga</string>
+    <string name="transit_credit_used">Debes el viaje a crédito</string>
     <string name="transit_credit_used_short">Recarga para viajar</string>
     <string name="transit_negative_balance_label">Debo el viaje a crédito</string>
-    <string name="transit_negative_balance_supporting">Escribe cuánto debes. No puede superar la tarifa</string>
+    <string name="transit_negative_balance_supporting">Escribe cuánto debes, hasta una tarifa</string>
     <string name="transit_action_trip">Registrar viaje</string>
     <string name="transit_action_recharge">Recargar</string>
     <string name="transit_trip_registered">Viaje registrado</string>
@@ -168,10 +168,10 @@
     <string name="account_detail_menu_unarchive">Desarchivar</string>
     <string name="account_detail_menu_delete">Eliminar</string>
     <string name="account_detail_menu_transfer">Transferir desde aquí</string>
-    <string name="account_detail_delete_title">Eliminar cuenta</string>
-    <string name="account_detail_delete_message">Se eliminará la cuenta \"%1$s\".</string>
+    <string name="account_detail_delete_title">¿Eliminar cuenta?</string>
+    <string name="account_detail_delete_message">La cuenta \"%1$s\" se eliminará definitivamente.</string>
     <string name="account_detail_cannot_delete_has_transactions_title">No se puede eliminar</string>
-    <string name="account_detail_cannot_delete_has_transactions_message">Tiene movimientos y no se puede eliminar. ¿Archivarla?</string>
+    <string name="account_detail_cannot_delete_has_transactions_message">La cuenta tiene movimientos. ¿Archivarla en su lugar?</string>
     <string name="account_detail_archived_badge">Archivada</string>
     <string name="account_detail_archived_success">Cuenta archivada</string>
     <string name="account_detail_unarchived_success">Cuenta desarchivada</string>
@@ -181,7 +181,7 @@
     <string name="account_edit_name_label">Nombre de la cuenta</string>
     <string name="account_edit_type_label">Tipo de cuenta</string>
     <string name="account_edit_initial_balance_label">Saldo inicial</string>
-    <string name="account_edit_initial_balance_warning">Cambiarlo afecta el saldo actual.</string>
+    <string name="account_edit_initial_balance_warning">Cambiar el saldo inicial también cambia el saldo actual.</string>
     <string name="account_edit_color_label">Color</string>
     <string name="account_edit_icon_label">Ícono</string>
     <string name="account_edit_include_in_total_title">Incluir en saldo total</string>
@@ -198,8 +198,8 @@
     <string name="cd_selected">Seleccionado</string>
     <string name="cd_color">Color</string>
     <string name="cd_color_in_use">Color en uso</string>
-    <string name="category_color_in_use_hint">Tachados: en uso por otra categoría</string>
-    <string name="account_color_in_use_hint">Tachados: en uso por otra cuenta</string>
+    <string name="category_color_in_use_hint">Los colores tachados ya los usa otra categoría</string>
+    <string name="account_color_in_use_hint">Los colores tachados ya los usa otra cuenta</string>
     <string name="cd_icon">Ícono</string>
     <string name="cd_delete_transaction">Eliminar movimiento</string>
 
@@ -309,25 +309,25 @@
     <string name="error_same_account_transfer">Origen y destino deben ser distintos</string>
     <string name="error_category_required">Selecciona una categoría</string>
     <string name="error_category_type_mismatch">El tipo de categoría no coincide</string>
-    <string name="error_max_depth_exceeded">Límite de subcategorías alcanzado</string>
-    <string name="error_account_has_transactions">Cuenta con movimientos: no se puede eliminar</string>
-    <string name="error_category_has_children">Categoría con subcategorías</string>
-    <string name="error_category_has_transactions">Categoría con movimientos</string>
+    <string name="error_max_depth_exceeded">Solo se permite un nivel de subcategorías</string>
+    <string name="error_account_has_transactions">No se puede eliminar: tiene movimientos</string>
+    <string name="error_category_has_children">No se puede eliminar: tiene subcategorías</string>
+    <string name="error_category_has_transactions">No se puede eliminar: tiene movimientos</string>
     <string name="error_not_found">Elemento no encontrado</string>
     <string name="error_note_too_long">Nota demasiado larga</string>
     <string name="error_date_out_of_range">Fecha fuera de rango</string>
-    <string name="error_account_archived">Cuenta archivada</string>
-    <string name="error_category_archived">Categoría archivada</string>
+    <string name="error_account_archived">La cuenta está archivada</string>
+    <string name="error_category_archived">La categoría está archivada</string>
     <string name="error_same_category_reassignment">Elige otra categoría</string>
-    <string name="error_invalid_transaction">Transacción inválida</string>
+    <string name="error_invalid_transaction">Movimiento no válido</string>
     <string name="error_backup_invalid">No es un backup válido de Wallet</string>
     <string name="error_backup_version_unsupported">Versión de backup no compatible</string>
     <string name="error_backup_failed">No se pudo completar el backup. Tus datos no cambiaron.</string>
-    <string name="error_account_type_change_not_allowed">No se puede cambiar el tipo con movimientos</string>
+    <string name="error_account_type_change_not_allowed">No se puede cambiar el tipo: la cuenta tiene movimientos</string>
     <string name="error_fare_invalid">La tarifa debe ser mayor que cero</string>
-    <string name="error_color_in_use">Color en uso</string>
+    <string name="error_color_in_use">Ese color ya está en uso</string>
     <string name="error_transit_credit_too_large">No puede superar la tarifa</string>
-    <string name="error_transit_credit_used">Viaje a crédito usado. Recarga la tarjeta.</string>
+    <string name="error_transit_credit_used">Ya usaste el viaje a crédito. Recarga la tarjeta.</string>
 
     <!-- Categorías del sistema - Gastos -->
     <string name="category_food">Alimentación</string>
@@ -376,7 +376,7 @@
     <string name="backup_import_success">Datos importados</string>
     <string name="backup_import_confirm_title">¿Importar datos?</string>
     <string name="backup_import_confirm_action">Importar</string>
-    <string name="backup_import_warning">Reemplazará todos tus datos actuales</string>
+    <string name="backup_import_warning">Se reemplazarán todos tus datos actuales.</string>
     <string name="backup_summary_format">%1$s, %2$s, %3$s</string>
     <string name="backup_summary_format_with_statements">%1$s, %2$s, %3$s, %4$s</string>
     <plurals name="backup_summary_accounts">
@@ -452,7 +452,7 @@
     <string name="card_reconcile_matches">¡Cuadra con el banco!</string>
     <string name="card_reconcile_positive">Se registrará %1$s como intereses y comisiones del %2$s.</string>
     <string name="card_reconcile_negative">La app tiene %1$s más de deuda que el banco. Revisa pagos, devoluciones o cashback sin anotar.</string>
-    <string name="card_reconcile_force_adjust">Ajustar igual</string>
+    <string name="card_reconcile_force_adjust">Ajustar de todos modos</string>
     <string name="card_reconcile_review_transactions">Revisar movimientos del ciclo</string>
     <string name="card_reconcile_mismatch">La diferencia (%1$s) no coincide con los intereses (%2$s). Puede faltar un movimiento.</string>
     <string name="card_reconcile_confirm">Guardar conciliación</string>
@@ -463,8 +463,8 @@
     <string name="card_statement_row">Corte %1$s · %2$s</string>
     <string name="card_statement_adjusted">ajuste de %1$s</string>
     <string name="card_statement_matched">cuadró</string>
-    <string name="card_over_limit_title">Superas el cupo</string>
-    <string name="card_over_limit_message">La deuda superará el cupo. ¿Guardar?</string>
+    <string name="card_over_limit_title">¿Superar el cupo?</string>
+    <string name="card_over_limit_message">Con este movimiento, la deuda supera el cupo de la tarjeta.</string>
 
     <!-- Pagos recurrentes ("Agregar" se reutiliza de action_add; "Nombre" de category_name_label) -->
     <string name="recurring_title">Pagos recurrentes</string>
@@ -522,12 +522,12 @@
     <!-- Acciones del contrato de la tarea; el formulario las expone con el interruptor "Activo". -->
     <string name="recurring_pause" tools:ignore="UnusedResources">Pausar</string>
     <string name="recurring_resume" tools:ignore="UnusedResources">Reanudar</string>
-    <string name="recurring_blocked_account">Cuenta archivada. No se registrará hasta desarchivarla.</string>
-    <string name="recurring_blocked_category">Categoría archivada. No se registrará hasta desarchivarla.</string>
+    <string name="recurring_blocked_account">La cuenta está archivada. No se registrará hasta que la desarchives.</string>
+    <string name="recurring_blocked_category">La categoría está archivada. No se registrará hasta que la desarchives.</string>
     <string name="recurring_confirm_action">Registrar</string>
     <string name="recurring_skip_action">Omitir</string>
     <string name="recurring_confirm_title">Registrar %1$s</string>
-    <string name="recurring_confirm_message">Confirma valor y fecha.</string>
+    <string name="recurring_confirm_message">Revisa el valor y la fecha.</string>
     <string name="recurring_skip_title">¿Omitir este cobro?</string>
     <string name="recurring_skip_message">No se registrará el cobro del %1$s.</string>
     <string name="recurring_delete_title">¿Eliminar pago recurrente?</string>
@@ -577,15 +577,15 @@
     <string name="error_recurring_date_past">No puede ser anterior a hoy</string>
     <string name="error_recurring_end_before_start">Debe ser igual o posterior al próximo cobro</string>
     <string name="error_recurring_interval">Ingresa un número entre 1 y 12</string>
-    <string name="error_account_has_recurring">Tiene pagos recurrentes. Elimínalos o cámbialos de cuenta.</string>
-    <string name="error_category_has_recurring">Tiene pagos recurrentes. Cámbialos de categoría.</string>
+    <string name="error_account_has_recurring">La cuenta tiene pagos recurrentes. Elimínalos o cámbialos de cuenta.</string>
+    <string name="error_category_has_recurring">La categoría tiene pagos recurrentes. Cámbialos de categoría.</string>
     <string name="error_debt_amount_below_paid">No puede ser menor que lo abonado</string>
     <string name="error_debt_payment_exceeds_remaining">El abono supera lo pendiente</string>
     <string name="error_debt_due_before_date">No puede ser anterior a la fecha de la deuda</string>
-    <string name="error_debt_already_settled">Deuda ya saldada</string>
+    <string name="error_debt_already_settled">La deuda ya está saldada</string>
     <string name="error_debt_payment_before_date">No puede ser anterior a la fecha de la deuda</string>
     <string name="error_debt_date_after_payments">No puede ser posterior al primer abono</string>
-    <string name="error_debt_direction_locked">No se puede cambiar el tipo con abonos</string>
+    <string name="error_debt_direction_locked">No se puede cambiar: la deuda ya tiene abonos</string>
 
     <!-- Próximos pagos (Inicio) -->
     <string name="home_upcoming_title">Próximos pagos</string>
@@ -704,14 +704,15 @@
     <string name="debts_add_payment">Registrar abono</string>
     <string name="debts_settle">Marcar como saldada</string>
     <string name="debts_settle_title">¿Marcar como saldada?</string>
-    <string name="debts_settle_message">Se registrará un abono de %1$s hoy.</string>
+    <string name="debts_settle_message">Se registrará un abono de %1$s con fecha de hoy.</string>
+    <string name="debts_settle_action">Saldar</string>
     <string name="debts_payments_title">Abonos</string>
     <string name="debts_payments_empty">Aún no hay abonos.</string>
     <string name="debts_payment_dialog_title">Nuevo abono</string>
     <string name="debts_payment_note_label">Nota (opcional)</string>
     <string name="debts_payment_delete">Eliminar abono</string>
     <string name="debts_payment_delete_title">¿Eliminar abono?</string>
-    <string name="debts_payment_delete_message">Se eliminará el abono de %1$s. El pendiente subirá.</string>
+    <string name="debts_payment_delete_message">El saldo pendiente aumentará en %1$s.</string>
     <string name="debts_payment_recorded">Abono registrado</string>
     <string name="debts_payment_deleted">Abono eliminado</string>
     <string name="debts_settled_message">Deuda saldada</string>
@@ -722,8 +723,8 @@
         <item quantity="other">%d deudas</item>
     </plurals>
     <plurals name="backup_import_debts_lost">
-        <item quantity="one">El backup no trae deudas: se borrará %d deuda registrada.</item>
-        <item quantity="other">El backup no trae deudas: se borrarán %d deudas registradas.</item>
+        <item quantity="one">El backup no incluye deudas: se borrará %d deuda registrada.</item>
+        <item quantity="other">El backup no incluye deudas: se borrarán %d deudas registradas.</item>
     </plurals>
 
     <!-- Íconos -->

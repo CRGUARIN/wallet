@@ -33,6 +33,7 @@ import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
@@ -580,6 +581,26 @@ class AccountDetailViewModelTest {
                     .isEqualTo(Money(350_000L))
 
                 cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `a double tap registers a single trip`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                accountList = listOf(transitCard()),
+                balanceMap = mapOf(42L to Money.ZERO),
+            )
+            // Queue the launches so the second tap arrives while the first trip is still saving.
+            Dispatchers.setMain(StandardTestDispatcher(testScheduler))
+
+            viewModel.events.test {
+                viewModel.onRegisterTripClick()
+                viewModel.onRegisterTripClick()
+                advanceUntilIdle()
+
+                assertThat(awaitItem()).isInstanceOf(AccountDetailEvent.TripRegistered::class.java)
+                expectNoEvents()
             }
         }
 

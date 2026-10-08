@@ -39,6 +39,7 @@ import com.crguarin.wallet.ui.navigation.AccountDetail
 import com.crguarin.wallet.ui.util.asStringRes
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -157,6 +158,8 @@ class AccountDetailViewModel
             val showOfferArchive: Boolean,
         )
 
+        private var tripJob: Job? = null
+
         private val _events = Channel<AccountDetailEvent>(Channel.BUFFERED)
         val events: Flow<AccountDetailEvent> = _events.receiveAsFlow()
 
@@ -264,16 +267,19 @@ class AccountDetailViewModel
         }
 
         private fun registerTrip() {
-            viewModelScope.launch {
-                when (val result = registerTripUseCase(accountId)) {
-                    is DomainResult.Success -> {
-                        _events.send(AccountDetailEvent.TripRegistered(result.value.transactionId))
-                    }
-                    is DomainResult.Failure -> {
-                        _events.send(AccountDetailEvent.ShowSnackbar(result.error.asStringRes()))
+            // Two quick taps would both read the balance before the first trip is saved and use the credit twice.
+            if (tripJob?.isActive == true) return
+            tripJob =
+                viewModelScope.launch {
+                    when (val result = registerTripUseCase(accountId)) {
+                        is DomainResult.Success -> {
+                            _events.send(AccountDetailEvent.TripRegistered(result.value.transactionId))
+                        }
+                        is DomainResult.Failure -> {
+                            _events.send(AccountDetailEvent.ShowSnackbar(result.error.asStringRes()))
+                        }
                     }
                 }
-            }
         }
 
         fun deleteAccount() {

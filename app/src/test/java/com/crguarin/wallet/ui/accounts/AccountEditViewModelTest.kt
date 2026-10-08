@@ -688,4 +688,40 @@ class AccountEditViewModelTest {
             viewModel.setTransitBalanceNegative(false)
             assertThat(viewModel.uiState.value.showInitialBalanceWarning).isTrue()
         }
+
+    @Test
+    fun `leaving the transit type drops the owed credit trip instead of saving it as positive`() =
+        runTest(testDispatcher) {
+            val card =
+                existingAccount.copy(
+                    id = 13L,
+                    name = "Cívica",
+                    type = AccountType.TRANSIT_CARD,
+                    initialBalance = Money(-100_000L),
+                    icon = "directions_bus",
+                    fare = Money(350_000L),
+                )
+            accountRepository.setInitialData(listOf(card))
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to 13L))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+
+            viewModel.setType(AccountType.CASH)
+
+            val state = viewModel.uiState.value
+            assertThat(state.transitBalanceNegative).isFalse()
+            assertThat(state.initialBalanceText).isEmpty()
+            assertThat(state.amountErrorRes).isNull()
+            assertThat(state.showInitialBalanceWarning).isTrue()
+
+            viewModel.events.test {
+                viewModel.saveAccount()
+                assertThat(awaitItem()).isEqualTo(AccountEditEvent.NavigateBack)
+
+                val saved = accountRepository.getAccount(13L)
+                assertThat(saved?.type).isEqualTo(AccountType.CASH)
+                assertThat(saved?.initialBalance).isEqualTo(Money.ZERO)
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
 }

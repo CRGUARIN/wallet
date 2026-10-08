@@ -289,6 +289,7 @@ fun DebtDetailScreen(
         ConfirmDialog(
             title = stringResource(R.string.debts_settle_title),
             message = stringResource(R.string.debts_settle_message, detail.summary.remaining.formatDisplay(locale)),
+            confirmText = stringResource(R.string.debts_settle_action),
             onConfirm = onConfirmSettle,
             onDismiss = onDismissSettle,
         )
