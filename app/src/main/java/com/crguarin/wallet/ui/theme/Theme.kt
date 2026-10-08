@@ -33,6 +33,13 @@ private val DarkColorScheme =
         onSurfaceVariant = OnSurfaceVariantDark,
         outline = OutlineDark,
         outlineVariant = OutlineVariantDark,
+        surfaceBright = SurfaceBrightDark,
+        surfaceDim = SurfaceDimDark,
+        surfaceContainerLowest = SurfaceContainerLowestDark,
+        surfaceContainerLow = SurfaceContainerLowDark,
+        surfaceContainer = SurfaceContainerDark,
+        surfaceContainerHigh = SurfaceContainerHighDark,
+        surfaceContainerHighest = SurfaceContainerHighestDark,
     )
 
 private val LightColorScheme =
@@ -57,6 +64,13 @@ private val LightColorScheme =
         onSurfaceVariant = OnSurfaceVariantLight,
         outline = OutlineLight,
         outlineVariant = OutlineVariantLight,
+        surfaceBright = SurfaceBrightLight,
+        surfaceDim = SurfaceDimLight,
+        surfaceContainerLowest = SurfaceContainerLowestLight,
+        surfaceContainerLow = SurfaceContainerLowLight,
+        surfaceContainer = SurfaceContainerLight,
+        surfaceContainerHigh = SurfaceContainerHighLight,
+        surfaceContainerHighest = SurfaceContainerHighestLight,
     )
 
 @Composable
@@ -85,6 +99,7 @@ fun WalletTheme(
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,
+            shapes = WalletShapes,
             content = content,
         )
     }

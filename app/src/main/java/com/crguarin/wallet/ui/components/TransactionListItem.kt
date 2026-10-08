@@ -83,7 +83,7 @@ fun TransactionListItem(
                 .fillMaxWidth()
                 .clickable(role = Role.Button, onClick = onClick)
                 .heightIn(min = 64.dp)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         TransactionAvatar(
@@ -110,7 +110,7 @@ fun TransactionListItem(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Medium,
+                    fontWeight = FontWeight.SemiBold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
@@ -205,7 +205,7 @@ private fun TransactionAmount(
         amount = transaction.amount,
         type = transaction.type,
         sign = sign,
-        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+        style = MaterialTheme.typography.titleSmall,
     )
 }
 
