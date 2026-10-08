@@ -18,6 +18,9 @@ import com.crguarin.wallet.domain.model.MonthSummary
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionDetails
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.debt.DebtSummary
+import com.crguarin.wallet.domain.model.debt.DebtsOverview
+import com.crguarin.wallet.domain.model.debt.testDebt
 import com.crguarin.wallet.domain.model.recurring.UpcomingKind
 import com.crguarin.wallet.domain.model.recurring.UpcomingPayment
 import com.crguarin.wallet.ui.accounts.sampleCardOverview
@@ -417,5 +420,71 @@ class HomeScreenTest {
         assertThat(pendingClicks).isEqualTo(1)
         assertThat(cardId).isEqualTo(7L)
         assertThat(viewAllClicks).isEqualTo(1)
+    }
+
+    private fun activeDebts() =
+        DebtsOverview(
+            owedToMe =
+                listOf(
+                    DebtSummary(
+                        debt = testDebt(id = 1L, personName = "Ana", amount = Money(500_000L)),
+                        paid = Money.ZERO,
+                    ),
+                ),
+            iOwe = emptyList(),
+            settled = emptyList(),
+            totalOwedToMe = Money(500_000L),
+            totalIOwe = Money.ZERO,
+        )
+
+    private fun showDebts(
+        debts: DebtsOverview?,
+        onViewDebts: () -> Unit = {},
+    ) {
+        composeRule.setContent {
+            WalletTheme {
+                HomeScreen(
+                    uiState =
+                        state(
+                            accounts = listOf(AccountWithBalance(account, Money(450_000L))),
+                            transactions = emptyList(),
+                        ).copy(debts = debts),
+                    onAccountClick = {},
+                    onTransactionClick = {},
+                    onViewAllTransactions = {},
+                    onQuickAction = {},
+                    onViewReports = {},
+                    onViewDebts = onViewDebts,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `debts card is hidden when there are no active debts`() {
+        showDebts(
+            debts =
+                DebtsOverview(
+                    owedToMe = emptyList(),
+                    iOwe = emptyList(),
+                    settled = emptyList(),
+                    totalOwedToMe = Money.ZERO,
+                    totalIOwe = Money.ZERO,
+                ),
+        )
+
+        composeRule.onNodeWithText("Ver deudas").assertDoesNotExist()
+    }
+
+    @Test
+    fun `debts card shows what is owed to me and opens the debts list`() {
+        var viewDebtsClicks = 0
+        showDebts(debts = activeDebts(), onViewDebts = { viewDebtsClicks++ })
+
+        composeRule.onNodeWithText("Te deben").assertIsDisplayed()
+        composeRule.onNodeWithText("+ $ 5.000").assertIsDisplayed()
+        composeRule.onNodeWithText("Ver deudas").performClick()
+
+        assertThat(viewDebtsClicks).isEqualTo(1)
     }
 }

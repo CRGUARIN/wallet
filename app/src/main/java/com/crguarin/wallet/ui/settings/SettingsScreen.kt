@@ -20,6 +20,7 @@ import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Payments
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.DropdownMenu
@@ -88,6 +89,7 @@ fun SettingsScreen(
     dynamicColorSupported: Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     onRecurringClick: () -> Unit = {},
+    onDebtsClick: () -> Unit = {},
     onNotificationsEnabledChanged: (Boolean) -> Unit = {},
     onNotificationTimeChanged: (Int, Int) -> Unit = { _, _ -> },
     onRecurringRemindersChanged: (Boolean) -> Unit = {},
@@ -131,7 +133,7 @@ fun SettingsScreen(
             Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
                 LanguageSection(uiState.language, onLanguageSelected)
                 ThemeSection(uiState, dynamicColorSupported, onThemeSelected, onDynamicColorChanged)
-                DataSection(onCategoriesClick, onRecurringClick)
+                DataSection(onCategoriesClick, onRecurringClick, onDebtsClick)
                 NotificationsSection(
                     settings = uiState.notificationSettings,
                     hasCreditCard = uiState.hasCreditCard,
@@ -192,6 +194,14 @@ private fun BusyIndicator(isBusy: Boolean) {
 
 @Composable
 private fun summaryText(summary: BackupSummary): String {
+    val base = baseSummaryText(summary)
+    if (summary.debts == 0) return base
+    val debts = pluralStringResource(R.plurals.backup_summary_debts, summary.debts, summary.debts)
+    return stringResource(R.string.backup_summary_append, base, debts)
+}
+
+@Composable
+private fun baseSummaryText(summary: BackupSummary): String {
     val accounts = pluralStringResource(R.plurals.backup_summary_accounts, summary.accounts, summary.accounts)
     val categories = pluralStringResource(R.plurals.backup_summary_categories, summary.categories, summary.categories)
     val transactions =
@@ -299,6 +309,7 @@ private fun ThemeSection(
 private fun DataSection(
     onCategoriesClick: () -> Unit,
     onRecurringClick: () -> Unit = {},
+    onDebtsClick: () -> Unit = {},
 ) {
     SectionHeader(stringResource(R.string.settings_section_data))
     ListItem(
@@ -326,6 +337,19 @@ private fun DataSection(
             )
         },
         modifier = Modifier.clickable(onClick = onRecurringClick),
+    )
+    ListItem(
+        headlineContent = { Text(text = stringResource(R.string.debts_title)) },
+        supportingContent = { Text(text = stringResource(R.string.debts_settings_subtitle)) },
+        leadingContent = { Icon(imageVector = Icons.Default.Payments, contentDescription = null) },
+        trailingContent = {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+            )
+        },
+        modifier = Modifier.clickable(onClick = onDebtsClick),
     )
     HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
 }

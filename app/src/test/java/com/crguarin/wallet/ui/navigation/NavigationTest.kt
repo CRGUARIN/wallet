@@ -467,6 +467,25 @@ class NavigationTest {
         composeRule.onNodeWithText("Nuevo pago recurrente").assertIsDisplayed()
     }
 
+    @Test
+    @Config(qualifiers = "es")
+    fun `debts entry from settings opens the list`() {
+        setAppContent()
+
+        // Click Ajustes tab
+        composeRule.onNodeWithText("Ajustes").performClick()
+        composeRule.onAllNodesWithText("Ajustes").onFirst().assertIsDisplayed()
+
+        // The "Datos" entry is identified by its subtitle; the screen scrolls, so it may start below the fold.
+        composeRule
+            .onNodeWithText("Lo que te deben y lo que debes")
+            .performScrollTo()
+            .performClick()
+
+        assertThat(navController.currentBackStackEntry?.destination?.hasRoute(DebtList::class)).isTrue()
+        composeRule.onNodeWithText("Sin deudas").assertIsDisplayed()
+    }
+
     private fun assertTabSelected(
         contentDescription: String,
         selected: Boolean,

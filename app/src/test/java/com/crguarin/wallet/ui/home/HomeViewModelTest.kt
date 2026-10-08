@@ -4,6 +4,7 @@ import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.fake.FakeAccountRepository
 import com.crguarin.wallet.domain.fake.FakeCardStatementRepository
 import com.crguarin.wallet.domain.fake.FakeCategoryRepository
+import com.crguarin.wallet.domain.fake.FakeDebtRepository
 import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
@@ -13,6 +14,8 @@ import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.debt.DebtDirection
+import com.crguarin.wallet.domain.model.debt.testDebt
 import com.crguarin.wallet.domain.model.recurring.RecurrenceFrequency
 import com.crguarin.wallet.domain.model.recurring.RecurringPayment
 import com.crguarin.wallet.domain.usecase.ObserveAccountsUseCase
@@ -20,6 +23,7 @@ import com.crguarin.wallet.domain.usecase.ObserveMonthSummaryUseCase
 import com.crguarin.wallet.domain.usecase.ObserveTotalBalanceUseCase
 import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewUseCase
 import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewsUseCase
+import com.crguarin.wallet.domain.usecase.debt.ObserveDebtsOverviewUseCase
 import com.crguarin.wallet.domain.usecase.recurring.ObserveUpcomingPaymentsUseCase
 import com.google.common.truth.Truth.assertThat
 import kotlinx.coroutines.Dispatchers
@@ -48,6 +52,7 @@ class HomeViewModelTest {
     private lateinit var cardStatementRepository: FakeCardStatementRepository
     private lateinit var categoryRepository: FakeCategoryRepository
     private lateinit var recurringRepository: FakeRecurringRepository
+    private lateinit var debtRepository: FakeDebtRepository
     private lateinit var timeProvider: FakeTimeProvider
 
     private val cash =
@@ -81,6 +86,7 @@ class HomeViewModelTest {
         cardStatementRepository = FakeCardStatementRepository()
         categoryRepository = FakeCategoryRepository()
         recurringRepository = FakeRecurringRepository()
+        debtRepository = FakeDebtRepository()
         timeProvider = FakeTimeProvider(baseInstant)
     }
 
@@ -112,6 +118,7 @@ class HomeViewModelTest {
                     ),
                     timeProvider,
                 ),
+            observeDebtsOverviewUseCase = ObserveDebtsOverviewUseCase(debtRepository),
         )
 
     private fun transaction(
@@ -280,5 +287,21 @@ class HomeViewModelTest {
             assertThat(upcoming.map { it.title }).containsExactly("Netflix")
             assertThat(upcoming.single().date).isEqualTo(today)
             assertThat(upcoming.single().accountName).isEqualTo("Efectivo")
+        }
+
+    @Test
+    fun `active debts from the domain reach the home state`() =
+        runTest(testDispatcher) {
+            debtRepository.setInitialData(
+                listOf(
+                    testDebt(id = 1L, personName = "Ana", direction = DebtDirection.OWED_TO_ME, amount = Money(500_000L)),
+                ),
+            )
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+
+            val debts = viewModel.uiState.value.debts
+            assertThat(debts?.hasActive).isTrue()
+            assertThat(debts?.totalOwedToMe).isEqualTo(Money(500_000L))
         }
 }
