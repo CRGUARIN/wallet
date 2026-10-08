@@ -595,4 +595,327 @@ class AccountEditViewModelTest {
             assertThat(state.fareText).isEqualTo("3500")
             assertThat(state.isSaveEnabled).isTrue()
         }
+
+    @Test
+    fun `transit card with the negative balance switch on saves the amount negated`() =
+        runTest(testDispatcher) {
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to null))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+            viewModel.setName("Cívica")
+            viewModel.setType(AccountType.TRANSIT_CARD)
+            viewModel.setFareText("3500")
+            viewModel.setInitialBalanceText("1000")
+            viewModel.setTransitBalanceNegative(true)
+
+            viewModel.events.test {
+                viewModel.saveAccount()
+                assertThat(awaitItem()).isEqualTo(AccountEditEvent.NavigateBack)
+
+                val saved = accountRepository.getAllAccounts().single()
+                assertThat(saved.initialBalance).isEqualTo(Money(-100_000L))
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `negative transit balance larger than the fare shows an error and does not save`() =
+        runTest(testDispatcher) {
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to null))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+            viewModel.setName("Cívica")
+            viewModel.setType(AccountType.TRANSIT_CARD)
+            viewModel.setFareText("3500")
+            viewModel.setTransitBalanceNegative(true)
+            viewModel.setInitialBalanceText("5000")
+
+            assertThat(viewModel.uiState.value.amountErrorRes)
+                .isEqualTo(R.string.error_transit_credit_too_large)
+            assertThat(viewModel.uiState.value.isSaveEnabled).isFalse()
+
+            viewModel.saveAccount()
+
+            assertThat(viewModel.uiState.value.amountErrorRes)
+                .isEqualTo(R.string.error_transit_credit_too_large)
+            assertThat(accountRepository.getAllAccounts()).isEmpty()
+
+            viewModel.setInitialBalanceText("3500")
+            assertThat(viewModel.uiState.value.amountErrorRes).isNull()
+            assertThat(viewModel.uiState.value.isSaveEnabled).isTrue()
+        }
+
+    @Test
+    fun `negative balance switch is ignored for other account types`() =
+        runTest(testDispatcher) {
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to null))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+            viewModel.setName("Efectivo")
+            viewModel.setType(AccountType.CASH)
+            viewModel.setInitialBalanceText("1000")
+            viewModel.setTransitBalanceNegative(true)
+
+            viewModel.events.test {
+                viewModel.saveAccount()
+                assertThat(awaitItem()).isEqualTo(AccountEditEvent.NavigateBack)
+
+                assertThat(accountRepository.getAllAccounts().single().initialBalance).isEqualTo(Money(100_000L))
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `edit mode turns the negative switch on for a transit card with a negative balance`() =
+        runTest(testDispatcher) {
+            val card =
+                existingAccount.copy(
+                    id = 13L,
+                    name = "Cívica",
+                    type = AccountType.TRANSIT_CARD,
+                    initialBalance = Money(-100_000L),
+                    icon = "directions_bus",
+                    fare = Money(350_000L),
+                )
+            accountRepository.setInitialData(listOf(card))
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to 13L))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+
+            val state = viewModel.uiState.value
+            assertThat(state.transitBalanceNegative).isTrue()
+            assertThat(state.initialBalanceText).isEqualTo("1000")
+            assertThat(state.showInitialBalanceWarning).isFalse()
+
+            viewModel.setTransitBalanceNegative(false)
+            assertThat(viewModel.uiState.value.showInitialBalanceWarning).isTrue()
+        }
+
+    @Test
+    fun `leaving the transit type drops the owed credit trip instead of saving it as positive`() =
+        runTest(testDispatcher) {
+            val card =
+                existingAccount.copy(
+                    id = 13L,
+                    name = "Cívica",
+                    type = AccountType.TRANSIT_CARD,
+                    initialBalance = Money(-100_000L),
+                    icon = "directions_bus",
+                    fare = Money(350_000L),
+                )
+            accountRepository.setInitialData(listOf(card))
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to 13L))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+
+            viewModel.setType(AccountType.CASH)
+
+            val state = viewModel.uiState.value
+            assertThat(state.transitBalanceNegative).isFalse()
+            assertThat(state.initialBalanceText).isEmpty()
+            assertThat(state.amountErrorRes).isNull()
+            assertThat(state.showInitialBalanceWarning).isTrue()
+
+            viewModel.events.test {
+                viewModel.saveAccount()
+                assertThat(awaitItem()).isEqualTo(AccountEditEvent.NavigateBack)
+
+                val saved = accountRepository.getAccount(13L)
+                assertThat(saved?.type).isEqualTo(AccountType.CASH)
+                assertThat(saved?.initialBalance).isEqualTo(Money.ZERO)
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    private fun editViewModel(account: Account): AccountEditViewModel {
+        accountRepository.setInitialData(listOf(account))
+        return AccountEditViewModel(SavedStateHandle(mapOf("accountId" to account.id)), accountRepository, saveAccountUseCase)
+    }
+
+    private val negativeTransitCard =
+        existingAccount.copy(
+            id = 14L,
+            name = "Cívica",
+            type = AccountType.TRANSIT_CARD,
+            initialBalance = Money(-320_000L),
+            icon = "directions_bus",
+            fare = Money(350_000L),
+        )
+
+    private val indebtedCreditCard =
+        existingAccount.copy(
+            id = 15L,
+            name = "RappiCard",
+            type = AccountType.CREDIT_CARD,
+            initialBalance = Money(-320_000L),
+            icon = "credit_card",
+            creditLimit = Money(500_000_00L),
+            statementDay = 15,
+            paymentDueDay = 5,
+        )
+
+    @Test
+    fun `leaving a negative transit card for a type that cannot hold it resets the amount`() =
+        runTest(testDispatcher) {
+            listOf(AccountType.CASH, AccountType.SAVINGS).forEach { target ->
+                val viewModel = editViewModel(negativeTransitCard)
+                assertThat(viewModel.uiState.value.initialBalanceText).isEqualTo("3200")
+                assertThat(viewModel.uiState.value.transitBalanceNegative).isTrue()
+
+                viewModel.setType(target)
+
+                val state = viewModel.uiState.value
+                assertThat(state.type).isEqualTo(target)
+                assertThat(state.initialBalanceText).isEmpty()
+                assertThat(state.transitBalanceNegative).isFalse()
+                assertThat(state.amountErrorRes).isNull()
+                assertThat(state.isSaveEnabled).isTrue()
+
+                viewModel.events.test {
+                    viewModel.saveAccount()
+                    assertThat(awaitItem()).isEqualTo(AccountEditEvent.NavigateBack)
+                    assertThat(accountRepository.getAccount(14L)?.initialBalance).isEqualTo(Money.ZERO)
+                    cancelAndIgnoreRemainingEvents()
+                }
+            }
+        }
+
+    @Test
+    fun `leaving a negative transit card clears the stale credit too large error`() =
+        runTest(testDispatcher) {
+            val viewModel = editViewModel(negativeTransitCard)
+            viewModel.setInitialBalanceText("5000")
+            assertThat(viewModel.uiState.value.amountErrorRes).isEqualTo(R.string.error_transit_credit_too_large)
+
+            viewModel.setType(AccountType.CASH)
+
+            assertThat(viewModel.uiState.value.amountErrorRes).isNull()
+            assertThat(viewModel.uiState.value.initialBalanceText).isEmpty()
+            assertThat(viewModel.uiState.value.isSaveEnabled).isTrue()
+        }
+
+    @Test
+    fun `turning a negative transit card into a credit card keeps the amount as debt`() =
+        runTest(testDispatcher) {
+            val viewModel = editViewModel(negativeTransitCard)
+
+            viewModel.setType(AccountType.CREDIT_CARD)
+
+            val state = viewModel.uiState.value
+            assertThat(state.initialBalanceText).isEqualTo("3200")
+            assertThat(state.transitBalanceNegative).isFalse()
+            assertThat(state.showInitialBalanceWarning).isFalse()
+
+            viewModel.setCreditLimitText("500000")
+            viewModel.setStatementDayText("15")
+            viewModel.setPaymentDueDayText("5")
+            viewModel.events.test {
+                viewModel.saveAccount()
+                assertThat(awaitItem()).isEqualTo(AccountEditEvent.NavigateBack)
+                val saved = accountRepository.getAccount(14L)
+                assertThat(saved?.type).isEqualTo(AccountType.CREDIT_CARD)
+                assertThat(saved?.initialBalance).isEqualTo(Money(-320_000L))
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `turning a card with debt into a transit card turns the negative switch on`() =
+        runTest(testDispatcher) {
+            val viewModel = editViewModel(indebtedCreditCard)
+            assertThat(viewModel.uiState.value.initialBalanceText).isEqualTo("3200")
+
+            viewModel.setType(AccountType.TRANSIT_CARD)
+            viewModel.setFareText("3500")
+
+            val state = viewModel.uiState.value
+            assertThat(state.transitBalanceNegative).isTrue()
+            assertThat(state.amountErrorRes).isNull()
+            assertThat(state.showInitialBalanceWarning).isFalse()
+
+            viewModel.events.test {
+                viewModel.saveAccount()
+                assertThat(awaitItem()).isEqualTo(AccountEditEvent.NavigateBack)
+                val saved = accountRepository.getAccount(15L)
+                assertThat(saved?.type).isEqualTo(AccountType.TRANSIT_CARD)
+                assertThat(saved?.initialBalance).isEqualTo(Money(-320_000L))
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `a card debt larger than the fare is flagged when it becomes a transit card`() =
+        runTest(testDispatcher) {
+            val viewModel = editViewModel(indebtedCreditCard)
+
+            viewModel.setType(AccountType.TRANSIT_CARD)
+            viewModel.setFareText("3000")
+
+            val state = viewModel.uiState.value
+            assertThat(state.transitBalanceNegative).isTrue()
+            assertThat(state.amountErrorRes).isEqualTo(R.string.error_transit_credit_too_large)
+            assertThat(state.isSaveEnabled).isFalse()
+
+            viewModel.saveAccount()
+
+            assertThat(accountRepository.getAccount(15L)?.type).isEqualTo(AccountType.CREDIT_CARD)
+            assertThat(accountRepository.getAccount(15L)?.initialBalance).isEqualTo(Money(-320_000L))
+        }
+
+    @Test
+    fun `a card with debt becoming a type that cannot hold it resets the amount`() =
+        runTest(testDispatcher) {
+            listOf(AccountType.CASH, AccountType.SAVINGS).forEach { target ->
+                val viewModel = editViewModel(indebtedCreditCard)
+                assertThat(viewModel.uiState.value.initialBalanceText).isEqualTo("3200")
+
+                viewModel.setType(target)
+
+                val state = viewModel.uiState.value
+                assertThat(state.initialBalanceText).isEmpty()
+                assertThat(state.amountErrorRes).isNull()
+
+                viewModel.events.test {
+                    viewModel.saveAccount()
+                    assertThat(awaitItem()).isEqualTo(AccountEditEvent.NavigateBack)
+                    assertThat(accountRepository.getAccount(15L)?.initialBalance).isEqualTo(Money.ZERO)
+                    cancelAndIgnoreRemainingEvents()
+                }
+            }
+        }
+
+    @Test
+    fun `a card without debt becoming a transit card leaves the switch off`() =
+        runTest(testDispatcher) {
+            val viewModel = editViewModel(indebtedCreditCard.copy(initialBalance = Money.ZERO))
+
+            viewModel.setType(AccountType.TRANSIT_CARD)
+
+            assertThat(viewModel.uiState.value.transitBalanceNegative).isFalse()
+        }
+
+    @Test
+    fun `changing the type keeps a positive balance and the switch off`() =
+        runTest(testDispatcher) {
+            val viewModel = editViewModel(existingAccount)
+            assertThat(viewModel.uiState.value.initialBalanceText).isEqualTo("5000")
+
+            viewModel.setType(AccountType.TRANSIT_CARD)
+            assertThat(viewModel.uiState.value.initialBalanceText).isEqualTo("5000")
+            assertThat(viewModel.uiState.value.transitBalanceNegative).isFalse()
+
+            viewModel.setType(AccountType.CASH)
+            assertThat(viewModel.uiState.value.initialBalanceText).isEqualTo("5000")
+            assertThat(viewModel.uiState.value.transitBalanceNegative).isFalse()
+        }
+
+    @Test
+    fun `a positive transit card keeps its amount when its type changes`() =
+        runTest(testDispatcher) {
+            val viewModel =
+                editViewModel(negativeTransitCard.copy(initialBalance = Money(1_050_000L)))
+
+            viewModel.setType(AccountType.CASH)
+
+            assertThat(viewModel.uiState.value.initialBalanceText).isEqualTo("10500")
+            assertThat(viewModel.uiState.value.transitBalanceNegative).isFalse()
+        }
 }

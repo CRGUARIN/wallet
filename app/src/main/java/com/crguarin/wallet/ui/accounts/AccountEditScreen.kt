@@ -115,6 +115,7 @@ fun AccountEditRoute(
         onStatementDayChanged = viewModel::setStatementDayText,
         onPaymentDueDayChanged = viewModel::setPaymentDueDayText,
         onFareChanged = viewModel::setFareText,
+        onTransitBalanceNegativeChanged = viewModel::setTransitBalanceNegative,
         onColorSelected = viewModel::setColor,
         onIconSelected = viewModel::setIcon,
         onIncludeInTotalChanged = viewModel::setIncludeInTotal,
@@ -142,6 +143,7 @@ fun AccountEditScreen(
     onStatementDayChanged: (String) -> Unit = {},
     onPaymentDueDayChanged: (String) -> Unit = {},
     onFareChanged: (String) -> Unit = {},
+    onTransitBalanceNegativeChanged: (Boolean) -> Unit = {},
 ) {
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -284,6 +286,46 @@ fun AccountEditScreen(
                     errorMessage = uiState.amountErrorRes?.let { stringResource(it) },
                     modifier = Modifier.fillMaxWidth(),
                 )
+
+                if (uiState.isTransitCard) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Card(
+                        shape = RoundedCornerShape(12.dp),
+                        colors =
+                            CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                            ),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.transit_negative_balance_label),
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.SemiBold,
+                                )
+                                if (uiState.transitBalanceNegative) {
+                                    Text(
+                                        text = stringResource(R.string.transit_negative_balance_supporting),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Switch(
+                                checked = uiState.transitBalanceNegative,
+                                onCheckedChange = onTransitBalanceNegativeChanged,
+                            )
+                        }
+                    }
+                }
 
                 if (uiState.showInitialBalanceWarning) {
                     Spacer(modifier = Modifier.height(8.dp))

@@ -51,16 +51,20 @@ class SaveAccountUseCase
                     // Cards may hold a negative initialBalance (current debt) or a positive one.
                     account.copy(fare = null)
                 } else {
-                    if (account.initialBalance < Money.ZERO) {
-                        return DomainResult.Failure(DomainError.AmountInvalid)
-                    }
                     if (account.type == AccountType.TRANSIT_CARD) {
                         val fare = account.fare
                         if (fare == null || fare <= Money.ZERO || fare > Money.MAX) {
                             return DomainResult.Failure(DomainError.FareInvalid)
                         }
+                        // A negative balance is the credit trip already taken: it cannot exceed one fare.
+                        if (account.initialBalance < -fare) {
+                            return DomainResult.Failure(DomainError.TransitCreditTooLarge)
+                        }
                         account.copy(creditLimit = null, statementDay = null, paymentDueDay = null)
                     } else {
+                        if (account.initialBalance < Money.ZERO) {
+                            return DomainResult.Failure(DomainError.AmountInvalid)
+                        }
                         account.copy(creditLimit = null, statementDay = null, paymentDueDay = null, fare = null)
                     }
                 }

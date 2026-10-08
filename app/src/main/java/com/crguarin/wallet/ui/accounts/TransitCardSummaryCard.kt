@@ -62,22 +62,21 @@ fun TransitCardSummaryCard(
                     color = contentColor.copy(alpha = 0.85f),
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                if (TransitMath.isLowBalance(balance, fare)) {
-                    Text(
-                        text = stringResource(R.string.transit_low_balance),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = contentColor,
-                    )
-                } else {
-                    val trips = TransitMath.tripsLeft(balance, fare)
-                    Text(
-                        text = pluralStringResource(R.plurals.transit_trips_left, trips, trips),
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = contentColor,
-                    )
-                }
+                val headerText =
+                    when {
+                        TransitMath.isCreditUsed(balance) -> stringResource(R.string.transit_credit_used)
+                        TransitMath.isCreditTrip(balance, fare) -> stringResource(R.string.transit_credit_available)
+                        else -> {
+                            val trips = TransitMath.tripsLeft(balance, fare)
+                            pluralStringResource(R.plurals.transit_trips_left, trips, trips)
+                        }
+                    }
+                Text(
+                    text = headerText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    color = contentColor,
+                )
             }
         }
 
@@ -112,19 +111,27 @@ fun TransitRowBalance(
             color = balanceColor,
         )
         if (fare != null) {
-            if (TransitMath.isLowBalance(balance, fare)) {
-                Text(
-                    text = stringResource(R.string.transit_low_balance_short),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
-            } else {
-                val trips = TransitMath.tripsLeft(balance, fare)
-                Text(
-                    text = pluralStringResource(R.plurals.transit_trips_short, trips, trips),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            when {
+                TransitMath.isCreditUsed(balance) ->
+                    Text(
+                        text = stringResource(R.string.transit_credit_used_short),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                TransitMath.isCreditTrip(balance, fare) ->
+                    Text(
+                        text = stringResource(R.string.transit_credit_available_short),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                else -> {
+                    val trips = TransitMath.tripsLeft(balance, fare)
+                    Text(
+                        text = pluralStringResource(R.plurals.transit_trips_short, trips, trips),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
     }

@@ -137,7 +137,7 @@ class CardReconcileScreenTest {
         )
 
         composeRule
-            .onNodeWithText("puede faltar algún movimiento", substring = true)
+            .onNodeWithText("Puede faltar un movimiento", substring = true)
             .performScrollTo()
             .assertIsDisplayed()
     }
@@ -155,7 +155,7 @@ class CardReconcileScreenTest {
         )
 
         composeRule
-            .onNodeWithText("falta anotar un pago", substring = true)
+            .onNodeWithText("Revisa pagos, devoluciones o cashback sin anotar", substring = true)
             .performScrollTo()
             .assertIsDisplayed()
         composeRule

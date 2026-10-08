@@ -309,7 +309,7 @@ class ReportsScreenTest {
     fun `shows the global empty state below the controls`() {
         setScreen(state(monthlyTotals = (5..10).map { MonthTotals(YearMonth.of(2026, it), Money.ZERO, Money.ZERO) }))
 
-        composeRule.onNodeWithText("No hay movimientos en este período").assertIsDisplayed()
+        composeRule.onNodeWithText("Sin movimientos en este período").assertIsDisplayed()
         composeRule.onNodeWithText("Mes").assertIsDisplayed()
         composeRule.onNodeWithText("Por categoría").assertDoesNotExist()
     }
@@ -597,7 +597,7 @@ class ReportsScreenTest {
         composeRule.onNodeWithText("▲ $ 2.000.000").assertIsDisplayed()
         composeRule.onNodeWithText("Al inicio $ 50.000.000").assertIsDisplayed()
         composeRule.onNodeWithText("Hoy $ 51.500.000").assertIsDisplayed()
-        composeRule.onNodeWithText("Cuentas incluidas en el saldo total").assertIsDisplayed()
+        composeRule.onNodeWithText("Cuentas del saldo total").assertIsDisplayed()
     }
 
     @Test

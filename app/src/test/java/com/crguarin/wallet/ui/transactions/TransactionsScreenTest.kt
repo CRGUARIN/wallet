@@ -165,7 +165,7 @@ class TransactionsScreenTest {
 
         waitForText("Sin resultados")
         composeRule.onNodeWithText("Sin resultados").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("No hay movimientos con estos filtros.").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Prueba con otros filtros.").performScrollTo().assertIsDisplayed()
     }
 
     @Test

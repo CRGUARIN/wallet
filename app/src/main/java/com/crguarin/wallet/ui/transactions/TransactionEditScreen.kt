@@ -380,6 +380,7 @@ fun TransactionEditScreen(
                         R.string.transaction_edit_negative_balance_message
                     },
                 ),
+            confirmText = stringResource(R.string.action_save),
             onConfirm = onConfirmNegativeBalance,
             onDismiss = onDismissNegativeBalance,
         )
@@ -389,6 +390,7 @@ fun TransactionEditScreen(
         ConfirmDialog(
             title = stringResource(R.string.transaction_edit_delete_title),
             message = stringResource(R.string.transaction_edit_delete_message),
+            confirmText = stringResource(R.string.action_delete),
             isDestructive = true,
             onConfirm = onConfirmDelete,
             onDismiss = onDismissDeleteDialog,

@@ -47,6 +47,8 @@ data class AccountEditUiState(
     val statementDayText: String = "",
     val paymentDueDayText: String = "",
     val fareText: String = "",
+    /** Transit cards only: the amount typed is a negative balance (a credit trip still owed). */
+    val transitBalanceNegative: Boolean = false,
     val color: Int = WalletPalette.colors.first(),
     /** Colors of the other active accounts; the picker shows them crossed out. */
     val usedColors: Set<Int> = emptySet(),
@@ -78,7 +80,12 @@ data class AccountEditUiState(
         get() {
             if (!isEditMode) return false
             val parsed = MoneyParser.parseNonNegative(initialBalanceText) ?: return false
-            val effective = if (isCreditCard) cardInitialBalanceToSave(parsed, originalInitialBalance) else parsed
+            val effective =
+                when {
+                    isCreditCard -> cardInitialBalanceToSave(parsed, originalInitialBalance)
+                    isTransitCard -> transitInitialBalanceToSave(parsed, transitBalanceNegative)
+                    else -> parsed
+                }
             return effective != originalInitialBalance
         }
 
@@ -151,12 +158,19 @@ class AccountEditViewModel
                             } else {
                                 formatForInput(account.initialBalance)
                             }
+                        // A transit card with a negative balance is edited as its absolute value plus the toggle.
+                        val transitText =
+                            if (account.type == AccountType.TRANSIT_CARD) {
+                                formatForInput(if (account.initialBalance < Money.ZERO) -account.initialBalance else account.initialBalance)
+                            } else {
+                                debtText
+                            }
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
                                 name = account.name,
                                 type = account.type,
-                                initialBalanceText = debtText,
+                                initialBalanceText = transitText,
                                 creditLimitText =
                                     account.creditLimit?.let { limit ->
                                         formatForInput(limit)
@@ -164,6 +178,7 @@ class AccountEditViewModel
                                 statementDayText = account.statementDay?.toString() ?: "",
                                 paymentDueDayText = account.paymentDueDay?.toString() ?: "",
                                 fareText = account.fare?.let { formatForInput(it) } ?: "",
+                                transitBalanceNegative = account.type == AccountType.TRANSIT_CARD && account.initialBalance < Money.ZERO,
                                 color = account.color,
                                 icon = account.icon,
                                 includeInTotal = account.includeInTotal,
@@ -201,19 +216,27 @@ class AccountEditViewModel
         fun setType(type: AccountType) {
             if (_uiState.value.isTypeLocked) return
             _uiState.update {
-                it.copy(
-                    type = type,
-                    icon = iconAfterTypeChange(type, it.icon),
-                    // The fare error only concerns transit cards; saving checks the fare again.
-                    fareErrorRes = if (type == AccountType.TRANSIT_CARD) it.fareErrorRes else null,
-                )
+                val next =
+                    it.copy(
+                        type = type,
+                        icon = iconAfterTypeChange(type, it.icon),
+                        // The fare error only concerns transit cards; saving checks the fare again.
+                        fareErrorRes = if (type == AccountType.TRANSIT_CARD) it.fareErrorRes else null,
+                    )
+                next.keepingBalanceSign(previousType = it.type).withTransitCreditCheck()
             }
         }
 
         fun setInitialBalanceText(text: String) {
-            val parsed = MoneyParser.parseNonNegative(text)
-            val error = if (parsed == null) DomainError.AmountInvalid.asStringRes() else null
-            _uiState.update { it.copy(initialBalanceText = text, amountErrorRes = error, generalErrorRes = null) }
+            _uiState.update {
+                val next = it.copy(initialBalanceText = text, generalErrorRes = null)
+                val invalid = if (MoneyParser.parseNonNegative(text) == null) DomainError.AmountInvalid.asStringRes() else null
+                next.copy(amountErrorRes = invalid ?: transitCreditError(next))
+            }
+        }
+
+        fun setTransitBalanceNegative(negative: Boolean) {
+            _uiState.update { it.copy(transitBalanceNegative = negative, generalErrorRes = null).withTransitCreditCheck() }
         }
 
         fun setCreditLimitText(text: String) {
@@ -244,11 +267,12 @@ class AccountEditViewModel
 
         fun setFareText(text: String) {
             _uiState.update {
-                it.copy(
-                    fareText = text,
-                    fareErrorRes = if (parseFare(text) == null) R.string.error_fare_invalid else null,
-                    generalErrorRes = null,
-                )
+                it
+                    .copy(
+                        fareText = text,
+                        fareErrorRes = if (parseFare(text) == null) R.string.error_fare_invalid else null,
+                        generalErrorRes = null,
+                    ).withTransitCreditCheck()
             }
         }
 
@@ -313,6 +337,11 @@ class AccountEditViewModel
                 _uiState.update { it.copy(fareErrorRes = R.string.error_fare_invalid) }
                 return
             }
+            val creditError = transitCreditError(state)
+            if (creditError != null) {
+                _uiState.update { it.copy(amountErrorRes = creditError) }
+                return
+            }
 
             _uiState.update { it.copy(isSaving = true, generalErrorRes = null) }
             viewModelScope.launch {
@@ -324,10 +353,10 @@ class AccountEditViewModel
                         currencyCode = APP_CURRENCY,
                         // Cards ask for the current debt (>= 0) and store it negated.
                         initialBalance =
-                            if (isCard) {
-                                cardInitialBalanceToSave(balance, state.originalInitialBalance)
-                            } else {
-                                balance
+                            when {
+                                isCard -> cardInitialBalanceToSave(balance, state.originalInitialBalance)
+                                isTransit -> transitInitialBalanceToSave(balance, state.transitBalanceNegative)
+                                else -> balance
                             },
                         color = state.color,
                         icon = state.icon,
@@ -347,10 +376,11 @@ class AccountEditViewModel
                     }
                     is DomainResult.Failure -> {
                         _uiState.update {
-                            it.copy(
-                                isSaving = false,
-                                generalErrorRes = result.error.asStringRes(),
-                            )
+                            if (result.error is DomainError.TransitCreditTooLarge) {
+                                it.copy(isSaving = false, amountErrorRes = result.error.asStringRes())
+                            } else {
+                                it.copy(isSaving = false, generalErrorRes = result.error.asStringRes())
+                            }
                         }
                     }
                 }
@@ -372,6 +402,57 @@ private fun cardInitialBalanceToSave(
     } else {
         -debt
     }
+
+/**
+ * Initial balance to save for a transit card: the amount negated while the balance owes the
+ * credit trip, otherwise the amount as typed.
+ */
+private fun transitInitialBalanceToSave(
+    amount: Money,
+    negative: Boolean,
+): Money = if (negative) -amount else amount
+
+/**
+ * Error for a negative transit balance larger than one fare, or null. Only applies when the type is a
+ * transit card, the toggle is on, and both the amount and the fare parse.
+ */
+private fun transitCreditError(state: AccountEditUiState): Int? {
+    if (!state.isTransitCard || !state.transitBalanceNegative) return null
+    val amount = MoneyParser.parseNonNegative(state.initialBalanceText) ?: return null
+    val fare = parseFare(state.fareText) ?: return null
+    return if (amount > fare) R.string.error_transit_credit_too_large else null
+}
+
+/**
+ * Keeps the sign of the balance across a type change. The amount field is always non-negative and each
+ * type expresses the sign differently (transit switch, card debt, never negative), so reinterpreting
+ * the same text would flip it. A negative transit balance becomes a debt on a card, a card debt
+ * entering transit turns the switch on, and either one is reset for types that cannot hold it.
+ */
+private fun AccountEditUiState.keepingBalanceSign(previousType: AccountType): AccountEditUiState =
+    when {
+        previousType == AccountType.TRANSIT_CARD && transitBalanceNegative ->
+            when (type) {
+                AccountType.TRANSIT_CARD -> this
+                AccountType.CREDIT_CARD -> copy(transitBalanceNegative = false)
+                else -> copy(initialBalanceText = formatForInput(Money.ZERO), transitBalanceNegative = false, amountErrorRes = null)
+            }
+        previousType == AccountType.CREDIT_CARD && type != AccountType.CREDIT_CARD -> {
+            val debt = MoneyParser.parseNonNegative(initialBalanceText)
+            when {
+                debt == null || debt <= Money.ZERO -> this
+                type == AccountType.TRANSIT_CARD -> copy(transitBalanceNegative = true)
+                else -> copy(initialBalanceText = formatForInput(Money.ZERO), amountErrorRes = null)
+            }
+        }
+        else -> this
+    }
+
+/** Re-validates the credit-too-large error, leaving other amount errors untouched. */
+private fun AccountEditUiState.withTransitCreditCheck(): AccountEditUiState {
+    if (amountErrorRes != null && amountErrorRes != R.string.error_transit_credit_too_large) return this
+    return copy(amountErrorRes = transitCreditError(this))
+}
 
 private fun creditLimitError(text: String): Int? {
     val parsed = MoneyParser.parseNonNegative(text)

@@ -166,7 +166,6 @@ fun AccountDetailRoute(
         onReconcileClick = { onReconcileClick(viewModel.accountId) },
         onRegisterTripClick = viewModel::onRegisterTripClick,
         onRechargeClick = { onRechargeClick(uiState.rechargeFromAccountId, viewModel.accountId) },
-        onConfirmTrip = viewModel::confirmTripDespiteBalance,
         snackbarHostState = snackbarHostState,
         modifier = modifier,
     )
@@ -194,7 +193,6 @@ fun AccountDetailScreen(
     onReconcileClick: () -> Unit = {},
     onRegisterTripClick: () -> Unit = {},
     onRechargeClick: () -> Unit = {},
-    onConfirmTrip: () -> Unit = {},
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val account = uiState.accountWithBalance?.account
@@ -391,6 +389,7 @@ fun AccountDetailScreen(
                             ) {
                                 Button(
                                     onClick = onRegisterTripClick,
+                                    enabled = uiState.canRegisterTrip,
                                     modifier = Modifier.weight(1f),
                                 ) {
                                     Icon(
@@ -551,17 +550,6 @@ fun AccountDetailScreen(
             message = stringResource(R.string.account_detail_cannot_delete_has_transactions_message),
             confirmText = stringResource(R.string.action_archive),
             onConfirm = onConfirmArchiveInsteadOfDelete,
-            onDismiss = onDismissDialogs,
-        )
-    }
-
-    // Trip Confirm Dialog (the balance cannot pay the trip)
-    if (uiState.showTripNegativeDialog) {
-        ConfirmDialog(
-            title = stringResource(R.string.transit_trip_negative_title),
-            message = stringResource(R.string.transit_trip_negative_message),
-            confirmText = stringResource(R.string.transit_trip_negative_confirm),
-            onConfirm = onConfirmTrip,
             onDismiss = onDismissDialogs,
         )
     }

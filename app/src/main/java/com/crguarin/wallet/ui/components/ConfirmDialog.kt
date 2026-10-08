@@ -60,8 +60,9 @@ fun ConfirmDialog(
 private fun ConfirmDialogPreviewLight() {
     WalletTheme(darkTheme = false) {
         ConfirmDialog(
-            title = "Eliminar cuenta",
-            message = "¿Estás seguro de que deseas eliminar esta cuenta?",
+            title = "¿Eliminar cuenta?",
+            message = "La cuenta \"Efectivo\" se eliminará definitivamente.",
+            confirmText = "Eliminar",
             isDestructive = true,
             onConfirm = {},
             onDismiss = {},
@@ -74,8 +75,9 @@ private fun ConfirmDialogPreviewLight() {
 private fun ConfirmDialogPreviewDark() {
     WalletTheme(darkTheme = true) {
         ConfirmDialog(
-            title = "Confirmar acción",
-            message = "¿Deseas continuar con la operación?",
+            title = "¿Dejar la cuenta en negativo?",
+            message = "El saldo no alcanza para este movimiento.",
+            confirmText = "Guardar",
             onConfirm = {},
             onDismiss = {},
         )

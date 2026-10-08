@@ -45,6 +45,8 @@ class DomainErrorStringTest {
                 DomainError.DebtDirectionLocked,
                 DomainError.CardDayInvalid,
                 DomainError.FareInvalid,
+                DomainError.TransitCreditTooLarge,
+                DomainError.TransitCreditUsed,
                 DomainError.ColorInUse,
                 DomainError.AccountTypeChangeNotAllowed,
                 DomainError.BackupInvalid("corrupted"),

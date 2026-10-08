@@ -3,6 +3,9 @@ package com.crguarin.wallet.ui.transactions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -237,9 +240,9 @@ class TransactionEditScreenTest {
         )
 
         composeRule
-            .onNodeWithText("La cuenta quedará en negativo. ¿Guardar de todas formas?")
+            .onNodeWithText("El saldo no alcanza para este movimiento.")
             .assertIsDisplayed()
-        composeRule.onNodeWithText("Confirmar").performClick()
+        composeRule.onNode(hasText("Guardar") and hasAnyAncestor(isDialog())).performClick()
 
         assertThat(confirmed).isTrue()
     }

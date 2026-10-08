@@ -128,6 +128,8 @@ class DomainResultTest {
                 DomainError.DebtDirectionLocked,
                 DomainError.CardDayInvalid,
                 DomainError.FareInvalid,
+                DomainError.TransitCreditTooLarge,
+                DomainError.TransitCreditUsed,
                 DomainError.ColorInUse,
                 DomainError.AccountTypeChangeNotAllowed,
                 DomainError.BackupInvalid(reason = "Corrupt JSON"),
@@ -135,7 +137,7 @@ class DomainResultTest {
                 DomainError.BackupFailed,
             )
 
-        assertThat(errors).hasSize(37)
+        assertThat(errors).hasSize(39)
 
         for (err in errors) {
             val description =
@@ -172,6 +174,8 @@ class DomainResultTest {
                     DomainError.DebtDirectionLocked -> "DebtDirectionLocked"
                     DomainError.CardDayInvalid -> "CardDayInvalid"
                     DomainError.FareInvalid -> "FareInvalid"
+                    DomainError.TransitCreditTooLarge -> "TransitCreditTooLarge"
+                    DomainError.TransitCreditUsed -> "TransitCreditUsed"
                     DomainError.ColorInUse -> "ColorInUse"
                     DomainError.AccountTypeChangeNotAllowed -> "AccountTypeChangeNotAllowed"
                     is DomainError.BackupInvalid -> "BackupInvalid(${err.reason})"

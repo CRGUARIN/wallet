@@ -442,7 +442,7 @@ class NavigationTest {
         // The "Datos" entry is identified by its subtitle (the title is also used by the
         // notifications section header); the screen scrolls, so it may start below the fold.
         composeRule
-            .onNodeWithText("Suscripciones, servicios y cobros periódicos")
+            .onNodeWithText("Suscripciones y cobros periódicos")
             .performScrollTo()
             .performClick()
 

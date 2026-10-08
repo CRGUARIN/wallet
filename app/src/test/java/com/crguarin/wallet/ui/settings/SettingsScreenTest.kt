@@ -218,7 +218,7 @@ class SettingsScreenTest {
 
         composeRule.onNodeWithText("¿Importar datos?").assertIsDisplayed()
         composeRule.onNodeWithText("3 cuentas, 25 categorías, 480 movimientos", substring = true).assertIsDisplayed()
-        composeRule.onNodeWithText("Esto reemplazará todos tus datos actuales", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Se reemplazarán todos tus datos actuales", substring = true).assertIsDisplayed()
 
         composeRule.onNodeWithText("Importar").performClick()
         composeRule.onNodeWithText("Cancelar").performClick()
@@ -232,7 +232,7 @@ class SettingsScreenTest {
         show(SettingsUiState(pendingImport = BackupSummary(3, 25, 480), pendingImportDebtsLost = 2))
 
         composeRule
-            .onNodeWithText("Este backup no trae deudas: se borrarán 2 deudas que tienes registradas.", substring = true)
+            .onNodeWithText("El backup no incluye deudas: se borrarán 2 deudas registradas.", substring = true)
             .assertIsDisplayed()
     }
 
@@ -240,7 +240,7 @@ class SettingsScreenTest {
     fun `confirmation dialog has no debts warning when nothing is lost`() {
         show(SettingsUiState(pendingImport = BackupSummary(3, 25, 480)))
 
-        composeRule.onNodeWithText("Este backup no trae deudas", substring = true).assertDoesNotExist()
+        composeRule.onNodeWithText("El backup no incluye deudas", substring = true).assertDoesNotExist()
     }
 
     @Test
@@ -265,7 +265,7 @@ class SettingsScreenTest {
         show(SettingsUiState(pendingImport = BackupSummary(2, 4, 6)))
 
         composeRule.onNodeWithText("2 accounts, 4 categories, 6 transactions", substring = true).assertIsDisplayed()
-        composeRule.onNodeWithText("This will replace all your current data", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("This replaces all your current data", substring = true).assertIsDisplayed()
     }
 
     @Test
@@ -299,8 +299,8 @@ class SettingsScreenTest {
         composeRule.onNodeWithText("Activar notificaciones").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Hora de los avisos").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Recordatorios antes del cobro").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Avisar cuando se registre un cobro").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Avisar cuando haya un cobro por confirmar").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Avisar al registrar un cobro").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Avisar si hay cobros por confirmar").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Enviar notificación de prueba").performScrollTo().assertIsDisplayed()
     }
 
@@ -311,8 +311,8 @@ class SettingsScreenTest {
 
         toggle("Activar notificaciones")
         toggle("Recordatorios antes del cobro")
-        toggle("Avisar cuando se registre un cobro")
-        toggle("Avisar cuando haya un cobro por confirmar")
+        toggle("Avisar al registrar un cobro")
+        toggle("Avisar si hay cobros por confirmar")
 
         assertThat(calls.notificationsEnabled).isFalse()
         assertThat(calls.reminders).isFalse()
@@ -345,7 +345,7 @@ class SettingsScreenTest {
         )
 
         composeRule
-            .onNodeWithText("Las notificaciones están bloqueadas para Wallet.")
+            .onNodeWithText("Notificaciones bloqueadas para Wallet.")
             .performScrollTo()
             .assertIsDisplayed()
         composeRule
@@ -363,7 +363,7 @@ class SettingsScreenTest {
             permissionGranted = true,
         )
 
-        composeRule.onNodeWithText("Las notificaciones están bloqueadas para Wallet.").assertDoesNotExist()
+        composeRule.onNodeWithText("Notificaciones bloqueadas para Wallet.").assertDoesNotExist()
     }
 
     @Test
@@ -375,11 +375,11 @@ class SettingsScreenTest {
             .performScrollTo()
             .assertIsNotEnabled()
         composeRule
-            .onNode(isToggleable() and hasText("Avisar cuando se registre un cobro"))
+            .onNode(isToggleable() and hasText("Avisar al registrar un cobro"))
             .performScrollTo()
             .assertIsNotEnabled()
         composeRule
-            .onNode(isToggleable() and hasText("Avisar cuando haya un cobro por confirmar"))
+            .onNode(isToggleable() and hasText("Avisar si hay cobros por confirmar"))
             .performScrollTo()
             .assertIsNotEnabled()
         composeRule.onNodeWithText("Hora de los avisos").performScrollTo().assertIsNotEnabled()
@@ -401,7 +401,7 @@ class SettingsScreenTest {
         composeRule.onNodeWithText("Tarjetas de crédito").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Fecha de corte").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Fecha límite de pago").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Avisar si el pago queda vencido").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Avisar si el pago está vencido").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -411,7 +411,7 @@ class SettingsScreenTest {
 
         toggle("Fecha de corte")
         toggle("Fecha límite de pago")
-        toggle("Avisar si el pago queda vencido")
+        toggle("Avisar si el pago está vencido")
 
         assertThat(calls.closing).isFalse()
         assertThat(calls.payment).isFalse()

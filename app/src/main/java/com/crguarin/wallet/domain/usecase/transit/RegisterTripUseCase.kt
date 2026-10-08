@@ -10,15 +10,24 @@ import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.SaveTransactionResult
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.domain.model.transit.TransitMath
 import com.crguarin.wallet.domain.model.transit.TransitSystemCategories
 import com.crguarin.wallet.domain.repository.AccountRepository
 import com.crguarin.wallet.domain.repository.CategoryRepository
+import com.crguarin.wallet.domain.repository.TransactionRunner
 import com.crguarin.wallet.domain.usecase.SaveTransactionUseCase
 import javax.inject.Inject
 
 /**
  * Registers one trip on a transit card: an expense for the card's fare, dated today, in the
  * transport category. Top-ups are transfers and are saved by the regular transfer flow.
+ *
+ * Credit rule (Cívica): a trip is allowed while the balance is not negative. A balance of zero or
+ * below the fare still lets one trip through on credit, so the balance goes negative. While the
+ * balance is negative, the trip is rejected with [DomainError.TransitCreditUsed] until a top-up.
+ *
+ * The balance check and the save run in one [TransactionRunner] block, so two concurrent calls
+ * cannot both see a non-negative balance and both go through on credit.
  */
 class RegisterTripUseCase
     @Inject
@@ -27,8 +36,12 @@ class RegisterTripUseCase
         private val categoryRepository: CategoryRepository,
         private val saveTransactionUseCase: SaveTransactionUseCase,
         private val timeProvider: TimeProvider,
+        private val transactionRunner: TransactionRunner,
     ) {
-        suspend operator fun invoke(accountId: Long): DomainResult<SaveTransactionResult> {
+        suspend operator fun invoke(accountId: Long): DomainResult<SaveTransactionResult> =
+            transactionRunner.run { checkAndSaveTrip(accountId) }
+
+        private suspend fun checkAndSaveTrip(accountId: Long): DomainResult<SaveTransactionResult> {
             val account =
                 accountRepository.getAccount(accountId)
                     ?: return DomainResult.Failure(DomainError.NotFound)
@@ -41,6 +54,12 @@ class RegisterTripUseCase
             val fare = account.fare
             if (fare == null || fare <= Money.ZERO) {
                 return DomainResult.Failure(DomainError.FareInvalid)
+            }
+            val balance =
+                accountRepository.getAccountWithBalance(accountId)?.balance
+                    ?: return DomainResult.Failure(DomainError.NotFound)
+            if (!TransitMath.canTravel(balance)) {
+                return DomainResult.Failure(DomainError.TransitCreditUsed)
             }
 
             val categoryId = tripCategoryId()

@@ -73,10 +73,53 @@ class SaveAccountTransitTest {
         }
 
     @Test
-    fun `transit card with negative initial balance fails with AmountInvalid`() =
+    fun `transit card may start owing exactly one fare`() =
         runTest {
-            assertThat(saveAccountUseCase(transit(initialBalance = Money(-1L))).errorOrNull())
-                .isEqualTo(DomainError.AmountInvalid)
+            val id = saveAccountUseCase(transit(initialBalance = Money(-350_000L))).getOrNull()!!
+
+            assertThat(accountRepository.getAccount(id)?.initialBalance).isEqualTo(Money(-350_000L))
+        }
+
+    @Test
+    fun `transit card may start owing a small amount`() =
+        runTest {
+            assertThat(saveAccountUseCase(transit(initialBalance = Money(-1L))).isSuccess).isTrue()
+        }
+
+    @Test
+    fun `transit card owing more than one fare fails with TransitCreditTooLarge`() =
+        runTest {
+            assertThat(saveAccountUseCase(transit(initialBalance = Money(-350_001L))).errorOrNull())
+                .isEqualTo(DomainError.TransitCreditTooLarge)
+            assertThat(accountRepository.getAllAccounts()).isEmpty()
+        }
+
+    @Test
+    fun `negative initial balance on a cash account still fails with AmountInvalid`() =
+        runTest {
+            val cash =
+                Account(
+                    name = "Efectivo",
+                    type = AccountType.CASH,
+                    initialBalance = Money(-1L),
+                    color = 1,
+                    icon = "wallet",
+                    createdAt = now,
+                )
+            assertThat(saveAccountUseCase(cash).errorOrNull()).isEqualTo(DomainError.AmountInvalid)
+        }
+
+    @Test
+    fun `changing a transit card with negative balance to cash fails with AmountInvalid`() =
+        runTest {
+            val stored = transit(id = 1L)
+            accountRepository.setInitialData(listOf(stored), txCounts = mapOf(1L to 2))
+
+            val result =
+                saveAccountUseCase(stored.copy(type = AccountType.CASH, icon = "wallet", initialBalance = Money(-100_000L)))
+
+            assertThat(result.errorOrNull()).isEqualTo(DomainError.AmountInvalid)
+            assertThat(accountRepository.getAccount(1L)?.type).isEqualTo(AccountType.TRANSIT_CARD)
         }
 
     @Test

@@ -70,6 +70,12 @@ sealed interface DomainError {
 
     data object FareInvalid : DomainError
 
+    /** A transit card cannot start owing more than one fare (the single credit trip). */
+    data object TransitCreditTooLarge : DomainError
+
+    /** The credit trip is already used: the transit card needs a top-up before another trip. */
+    data object TransitCreditUsed : DomainError
+
     data object ColorInUse : DomainError
 
     data object AccountTypeChangeNotAllowed : DomainError

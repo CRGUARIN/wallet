@@ -26,14 +26,14 @@
     <string name="transaction_edit_yesterday">Ayer</string>
     <string name="transaction_edit_note_label">Nota (opcional)</string>
     <string name="transaction_edit_note_counter">%1$d/%2$d</string>
-    <string name="transaction_edit_negative_balance_title">La cuenta quedará en negativo</string>
-    <string name="transaction_edit_negative_balance_message">La cuenta quedará en negativo. ¿Guardar de todas formas?</string>
+    <string name="transaction_edit_negative_balance_title">¿Dejar la cuenta en negativo?</string>
+    <string name="transaction_edit_negative_balance_message">El saldo no alcanza para este movimiento.</string>
     <string name="transaction_edit_no_accounts_title">Sin cuentas activas</string>
-    <string name="transaction_edit_no_accounts_message">Crea una cuenta para registrar tu primer movimiento.</string>
+    <string name="transaction_edit_no_accounts_message">Crea una cuenta para registrar movimientos.</string>
     <string name="transaction_edit_transfer_needs_accounts_title">Necesitas otra cuenta</string>
-    <string name="transaction_edit_transfer_needs_accounts_message">Para transferir dinero necesitas al menos dos cuentas activas.</string>
+    <string name="transaction_edit_transfer_needs_accounts_message">Para transferir necesitas dos cuentas activas.</string>
     <string name="transaction_edit_delete_title">¿Eliminar movimiento?</string>
-    <string name="transaction_edit_delete_message">¿Estás seguro de que deseas eliminar este movimiento?</string>
+    <string name="transaction_edit_delete_message">Esta acción no se puede deshacer.</string>
     <string name="accounts_title">Cuentas</string>
     <string name="account_detail_title">Detalle de cuenta</string>
     <string name="account_edit_title">Editar cuenta</string>
@@ -48,7 +48,7 @@
     <string name="category_name_label">Nombre</string>
     <string name="category_type_label">Tipo</string>
     <string name="category_parent_label">Categoría principal</string>
-    <string name="category_parent_none">Ninguna (Categoría principal)</string>
+    <string name="category_parent_none">Ninguna</string>
     <string name="category_breadcrumb">%1$s › %2$s</string>
     <string name="category_color_label">Color</string>
     <string name="category_icon_label">Ícono</string>
@@ -59,18 +59,18 @@
     <string name="action_unarchive">Desarchivar</string>
     <string name="action_reassign_and_delete">Reasignar y eliminar</string>
     <string name="category_delete_confirm_title">¿Eliminar categoría?</string>
-    <string name="category_delete_confirm_message">¿Estás seguro de que deseas eliminar esta categoría?</string>
+    <string name="category_delete_confirm_message">Esta acción no se puede deshacer.</string>
     <string name="category_delete_has_children_title">No se puede eliminar</string>
-    <string name="category_delete_has_children_message">Esta categoría tiene subcategorías. Para eliminarla, primero debes eliminar o mover sus subcategorías, o puedes archivarla.</string>
-    <string name="category_delete_has_transactions_title">Categoría con movimientos</string>
+    <string name="category_delete_has_children_message">Tiene subcategorías. Muévelas o elimínalas primero, o archiva la categoría.</string>
+    <string name="category_delete_has_transactions_title">Categoría en uso</string>
     <string name="category_archived_success">Categoría archivada</string>
     <string name="category_unarchived_success">Categoría desarchivada</string>
     <string name="categories_empty_expense_title">Sin categorías de gastos</string>
-    <string name="categories_empty_expense_message">Crea una categoría para organizar tus gastos.</string>
+    <string name="categories_empty_expense_message">Crea una categoría para tus gastos.</string>
     <string name="categories_empty_income_title">Sin categorías de ingresos</string>
-    <string name="categories_empty_income_message">Crea una categoría para organizar tus ingresos.</string>
+    <string name="categories_empty_income_message">Crea una categoría para tus ingresos.</string>
     <string name="settings_item_categories">Categorías</string>
-    <string name="settings_item_categories_subtitle">Gestionar categorías y subcategorías</string>
+    <string name="settings_item_categories_subtitle">Categorías y subcategorías</string>
     <string name="cd_parent_category">Categoría principal</string>
 
     <plurals name="categories_archived_count">
@@ -78,8 +78,8 @@
         <item quantity="other">Archivadas (%d)</item>
     </plurals>
     <plurals name="category_delete_has_transactions_message">
-        <item quantity="one">Esta categoría tiene %d movimiento asociado. Puedes archivarla o reasignar sus movimientos a otra categoría para eliminarla.</item>
-        <item quantity="other">Esta categoría tiene %d movimientos asociados. Puedes archivarla o reasignar sus movimientos a otra categoría para eliminarla.</item>
+        <item quantity="one">Tiene %d movimiento. Puedes archivarla, o pasar el movimiento a otra categoría y eliminarla.</item>
+        <item quantity="other">Tiene %d movimientos. Puedes archivarla, o pasar sus movimientos a otra categoría y eliminarla.</item>
     </plurals>
 
     <!-- Acciones comunes -->
@@ -107,10 +107,10 @@
 
     <!-- Onboarding -->
     <string name="onboarding_welcome_title">Bienvenido a Wallet</string>
-    <string name="onboarding_welcome_subtitle">Toma el control de tu dinero sin cuentas, sin internet y con total privacidad.</string>
+    <string name="onboarding_welcome_subtitle">Controla tu dinero sin cuentas ni internet, con total privacidad.</string>
     <string name="onboarding_language_title">Selecciona tu idioma</string>
     <string name="onboarding_first_account_title">Crea tu primera cuenta</string>
-    <string name="onboarding_first_account_subtitle">Para comenzar a registrar tus movimientos, ingresa los datos de tu cuenta principal.</string>
+    <string name="onboarding_first_account_subtitle">Ingresa los datos de tu cuenta principal.</string>
     <string name="onboarding_step_indicator">Paso %1$d de %2$d</string>
 
     <!-- Tipos de cuenta -->
@@ -118,22 +118,23 @@
     <string name="account_type_savings">Cuenta de ahorros</string>
     <string name="account_type_credit_card">Tarjeta de crédito</string>
     <string name="account_type_transit_card">Tarjeta de transporte</string>
-    <string name="account_type_transit_card_hint">Como la Cívica: la recargas y cada viaje descuenta la tarifa</string>
+    <string name="account_type_transit_card_hint">Cada viaje descuenta la tarifa</string>
     <string name="transit_fare_label">Tarifa por viaje</string>
-    <string name="transit_fare_supporting">Se descuenta en cada viaje</string>
-    <string name="transit_current_balance_label">Saldo actual de la tarjeta</string>
+    <string name="transit_fare_supporting">Se descuenta por viaje</string>
+    <string name="transit_current_balance_label">Saldo actual</string>
     <string name="transit_fare_value">Tarifa: %1$s</string>
-    <string name="transit_low_balance">Saldo insuficiente para un viaje</string>
-    <string name="transit_low_balance_short">Recarga pronto</string>
+    <string name="transit_credit_available">Solo queda el viaje a crédito</string>
+    <string name="transit_credit_available_short">Viaje a crédito</string>
+    <string name="transit_credit_used">Debes el viaje a crédito</string>
+    <string name="transit_credit_used_short">Recarga para viajar</string>
+    <string name="transit_negative_balance_label">Debo el viaje a crédito</string>
+    <string name="transit_negative_balance_supporting">Escribe cuánto debes, hasta una tarifa</string>
     <string name="transit_action_trip">Registrar viaje</string>
     <string name="transit_action_recharge">Recargar</string>
     <string name="transit_trip_registered">Viaje registrado</string>
-    <string name="transit_trip_negative_title">Saldo insuficiente</string>
-    <string name="transit_trip_negative_message">La tarjeta quedará en negativo. ¿Registrar el viaje de todas formas?</string>
-    <string name="transit_trip_negative_confirm">Registrar</string>
     <plurals name="transit_trips_left">
-        <item quantity="one">Alcanza para %d viaje</item>
-        <item quantity="other">Alcanza para %d viajes</item>
+        <item quantity="one">%d viaje restante</item>
+        <item quantity="other">%d viajes restantes</item>
     </plurals>
     <plurals name="transit_trips_short">
         <item quantity="one">%d viaje</item>
@@ -146,7 +147,7 @@
     <string name="accounts_active_header">Cuentas activas</string>
     <string name="accounts_archived_count">Archivadas (%1$d)</string>
     <string name="accounts_empty_title">Sin cuentas</string>
-    <string name="accounts_empty_message">Agrega tu primera cuenta para comenzar a registrar movimientos.</string>
+    <string name="accounts_empty_message">Agrega una cuenta para registrar movimientos.</string>
     <string name="accounts_reorder">Reordenar</string>
     <string name="accounts_reorder_done">Listo</string>
     <string name="accounts_move_up">Subir</string>
@@ -161,16 +162,16 @@
     <string name="account_detail_net">Neto</string>
     <string name="account_detail_transactions_title">Movimientos</string>
     <string name="account_detail_transactions_empty_title">Sin movimientos</string>
-    <string name="account_detail_transactions_empty_message">Los movimientos de esta cuenta aparecerán aquí.</string>
+    <string name="account_detail_transactions_empty_message">Aquí aparecerán sus movimientos.</string>
     <string name="account_detail_menu_edit">Editar</string>
     <string name="account_detail_menu_archive">Archivar</string>
     <string name="account_detail_menu_unarchive">Desarchivar</string>
     <string name="account_detail_menu_delete">Eliminar</string>
-    <string name="account_detail_menu_transfer">Transferir desde esta cuenta</string>
-    <string name="account_detail_delete_title">Eliminar cuenta</string>
-    <string name="account_detail_delete_message">¿Estás seguro de que deseas eliminar la cuenta \"%1$s\"?</string>
+    <string name="account_detail_menu_transfer">Transferir desde aquí</string>
+    <string name="account_detail_delete_title">¿Eliminar cuenta?</string>
+    <string name="account_detail_delete_message">La cuenta \"%1$s\" se eliminará definitivamente.</string>
     <string name="account_detail_cannot_delete_has_transactions_title">No se puede eliminar</string>
-    <string name="account_detail_cannot_delete_has_transactions_message">Esta cuenta tiene movimientos registrados y no se puede eliminar. ¿Deseas archivarla en su lugar?</string>
+    <string name="account_detail_cannot_delete_has_transactions_message">La cuenta tiene movimientos. ¿Archivarla en su lugar?</string>
     <string name="account_detail_archived_badge">Archivada</string>
     <string name="account_detail_archived_success">Cuenta archivada</string>
     <string name="account_detail_unarchived_success">Cuenta desarchivada</string>
@@ -180,12 +181,12 @@
     <string name="account_edit_name_label">Nombre de la cuenta</string>
     <string name="account_edit_type_label">Tipo de cuenta</string>
     <string name="account_edit_initial_balance_label">Saldo inicial</string>
-    <string name="account_edit_initial_balance_warning">Modificar el saldo inicial afectará el saldo actual de la cuenta.</string>
+    <string name="account_edit_initial_balance_warning">Cambiar el saldo inicial también cambia el saldo actual.</string>
     <string name="account_edit_color_label">Color</string>
     <string name="account_edit_icon_label">Ícono</string>
     <string name="account_edit_include_in_total_title">Incluir en saldo total</string>
-    <string name="account_edit_include_in_total_subtitle">Sumar el saldo de esta cuenta al total general</string>
-    <string name="account_edit_type_locked_message">El tipo no se puede cambiar porque la cuenta tiene movimientos</string>
+    <string name="account_edit_include_in_total_subtitle">Suma su saldo al total</string>
+    <string name="account_edit_type_locked_message">No se puede cambiar: tiene movimientos</string>
 
     <!-- Componentes comunes -->
     <string name="account_picker_title">Seleccionar cuenta</string>
@@ -197,7 +198,7 @@
     <string name="cd_selected">Seleccionado</string>
     <string name="cd_color">Color</string>
     <string name="cd_color_in_use">Color en uso</string>
-    <string name="category_color_in_use_hint">Los colores tachados ya los usa otra categoría de este tipo</string>
+    <string name="category_color_in_use_hint">Los colores tachados ya los usa otra categoría</string>
     <string name="account_color_in_use_hint">Los colores tachados ya los usa otra cuenta</string>
     <string name="cd_icon">Ícono</string>
     <string name="cd_delete_transaction">Eliminar movimiento</string>
@@ -218,7 +219,7 @@
     <string name="transactions_empty_title">Sin movimientos</string>
     <string name="transactions_empty_message">Tus movimientos aparecerán aquí.</string>
     <string name="transactions_empty_filtered_title">Sin resultados</string>
-    <string name="transactions_empty_filtered_message">No hay movimientos con estos filtros.</string>
+    <string name="transactions_empty_filtered_message">Prueba con otros filtros.</string>
     <string name="action_undo">Deshacer</string>
     <string name="cd_clear_search">Limpiar búsqueda</string>
     <string name="transaction_transfer_accounts">%1$s → %2$s</string>
@@ -229,7 +230,7 @@
     <string name="home_view_reports">Ver reportes</string>
     <string name="home_quick_actions">Acciones rápidas</string>
     <string name="home_empty_title">Aún no hay movimientos</string>
-    <string name="home_empty_message">Registra tu primer ingreso o gasto para empezar.</string>
+    <string name="home_empty_message">Registra un ingreso o gasto.</string>
 
     <!-- Reportes -->
     <string name="reports_title">Reportes</string>
@@ -249,7 +250,7 @@
     <string name="reports_others">Otras</string>
     <string name="reports_uncategorized">Sin categoría</string>
     <string name="reports_parent_direct">%1$s (general)</string>
-    <string name="reports_drill_up">Volver a todas las categorías</string>
+    <string name="reports_drill_up">Todas las categorías</string>
     <string name="reports_view_subcategories">Ver subcategorías</string>
     <string name="reports_view_transactions">Ver movimientos</string>
     <string name="reports_monthly_evolution">Evolución mensual</string>
@@ -258,18 +259,18 @@
     <string name="reports_pace_legend_current">Este mes</string>
     <string name="reports_pace_legend_previous">Mes anterior</string>
     <string name="reports_pace_current_plain">A esta fecha llevas %1$s</string>
-    <string name="reports_pace_current_more">A esta fecha llevas %1$s, un %2$d %% más que el mes pasado</string>
-    <string name="reports_pace_current_less">A esta fecha llevas %1$s, un %2$d %% menos que el mes pasado</string>
+    <string name="reports_pace_current_more">Llevas %1$s, %2$d %% más que el mes pasado</string>
+    <string name="reports_pace_current_less">Llevas %1$s, %2$d %% menos que el mes pasado</string>
     <string name="reports_pace_past_plain">Terminaste el mes con %1$s</string>
-    <string name="reports_pace_past_more">Terminaste el mes con %1$s, un %2$d %% más que el mes anterior</string>
-    <string name="reports_pace_past_less">Terminaste el mes con %1$s, un %2$d %% menos que el mes anterior</string>
+    <string name="reports_pace_past_more">Cerraste con %1$s, %2$d %% más que el mes anterior</string>
+    <string name="reports_pace_past_less">Cerraste con %1$s, %2$d %% menos que el mes anterior</string>
     <!-- %1$s recibe solo el número; la plantilla decide dónde va el $. En español no se usa "B": a partir de mil millones se muestran millones ("1.200 M $"). -->
     <string name="reports_compact_thousands">%1$s mil $</string>
     <string name="reports_compact_millions">%1$s M $</string>
     <string name="reports_compact_billions">%1$s M $</string>
     <string name="reports_percent">%1$s %%</string>
-    <string name="reports_empty_period_title">No hay movimientos en este período</string>
-    <string name="reports_empty_period_message">Registra ingresos o gastos para ver tus reportes.</string>
+    <string name="reports_empty_period_title">Sin movimientos en este período</string>
+    <string name="reports_empty_period_message">Registra ingresos o gastos para ver reportes.</string>
     <string name="reports_empty_expenses">No hay gastos en este período</string>
     <string name="reports_empty_incomes">No hay ingresos en este período</string>
     <string name="reports_load_error">No se pudieron cargar los reportes</string>
@@ -294,7 +295,7 @@
     <string name="reports_balance_closing">Al cierre</string>
     <string name="reports_balance_current">Hoy</string>
     <string name="reports_balance_point">%1$s: %2$s</string>
-    <string name="reports_balance_scope_all">Cuentas incluidas en el saldo total</string>
+    <string name="reports_balance_scope_all">Cuentas del saldo total</string>
     <string name="reports_cd_net_change_up">el neto sube %1$s</string>
     <string name="reports_cd_net_change_down">el neto baja %1$s</string>
     <string name="reports_cd_balance_line">Gráfico del saldo. Al inicio %1$s, al cierre %2$s, mínimo %3$s, máximo %4$s</string>
@@ -303,28 +304,30 @@
     <!-- Errores de dominio -->
     <string name="error_name_empty">El nombre no puede estar vacío</string>
     <string name="error_name_too_long">El nombre es demasiado largo</string>
-    <string name="error_name_duplicated">Ya existe un elemento con este nombre</string>
-    <string name="error_amount_invalid">El monto ingresado no es válido</string>
-    <string name="error_same_account_transfer">La cuenta origen y destino deben ser diferentes</string>
-    <string name="error_category_required">Se requiere seleccionar una categoría</string>
+    <string name="error_name_duplicated">Ese nombre ya existe</string>
+    <string name="error_amount_invalid">Monto no válido</string>
+    <string name="error_same_account_transfer">Origen y destino deben ser distintos</string>
+    <string name="error_category_required">Selecciona una categoría</string>
     <string name="error_category_type_mismatch">El tipo de categoría no coincide</string>
-    <string name="error_max_depth_exceeded">Se excedió el nivel máximo de subcategorías</string>
-    <string name="error_account_has_transactions">No se puede eliminar una cuenta con movimientos</string>
-    <string name="error_category_has_children">No se puede eliminar una categoría con subcategorías</string>
-    <string name="error_category_has_transactions">No se puede eliminar una categoría con movimientos asociados</string>
+    <string name="error_max_depth_exceeded">Solo se permite un nivel de subcategorías</string>
+    <string name="error_account_has_transactions">No se puede eliminar: tiene movimientos</string>
+    <string name="error_category_has_children">No se puede eliminar: tiene subcategorías</string>
+    <string name="error_category_has_transactions">No se puede eliminar: tiene movimientos</string>
     <string name="error_not_found">Elemento no encontrado</string>
-    <string name="error_note_too_long">La nota es demasiado larga</string>
-    <string name="error_date_out_of_range">La fecha está fuera del rango permitido</string>
+    <string name="error_note_too_long">Nota demasiado larga</string>
+    <string name="error_date_out_of_range">Fecha fuera de rango</string>
     <string name="error_account_archived">La cuenta está archivada</string>
     <string name="error_category_archived">La categoría está archivada</string>
-    <string name="error_same_category_reassignment">No se puede reasignar a la misma categoría</string>
-    <string name="error_invalid_transaction">Transacción inválida</string>
-    <string name="error_backup_invalid">El archivo no es un backup válido de Wallet</string>
-    <string name="error_backup_version_unsupported">Versión de copia de seguridad no soportada</string>
-    <string name="error_backup_failed">No se pudo completar la operación de backup. Tus datos actuales no se modificaron.</string>
-    <string name="error_account_type_change_not_allowed">No se puede cambiar el tipo de una cuenta con movimientos</string>
-    <string name="error_fare_invalid">Ingresa una tarifa mayor que cero</string>
-    <string name="error_color_in_use">Ese color ya está en uso. Elige otro.</string>
+    <string name="error_same_category_reassignment">Elige otra categoría</string>
+    <string name="error_invalid_transaction">Movimiento no válido</string>
+    <string name="error_backup_invalid">No es un backup válido de Wallet</string>
+    <string name="error_backup_version_unsupported">Versión de backup no compatible</string>
+    <string name="error_backup_failed">No se pudo completar el backup. Tus datos no cambiaron.</string>
+    <string name="error_account_type_change_not_allowed">No se puede cambiar el tipo: la cuenta tiene movimientos</string>
+    <string name="error_fare_invalid">La tarifa debe ser mayor que cero</string>
+    <string name="error_color_in_use">Ese color ya está en uso</string>
+    <string name="error_transit_credit_too_large">No puede superar la tarifa</string>
+    <string name="error_transit_credit_used">Ya usaste el viaje a crédito. Recarga la tarjeta.</string>
 
     <!-- Categorías del sistema - Gastos -->
     <string name="category_food">Alimentación</string>
@@ -362,18 +365,18 @@
     <string name="theme_light">Claro</string>
     <string name="theme_dark">Oscuro</string>
     <string name="settings_dynamic_color">Color dinámico</string>
-    <string name="settings_dynamic_color_subtitle">Usar los colores de tu fondo de pantalla</string>
+    <string name="settings_dynamic_color_subtitle">Colores del fondo de pantalla</string>
     <string name="settings_about_version">Versión</string>
     <string name="backup_export_title">Exportar datos</string>
-    <string name="backup_export_subtitle">Guarda un archivo con tus cuentas, categorías, movimientos y pagos recurrentes</string>
+    <string name="backup_export_subtitle">Archivo con cuentas, categorías, movimientos y pagos recurrentes</string>
     <string name="backup_import_title">Importar datos</string>
-    <string name="backup_import_subtitle">Restaura tus datos desde un archivo de backup</string>
+    <string name="backup_import_subtitle">Restaura desde un archivo de backup</string>
     <string name="backup_in_progress">Procesando backup</string>
     <string name="backup_export_success">Backup exportado</string>
     <string name="backup_import_success">Datos importados</string>
     <string name="backup_import_confirm_title">¿Importar datos?</string>
     <string name="backup_import_confirm_action">Importar</string>
-    <string name="backup_import_warning">Esto reemplazará todos tus datos actuales</string>
+    <string name="backup_import_warning">Se reemplazarán todos tus datos actuales.</string>
     <string name="backup_summary_format">%1$s, %2$s, %3$s</string>
     <string name="backup_summary_format_with_statements">%1$s, %2$s, %3$s, %4$s</string>
     <plurals name="backup_summary_accounts">
@@ -403,7 +406,7 @@
     <string name="action_retry">Reintentar</string>
     <string name="transactions_load_error">No se pudieron cargar los movimientos</string>
     <string name="accounts_no_active_title">Sin cuentas activas</string>
-    <string name="accounts_no_active_message">Crea una cuenta nueva o desarchiva una de las existentes.</string>
+    <string name="accounts_no_active_message">Crea una cuenta o desarchiva una.</string>
     <string name="account_detail_not_found">Esta cuenta ya no existe</string>
     <string name="transaction_edit_not_found">Este movimiento ya no existe</string>
 
@@ -411,7 +414,7 @@
     <string name="card_credit_limit_label">Cupo total</string>
     <string name="card_statement_day_label">Día de corte</string>
     <string name="card_payment_due_day_label">Día límite de pago</string>
-    <string name="card_day_hint">Del 1 al 31. Si el mes es más corto, se usa su último día.</string>
+    <string name="card_day_hint">Del 1 al 31. En meses cortos, el último día.</string>
     <string name="card_current_debt_label">Deuda actual</string>
     <string name="card_error_limit_required">Ingresa el cupo de la tarjeta</string>
     <string name="card_error_day_invalid">Ingresa un día entre 1 y 31</string>
@@ -433,11 +436,11 @@
     <string name="card_installments_title">Compras a cuotas</string>
     <string name="card_installment_progress">Cuota %1$d de %2$d · faltan %3$s</string>
     <string name="card_installments_label">Cuotas</string>
-    <string name="card_installments_hint">Informativo: no cambia el valor de la compra</string>
+    <string name="card_installments_hint">Solo informativo. No cambia el valor.</string>
     <string name="card_action_pay">Pagar tarjeta</string>
     <string name="card_action_reconcile">Conciliar extracto</string>
     <string name="card_reconcile_title">Conciliar extracto</string>
-    <string name="card_reconcile_intro">Copia los datos de tu extracto. La app calcula la diferencia con lo que anotaste.</string>
+    <string name="card_reconcile_intro">Copia los datos del extracto. La app calcula la diferencia.</string>
     <string name="card_reconcile_closing_date">Fecha de corte</string>
     <string name="card_reconcile_due_date">Fecha límite de pago</string>
     <string name="card_reconcile_statement_balance">Saldo total del extracto</string>
@@ -448,29 +451,29 @@
     <string name="card_reconcile_difference">Diferencia</string>
     <string name="card_reconcile_matches">¡Cuadra con el banco!</string>
     <string name="card_reconcile_positive">Se registrará %1$s como intereses y comisiones del %2$s.</string>
-    <string name="card_reconcile_negative">La app registra %1$s más de deuda que el banco. Revisa si falta anotar un pago, una devolución o un cashback.</string>
+    <string name="card_reconcile_negative">La app tiene %1$s más de deuda que el banco. Revisa pagos, devoluciones o cashback sin anotar.</string>
     <string name="card_reconcile_force_adjust">Ajustar de todos modos</string>
     <string name="card_reconcile_review_transactions">Revisar movimientos del ciclo</string>
-    <string name="card_reconcile_mismatch">La diferencia (%1$s) no coincide con los intereses del extracto (%2$s): puede faltar algún movimiento.</string>
+    <string name="card_reconcile_mismatch">La diferencia (%1$s) no coincide con los intereses (%2$s). Puede faltar un movimiento.</string>
     <string name="card_reconcile_confirm">Guardar conciliación</string>
     <string name="card_reconcile_note">Extracto %1$s</string>
     <string name="card_reconcile_saved">Extracto conciliado</string>
-    <string name="card_reconcile_recalculated">Los movimientos de la tarjeta cambiaron. Revisa la diferencia actualizada antes de guardar.</string>
+    <string name="card_reconcile_recalculated">Los movimientos cambiaron. Revisa la nueva diferencia antes de guardar.</string>
     <string name="card_statements_history">Extractos</string>
     <string name="card_statement_row">Corte %1$s · %2$s</string>
     <string name="card_statement_adjusted">ajuste de %1$s</string>
     <string name="card_statement_matched">cuadró</string>
-    <string name="card_over_limit_title">Superas el cupo</string>
-    <string name="card_over_limit_message">Con este movimiento la deuda de la tarjeta supera su cupo. ¿Guardar de todos modos?</string>
+    <string name="card_over_limit_title">¿Superar el cupo?</string>
+    <string name="card_over_limit_message">Con este movimiento, la deuda supera el cupo de la tarjeta.</string>
 
     <!-- Pagos recurrentes ("Agregar" se reutiliza de action_add; "Nombre" de category_name_label) -->
     <string name="recurring_title">Pagos recurrentes</string>
-    <string name="recurring_settings_subtitle">Suscripciones, servicios y cobros periódicos</string>
+    <string name="recurring_settings_subtitle">Suscripciones y cobros periódicos</string>
     <string name="recurring_new">Nuevo pago recurrente</string>
     <string name="recurring_edit">Editar pago recurrente</string>
     <string name="recurring_add">Agregar</string>
     <string name="recurring_empty_title">Sin pagos recurrentes</string>
-    <string name="recurring_empty_message">Agrega tus suscripciones y servicios para que se registren solos.</string>
+    <string name="recurring_empty_message">Agrega suscripciones y servicios para registrarlos solos.</string>
     <string name="recurring_section_pending">Por confirmar</string>
     <string name="recurring_section_active">Activos</string>
     <string name="recurring_section_inactive">Pausados y finalizados</string>
@@ -498,7 +501,7 @@
     <string name="recurring_schedule_monthly">%1$s · día %2$d</string>
     <string name="recurring_schedule_yearly">%1$s · el %2$d de %3$s</string>
     <string name="recurring_next_date_label">Próximo cobro</string>
-    <string name="recurring_next_date_hint">Desde esta fecha se repite. Si el cobro de hoy ya lo anotaste, elige el siguiente.</string>
+    <string name="recurring_next_date_hint">Se repite desde esta fecha. Si ya registraste el cobro de hoy, elige el siguiente.</string>
     <string name="recurring_next_on">Próximo: %1$s</string>
     <string name="recurring_end_label">Termina</string>
     <string name="recurring_end_never">Nunca</string>
@@ -506,9 +509,9 @@
     <string name="recurring_ends_on">Hasta el %1$s</string>
     <string name="recurring_mode_label">Cuando llegue la fecha</string>
     <string name="recurring_mode_auto">Registrarlo automáticamente</string>
-    <string name="recurring_mode_auto_desc">Se descuenta de la cuenta sin preguntarte.</string>
+    <string name="recurring_mode_auto_desc">Se descuenta sin preguntar.</string>
     <string name="recurring_mode_confirm">Preguntarme antes</string>
-    <string name="recurring_mode_confirm_desc">Útil si el valor cambia cada vez, como los servicios.</string>
+    <string name="recurring_mode_confirm_desc">Para cobros de valor variable, como servicios.</string>
     <string name="recurring_badge_auto">Automático</string>
     <string name="recurring_badge_confirm">Te pregunta</string>
     <string name="recurring_reminder_label">Recordatorio</string>
@@ -519,23 +522,23 @@
     <!-- Acciones del contrato de la tarea; el formulario las expone con el interruptor "Activo". -->
     <string name="recurring_pause" tools:ignore="UnusedResources">Pausar</string>
     <string name="recurring_resume" tools:ignore="UnusedResources">Reanudar</string>
-    <string name="recurring_blocked_account">La cuenta está archivada: no se registrará hasta que la desarchives.</string>
-    <string name="recurring_blocked_category">La categoría está archivada: no se registrará hasta que la desarchives.</string>
+    <string name="recurring_blocked_account">La cuenta está archivada. No se registrará hasta que la desarchives.</string>
+    <string name="recurring_blocked_category">La categoría está archivada. No se registrará hasta que la desarchives.</string>
     <string name="recurring_confirm_action">Registrar</string>
     <string name="recurring_skip_action">Omitir</string>
     <string name="recurring_confirm_title">Registrar %1$s</string>
-    <string name="recurring_confirm_message">Confirma el valor y la fecha del cobro.</string>
+    <string name="recurring_confirm_message">Revisa el valor y la fecha.</string>
     <string name="recurring_skip_title">¿Omitir este cobro?</string>
     <string name="recurring_skip_message">No se registrará el cobro del %1$s.</string>
     <string name="recurring_delete_title">¿Eliminar pago recurrente?</string>
-    <string name="recurring_delete_message">Los movimientos que ya se registraron se conservan.</string>
+    <string name="recurring_delete_message">Los movimientos ya registrados se conservan.</string>
     <string name="recurring_history_title">Últimos registros</string>
-    <string name="recurring_history_empty">Aún no se ha registrado ningún cobro.</string>
+    <string name="recurring_history_empty">Aún no hay cobros registrados.</string>
     <string name="recurring_saved">Pago recurrente guardado</string>
     <string name="recurring_recorded">Cobro registrado</string>
     <string name="recurring_generated_by">Registrado automáticamente por «%1$s»</string>
     <string name="recurring_icon_cd">Pago recurrente</string>
-    <string name="recurring_notifications_blocked">Las notificaciones están bloqueadas: no recibirás recordatorios.</string>
+    <string name="recurring_notifications_blocked">Notificaciones bloqueadas. No recibirás recordatorios.</string>
     <string name="recurring_notifications_enable">Activar</string>
     <plurals name="recurring_interval_weeks">
         <item quantity="one">semana</item>
@@ -571,18 +574,18 @@
     </plurals>
 
     <!-- Errores de recurrentes -->
-    <string name="error_recurring_date_past">La fecha del próximo cobro no puede ser anterior a hoy</string>
-    <string name="error_recurring_end_before_start">La fecha final debe ser igual o posterior al próximo cobro</string>
+    <string name="error_recurring_date_past">No puede ser anterior a hoy</string>
+    <string name="error_recurring_end_before_start">Debe ser igual o posterior al próximo cobro</string>
     <string name="error_recurring_interval">Ingresa un número entre 1 y 12</string>
-    <string name="error_account_has_recurring">La cuenta tiene pagos recurrentes. Elimínalos o cámbialos de cuenta primero.</string>
-    <string name="error_category_has_recurring">La categoría tiene pagos recurrentes. Cámbialos de categoría primero.</string>
-    <string name="error_debt_amount_below_paid">El monto no puede ser menor que lo ya abonado</string>
-    <string name="error_debt_payment_exceeds_remaining">El abono supera lo que falta por pagar</string>
-    <string name="error_debt_due_before_date">La fecha límite no puede ser anterior a la fecha de la deuda</string>
-    <string name="error_debt_already_settled">Esta deuda ya está saldada</string>
-    <string name="error_debt_payment_before_date">El abono no puede ser anterior a la fecha de la deuda</string>
-    <string name="error_debt_date_after_payments">La fecha de la deuda no puede ser posterior a su primer abono</string>
-    <string name="error_debt_direction_locked">No se puede cambiar el tipo de una deuda que ya tiene abonos</string>
+    <string name="error_account_has_recurring">La cuenta tiene pagos recurrentes. Elimínalos o cámbialos de cuenta.</string>
+    <string name="error_category_has_recurring">La categoría tiene pagos recurrentes. Cámbialos de categoría.</string>
+    <string name="error_debt_amount_below_paid">No puede ser menor que lo abonado</string>
+    <string name="error_debt_payment_exceeds_remaining">El abono supera lo pendiente</string>
+    <string name="error_debt_due_before_date">No puede ser anterior a la fecha de la deuda</string>
+    <string name="error_debt_already_settled">La deuda ya está saldada</string>
+    <string name="error_debt_payment_before_date">No puede ser anterior a la fecha de la deuda</string>
+    <string name="error_debt_date_after_payments">No puede ser posterior al primer abono</string>
+    <string name="error_debt_direction_locked">No se puede cambiar: la deuda ya tiene abonos</string>
 
     <!-- Próximos pagos (Inicio) -->
     <string name="home_upcoming_title">Próximos pagos</string>
@@ -599,19 +602,19 @@
     <string name="settings_item_recurring">Pagos recurrentes</string>
     <string name="settings_section_notifications">Notificaciones</string>
     <string name="settings_notifications_enabled">Activar notificaciones</string>
-    <string name="settings_notifications_blocked">Las notificaciones están bloqueadas para Wallet.</string>
+    <string name="settings_notifications_blocked">Notificaciones bloqueadas para Wallet.</string>
     <string name="settings_notifications_open_system">Abrir ajustes del sistema</string>
     <string name="settings_notifications_time">Hora de los avisos</string>
     <string name="settings_notifications_time_value">Todos los días a las %1$s</string>
     <string name="settings_notifications_recurring_header">Pagos recurrentes</string>
     <string name="settings_notif_recurring_reminders">Recordatorios antes del cobro</string>
-    <string name="settings_notif_recurring_reminders_desc">Según lo que elegiste en cada pago</string>
-    <string name="settings_notif_recurring_posted">Avisar cuando se registre un cobro</string>
-    <string name="settings_notif_recurring_pending">Avisar cuando haya un cobro por confirmar</string>
+    <string name="settings_notif_recurring_reminders_desc">Según la configuración de cada pago</string>
+    <string name="settings_notif_recurring_posted">Avisar al registrar un cobro</string>
+    <string name="settings_notif_recurring_pending">Avisar si hay cobros por confirmar</string>
     <string name="settings_notifications_cards_header">Tarjetas de crédito</string>
     <string name="settings_notif_card_closing">Fecha de corte</string>
     <string name="settings_notif_card_payment">Fecha límite de pago</string>
-    <string name="settings_notif_card_overdue">Avisar si el pago queda vencido</string>
+    <string name="settings_notif_card_overdue">Avisar si el pago está vencido</string>
     <string name="settings_notif_lead_days">Cuándo avisar</string>
     <string name="settings_notif_same_day">El mismo día</string>
     <string name="settings_notifications_test">Enviar notificación de prueba</string>
@@ -639,14 +642,14 @@
     <string name="notif_recurring_upcoming_income">Próximo ingreso el %1$s en %2$s</string>
     <string name="notif_recurring_pending_expense">¿Ya pagaste %1$s?</string>
     <string name="notif_recurring_pending_income">¿Recibiste %1$s?</string>
-    <string name="notif_recurring_pending_text">Toca para confirmar el valor (%1$s).</string>
+    <string name="notif_recurring_pending_text">Confirma el valor (%1$s).</string>
     <string name="notif_recurring_posted_title">Se registró %1$s</string>
     <string name="notif_recurring_posted_text">%1$s en %2$s</string>
     <string name="notif_card_closing_today">Hoy es el corte de %1$s</string>
-    <string name="notif_card_closing_text">Cuando llegue el extracto, concílialo en la app.</string>
+    <string name="notif_card_closing_text">Concilia el extracto al recibirlo.</string>
     <string name="notif_card_payment_today">Hoy vence el pago de %1$s</string>
     <string name="notif_card_payment_amount">Por pagar: %1$s</string>
-    <string name="notif_card_payment_unknown">Concilia el extracto para saber cuánto pagar.</string>
+    <string name="notif_card_payment_unknown">Concilia el extracto para ver cuánto pagar.</string>
     <string name="notif_card_overdue_title">El pago de %1$s está vencido</string>
     <string name="notif_card_overdue_text">Pendiente: %1$s</string>
     <string name="notif_test_title">Las notificaciones funcionan</string>
@@ -670,7 +673,7 @@
     <string name="debts_edit">Editar deuda</string>
     <string name="debts_add">Agregar deuda</string>
     <string name="debts_empty_title">Sin deudas</string>
-    <string name="debts_empty_message">Anota lo que te deben y lo que debes para no perderle el rastro.</string>
+    <string name="debts_empty_message">Anota lo que te deben y lo que debes.</string>
     <string name="debts_total_owed_to_me">Te deben</string>
     <string name="debts_total_i_owe">Debes</string>
     <string name="debts_total_net">Balance</string>
@@ -701,14 +704,15 @@
     <string name="debts_add_payment">Registrar abono</string>
     <string name="debts_settle">Marcar como saldada</string>
     <string name="debts_settle_title">¿Marcar como saldada?</string>
-    <string name="debts_settle_message">Se registrará un abono por %1$s con fecha de hoy.</string>
+    <string name="debts_settle_message">Se registrará un abono de %1$s con fecha de hoy.</string>
+    <string name="debts_settle_action">Saldar</string>
     <string name="debts_payments_title">Abonos</string>
     <string name="debts_payments_empty">Aún no hay abonos.</string>
     <string name="debts_payment_dialog_title">Nuevo abono</string>
     <string name="debts_payment_note_label">Nota (opcional)</string>
     <string name="debts_payment_delete">Eliminar abono</string>
     <string name="debts_payment_delete_title">¿Eliminar abono?</string>
-    <string name="debts_payment_delete_message">Se eliminará el abono de %1$s y el pendiente volverá a subir.</string>
+    <string name="debts_payment_delete_message">El saldo pendiente aumentará en %1$s.</string>
     <string name="debts_payment_recorded">Abono registrado</string>
     <string name="debts_payment_deleted">Abono eliminado</string>
     <string name="debts_settled_message">Deuda saldada</string>
@@ -719,8 +723,8 @@
         <item quantity="other">%d deudas</item>
     </plurals>
     <plurals name="backup_import_debts_lost">
-        <item quantity="one">Este backup no trae deudas: se borrará %d deuda que tienes registrada.</item>
-        <item quantity="other">Este backup no trae deudas: se borrarán %d deudas que tienes registradas.</item>
+        <item quantity="one">El backup no incluye deudas: se borrará %d deuda registrada.</item>
+        <item quantity="other">El backup no incluye deudas: se borrarán %d deudas registradas.</item>
     </plurals>
 
     <!-- Íconos -->
