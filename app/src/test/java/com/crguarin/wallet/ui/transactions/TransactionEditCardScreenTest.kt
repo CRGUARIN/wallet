@@ -129,7 +129,7 @@ class TransactionEditCardScreenTest {
         setScreen(cardExpenseState())
 
         composeRule.onNodeWithText("Cuotas").assertIsDisplayed()
-        composeRule.onNodeWithText("Informativo: no cambia el valor de la compra").assertIsDisplayed()
+        composeRule.onNodeWithText("Solo informativo. No cambia el valor.").assertIsDisplayed()
     }
 
     @Test
@@ -190,7 +190,7 @@ class TransactionEditCardScreenTest {
 
         composeRule.onNodeWithText("Superas el cupo").assertIsDisplayed()
         composeRule
-            .onNodeWithText("Con este movimiento la deuda de la tarjeta supera su cupo. ¿Guardar de todos modos?")
+            .onNodeWithText("La deuda superará el cupo. ¿Guardar?")
             .assertIsDisplayed()
         composeRule.onNodeWithText("Confirmar").performClick()
 
@@ -207,7 +207,7 @@ class TransactionEditCardScreenTest {
         )
 
         composeRule
-            .onNodeWithText("La cuenta quedará en negativo. ¿Guardar de todas formas?")
+            .onNodeWithText("La cuenta quedará en negativo. ¿Guardar?")
             .assertIsDisplayed()
     }
 }

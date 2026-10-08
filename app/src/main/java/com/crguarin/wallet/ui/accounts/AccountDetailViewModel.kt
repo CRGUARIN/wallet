@@ -79,8 +79,6 @@ data class AccountDetailUiState(
     val payFromAccountId: Long? = null,
     /** Pending statement amount in minor units, or null when there is nothing to pay. */
     val payAmountMinor: Long? = null,
-    /** Asks before a trip the balance cannot pay. */
-    val showTripNegativeDialog: Boolean = false,
     /** Default source account for topping up this transit card, or null when there is none. */
     val rechargeFromAccountId: Long? = null,
 ) {
@@ -91,8 +89,17 @@ data class AccountDetailUiState(
     val tripsLeft: Int
         get() = accountWithBalance?.let { TransitMath.tripsLeft(it.balance, it.account.fare) } ?: 0
 
-    val isLowTransitBalance: Boolean
-        get() = accountWithBalance?.let { TransitMath.isLowBalance(it.balance, it.account.fare) } ?: false
+    /** True when another trip is allowed: a transit card whose balance is not negative. */
+    val canRegisterTrip: Boolean
+        get() = accountWithBalance?.let { TransitMath.canTravel(it.balance) } ?: false
+
+    /** True when the next trip goes through on credit: the balance is below one fare but not negative. */
+    val isCreditTrip: Boolean
+        get() = accountWithBalance?.let { TransitMath.isCreditTrip(it.balance, it.account.fare) } ?: false
+
+    /** True while the credit trip is owed: the balance is negative until the next top-up. */
+    val isCreditUsed: Boolean
+        get() = accountWithBalance?.let { TransitMath.isCreditUsed(it.balance) } ?: false
 }
 
 sealed interface AccountDetailEvent {
@@ -135,7 +142,6 @@ class AccountDetailViewModel
                 DialogState(
                     showDelete = false,
                     showOfferArchive = false,
-                    showTripNegative = false,
                 ),
             )
 
@@ -149,7 +155,6 @@ class AccountDetailViewModel
         private data class DialogState(
             val showDelete: Boolean,
             val showOfferArchive: Boolean,
-            val showTripNegative: Boolean,
         )
 
         private val _events = Channel<AccountDetailEvent>(Channel.BUFFERED)
@@ -222,7 +227,6 @@ class AccountDetailViewModel
                     adjustmentAmounts = adjustmentAmounts,
                     payFromAccountId = payFromAccountIdOf(activeAccounts, lastUsedAccountId),
                     payAmountMinor = pending?.takeIf { it > Money.ZERO }?.minorUnits,
-                    showTripNegativeDialog = dialogState.showTripNegative,
                     rechargeFromAccountId = rechargeFromAccountIdOf(activeAccounts, lastUsedAccountId, accountId),
                 )
             }.stateIn(
@@ -238,20 +242,11 @@ class AccountDetailViewModel
         }
 
         fun dismissDialogs() {
-            dialogStateFlow.update { it.copy(showDelete = false, showOfferArchive = false, showTripNegative = false) }
+            dialogStateFlow.update { it.copy(showDelete = false, showOfferArchive = false) }
         }
 
-        /** Registers a trip, asking first when the balance cannot pay it. */
+        /** Registers a trip; the use case refuses it while the credit trip is still owed. */
         fun onRegisterTripClick() {
-            if (uiState.value.isLowTransitBalance) {
-                dialogStateFlow.update { it.copy(showTripNegative = true) }
-            } else {
-                registerTrip()
-            }
-        }
-
-        fun confirmTripDespiteBalance() {
-            dismissDialogs()
             registerTrip()
         }
 

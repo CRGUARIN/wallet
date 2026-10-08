@@ -635,10 +635,28 @@ class BackupValidatorTest {
     }
 
     @Test
-    fun `transit card cannot carry card fields or a negative balance`() {
+    fun `transit card cannot carry card fields`() {
         assertThat(invalidReason(transit.withTransitAccount { it.copy(creditLimit = 1_000_000) }))
             .isEqualTo("account 4: credit limit on a non-card account")
-        assertThat(invalidReason(transit.withTransitAccount { it.copy(initialBalance = -1) }))
+    }
+
+    @Test
+    fun `transit card may owe up to one fare as its initial balance`() {
+        assertThat(BackupValidator.validate(transit.withTransitAccount { it.copy(initialBalance = -1) })).isNull()
+        assertThat(BackupValidator.validate(transit.withTransitAccount { it.copy(initialBalance = -350_000) })).isNull()
+    }
+
+    @Test
+    fun `transit card owing more than one fare is rejected`() {
+        assertThat(invalidReason(transit.withTransitAccount { it.copy(initialBalance = -350_001) }))
+            .isEqualTo("account 4: transit credit larger than one fare")
+    }
+
+    @Test
+    fun `negative initial balance is still rejected on cash and savings accounts`() {
+        assertThat(invalidReason(valid.withAccount { it.copy(initialBalance = -1) }))
+            .isEqualTo("account 1: negative initial balance")
+        assertThat(invalidReason(transit.withTransitAccount { it.copy(type = AccountType.CASH, fare = null, initialBalance = -1) }))
             .isEqualTo("account 4: negative initial balance")
     }
 

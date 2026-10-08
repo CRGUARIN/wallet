@@ -60,7 +60,9 @@ object BackupValidator {
                 name.length > DomainLimits.NAME_MAX_LENGTH -> return "account ${account.id}: name too long"
                 account.initialBalance > Money.MAX_MINOR_UNITS -> return "account ${account.id}: initial balance too large"
                 account.initialBalance < -Money.MAX_MINOR_UNITS -> return "account ${account.id}: initial balance too large"
-                account.initialBalance < 0 && account.type != AccountType.CREDIT_CARD ->
+                account.initialBalance < 0 &&
+                    account.type != AccountType.CREDIT_CARD &&
+                    account.type != AccountType.TRANSIT_CARD ->
                     return "account ${account.id}: negative initial balance"
             }
             accountTypeProblem(account)?.let { return it }
@@ -107,6 +109,8 @@ object BackupValidator {
             fare == null -> "$label: transit card without fare"
             fare <= 0 -> "$label: fare must be positive"
             fare > Money.MAX_MINOR_UNITS -> "$label: fare too large"
+            // A negative balance is the credit trip already taken: it cannot exceed one fare.
+            account.initialBalance < -fare -> "$label: transit credit larger than one fare"
             else -> null
         }
     }

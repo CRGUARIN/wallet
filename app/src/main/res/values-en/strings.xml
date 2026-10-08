@@ -24,14 +24,14 @@
     <string name="transaction_edit_yesterday">Yesterday</string>
     <string name="transaction_edit_note_label">Note (optional)</string>
     <string name="transaction_edit_note_counter">%1$d/%2$d</string>
-    <string name="transaction_edit_negative_balance_title">Account will go negative</string>
-    <string name="transaction_edit_negative_balance_message">This account will have a negative balance. Save anyway?</string>
+    <string name="transaction_edit_negative_balance_title">Negative balance</string>
+    <string name="transaction_edit_negative_balance_message">This account will go negative. Save?</string>
     <string name="transaction_edit_no_accounts_title">No active accounts</string>
-    <string name="transaction_edit_no_accounts_message">Create an account to record your first transaction.</string>
-    <string name="transaction_edit_transfer_needs_accounts_title">You need another account</string>
-    <string name="transaction_edit_transfer_needs_accounts_message">To transfer money you need at least two active accounts.</string>
+    <string name="transaction_edit_no_accounts_message">Create an account first.</string>
+    <string name="transaction_edit_transfer_needs_accounts_title">Need another account</string>
+    <string name="transaction_edit_transfer_needs_accounts_message">Transfers need two active accounts.</string>
     <string name="transaction_edit_delete_title">Delete transaction?</string>
-    <string name="transaction_edit_delete_message">Are you sure you want to delete this transaction?</string>
+    <string name="transaction_edit_delete_message">This transaction will be removed.</string>
     <string name="accounts_title">Accounts</string>
     <string name="account_detail_title">Account details</string>
     <string name="account_edit_title">Edit account</string>
@@ -57,18 +57,18 @@
     <string name="action_unarchive">Unarchive</string>
     <string name="action_reassign_and_delete">Reassign and delete</string>
     <string name="category_delete_confirm_title">Delete category?</string>
-    <string name="category_delete_confirm_message">Are you sure you want to delete this category?</string>
+    <string name="category_delete_confirm_message">The category will be removed.</string>
     <string name="category_delete_has_children_title">Cannot delete</string>
-    <string name="category_delete_has_children_message">This category has subcategories. To delete it, you must first delete or move its subcategories, or you can archive it.</string>
+    <string name="category_delete_has_children_message">Delete or move its subcategories first, or archive it.</string>
     <string name="category_delete_has_transactions_title">Category with transactions</string>
     <string name="category_archived_success">Category archived</string>
     <string name="category_unarchived_success">Category unarchived</string>
     <string name="categories_empty_expense_title">No expense categories</string>
-    <string name="categories_empty_expense_message">Create a category to organize your expenses.</string>
+    <string name="categories_empty_expense_message">Create one to organize expenses.</string>
     <string name="categories_empty_income_title">No income categories</string>
-    <string name="categories_empty_income_message">Create a category to organize your income.</string>
+    <string name="categories_empty_income_message">Create one to organize income.</string>
     <string name="settings_item_categories">Categories</string>
-    <string name="settings_item_categories_subtitle">Manage categories and subcategories</string>
+    <string name="settings_item_categories_subtitle">Categories and subcategories</string>
     <string name="cd_parent_category">Parent category</string>
 
     <plurals name="categories_archived_count">
@@ -76,8 +76,8 @@
         <item quantity="other">Archived (%d)</item>
     </plurals>
     <plurals name="category_delete_has_transactions_message">
-        <item quantity="one">This category has %d associated transaction. You can archive it or reassign its transactions to another category to delete it.</item>
-        <item quantity="other">This category has %d associated transactions. You can archive it or reassign its transactions to another category to delete it.</item>
+        <item quantity="one">Has %d transaction. Archive the category, or reassign it to delete.</item>
+        <item quantity="other">Has %d transactions. Archive the category, or reassign them to delete.</item>
     </plurals>
 
     <!-- Common actions -->
@@ -105,10 +105,10 @@
 
     <!-- Onboarding -->
     <string name="onboarding_welcome_title">Welcome to Wallet</string>
-    <string name="onboarding_welcome_subtitle">Take control of your money with no accounts, no internet, and complete privacy.</string>
+    <string name="onboarding_welcome_subtitle">Track your money privately, offline. No sign-up.</string>
     <string name="onboarding_language_title">Select your language</string>
     <string name="onboarding_first_account_title">Create your first account</string>
-    <string name="onboarding_first_account_subtitle">To start tracking your money, enter your main account details.</string>
+    <string name="onboarding_first_account_subtitle">Enter your main account details.</string>
     <string name="onboarding_step_indicator">Step %1$d of %2$d</string>
 
     <!-- Account types -->
@@ -116,22 +116,23 @@
     <string name="account_type_savings">Savings account</string>
     <string name="account_type_credit_card">Credit card</string>
     <string name="account_type_transit_card">Transit card</string>
-    <string name="account_type_transit_card_hint">Like a metro card: top it up and each trip deducts the fare</string>
+    <string name="account_type_transit_card_hint">Top up, and each trip deducts the fare</string>
     <string name="transit_fare_label">Fare per trip</string>
     <string name="transit_fare_supporting">Deducted on every trip</string>
     <string name="transit_current_balance_label">Current card balance</string>
     <string name="transit_fare_value">Fare: %1$s</string>
-    <string name="transit_low_balance">Not enough for a trip</string>
-    <string name="transit_low_balance_short">Top up soon</string>
+    <string name="transit_credit_available">Credit trip only</string>
+    <string name="transit_credit_available_short">Credit trip</string>
+    <string name="transit_credit_used">Credit trip used. Top up</string>
+    <string name="transit_credit_used_short">Top up</string>
+    <string name="transit_negative_balance_label">Credit trip owed</string>
+    <string name="transit_negative_balance_supporting">Max one fare</string>
     <string name="transit_action_trip">Log a trip</string>
     <string name="transit_action_recharge">Top up</string>
     <string name="transit_trip_registered">Trip logged</string>
-    <string name="transit_trip_negative_title">Not enough balance</string>
-    <string name="transit_trip_negative_message">The card will go negative. Log the trip anyway?</string>
-    <string name="transit_trip_negative_confirm">Log trip</string>
     <plurals name="transit_trips_left">
-        <item quantity="one">Enough for %d trip</item>
-        <item quantity="other">Enough for %d trips</item>
+        <item quantity="one">%d trip left</item>
+        <item quantity="other">%d trips left</item>
     </plurals>
     <plurals name="transit_trips_short">
         <item quantity="one">%d trip</item>
@@ -144,7 +145,7 @@
     <string name="accounts_active_header">Active accounts</string>
     <string name="accounts_archived_count">Archived (%1$d)</string>
     <string name="accounts_empty_title">No accounts</string>
-    <string name="accounts_empty_message">Add your first account to start tracking transactions.</string>
+    <string name="accounts_empty_message">Add an account to start tracking.</string>
     <string name="accounts_reorder">Reorder</string>
     <string name="accounts_reorder_done">Done</string>
     <string name="accounts_move_up">Move up</string>
@@ -159,16 +160,16 @@
     <string name="account_detail_net">Net</string>
     <string name="account_detail_transactions_title">Transactions</string>
     <string name="account_detail_transactions_empty_title">No transactions</string>
-    <string name="account_detail_transactions_empty_message">Transactions for this account will appear here.</string>
+    <string name="account_detail_transactions_empty_message">Transactions will appear here.</string>
     <string name="account_detail_menu_edit">Edit</string>
     <string name="account_detail_menu_archive">Archive</string>
     <string name="account_detail_menu_unarchive">Unarchive</string>
     <string name="account_detail_menu_delete">Delete</string>
-    <string name="account_detail_menu_transfer">Transfer from this account</string>
+    <string name="account_detail_menu_transfer">Transfer out</string>
     <string name="account_detail_delete_title">Delete account</string>
-    <string name="account_detail_delete_message">Are you sure you want to delete the account \"%1$s\"?</string>
+    <string name="account_detail_delete_message">Delete the account \"%1$s\"?</string>
     <string name="account_detail_cannot_delete_has_transactions_title">Cannot delete account</string>
-    <string name="account_detail_cannot_delete_has_transactions_message">This account has recorded transactions and cannot be deleted. Would you like to archive it instead?</string>
+    <string name="account_detail_cannot_delete_has_transactions_message">Accounts with transactions can\'t be deleted. Archive it instead?</string>
     <string name="account_detail_archived_badge">Archived</string>
     <string name="account_detail_archived_success">Account archived</string>
     <string name="account_detail_unarchived_success">Account unarchived</string>
@@ -178,12 +179,12 @@
     <string name="account_edit_name_label">Account name</string>
     <string name="account_edit_type_label">Account type</string>
     <string name="account_edit_initial_balance_label">Initial balance</string>
-    <string name="account_edit_initial_balance_warning">Changing the initial balance will affect the current account balance.</string>
+    <string name="account_edit_initial_balance_warning">Changing it also changes the current balance.</string>
     <string name="account_edit_color_label">Color</string>
     <string name="account_edit_icon_label">Icon</string>
     <string name="account_edit_include_in_total_title">Include in total balance</string>
-    <string name="account_edit_include_in_total_subtitle">Add this account\'s balance to the overall total</string>
-    <string name="account_edit_type_locked_message">The type cannot be changed because this account has transactions</string>
+    <string name="account_edit_include_in_total_subtitle">Add this balance to the total</string>
+    <string name="account_edit_type_locked_message">Type is locked: this account has transactions</string>
 
     <!-- Common components -->
     <string name="account_picker_title">Select account</string>
@@ -195,8 +196,8 @@
     <string name="cd_selected">Selected</string>
     <string name="cd_color">Color</string>
     <string name="cd_color_in_use">Color in use</string>
-    <string name="category_color_in_use_hint">Crossed-out colors are used by another category of this type</string>
-    <string name="account_color_in_use_hint">Crossed-out colors are used by another account</string>
+    <string name="category_color_in_use_hint">Crossed-out colors are in use</string>
+    <string name="account_color_in_use_hint">Crossed-out colors are in use</string>
     <string name="cd_icon">Icon</string>
     <string name="cd_delete_transaction">Delete transaction</string>
 
@@ -214,9 +215,9 @@
     <string name="transactions_day_yesterday">Yesterday</string>
     <string name="transactions_deleted_message">Transaction deleted</string>
     <string name="transactions_empty_title">No transactions</string>
-    <string name="transactions_empty_message">Your transactions will appear here.</string>
+    <string name="transactions_empty_message">Transactions will appear here.</string>
     <string name="transactions_empty_filtered_title">No results</string>
-    <string name="transactions_empty_filtered_message">There are no transactions with these filters.</string>
+    <string name="transactions_empty_filtered_message">Try different filters.</string>
     <string name="action_undo">Undo</string>
     <string name="cd_clear_search">Clear search</string>
     <string name="transaction_transfer_accounts">%1$s → %2$s</string>
@@ -227,7 +228,7 @@
     <string name="home_view_reports">View reports</string>
     <string name="home_quick_actions">Quick actions</string>
     <string name="home_empty_title">No transactions yet</string>
-    <string name="home_empty_message">Record your first income or expense to get started.</string>
+    <string name="home_empty_message">Add an income or expense to start.</string>
 
     <!-- Reports -->
     <string name="reports_title">Reports</string>
@@ -240,12 +241,12 @@
     <string name="reports_vs_previous_year">vs. previous year</string>
     <string name="reports_average_daily">Daily average</string>
     <string name="reports_average_monthly">Monthly average</string>
-    <string name="reports_no_previous_data">No data for the previous period</string>
+    <string name="reports_no_previous_data">No previous data</string>
     <string name="reports_by_category">By category</string>
     <string name="reports_others">Others</string>
     <string name="reports_uncategorized">Uncategorized</string>
     <string name="reports_parent_direct">%1$s (general)</string>
-    <string name="reports_drill_up">Back to all categories</string>
+    <string name="reports_drill_up">All categories</string>
     <string name="reports_view_subcategories">View subcategories</string>
     <string name="reports_view_transactions">View transactions</string>
     <string name="reports_monthly_evolution">Monthly evolution</string>
@@ -253,22 +254,22 @@
     <string name="reports_spending_pace">Month pace</string>
     <string name="reports_pace_legend_current">This month</string>
     <string name="reports_pace_legend_previous">Previous month</string>
-    <string name="reports_pace_current_plain">So far you have %1$s</string>
-    <string name="reports_pace_current_more">So far you have %1$s, %2$d%% more than last month</string>
-    <string name="reports_pace_current_less">So far you have %1$s, %2$d%% less than last month</string>
-    <string name="reports_pace_past_plain">You ended the month with %1$s</string>
-    <string name="reports_pace_past_more">You ended the month with %1$s, %2$d%% more than the previous month</string>
-    <string name="reports_pace_past_less">You ended the month with %1$s, %2$d%% less than the previous month</string>
+    <string name="reports_pace_current_plain">So far: %1$s</string>
+    <string name="reports_pace_current_more">So far: %1$s, %2$d%% more than last month</string>
+    <string name="reports_pace_current_less">So far: %1$s, %2$d%% less than last month</string>
+    <string name="reports_pace_past_plain">Month ended at %1$s</string>
+    <string name="reports_pace_past_more">Month ended at %1$s, %2$d%% more than last month</string>
+    <string name="reports_pace_past_less">Month ended at %1$s, %2$d%% less than last month</string>
     <!-- %1$s receives only the number; the template decides where the $ goes. -->
     <string name="reports_compact_thousands">$%1$sK</string>
     <string name="reports_compact_millions">$%1$sM</string>
     <string name="reports_compact_billions">$%1$sB</string>
     <string name="reports_percent">%1$s%%</string>
     <string name="reports_empty_period_title">No movements in this period</string>
-    <string name="reports_empty_period_message">Add income or expenses to see your reports.</string>
+    <string name="reports_empty_period_message">Add income or expenses to see reports.</string>
     <string name="reports_empty_expenses">No expenses in this period</string>
     <string name="reports_empty_incomes">No income in this period</string>
-    <string name="reports_load_error">Couldn\'t load the reports</string>
+    <string name="reports_load_error">Couldn\'t load reports</string>
     <string name="reports_cd_donut">Donut chart. %1$s</string>
     <string name="reports_cd_bars">Bar chart. %1$s</string>
     <string name="reports_cd_line">Line chart. %1$s</string>
@@ -283,14 +284,14 @@
     <string name="reports_savings_rate_none">No income</string>
     <string name="reports_net_vs_previous_month">Net vs. previous month</string>
     <string name="reports_net_vs_previous_year">Net vs. previous year</string>
-    <string name="reports_net_positive_hint">You saved this period</string>
-    <string name="reports_net_negative_hint">You spent more than you earned</string>
+    <string name="reports_net_positive_hint">Saved this period</string>
+    <string name="reports_net_negative_hint">Spent more than earned</string>
     <string name="reports_balance_evolution">Balance over time</string>
     <string name="reports_balance_opening">Opening</string>
     <string name="reports_balance_closing">Closing</string>
     <string name="reports_balance_current">Today</string>
     <string name="reports_balance_point">%1$s: %2$s</string>
-    <string name="reports_balance_scope_all">Accounts included in total balance</string>
+    <string name="reports_balance_scope_all">Included in total balance</string>
     <string name="reports_cd_net_change_up">net up %1$s</string>
     <string name="reports_cd_net_change_down">net down %1$s</string>
     <string name="reports_cd_balance_line">Balance chart. Opening %1$s, closing %2$s, minimum %3$s, maximum %4$s</string>
@@ -299,28 +300,30 @@
     <!-- Domain errors -->
     <string name="error_name_empty">Name cannot be empty</string>
     <string name="error_name_too_long">Name is too long</string>
-    <string name="error_name_duplicated">An item with this name already exists</string>
-    <string name="error_amount_invalid">The entered amount is invalid</string>
-    <string name="error_same_account_transfer">Source and destination accounts must be different</string>
+    <string name="error_name_duplicated">Name already exists</string>
+    <string name="error_amount_invalid">Invalid amount</string>
+    <string name="error_same_account_transfer">Choose two different accounts</string>
     <string name="error_category_required">A category is required</string>
     <string name="error_category_type_mismatch">Category type does not match</string>
-    <string name="error_max_depth_exceeded">Maximum subcategory depth exceeded</string>
-    <string name="error_account_has_transactions">Cannot delete an account with transactions</string>
-    <string name="error_category_has_children">Cannot delete a category with subcategories</string>
-    <string name="error_category_has_transactions">Cannot delete a category with associated transactions</string>
+    <string name="error_max_depth_exceeded">Too many subcategory levels</string>
+    <string name="error_account_has_transactions">Account has transactions</string>
+    <string name="error_category_has_children">Category has subcategories</string>
+    <string name="error_category_has_transactions">Category has transactions</string>
     <string name="error_not_found">Item not found</string>
     <string name="error_note_too_long">Note is too long</string>
-    <string name="error_date_out_of_range">Date is out of allowed range</string>
-    <string name="error_account_archived">The account is archived</string>
-    <string name="error_category_archived">The category is archived</string>
-    <string name="error_same_category_reassignment">Cannot reassign to the same category</string>
+    <string name="error_date_out_of_range">Date out of range</string>
+    <string name="error_account_archived">Account is archived</string>
+    <string name="error_category_archived">Category is archived</string>
+    <string name="error_same_category_reassignment">Choose a different category</string>
     <string name="error_invalid_transaction">Invalid transaction</string>
-    <string name="error_backup_invalid">The file is not a valid Wallet backup</string>
+    <string name="error_backup_invalid">Not a valid Wallet backup</string>
     <string name="error_backup_version_unsupported">Unsupported backup version</string>
-    <string name="error_backup_failed">The backup operation could not be completed. Your current data was not changed.</string>
+    <string name="error_backup_failed">Backup failed. Your data wasn\'t changed.</string>
     <string name="error_account_type_change_not_allowed">Cannot change the type of an account with transactions</string>
-    <string name="error_fare_invalid">Enter a fare greater than zero</string>
-    <string name="error_color_in_use">That color is already in use. Pick another one.</string>
+    <string name="error_fare_invalid">Fare must be above zero</string>
+    <string name="error_color_in_use">Color in use</string>
+    <string name="error_transit_credit_too_large">Can\'t exceed one fare</string>
+    <string name="error_transit_credit_used">Credit trip used. Top up first.</string>
 
     <!-- System Categories - Expense -->
     <string name="category_food">Food</string>
@@ -358,18 +361,18 @@
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
     <string name="settings_dynamic_color">Dynamic color</string>
-    <string name="settings_dynamic_color_subtitle">Use the colors from your wallpaper</string>
+    <string name="settings_dynamic_color_subtitle">Colors from your wallpaper</string>
     <string name="settings_about_version">Version</string>
     <string name="backup_export_title">Export data</string>
-    <string name="backup_export_subtitle">Save a file with your accounts, categories, transactions and recurring payments</string>
+    <string name="backup_export_subtitle">Save accounts, categories, transactions and recurring payments</string>
     <string name="backup_import_title">Import data</string>
-    <string name="backup_import_subtitle">Restore your data from a backup file</string>
+    <string name="backup_import_subtitle">Restore from a backup file</string>
     <string name="backup_in_progress">Processing backup</string>
     <string name="backup_export_success">Backup exported</string>
     <string name="backup_import_success">Data imported</string>
     <string name="backup_import_confirm_title">Import data?</string>
     <string name="backup_import_confirm_action">Import</string>
-    <string name="backup_import_warning">This will replace all your current data</string>
+    <string name="backup_import_warning">Replaces all current data</string>
     <string name="backup_summary_format">%1$s, %2$s, %3$s</string>
     <string name="backup_summary_format_with_statements">%1$s, %2$s, %3$s, %4$s</string>
     <plurals name="backup_summary_accounts">
@@ -407,7 +410,7 @@
     <string name="card_credit_limit_label">Credit limit</string>
     <string name="card_statement_day_label">Statement day</string>
     <string name="card_payment_due_day_label">Payment due day</string>
-    <string name="card_day_hint">From 1 to 31. In shorter months, the last day is used.</string>
+    <string name="card_day_hint">1 to 31. Shorter months use the last day.</string>
     <string name="card_current_debt_label">Current debt</string>
     <string name="card_error_limit_required">Enter the credit limit</string>
     <string name="card_error_day_invalid">Enter a day between 1 and 31</string>
@@ -429,35 +432,35 @@
     <string name="card_installments_title">Installment purchases</string>
     <string name="card_installment_progress">Installment %1$d of %2$d · %3$s left</string>
     <string name="card_installments_label">Installments</string>
-    <string name="card_installments_hint">Informational: does not change the purchase amount</string>
+    <string name="card_installments_hint">Info only. Doesn\'t change the amount</string>
     <string name="card_action_pay">Pay card</string>
     <string name="card_action_reconcile">Reconcile statement</string>
     <string name="card_reconcile_title">Reconcile statement</string>
-    <string name="card_reconcile_intro">Copy the figures from your statement. The app compares them with what you recorded.</string>
+    <string name="card_reconcile_intro">Enter the figures from your statement to compare.</string>
     <string name="card_reconcile_closing_date">Statement date</string>
     <string name="card_reconcile_due_date">Payment due date</string>
     <string name="card_reconcile_statement_balance">Statement balance</string>
     <string name="card_reconcile_minimum_payment">Minimum payment (optional)</string>
     <string name="card_reconcile_interest">Interest and fees (optional)</string>
     <string name="card_reconcile_calculate">Calculate difference</string>
-    <string name="card_reconcile_app_debt">Debt in the app at statement date</string>
+    <string name="card_reconcile_app_debt">App debt on statement date</string>
     <string name="card_reconcile_difference">Difference</string>
     <string name="card_reconcile_matches">It matches your bank!</string>
     <string name="card_reconcile_positive">%1$s will be recorded as interest and fees on %2$s.</string>
-    <string name="card_reconcile_negative">The app shows %1$s more debt than your bank. Check for a missing payment, refund or cashback.</string>
+    <string name="card_reconcile_negative">App shows %1$s more debt than the bank. Check for a missing payment, refund or cashback.</string>
     <string name="card_reconcile_force_adjust">Adjust anyway</string>
     <string name="card_reconcile_review_transactions">Review cycle transactions</string>
-    <string name="card_reconcile_mismatch">The difference (%1$s) does not match the statement interest (%2$s): a transaction may be missing.</string>
+    <string name="card_reconcile_mismatch">Difference %1$s doesn\'t match statement interest %2$s. A transaction may be missing.</string>
     <string name="card_reconcile_confirm">Save reconciliation</string>
     <string name="card_reconcile_note">Statement %1$s</string>
     <string name="card_reconcile_saved">Statement reconciled</string>
-    <string name="card_reconcile_recalculated">The card transactions changed. Check the updated difference before saving.</string>
+    <string name="card_reconcile_recalculated">Card transactions changed. Check the new difference.</string>
     <string name="card_statements_history">Statements</string>
     <string name="card_statement_row">Statement %1$s · %2$s</string>
     <string name="card_statement_adjusted">adjusted by %1$s</string>
     <string name="card_statement_matched">matched</string>
     <string name="card_over_limit_title">Over credit limit</string>
-    <string name="card_over_limit_message">This transaction takes the card debt over its limit. Save anyway?</string>
+    <string name="card_over_limit_message">This takes the debt over the limit. Save?</string>
 
     <!-- Recurring payments ("Add" is reused from action_add; "Name" from category_name_label) -->
     <string name="recurring_title">Recurring payments</string>
@@ -466,7 +469,7 @@
     <string name="recurring_edit">Edit recurring payment</string>
     <string name="recurring_add">Add</string>
     <string name="recurring_empty_title">No recurring payments</string>
-    <string name="recurring_empty_message">Add your subscriptions and bills so they are recorded automatically.</string>
+    <string name="recurring_empty_message">Add subscriptions and bills to record them automatically.</string>
     <string name="recurring_section_pending">To confirm</string>
     <string name="recurring_section_active">Active</string>
     <string name="recurring_section_inactive">Paused and finished</string>
@@ -494,7 +497,7 @@
     <string name="recurring_schedule_monthly">%1$s · day %2$d</string>
     <string name="recurring_schedule_yearly">%1$s · on %3$s %2$d</string>
     <string name="recurring_next_date_label">Next charge</string>
-    <string name="recurring_next_date_hint">It repeats from this date. If you already recorded today\'s charge, pick the next one.</string>
+    <string name="recurring_next_date_hint">Repeats from this date. If today\'s charge is recorded, pick the next one.</string>
     <string name="recurring_next_on">Next: %1$s</string>
     <string name="recurring_end_label">Ends</string>
     <string name="recurring_end_never">Never</string>
@@ -502,9 +505,9 @@
     <string name="recurring_ends_on">Until %1$s</string>
     <string name="recurring_mode_label">When the date comes</string>
     <string name="recurring_mode_auto">Record it automatically</string>
-    <string name="recurring_mode_auto_desc">It is deducted from the account without asking.</string>
+    <string name="recurring_mode_auto_desc">Deducted from the account without asking.</string>
     <string name="recurring_mode_confirm">Ask me first</string>
-    <string name="recurring_mode_confirm_desc">Useful when the amount changes, like utility bills.</string>
+    <string name="recurring_mode_confirm_desc">For amounts that change, like utilities.</string>
     <string name="recurring_badge_auto">Automatic</string>
     <string name="recurring_badge_confirm">Asks you</string>
     <string name="recurring_reminder_label">Reminder</string>
@@ -515,23 +518,23 @@
     <!-- Task contract actions; the form exposes them through the "Active" switch. -->
     <string name="recurring_pause" tools:ignore="UnusedResources">Pause</string>
     <string name="recurring_resume" tools:ignore="UnusedResources">Resume</string>
-    <string name="recurring_blocked_account">The account is archived: it won\'t be recorded until you unarchive it.</string>
-    <string name="recurring_blocked_category">The category is archived: it won\'t be recorded until you unarchive it.</string>
+    <string name="recurring_blocked_account">Account archived. Not recorded until unarchived.</string>
+    <string name="recurring_blocked_category">Category archived. Not recorded until unarchived.</string>
     <string name="recurring_confirm_action">Record</string>
     <string name="recurring_skip_action">Skip</string>
     <string name="recurring_confirm_title">Record %1$s</string>
-    <string name="recurring_confirm_message">Confirm the amount and date of the charge.</string>
+    <string name="recurring_confirm_message">Confirm amount and date.</string>
     <string name="recurring_skip_title">Skip this charge?</string>
-    <string name="recurring_skip_message">The charge of %1$s won\'t be recorded.</string>
+    <string name="recurring_skip_message">%1$s won\'t be recorded.</string>
     <string name="recurring_delete_title">Delete recurring payment?</string>
     <string name="recurring_delete_message">Transactions already recorded are kept.</string>
     <string name="recurring_history_title">Latest records</string>
-    <string name="recurring_history_empty">No charges recorded yet.</string>
+    <string name="recurring_history_empty">No charges yet.</string>
     <string name="recurring_saved">Recurring payment saved</string>
     <string name="recurring_recorded">Charge recorded</string>
     <string name="recurring_generated_by">Recorded automatically by \"%1$s\"</string>
     <string name="recurring_icon_cd">Recurring payment</string>
-    <string name="recurring_notifications_blocked">Notifications are blocked: you won\'t get reminders.</string>
+    <string name="recurring_notifications_blocked">Notifications blocked. No reminders.</string>
     <string name="recurring_notifications_enable">Enable</string>
     <plurals name="recurring_interval_weeks">
         <item quantity="one">week</item>
@@ -567,18 +570,18 @@
     </plurals>
 
     <!-- Recurring errors -->
-    <string name="error_recurring_date_past">The next charge date can\'t be before today</string>
-    <string name="error_recurring_end_before_start">The end date must be on or after the next charge</string>
-    <string name="error_recurring_interval">Enter a number between 1 and 12</string>
-    <string name="error_account_has_recurring">This account has recurring payments. Delete them or move them to another account first.</string>
-    <string name="error_category_has_recurring">This category has recurring payments. Move them to another category first.</string>
-    <string name="error_debt_amount_below_paid">The amount can\'t be lower than what was already paid</string>
-    <string name="error_debt_payment_exceeds_remaining">The payment is greater than the outstanding amount</string>
-    <string name="error_debt_due_before_date">The due date can\'t be before the debt date</string>
-    <string name="error_debt_already_settled">This debt is already settled</string>
-    <string name="error_debt_payment_before_date">The payment can\'t be before the debt date</string>
-    <string name="error_debt_date_after_payments">The debt date can\'t be after its first payment</string>
-    <string name="error_debt_direction_locked">You can\'t change the type of a debt that already has payments</string>
+    <string name="error_recurring_date_past">Date can\'t be before today</string>
+    <string name="error_recurring_end_before_start">End must be on or after the next charge</string>
+    <string name="error_recurring_interval">Enter 1 to 12</string>
+    <string name="error_account_has_recurring">Account has recurring payments. Delete or move them first.</string>
+    <string name="error_category_has_recurring">Category has recurring payments. Move them first.</string>
+    <string name="error_debt_amount_below_paid">Amount can\'t be below what\'s paid</string>
+    <string name="error_debt_payment_exceeds_remaining">Payment exceeds the outstanding amount</string>
+    <string name="error_debt_due_before_date">Due date can\'t be before debt date</string>
+    <string name="error_debt_already_settled">Debt already settled</string>
+    <string name="error_debt_payment_before_date">Payment can\'t be before debt date</string>
+    <string name="error_debt_date_after_payments">Debt date can\'t be after first payment</string>
+    <string name="error_debt_direction_locked">Can\'t change type after payments</string>
 
     <!-- Upcoming payments (Home) -->
     <string name="home_upcoming_title">Upcoming payments</string>
@@ -595,7 +598,7 @@
     <string name="settings_item_recurring">Recurring payments</string>
     <string name="settings_section_notifications">Notifications</string>
     <string name="settings_notifications_enabled">Enable notifications</string>
-    <string name="settings_notifications_blocked">Notifications are blocked for Wallet.</string>
+    <string name="settings_notifications_blocked">Notifications blocked for Wallet.</string>
     <string name="settings_notifications_open_system">Open system settings</string>
     <string name="settings_notifications_time">Notification time</string>
     <string name="settings_notifications_time_value">Every day at %1$s</string>
@@ -607,7 +610,7 @@
     <string name="settings_notifications_cards_header">Credit cards</string>
     <string name="settings_notif_card_closing">Statement date</string>
     <string name="settings_notif_card_payment">Payment due date</string>
-    <string name="settings_notif_card_overdue">Notify when the payment is overdue</string>
+    <string name="settings_notif_card_overdue">Notify when overdue</string>
     <string name="settings_notif_lead_days">When to notify</string>
     <string name="settings_notif_same_day">On the day</string>
     <string name="settings_notifications_test">Send test notification</string>
@@ -635,18 +638,18 @@
     <string name="notif_recurring_upcoming_income">Next income on %1$s to %2$s</string>
     <string name="notif_recurring_pending_expense">Did you pay %1$s?</string>
     <string name="notif_recurring_pending_income">Did you receive %1$s?</string>
-    <string name="notif_recurring_pending_text">Tap to confirm the amount (%1$s).</string>
+    <string name="notif_recurring_pending_text">Tap to confirm %1$s.</string>
     <string name="notif_recurring_posted_title">%1$s recorded</string>
     <string name="notif_recurring_posted_text">%1$s in %2$s</string>
     <string name="notif_card_closing_today">%1$s statement closes today</string>
-    <string name="notif_card_closing_text">When the statement arrives, reconcile it in the app.</string>
+    <string name="notif_card_closing_text">Reconcile it in the app when it arrives.</string>
     <string name="notif_card_payment_today">%1$s payment is due today</string>
     <string name="notif_card_payment_amount">Amount due: %1$s</string>
-    <string name="notif_card_payment_unknown">Reconcile the statement to know how much to pay.</string>
+    <string name="notif_card_payment_unknown">Reconcile the statement to see the amount.</string>
     <string name="notif_card_overdue_title">%1$s payment is overdue</string>
     <string name="notif_card_overdue_text">Pending: %1$s</string>
     <string name="notif_test_title">Notifications work</string>
-    <string name="notif_test_text">This is how Wallet will remind you.</string>
+    <string name="notif_test_text">Wallet reminders look like this.</string>
     <plurals name="notif_recurring_posted_many">
         <item quantity="one">%d recurring payment recorded</item>
         <item quantity="other">%d recurring payments recorded</item>
@@ -661,12 +664,12 @@
     </plurals>
     <!-- Debts -->
     <string name="debts_title">Debts</string>
-    <string name="debts_settings_subtitle">What others owe you and what you owe</string>
+    <string name="debts_settings_subtitle">Who owes you and who you owe</string>
     <string name="debts_new">New debt</string>
     <string name="debts_edit">Edit debt</string>
     <string name="debts_add">Add debt</string>
     <string name="debts_empty_title">No debts</string>
-    <string name="debts_empty_message">Write down what others owe you and what you owe so you never lose track.</string>
+    <string name="debts_empty_message">Track what others owe you and what you owe.</string>
     <string name="debts_total_owed_to_me">Owed to you</string>
     <string name="debts_total_i_owe">You owe</string>
     <string name="debts_total_net">Balance</string>
@@ -683,7 +686,7 @@
     <string name="debts_save">Save</string>
     <string name="debts_delete">Delete debt</string>
     <string name="debts_delete_title">Delete debt?</string>
-    <string name="debts_delete_message">The debt with %1$s and all its payments will be deleted.</string>
+    <string name="debts_delete_message">Debt with %1$s and all its payments will be deleted.</string>
     <string name="debts_remaining_of">%1$s left of %2$s</string>
     <string name="debts_original_label">Original amount</string>
     <string name="debts_paid_label">Paid</string>
@@ -697,14 +700,14 @@
     <string name="debts_add_payment">Record payment</string>
     <string name="debts_settle">Mark as settled</string>
     <string name="debts_settle_title">Mark as settled?</string>
-    <string name="debts_settle_message">A payment of %1$s dated today will be recorded.</string>
+    <string name="debts_settle_message">Records a %1$s payment today.</string>
     <string name="debts_payments_title">Payments</string>
     <string name="debts_payments_empty">No payments yet.</string>
     <string name="debts_payment_dialog_title">New payment</string>
     <string name="debts_payment_note_label">Note (optional)</string>
     <string name="debts_payment_delete">Delete payment</string>
     <string name="debts_payment_delete_title">Delete payment?</string>
-    <string name="debts_payment_delete_message">The %1$s payment will be deleted and the outstanding amount will go back up.</string>
+    <string name="debts_payment_delete_message">Deletes the %1$s payment. Outstanding amount goes back up.</string>
     <string name="debts_payment_recorded">Payment recorded</string>
     <string name="debts_payment_deleted">Payment deleted</string>
     <string name="debts_settled_message">Debt settled</string>
@@ -715,8 +718,8 @@
         <item quantity="other">%d debts</item>
     </plurals>
     <plurals name="backup_import_debts_lost">
-        <item quantity="one">This backup has no debts: the %d debt you have recorded will be deleted.</item>
-        <item quantity="other">This backup has no debts: the %d debts you have recorded will be deleted.</item>
+        <item quantity="one">Backup has no debts. Your %d debt will be deleted.</item>
+        <item quantity="other">Backup has no debts. Your %d debts will be deleted.</item>
     </plurals>
 
     <!-- Icons -->

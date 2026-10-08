@@ -595,4 +595,97 @@ class AccountEditViewModelTest {
             assertThat(state.fareText).isEqualTo("3500")
             assertThat(state.isSaveEnabled).isTrue()
         }
+
+    @Test
+    fun `transit card with the negative balance switch on saves the amount negated`() =
+        runTest(testDispatcher) {
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to null))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+            viewModel.setName("Cívica")
+            viewModel.setType(AccountType.TRANSIT_CARD)
+            viewModel.setFareText("3500")
+            viewModel.setInitialBalanceText("1000")
+            viewModel.setTransitBalanceNegative(true)
+
+            viewModel.events.test {
+                viewModel.saveAccount()
+                assertThat(awaitItem()).isEqualTo(AccountEditEvent.NavigateBack)
+
+                val saved = accountRepository.getAllAccounts().single()
+                assertThat(saved.initialBalance).isEqualTo(Money(-100_000L))
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `negative transit balance larger than the fare shows an error and does not save`() =
+        runTest(testDispatcher) {
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to null))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+            viewModel.setName("Cívica")
+            viewModel.setType(AccountType.TRANSIT_CARD)
+            viewModel.setFareText("3500")
+            viewModel.setTransitBalanceNegative(true)
+            viewModel.setInitialBalanceText("5000")
+
+            assertThat(viewModel.uiState.value.amountErrorRes)
+                .isEqualTo(R.string.error_transit_credit_too_large)
+            assertThat(viewModel.uiState.value.isSaveEnabled).isFalse()
+
+            viewModel.saveAccount()
+
+            assertThat(viewModel.uiState.value.amountErrorRes)
+                .isEqualTo(R.string.error_transit_credit_too_large)
+            assertThat(accountRepository.getAllAccounts()).isEmpty()
+
+            viewModel.setInitialBalanceText("3500")
+            assertThat(viewModel.uiState.value.amountErrorRes).isNull()
+            assertThat(viewModel.uiState.value.isSaveEnabled).isTrue()
+        }
+
+    @Test
+    fun `negative balance switch is ignored for other account types`() =
+        runTest(testDispatcher) {
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to null))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+            viewModel.setName("Efectivo")
+            viewModel.setType(AccountType.CASH)
+            viewModel.setInitialBalanceText("1000")
+            viewModel.setTransitBalanceNegative(true)
+
+            viewModel.events.test {
+                viewModel.saveAccount()
+                assertThat(awaitItem()).isEqualTo(AccountEditEvent.NavigateBack)
+
+                assertThat(accountRepository.getAllAccounts().single().initialBalance).isEqualTo(Money(100_000L))
+
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
+
+    @Test
+    fun `edit mode turns the negative switch on for a transit card with a negative balance`() =
+        runTest(testDispatcher) {
+            val card =
+                existingAccount.copy(
+                    id = 13L,
+                    name = "Cívica",
+                    type = AccountType.TRANSIT_CARD,
+                    initialBalance = Money(-100_000L),
+                    icon = "directions_bus",
+                    fare = Money(350_000L),
+                )
+            accountRepository.setInitialData(listOf(card))
+            val savedStateHandle = SavedStateHandle(mapOf("accountId" to 13L))
+            val viewModel = AccountEditViewModel(savedStateHandle, accountRepository, saveAccountUseCase)
+
+            val state = viewModel.uiState.value
+            assertThat(state.transitBalanceNegative).isTrue()
+            assertThat(state.initialBalanceText).isEqualTo("1000")
+            assertThat(state.showInitialBalanceWarning).isFalse()
+
+            viewModel.setTransitBalanceNegative(false)
+            assertThat(viewModel.uiState.value.showInitialBalanceWarning).isTrue()
+        }
 }

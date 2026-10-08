@@ -237,7 +237,7 @@ class TransactionEditScreenTest {
         )
 
         composeRule
-            .onNodeWithText("La cuenta quedará en negativo. ¿Guardar de todas formas?")
+            .onNodeWithText("La cuenta quedará en negativo. ¿Guardar?")
             .assertIsDisplayed()
         composeRule.onNodeWithText("Confirmar").performClick()
 

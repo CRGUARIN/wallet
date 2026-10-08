@@ -3,7 +3,9 @@ package com.crguarin.wallet.ui.accounts
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.isToggleable
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -100,7 +102,7 @@ class AccountEditScreenTest {
         composeRule.onNodeWithText("Editar cuenta").assertIsDisplayed()
         composeRule
             .onNodeWithText(
-                "Modificar el saldo inicial afectará el saldo actual de la cuenta.",
+                "Cambiarlo afecta el saldo actual.",
             ).performScrollTo()
             .assertIsDisplayed()
     }
@@ -215,7 +217,7 @@ class AccountEditScreenTest {
         }
 
         composeRule
-            .onNodeWithText("El tipo no se puede cambiar porque la cuenta tiene movimientos")
+            .onNodeWithText("No se puede cambiar: tiene movimientos")
             .performScrollTo()
             .assertIsDisplayed()
     }
@@ -246,13 +248,80 @@ class AccountEditScreenTest {
         }
 
         composeRule
-            .onNodeWithText("Como la Cívica: la recargas y cada viaje descuenta la tarifa")
+            .onNodeWithText("Cada viaje descuenta la tarifa")
             .performScrollTo()
             .assertIsDisplayed()
         composeRule.onNodeWithText("Tarifa por viaje").performScrollTo().assertIsDisplayed()
         composeRule
-            .onNodeWithText("Los colores tachados ya los usa otra cuenta")
+            .onNodeWithText("Tachados: en uso por otra cuenta")
             .performScrollTo()
             .assertIsDisplayed()
+    }
+
+    @Test
+    fun `transit card negative balance switch shows its supporting text and reports changes`() {
+        var negative: Boolean? = null
+        composeRule.setContent {
+            WalletTheme {
+                AccountEditScreen(
+                    uiState =
+                        AccountEditUiState(
+                            name = "Cívica",
+                            type = AccountType.TRANSIT_CARD,
+                            icon = "directions_bus",
+                            fareText = "3500",
+                            initialBalanceText = "1000",
+                        ),
+                    onNavigateBack = {},
+                    onNameChanged = {},
+                    onTypeChanged = {},
+                    onInitialBalanceChanged = {},
+                    onColorSelected = {},
+                    onIconSelected = {},
+                    onIncludeInTotalChanged = {},
+                    onSaveClick = {},
+                    onTransitBalanceNegativeChanged = { negative = it },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Debo el viaje a crédito").performScrollTo().assertIsDisplayed()
+        composeRule.onAllNodes(isToggleable()).onFirst().performClick()
+
+        assertThat(negative).isTrue()
+    }
+
+    @Test
+    fun `transit card negative balance above the fare shows the credit error`() {
+        composeRule.setContent {
+            WalletTheme {
+                AccountEditScreen(
+                    uiState =
+                        AccountEditUiState(
+                            name = "Cívica",
+                            type = AccountType.TRANSIT_CARD,
+                            icon = "directions_bus",
+                            fareText = "3500",
+                            initialBalanceText = "5000",
+                            transitBalanceNegative = true,
+                            amountErrorRes = R.string.error_transit_credit_too_large,
+                        ),
+                    onNavigateBack = {},
+                    onNameChanged = {},
+                    onTypeChanged = {},
+                    onInitialBalanceChanged = {},
+                    onColorSelected = {},
+                    onIconSelected = {},
+                    onIncludeInTotalChanged = {},
+                    onSaveClick = {},
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithText("No puede superar la tarifa")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Escribe cuánto debes. No puede superar la tarifa").performScrollTo().assertIsDisplayed()
     }
 }

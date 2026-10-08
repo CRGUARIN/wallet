@@ -319,7 +319,9 @@ internal fun AccountsRow(
                 when {
                     cardOverview != null && item.account.type == AccountType.CREDIT_CARD ->
                         showPaymentReminder(cardOverview.paymentStatus, cardOverview.pendingStatementDueDate, today)
-                    item.account.type == AccountType.TRANSIT_CARD -> TransitMath.isLowBalance(item.balance, item.account.fare)
+                    item.account.type == AccountType.TRANSIT_CARD ->
+                        TransitMath.isCreditTrip(item.balance, item.account.fare) ||
+                            TransitMath.isCreditUsed(item.balance)
                     else -> false
                 }
             StoryAvatar(

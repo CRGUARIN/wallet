@@ -99,7 +99,7 @@ class AndroidNotificationGatewayTest {
 
         val posted = singlePosted(event)
         assertThat(titleOf(posted)).isEqualTo("¿Ya pagaste Netflix?")
-        assertThat(textOf(posted)).contains("Toca para confirmar el valor")
+        assertThat(textOf(posted)).contains("Confirma el valor")
     }
 
     @Test
@@ -182,7 +182,7 @@ class AndroidNotificationGatewayTest {
 
         assertThat(titleOf(posted(today))).isEqualTo("Hoy es el corte de Visa")
         assertThat(titleOf(posted(ahead))).isEqualTo("Visa corta en 2 días")
-        assertThat(textOf(posted(ahead))).isEqualTo("Cuando llegue el extracto, concílialo en la app.")
+        assertThat(textOf(posted(ahead))).isEqualTo("Concilia el extracto al recibirlo.")
         assertThat(posted(today).channelId).isEqualTo(NotificationChannels.CARDS)
     }
 
@@ -213,7 +213,7 @@ class AndroidNotificationGatewayTest {
         assertThat(titleOf(posted(withAmount))).isEqualTo("Hoy vence el pago de Visa")
         assertThat(textOf(posted(withAmount))).contains("Por pagar:")
         assertThat(titleOf(posted(unknown))).isEqualTo("El pago de Master vence en 3 días")
-        assertThat(textOf(posted(unknown))).isEqualTo("Concilia el extracto para saber cuánto pagar.")
+        assertThat(textOf(posted(unknown))).isEqualTo("Concilia el extracto para ver cuánto pagar.")
     }
 
     @Test
@@ -406,7 +406,7 @@ class AndroidNotificationGatewayTest {
         assertThat(titleOf(posted(closing))).isEqualTo("Visa statement closes in 2 days")
         assertThat(titleOf(posted(dueToday))).isEqualTo("Visa payment is due today")
         assertThat(textOf(posted(dueToday))).contains("Amount due:")
-        assertThat(textOf(posted(dueUnknown))).isEqualTo("Reconcile the statement to know how much to pay.")
+        assertThat(textOf(posted(dueUnknown))).isEqualTo("Reconcile the statement to see the amount.")
         assertThat(titleOf(posted(overdue))).isEqualTo("Visa payment is overdue")
         val testNotification =
             Shadows

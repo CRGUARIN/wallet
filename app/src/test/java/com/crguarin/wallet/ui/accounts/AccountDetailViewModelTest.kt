@@ -490,7 +490,7 @@ class AccountDetailViewModelTest {
         )
 
     @Test
-    fun `transit card exposes the trips left and a balance that is not low`() =
+    fun `transit card exposes the trips left and allows a trip`() =
         runTest(testDispatcher) {
             accountRepository.setInitialData(
                 accountList = listOf(transitCard()),
@@ -501,7 +501,9 @@ class AccountDetailViewModelTest {
                 val state = awaitItem()
                 assertThat(state.isTransitCard).isTrue()
                 assertThat(state.tripsLeft).isEqualTo(3)
-                assertThat(state.isLowTransitBalance).isFalse()
+                assertThat(state.canRegisterTrip).isTrue()
+                assertThat(state.isCreditTrip).isFalse()
+                assertThat(state.isCreditUsed).isFalse()
 
                 cancelAndIgnoreRemainingEvents()
             }
@@ -529,29 +531,33 @@ class AccountDetailViewModelTest {
         }
 
     @Test
-    fun `a trip the balance cannot pay asks for confirmation before registering`() =
+    fun `a zero balance registers the credit trip directly`() =
         runTest(testDispatcher) {
             accountRepository.setInitialData(
                 accountList = listOf(transitCard()),
-                balanceMap = mapOf(42L to Money(200_000L)),
+                balanceMap = mapOf(42L to Money.ZERO),
             )
 
             viewModel.uiState.test {
-                assertThat(awaitItem().isLowTransitBalance).isTrue()
+                val state = awaitItem()
+                assertThat(state.canRegisterTrip).isTrue()
+                assertThat(state.isCreditTrip).isTrue()
+                cancelAndIgnoreRemainingEvents()
+            }
 
-                viewModel.events.test {
-                    viewModel.onRegisterTripClick()
-                    expectNoEvents()
-                    cancelAndIgnoreRemainingEvents()
-                }
-                assertThat(awaitItem().showTripNegativeDialog).isTrue()
+            viewModel.events.test {
+                viewModel.onRegisterTripClick()
+
+                val event = awaitItem() as AccountDetailEvent.TripRegistered
+                assertThat(transactionRepository.getTransaction(event.transactionId)?.amount)
+                    .isEqualTo(Money(350_000L))
 
                 cancelAndIgnoreRemainingEvents()
             }
         }
 
     @Test
-    fun `confirming a trip on a low balance registers it`() =
+    fun `a balance below one fare registers the credit trip directly`() =
         runTest(testDispatcher) {
             accountRepository.setInitialData(
                 accountList = listOf(transitCard()),
@@ -559,19 +565,37 @@ class AccountDetailViewModelTest {
             )
 
             viewModel.uiState.test {
-                awaitItem()
+                val state = awaitItem()
+                assertThat(state.canRegisterTrip).isTrue()
+                assertThat(state.isCreditTrip).isTrue()
+                assertThat(state.isCreditUsed).isFalse()
+                cancelAndIgnoreRemainingEvents()
+            }
+
+            viewModel.events.test {
                 viewModel.onRegisterTripClick()
-                assertThat(awaitItem().showTripNegativeDialog).isTrue()
 
-                viewModel.events.test {
-                    viewModel.confirmTripDespiteBalance()
+                val event = awaitItem() as AccountDetailEvent.TripRegistered
+                assertThat(transactionRepository.getTransaction(event.transactionId)?.amount)
+                    .isEqualTo(Money(350_000L))
 
-                    val event = awaitItem() as AccountDetailEvent.TripRegistered
-                    assertThat(transactionRepository.getTransaction(event.transactionId)?.amount)
-                        .isEqualTo(Money(350_000L))
+                cancelAndIgnoreRemainingEvents()
+            }
+        }
 
-                    cancelAndIgnoreRemainingEvents()
-                }
+    @Test
+    fun `a negative balance does not allow another trip`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                accountList = listOf(transitCard()),
+                balanceMap = mapOf(42L to Money(-1L)),
+            )
+
+            viewModel.uiState.test {
+                val state = awaitItem()
+                assertThat(state.canRegisterTrip).isFalse()
+                assertThat(state.isCreditUsed).isTrue()
+                assertThat(state.isCreditTrip).isFalse()
                 cancelAndIgnoreRemainingEvents()
             }
         }

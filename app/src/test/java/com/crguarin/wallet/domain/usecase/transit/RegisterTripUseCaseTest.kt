@@ -175,6 +175,40 @@ class RegisterTripUseCaseTest {
         }
 
     @Test
+    fun `trip is allowed with zero balance and goes through on credit`() =
+        runTest {
+            categoryRepository.setInitialData(listOf(transport, publicTransport))
+            accountRepository.setInitialData(listOf(card), balanceMap = mapOf(1L to Money.ZERO))
+
+            val saved = registerTripUseCase(1L).getOrNull()!!
+
+            assertThat(transactionRepository.getTransaction(saved.transactionId)?.amount).isEqualTo(Money(350_000L))
+            assertThat(saved.balanceWarning).isEqualTo(BalanceWarning.NEGATIVE_BALANCE)
+        }
+
+    @Test
+    fun `trip is allowed with a balance below the fare and leaves the card negative`() =
+        runTest {
+            categoryRepository.setInitialData(listOf(transport, publicTransport))
+            accountRepository.setInitialData(listOf(card), balanceMap = mapOf(1L to Money(349_999L)))
+
+            val saved = registerTripUseCase(1L).getOrNull()!!
+
+            assertThat(transactionRepository.getTransaction(saved.transactionId)?.amount).isEqualTo(Money(350_000L))
+            assertThat(saved.balanceWarning).isEqualTo(BalanceWarning.NEGATIVE_BALANCE)
+        }
+
+    @Test
+    fun `trip is blocked with TransitCreditUsed while the balance is negative`() =
+        runTest {
+            categoryRepository.setInitialData(listOf(transport, publicTransport))
+            accountRepository.setInitialData(listOf(card), balanceMap = mapOf(1L to Money(-1L)))
+
+            assertThat(registerTripUseCase(1L).errorOrNull()).isEqualTo(DomainError.TransitCreditUsed)
+            assertThat(transactionRepository.getTransaction(1L)).isNull()
+        }
+
+    @Test
     fun `reports a negative balance warning when the trip leaves the card below zero`() =
         runTest {
             categoryRepository.setInitialData(listOf(transport, publicTransport))

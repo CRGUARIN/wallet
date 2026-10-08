@@ -113,7 +113,7 @@ class TransactionsScreenStatesTest {
         }
 
         composeRule.onNodeWithText("Sin resultados").assertIsDisplayed()
-        composeRule.onNodeWithText("No hay movimientos con estos filtros.").assertIsDisplayed()
+        composeRule.onNodeWithText("Prueba con otros filtros.").assertIsDisplayed()
         // Both the chip row and the empty state have a "clear filters" button; either one clears.
         composeRule.onAllNodesWithText("Limpiar filtros").onFirst().performClick()
 

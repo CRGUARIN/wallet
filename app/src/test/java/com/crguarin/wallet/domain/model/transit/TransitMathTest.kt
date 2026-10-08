@@ -34,17 +34,29 @@ class TransitMathTest {
     }
 
     @Test
-    fun `low balance is a balance below one fare`() {
-        assertThat(TransitMath.isLowBalance(Money(349_999L), fare)).isTrue()
-        assertThat(TransitMath.isLowBalance(Money(-1L), fare)).isTrue()
-        assertThat(TransitMath.isLowBalance(fare, fare)).isFalse()
-        assertThat(TransitMath.isLowBalance(Money(1_050_000L), fare)).isFalse()
+    fun `a card can travel while the balance is not negative`() {
+        assertThat(TransitMath.canTravel(Money(1_050_000L))).isTrue()
+        assertThat(TransitMath.canTravel(Money.ZERO)).isTrue()
+        assertThat(TransitMath.canTravel(Money(-1L))).isFalse()
     }
 
     @Test
-    fun `low balance is false without a positive fare`() {
-        assertThat(TransitMath.isLowBalance(Money.ZERO, null)).isFalse()
-        assertThat(TransitMath.isLowBalance(Money.ZERO, Money.ZERO)).isFalse()
-        assertThat(TransitMath.isLowBalance(Money(-100L), Money(-1L))).isFalse()
+    fun `the credit trip is a balance from zero up to just below one fare`() {
+        assertThat(TransitMath.isCreditTrip(Money.ZERO, fare)).isTrue()
+        assertThat(TransitMath.isCreditTrip(Money(349_999L), fare)).isTrue()
+        assertThat(TransitMath.isCreditTrip(fare, fare)).isFalse()
+        assertThat(TransitMath.isCreditTrip(Money(-1L), fare)).isFalse()
+    }
+
+    @Test
+    fun `credit trip is false without a positive fare`() {
+        assertThat(TransitMath.isCreditTrip(Money.ZERO, null)).isFalse()
+        assertThat(TransitMath.isCreditTrip(Money.ZERO, Money.ZERO)).isFalse()
+    }
+
+    @Test
+    fun `the credit trip is used while the balance is negative`() {
+        assertThat(TransitMath.isCreditUsed(Money(-1L))).isTrue()
+        assertThat(TransitMath.isCreditUsed(Money.ZERO)).isFalse()
     }
 }
