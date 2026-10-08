@@ -4,12 +4,16 @@ Wallet es una app Android de finanzas personales que funciona **sin conexión y 
 
 ## Funciones
 
-- **Cuentas** de dinero (efectivo, ahorros…) con saldo, color e ícono; se pueden ordenar, archivar y excluir del saldo total.
+- **Cuentas** de dinero (efectivo, ahorros, tarjetas de crédito y de transporte…) con saldo, color e ícono; se pueden ordenar, archivar y excluir del saldo total.
+- **Tarjetas de transporte** (como la Cívica): recárgalas, registra cada viaje con su tarifa y mira cuántos viajes te alcanzan con el saldo.
 - **Ingresos, gastos y transferencias** entre cuentas, con fecha, nota y aviso cuando una cuenta quedaría en negativo.
 - **Categorías y subcategorías** con colores e íconos; vienen unas por defecto y puedes crear, editar, archivar o reasignar las tuyas.
+- **Colores únicos**: una cuenta activa no comparte color con otra, y una categoría no comparte color con otra familia de su mismo tipo (Gastos o Ingresos). Hay 30 colores para elegir y los que ya usa otra cuenta o categoría aparecen tachados. Si vienes de una versión anterior, los colores repetidos que ya tengas se conservan; la regla se aplica solo cuando cambias un color.
+- **Unos 180 íconos** organizados por tema (dinero, comida, transporte, hogar, salud, compras, ocio, familia, tecnología…), con un selector compacto.
 - **Movimientos** por mes, con filtros (tipo, cuenta, categoría), búsqueda y deshacer al eliminar.
 - **Reportes con gráficas**: dona por categoría con drill-down a subcategorías, evolución mensual de ingresos y gastos, y ritmo del mes frente al anterior, con filtro por período, tipo y cuenta. Vista Balance: neto, tasa de ahorro y evolución del saldo.
 - **Inicio** con saldo total, resumen del mes, cuentas y últimos movimientos.
+- **Diseño renovado**: tipografía más marcada, tarjetas redondeadas, degradado de marca en el saldo, cuentas como historias en Inicio y pequeñas animaciones al tocar. Se adapta al color dinámico y al modo oscuro.
 - **Deudas**: lleva la cuenta de lo que te deben y de lo que debes, con abonos parciales hasta saldarlas.
 - **Backup en JSON**: exporta todos tus datos a un archivo e impórtalos después (reemplaza los datos actuales, con confirmación previa).
 - **Español e inglés** (idioma por app), **tema claro, oscuro o del sistema** y color dinámico en Android 12+.
@@ -23,6 +27,13 @@ Moneda única: COP. El dinero se maneja como enteros en centavos, nunca como dec
 - Registra cada compra como un gasto en la tarjeta, con sus cuotas si la pagas a plazos (las cuotas son informativas: el gasto cuenta el día de la compra).
 - Paga con una transferencia desde otra cuenta hacia la tarjeta (no es un gasto nuevo); una devolución del comercio es un ingreso en la tarjeta.
 - Cuando llegue el extracto, usa "Conciliar extracto": copia el saldo del banco y la app registra la diferencia como intereses y comisiones. La app no calcula intereses, los toma de tu extracto.
+
+## Tarjetas de transporte
+
+- Crea una cuenta de tipo **Tarjeta de transporte** (como la Cívica de Medellín) indicando la tarifa por viaje.
+- **Recargar** registra una transferencia desde otra cuenta hacia la tarjeta; no es un gasto.
+- **Registrar viaje** descuenta la tarifa como un gasto en Transporte público, con la fecha de hoy. Si el saldo no alcanza, la app pide confirmación antes de registrarlo; después, **Deshacer** permite borrar el viaje si fue un error.
+- La tarjeta muestra cuántos viajes alcanzan con el saldo actual.
 
 ## Pagos recurrentes y notificaciones
 
@@ -117,11 +128,15 @@ Licencia MIT; consulta el archivo [`LICENSE`](LICENSE).
 
 ## English summary
 
-Wallet is an offline, account-free personal finance app for Android (8.0+): multiple accounts, income/expense/transfer tracking, categories and subcategories, credit cards (debt, available limit, installments, payments and statement reconciliation), recurring payments and subscriptions (automatic or confirm-first) with configurable notifications for them and for card dates, a personal debts ledger (what others owe you and what you owe, with partial payments), monthly transaction lists with filters, reports with a category donut, monthly evolution bars and month pace, balance view with net, savings rate and balance over time, JSON backup export/import, Spanish and English UI, and light/dark/dynamic themes. Build and verify with `./gradlew ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease` (JDK 17, Android SDK 37). See "Release firmado" above for signing the release build with `WALLET_KEYSTORE_*` environment variables or a git-ignored `keystore.properties`. The debug build installs as `com.crguarin.wallet.debug` ("Wallet Debug") alongside the release build and does not share data with it.
+Wallet is an offline, account-free personal finance app for Android (8.0+): multiple accounts, income/expense/transfer tracking, categories and subcategories, credit cards (debt, available limit, installments, payments and statement reconciliation), transit cards (top-ups, a fixed fare per trip and trips left), unique colors for accounts and categories, about 180 icons, a refreshed look that follows dynamic color and dark mode, recurring payments and subscriptions (automatic or confirm-first) with configurable notifications for them and for card dates, a personal debts ledger (what others owe you and what you owe, with partial payments), monthly transaction lists with filters, reports with a category donut, monthly evolution bars and month pace, balance view with net, savings rate and balance over time, JSON backup export/import, Spanish and English UI, and light/dark/dynamic themes. Build and verify with `./gradlew ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease` (JDK 17, Android SDK 37). See "Release firmado" above for signing the release build with `WALLET_KEYSTORE_*` environment variables or a git-ignored `keystore.properties`. The debug build installs as `com.crguarin.wallet.debug` ("Wallet Debug") alongside the release build and does not share data with it.
 
 ### Credit cards
 
 Create your card under Accounts with its credit limit, statement day and payment due day to see the debt, available credit and next statement. Record each purchase as an expense on the card, with installments when you pay in monthly payments (installments are informational: the expense counts on the purchase day). Pay with a transfer from another account to the card (not a new expense); a merchant refund is income on the card. When the statement arrives, use "Reconcile statement": copy the bank balance and the app records the difference as interest and fees. The app does not calculate interest, it takes it from your statement.
+
+### Transit cards
+
+Create a **Transit card** account (like Medellín's Cívica) with its fare per trip. **Top up** records a transfer from another account to the card, not an expense. **Log trip** charges the fare as a transport expense dated today; if the balance will not cover it, the app asks you to confirm first. The snackbar shown after logging the trip has **Undo**, in case it was a mistake. The card shows how many trips the current balance covers.
 
 ### Recurring payments and notifications
 

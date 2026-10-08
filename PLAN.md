@@ -172,7 +172,7 @@ Tests obligatorios: formateo ES/EN, parseo con/sin decimales, separadores, valor
 
 ### 5.1 Enums
 ```kotlin
-enum class AccountType { CASH, SAVINGS, CREDIT_CARD }  // CREDIT_CARD desde la Tarea 15. Futuro: CHECKING, ...
+enum class AccountType { CASH, SAVINGS, CREDIT_CARD, TRANSIT_CARD }  // CREDIT_CARD desde la Tarea 15; TRANSIT_CARD desde la Tarea 18. Futuro: CHECKING, ...
 enum class CategoryType { INCOME, EXPENSE }
 enum class TransactionType { INCOME, EXPENSE, TRANSFER }
 ```
@@ -185,7 +185,7 @@ enum class TransactionType { INCOME, EXPENSE, TRANSFER }
 | type | AccountType | obligatorio |
 | currencyCode | String | "COP" en v1 |
 | initialBalance | Money | **≥ 0**, salvo tarjetas (ver 5.7) |
-| color | Int (ARGB) | de una paleta predefinida |
+| color | Int (ARGB) | de la paleta de 30 colores; no se repite entre cuentas no archivadas (ver 5.6) |
 | icon | String | clave de un set de íconos predefinido (ver 5.6) |
 | includeInTotal | Boolean | default `true` |
 | isArchived | Boolean | default `false` |
@@ -194,6 +194,7 @@ enum class TransactionType { INCOME, EXPENSE, TRANSFER }
 | creditLimit | Money? | solo `CREDIT_CARD`: cupo total, > 0, obligatorio |
 | statementDay | Int? | solo `CREDIT_CARD`: día de corte, 1..31, obligatorio |
 | paymentDueDay | Int? | solo `CREDIT_CARD`: día límite de pago, 1..31, obligatorio |
+| fare | Money? | solo `TRANSIT_CARD`: tarifa por viaje, > 0, obligatoria (ver 5.10) |
 
 **Saldo actual** (no se guarda, se calcula):
 ```
@@ -255,8 +256,19 @@ Decisión de diseño: **una transferencia es una sola fila** con `accountId` (or
 - Debe existir al menos una cuenta para registrar transacciones; transferencias requieren al menos 2 cuentas activas.
 
 ### 5.6 Íconos y colores
-- Paleta de ~12 colores fija (definida en `ui/theme/WalletPalette.kt`).
-- Set de íconos: mapa `String -> ImageVector` en `ui/components/IconCatalog.kt` usando Material Icons Extended (p. ej. `"wallet"`, `"savings"`, `"restaurant"`, `"directions_bus"`, `"home"`, `"bolt"`, `"medical"`, `"school"`, `"movie"`, `"shopping_cart"`, `"work"`, `"card_giftcard"`, `"trending_up"`, `"more_horiz"`, …, ~40 íconos). Se guarda la **clave** en la BD, nunca el recurso.
+- **Paleta** fija de **30 colores** (`ui/theme/WalletPalette.kt`), agrupados por tono (rojos, rosas, morados, azules, celestes, cianes, verdes, limas, amarillos y naranjas, marrones y grises; cada tono en 400 y 800 cuando aplica). El primero (rojo 400) es el color por defecto. Los 13 colores de versiones anteriores siguen en la paleta, porque los usan los datos existentes y el seeder.
+- **Colores únicos** (desde la Tarea 18):
+  - **Cuentas**: un color no se repite entre cuentas no archivadas. Una cuenta archivada libera su color; desarchivarla no vuelve a comprobarlo.
+  - **Categorías**: la regla es por tipo (Gastos / Ingresos). La *familia* de una categoría es su raíz (o ella misma si es raíz): una raíz y sus subcategorías pueden compartir color; dos familias distintas del mismo tipo no. Los dos tipos sí pueden repetir colores entre sí. Las archivadas no bloquean.
+  - Una subcategoría puede usar el color de su padre. Al cambiar el color de una raíz, sus subcategorías que tenían el color anterior de la raíz pasan al nuevo en el mismo guardado.
+  - **Valores por defecto** en los formularios: una cuenta nueva empieza con el primer color de la paleta que no esté en uso (si todos lo están, el primero); una raíz nueva, con el primer color libre de su tipo; una subcategoría nueva, con el de su padre.
+  - **Selector**: los colores en uso aparecen atenuados y tachados, no se pueden elegir y se anuncian como "Color en uso". El color seleccionado nunca se tacha.
+  - **Error**: si un caso de uso recibe un color en uso, devuelve `DomainError.ColorInUse` ("Ese color ya está en uso. Elige otro.").
+  - **Datos existentes**: una instalación anterior puede tener colores repetidos (por ejemplo, Alimentación y los intereses de tarjeta en rojo). Esos datos **se conservan tal cual**. La regla solo se valida cuando el usuario **cambia** el color: guardar una cuenta con su mismo color, o una categoría con su mismo color, mismo tipo y misma familia, siempre se permite.
+  - **Backup**: al importar no se validan colores; un archivo con colores repetidos se importa tal cual.
+  - **Categorías de tarjeta**: usan colores propios (`CardSystemCategories`: Rojo 800 para intereses y comisiones, Verde 800 para ajustes). Las que ya existían conservan el color que tenían; el seeder y `ensureSystemCategory` no validan colores.
+- **Íconos**: unos 180 íconos de Material Icons Extended, en 10 grupos (`IconCatalog.groups`): Dinero, Comida y bebida, Transporte, Hogar, Salud y cuidado personal, Compras, Ocio, Familia y educación, Tecnología y servicios, y Otros. Mapa `String -> ImageVector` en `ui/components/IconCatalog.kt` (p. ej. `"wallet"`, `"savings"`, `"restaurant"`, `"directions_bus"`, `"home"`, `"bolt"`, `"medical_services"`, `"school"`, `"movie"`, `"shopping_cart"`, `"work"`, `"card_giftcard"`, `"trending_up"`, `"more_horiz"`, …). Se guarda la **clave** en la BD, nunca el recurso; las claves existentes no se renombran ni se eliminan.
+- **Selector de íconos** compacto (`ui/components/IconPicker.kt`): muestra el ícono elegido y unos 17 frecuentes; "Ver todos los íconos" despliega los 10 grupos con su título, y "Ver menos" lo contrae.
 
 ### 5.7 Tarjetas de crédito (desde la Tarea 15)
 Una cuenta `CREDIT_CARD` tiene además cupo total (`creditLimit`), día de corte (`statementDay`) y día límite de pago (`paymentDueDay`).
@@ -312,11 +324,25 @@ Libreta de deudas personales: lo que **me deben** (`OWED_TO_ME`) y lo que **debo
 - Importar un backup sin deudas (p. ej. de versiones 1–3) borra las existentes: el diálogo de confirmación lo advierte con la cantidad.
 - Orden: pendientes por fecha límite (sin fecha al final), luego fecha e id; saldadas de la más reciente a la más antigua.
 
+### 5.10 Tarjetas de transporte (desde la Tarea 18)
+Una cuenta `TRANSIT_CARD` es una tarjeta prepagada de transporte (como la Cívica de Medellín): se recarga y cada viaje descuenta una tarifa fija.
+- **Campo nuevo**: `fare` (`Money?`, solo `TRANSIT_CARD`, > 0 y ≤ `Money.MAX`, obligatoria). En los demás tipos es `null`.
+- **Saldo**: usa la misma fórmula de 5.2. Es dinero del usuario: `initialBalance ≥ 0` y cuenta en el saldo total por defecto.
+- **Recarga** (botón "Recargar"): es una `TRANSFER` desde otra cuenta hacia la tarjeta. No es gasto. Abre el formulario de transferencia con el destino fijo; el origen propuesto es la última cuenta de efectivo o ahorros usada (si no hay, la primera activa por orden).
+- **Viaje** (botón "Registrar viaje"): es un `EXPENSE` por la tarifa, con la fecha de hoy, sin nota, en la subcategoría de sistema "Transporte público" (`public_transport`). Si no existe o está archivada, va a "Transporte" (`transport`), que se recrea si falta. Los reportes no cambian: los viajes son gastos de transporte y las recargas son transferencias.
+- **"Alcanza para N viajes"**: `TransitMath.tripsLeft` = saldo ÷ tarifa, redondeado hacia abajo (0 si el saldo no es positivo). Si el saldo no alcanza para un viaje, se muestra "Saldo insuficiente para un viaje" / "Recarga pronto" en rojo.
+- **Aviso antes de registrar**: si el saldo es menor que la tarifa, un diálogo pregunta si se registra el viaje de todas formas ("La tarjeta quedará en negativo"). No bloquea.
+- **Deshacer**: tras registrar un viaje, el snackbar ofrece "Deshacer", que borra ese `EXPENSE`.
+- **Cambio de tipo**: entre `TRANSIT_CARD` y `CASH` o `SAVINGS` se permite aunque la cuenta tenga movimientos; al salir de tarjeta de transporte la tarifa se descarta. Cruzar la frontera de tarjeta de crédito sigue bloqueado (5.7). Al elegir tarjeta de transporte se pide la tarifa y el ícono por defecto es `directions_bus`.
+- **Archivada**: no se registran viajes ni recargas.
+- **Sin notificaciones**. El aviso de saldo bajo en las notificaciones queda en la sección 14.
+- **Fuera de alcance**: tarifas distintas por viaje e historial de tarifas.
+
 ---
 
 ## 6. Base de datos (Room)
 
-`WalletDatabase` versión 5, `exportSchema = true` (migración 1→2 en la Tarea 15, 2→3 en la Tarea 16, 3→4 de índices y 4→5 en la Tarea 17, todas con test).
+`WalletDatabase` versión 6, `exportSchema = true` (migración 1→2 en la Tarea 15, 2→3 en la Tarea 16, 3→4 de índices y 4→5 en la Tarea 17, y 5→6 en la Tarea 18, todas con test).
 
 ### 6.1 Tablas
 ```sql
@@ -334,7 +360,8 @@ accounts(
   created_at INTEGER NOT NULL,      -- epoch millis
   credit_limit INTEGER,             -- v2, only CREDIT_CARD
   statement_day INTEGER,            -- v2, only CREDIT_CARD
-  payment_due_day INTEGER           -- v2, only CREDIT_CARD
+  payment_due_day INTEGER,          -- v2, only CREDIT_CARD
+  fare INTEGER                      -- v6, only TRANSIT_CARD (minor units)
 )
 
 categories(
@@ -454,6 +481,7 @@ INDEX(debt_id)
 - Migración 2→3 (Tarea 16): agrega `recurring_id` a `transactions` y crea `recurring_payments` con sus índices; conserva todos los datos (el dueño tiene datos reales en v2). `recurring_id` NO tiene foreign key a propósito: agregarla obligaría a reconstruir la tabla de transacciones con los datos reales; la consistencia la garantiza `RecurringRepository.delete`, que pone a NULL los `recurring_id` en la misma transacción. Test con `MigrationTestHelper`, incluida la cadena 1→2→3.
 - Migración 3→4: reemplaza `INDEX(account_id)` e `INDEX(to_account_id)` de `transactions` por índices compuestos `(account_id|to_account_id, type, date, amount)`, que cubren las sumas de saldo (se leen solo del índice) y siguen cubriendo las foreign keys. No cambia datos ni el formato del backup. Test con `MigrationTestHelper`, incluida la cadena 1→4.
 - Migración 4→5 (Tarea 17): crea `debts` y `debt_payments` (con su índice); no toca las tablas existentes. Test con `MigrationTestHelper`, incluida la cadena 1→5.
+- Migración 5→6 (Tarea 18): agrega `fare` (nullable) a `accounts` con `ALTER TABLE`; no toca los datos existentes ni los colores. Test con `MigrationTestHelper`, incluida la cadena 1→6.
 
 ### 6.4 Seed inicial
 En el primer arranque (`RoomDatabase.Callback.onCreate` o, mejor, un `DefaultCategoriesSeeder` invocado por el onboarding) se crean las categorías por defecto con `systemKey`:
@@ -527,6 +555,7 @@ Inyectar un `Clock`/`TimeProvider` para poder testear fechas.
 - Montos: ingresos en verde, gastos en rojo, transferencias en color neutro, con signo (`+ $ 50.000`, `− $ 20.000`, `$ 100.000` con ícono ⇄).
 - Accesibilidad: `contentDescription` en íconos, targets ≥ 48dp, textos escalables.
 - `@Preview` (claro y oscuro) para cada pantalla principal.
+- **Estilo visual** (desde la Tarea 18): la app conserva el verde de marca, las mismas pantallas y los mismos textos, con un acabado más pulido, "tipo Instagram": tipografía con más peso y contraste, esquinas redondeadas, contenedores de superficie en lugar de bordes, degradado de marca en la tarjeta de saldo, cuentas como "historias" circulares en Inicio (con anillo de alerta cuando requieren atención), acciones rápidas circulares, encabezados de cuenta con aspecto de tarjeta, barra inferior con íconos de contorno (inactivo) y relleno (activo), y pequeñas animaciones al tocar. Los colores salen de `MaterialTheme.colorScheme`, así que funciona con color dinámico y en modo oscuro. Ningún texto visible se elimina ni se duplica, y no cambian las rutas ni el comportamiento.
 
 ### 8.2 Navegación
 Barra inferior con 5 destinos: **Inicio**, **Movimientos**, **Reportes**, **Cuentas**, **Ajustes** (Material 3 admite 5). FAB "+" en Inicio y Movimientos para nueva transacción; no se muestra en Reportes.
@@ -537,7 +566,7 @@ Onboarding
 Home
 Transactions(accountId: Long? = null, categoryId: Long? = null, type: TransactionType? = null, month: String? = null)
 Reports
-TransactionEdit(transactionId: Long? = null, initialType: TransactionType = EXPENSE, accountId: Long? = null)
+TransactionEdit(transactionId: Long? = null, initialType: TransactionType = EXPENSE, accountId: Long? = null, toAccountId: Long? = null, initialAmountMinor: Long? = null)
 Accounts
 AccountDetail(accountId: Long)
 AccountEdit(accountId: Long? = null)
@@ -561,11 +590,11 @@ Deep links de notificaciones (Tarea 16, explícitos a `MainActivity`, sin intent
 3. Al terminar: sembrar categorías por defecto, marcar onboarding completo, ir a Home.
 
 **Home (Inicio)**
-- Tarjeta de **Saldo total**.
+- Tarjeta de **Saldo total** con degradado de marca.
 - Resumen del **mes actual**: ingresos, gastos, neto.
-- Carrusel/lista horizontal de **cuentas** activas con saldo (tap → AccountDetail).
+- Fila horizontal de **cuentas** activas como historias circulares, con el saldo debajo (tap → AccountDetail). El anillo de alerta marca las que requieren atención: una tarjeta de crédito con recordatorio de pago, o una tarjeta de transporte sin saldo para un viaje.
 - **Últimos 10 movimientos** (tap → editar) + botón "Ver todos".
-- FAB: nueva transacción. Acciones rápidas: "Gasto", "Ingreso", "Transferencia".
+- FAB: nueva transacción. Acciones rápidas en círculos: "Gasto", "Ingreso", "Transferencia".
 - Estado vacío amigable si no hay movimientos.
 
 **Reportes**
@@ -599,21 +628,25 @@ Deep links de notificaciones (Tarea 16, explícitos a `MainActivity`, sin intent
 - FAB: nueva cuenta.
 
 **Detalle de cuenta**
-- Encabezado: nombre, tipo, saldo actual, ingresos/gastos del mes en esa cuenta.
+- Encabezado en forma de tarjeta con el color de la cuenta: nombre, tipo, saldo actual, ingresos/gastos del mes en esa cuenta.
+- Tarjeta de transporte: el encabezado muestra saldo, tarifa, "Alcanza para N viajes" y el resumen del mes, con dos botones: **Registrar viaje** y **Recargar** (ver 5.10). Ambos se ocultan en cuentas archivadas.
 - Lista de movimientos de la cuenta (incluye transferencias entrantes y salientes).
 - Menú: Editar, Archivar/Desarchivar, Eliminar (si aplica, con diálogos de 5.5), "Transferir desde esta cuenta".
 
 **Crear / editar cuenta**
-- Nombre, tipo (Efectivo / Ahorros con íconos), saldo inicial, color, ícono, "Incluir en saldo total".
+- Nombre, tipo (Efectivo / Ahorros / Tarjeta de transporte, con íconos), saldo inicial, color, ícono, "Incluir en saldo total".
+- Tarjeta de transporte: pide la **tarifa por viaje** (obligatoria, > 0) y el saldo inicial se llama "Saldo actual de la tarjeta" (ver 5.10).
+- Color: los tachados ya los usa otra cuenta no archivada (ver 5.6).
 - Al editar el saldo inicial avisar que afecta el saldo actual.
 
 **Categorías**
 - Tabs **Gastos | Ingresos**. Árbol: categoría raíz con sus subcategorías indentadas.
 - Tap → editar. Botón "+ Subcategoría" en cada raíz. FAB: nueva categoría raíz.
 - Sección "Archivadas". Eliminación con los diálogos de 5.5 (incluye selector de categoría destino para reasignar).
+- Colores únicos dentro de cada tipo (ver 5.6): la pantalla de edición tacha los colores que ya usa otra categoría del mismo tipo.
 
 **Crear / editar categoría**
-- Nombre, tipo (bloqueado si es subcategoría o si tiene movimientos), categoría padre opcional (solo raíces del mismo tipo; deshabilitado si la categoría tiene hijos), color, ícono.
+- Nombre, tipo (bloqueado si es subcategoría o si tiene movimientos), categoría padre opcional (solo raíces del mismo tipo; deshabilitado si la categoría tiene hijos), color (los ocupados por otra categoría del mismo tipo aparecen tachados; ver 5.6), ícono (selector compacto con "Ver todos los íconos").
 
 **Ajustes**
 - Idioma: Sistema / Español / English (per-app language).
@@ -650,14 +683,14 @@ Deep links de notificaciones (Tarea 16, explícitos a `MainActivity`, sin intent
 
 ## 9. Backup (exportar / importar)
 
-- Formato JSON con kotlinx.serialization (`schemaVersion = 4` desde la Tarea 17; se acepta importar v1, v2, v3 y v4):
+- Formato JSON con kotlinx.serialization (`schemaVersion = 5` desde la Tarea 18; se acepta importar v1 a v5):
 ```json
 {
-  "schemaVersion": 3,
+  "schemaVersion": 5,
   "appVersion": "1.0.0",
   "exportedAt": "2026-09-28T15:00:00Z",
   "currency": "COP",
-  "accounts": [ { "id": 1, "name": "Efectivo", "type": "CASH", "currencyCode": "COP", "initialBalance": 5000000, "color": -16711936, "icon": "wallet", "includeInTotal": true, "isArchived": false, "sortOrder": 0, "createdAt": 1790000000000 } ],
+  "accounts": [ { "id": 1, "name": "Efectivo", "type": "CASH", "currencyCode": "COP", "initialBalance": 5000000, "color": -16711936, "icon": "wallet", "includeInTotal": true, "isArchived": false, "sortOrder": 0, "createdAt": 1790000000000, "fare": null } ],
   "categories": [ { "id": 1, "name": null, "systemKey": "food", "type": "EXPENSE", "parentId": null, "color": -65536, "icon": "restaurant", "isArchived": false, "sortOrder": 0 } ],
   "transactions": [ { "id": 1, "type": "EXPENSE", "amount": 1500000, "accountId": 1, "toAccountId": null, "categoryId": 1, "date": "2026-09-27", "note": "Almuerzo", "createdAt": 1790000000000, "updatedAt": 1790000000000, "installments": null, "recurringId": null } ],
   "cardStatements": [ { "id": 1, "accountId": 2, "closingDate": "2026-09-30", "dueDate": "2026-10-15", "statementBalance": 25000000, "minimumPayment": null, "statedInterestAndFees": null, "adjustmentTransactionId": null, "createdAt": 1790000000000 } ],
@@ -667,6 +700,7 @@ Deep links de notificaciones (Tarea 16, explícitos a `MainActivity`, sin intent
 - En v2, `AccountDto` agrega `creditLimit`, `statementDay` y `paymentDueDay`; `TransactionDto` agrega `installments`; y el documento agrega `cardStatements`. Un backup v1 se importa con los defaults (sin tarjetas ni extractos).
 - En v3 (Tarea 16), `TransactionDto` agrega `recurringId` y el documento agrega `recurringPayments` (todos los campos de la regla: fechas `YYYY-MM-DD`, enums por nombre, instantes en millis). v1 y v2 se importan sin recurrentes. La configuración de notificaciones NO va en el backup (como el tema). La exportación siempre escribe la versión actual (una app 1.1.0 no puede importar un v3).
 - En v4 (Tarea 17) el documento agrega `debts` (`id`, `personName`, `direction`, `amount`, `date`, `dueDate`, `note`, `createdAt`, `updatedAt`) y `debtPayments` (`id`, `debtId`, `amount`, `date`, `note`, `createdAt`). v1–v3 se importan sin deudas. Validación: ids únicos, nombre 1–40, montos > 0, fechas válidas, `dueDate ≥ date`, abonos con deuda existente y Σ abonos ≤ monto de la deuda. El resumen de importación incluye las deudas.
+- En v5 (Tarea 18) `AccountDto` agrega `fare` (tarifa por viaje en unidades menores, o `null`; solo tarjetas de transporte). v1–v4 se importan con `fare = null`. Validación: una tarjeta de transporte necesita tarifa > 0 y ≤ `Money.MAX`; una tarifa en cualquier otro tipo de cuenta se rechaza. La validación de colores únicos (5.6) **no** se aplica al importar.
 - **Exportar**: Storage Access Framework `ActivityResultContracts.CreateDocument("application/json")`, nombre sugerido `wallet-backup-YYYYMMDD-HHmm.json`. Sin permisos de almacenamiento.
 - **Importar**: `OpenDocument(arrayOf("application/json"))`.
   1. Parsear y **validar completamente** antes de tocar la BD: `schemaVersion` soportado, ids únicos, referencias válidas (accountId, toAccountId, categoryId, parentId existen), reglas de 5.4 (montos > 0, transferencias con destino ≠ origen, tipo de categoría coherente, máx. 2 niveles).
@@ -851,6 +885,14 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 - Fuera de alcance: préstamos bancarios y recordatorios de vencimiento (sección 14).
 - **Aceptación**: la verificación completa (`ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease`) pasa, la migración conserva los datos reales de la v4 y los flujos se probaron en dispositivo real.
 
+### Tarea 18 — Tarjeta de transporte, colores únicos, más íconos y pulido visual
+- Tipo de cuenta `TRANSIT_CARD` con tarifa por viaje `fare` (sección 5.10): recarga como transferencia, "Registrar viaje" como gasto en "Transporte público" (o "Transporte"), "Alcanza para N viajes", aviso de saldo insuficiente antes de registrar, deshacer y cambio de tipo con efectivo o ahorros. Sin notificaciones.
+- Colores únicos (sección 5.6): paleta de 30 colores; cuentas no archivadas y categorías por tipo y familia sin repetir color; `DomainError.ColorInUse`; selector con los colores en uso tachados; colores nuevos para las categorías de tarjeta. Los datos existentes con colores repetidos se conservan y la regla solo se valida al cambiar el color; el backup no valida colores.
+- Más íconos: unos 180 en 10 grupos, con selector compacto y "Ver todos los íconos". Las claves existentes no cambian.
+- Pulido visual (sección 8.1): tipografía, esquinas, degradado de marca en el saldo, cuentas como historias en Inicio, acciones circulares, encabezados de cuenta tipo tarjeta, barra inferior con íconos de contorno y relleno, y animaciones al tocar. Sin cambios de textos ni de comportamiento.
+- Migración de BD 5→6 (columna `accounts.fare`) y backup v5 (compatible con v1–v4).
+- **Aceptación**: la verificación completa (`ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease`) pasa, la migración conserva los datos reales de la v5 y los flujos se probaron en dispositivo real.
+
 ---
 
 ## 13. Convenciones de código
@@ -876,6 +918,7 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 8. Widgets de pantalla de inicio.
 9. Préstamos bancarios: tipo de cuenta `LOAN` con saldo negativo como la tarjeta (deuda = −saldo), cuota mensual como pago recurrente (transferencia hacia el préstamo) e intereses tomados del extracto del banco.
 10. Deudas: recordatorio de fecha límite en las notificaciones y opción de reflejar un préstamo o abono como movimiento de una cuenta.
+11. Tarjetas de transporte: aviso de saldo bajo en las notificaciones.
 
 ---
 
@@ -899,6 +942,7 @@ Cómo preparar el entorno para compilar, según el agente: ver sección 16.
 - [x] Tarea 15 — Tarjetas de crédito
 - [x] Tarea 16 — Pagos recurrentes y notificaciones
 - [ ] Tarea 17 — Deudas (implementada; falta la verificación completa de la sección 11 y la prueba en dispositivo)
+- [ ] Tarea 18 — Tarjeta de transporte, colores únicos, más íconos y pulido visual (implementada; falta la verificación completa de la sección 11 y la prueba en dispositivo)
 
 ---
 
