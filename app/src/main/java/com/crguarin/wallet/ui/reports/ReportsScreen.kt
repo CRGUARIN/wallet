@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -39,10 +40,14 @@ import com.crguarin.wallet.ui.components.EmptyState
 import com.crguarin.wallet.ui.components.ErrorState
 import com.crguarin.wallet.ui.components.LoadingState
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletSpacing
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
+
+/** Room under the last card. */
+private val BOTTOM_CLEARANCE = 96.dp
 
 /** Navigation entry point of the Reports screen. */
 @Composable
@@ -118,6 +123,7 @@ fun ReportsScreen(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val spacing = MaterialTheme.walletSpacing
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         topBar = {
@@ -130,8 +136,14 @@ fun ReportsScreen(
                 Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding =
+                PaddingValues(
+                    start = spacing.screenGutter,
+                    end = spacing.screenGutter,
+                    top = spacing.s,
+                    bottom = BOTTOM_CLEARANCE,
+                ),
+            verticalArrangement = Arrangement.spacedBy(spacing.l),
         ) {
             item(key = "controls", contentType = "controls") {
                 ReportsControls(

@@ -7,10 +7,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,6 +22,7 @@ import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.report.ReportMode
 import com.crguarin.wallet.ui.components.MoneySign
 import com.crguarin.wallet.ui.components.MoneyText
+import com.crguarin.wallet.ui.components.SectionCard
 import com.crguarin.wallet.ui.theme.walletSemanticColors
 
 /**
@@ -50,13 +47,8 @@ internal fun BalanceSummaryCard(
             else -> MoneySign.NONE
         }
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+    SectionCard(modifier = modifier) {
+        Column {
             Text(
                 text = stringResource(R.string.reports_net),
                 style = MaterialTheme.typography.bodySmall,
@@ -94,7 +86,7 @@ internal fun BalanceSummaryCard(
                 BalanceColumn(label = stringResource(R.string.account_detail_income)) {
                     MoneyText(
                         amount = summary.income,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
                         color = semanticColors.income,
                         sign = MoneySign.NONE,
                     )
@@ -102,7 +94,7 @@ internal fun BalanceSummaryCard(
                 BalanceColumn(label = stringResource(R.string.account_detail_expense)) {
                     MoneyText(
                         amount = summary.expense,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
                         color = semanticColors.expense,
                         sign = MoneySign.NONE,
                     )
@@ -125,7 +117,7 @@ internal fun BalanceSummaryCard(
                     } else {
                         Text(
                             text = perMillePercent(rate),
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
                         )
                     }
                 }
@@ -208,7 +200,7 @@ private fun NetChangeValue(netChange: Money?) {
         }
     Text(
         text = label,
-        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
         color = changeColor,
         modifier = Modifier.semantics { contentDescription = description },
     )

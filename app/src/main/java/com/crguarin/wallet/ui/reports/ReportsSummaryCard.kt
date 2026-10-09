@@ -7,10 +7,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,6 +23,7 @@ import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.report.ReportMode
 import com.crguarin.wallet.ui.components.MoneySign
 import com.crguarin.wallet.ui.components.MoneyText
+import com.crguarin.wallet.ui.components.SectionCard
 import com.crguarin.wallet.ui.theme.walletSemanticColors
 import java.text.NumberFormat
 
@@ -57,13 +54,8 @@ internal fun ReportsSummaryCard(
             else -> semanticColors.income
         }
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+    SectionCard(modifier = modifier) {
+        Column {
             MoneyText(
                 amount = summary.total,
                 style = MaterialTheme.typography.headlineMedium,
@@ -97,7 +89,7 @@ internal fun ReportsSummaryCard(
                         val changeDescription = changeContentDescription(change)
                         Text(
                             text = changeLabel(change),
-                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
                             color = changeColor,
                             modifier = Modifier.semantics { contentDescription = changeDescription },
                         )
@@ -115,7 +107,7 @@ internal fun ReportsSummaryCard(
                 ) {
                     MoneyText(
                         amount = summary.average,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
                         sign = MoneySign.NONE,
                     )
                 }
