@@ -736,4 +736,11 @@
     <string name="icon_group_other">Other</string>
     <string name="icons_show_all">Show all icons</string>
     <string name="icons_show_less">Show fewer</string>
+
+    <!-- Ergonomía -->
+    <string name="home_quick_trip">Trip</string>
+    <string name="home_trip_choose_card">Choose the card</string>
+    <string name="action_search">Search</string>
+    <string name="cd_close_search">Close search</string>
+    <string name="transaction_edit_frequent_categories">Frequent</string>
 </resources>

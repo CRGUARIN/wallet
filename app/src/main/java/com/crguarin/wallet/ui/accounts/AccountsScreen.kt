@@ -77,6 +77,9 @@ fun AccountsRoute(
     onAccountClick: (Long) -> Unit,
     onNewAccountClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenCategories: () -> Unit = {},
+    onOpenRecurring: () -> Unit = {},
+    onOpenDebts: () -> Unit = {},
     viewModel: AccountsViewModel? = safeHiltViewModel(),
 ) {
     if (viewModel == null) {
@@ -89,6 +92,9 @@ fun AccountsRoute(
             onMoveAccountDown = {},
             onToggleArchivedExpanded = {},
             modifier = modifier,
+            onOpenCategories = onOpenCategories,
+            onOpenRecurring = onOpenRecurring,
+            onOpenDebts = onOpenDebts,
         )
         return
     }
@@ -104,6 +110,9 @@ fun AccountsRoute(
         onMoveAccountDown = viewModel::moveAccountDown,
         onToggleArchivedExpanded = viewModel::toggleArchivedExpanded,
         modifier = modifier,
+        onOpenCategories = onOpenCategories,
+        onOpenRecurring = onOpenRecurring,
+        onOpenDebts = onOpenDebts,
     )
 }
 
@@ -118,6 +127,9 @@ fun AccountsScreen(
     onMoveAccountDown: (Long) -> Unit,
     onToggleArchivedExpanded: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenCategories: () -> Unit = {},
+    onOpenRecurring: () -> Unit = {},
+    onOpenDebts: () -> Unit = {},
 ) {
     Scaffold(
         contentWindowInsets = WindowInsets(0),

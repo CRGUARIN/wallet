@@ -88,6 +88,9 @@ fun WalletNavHost(
                 onViewDebts = {
                     navController.navigate(DebtList)
                 },
+                onOpenSettings = {
+                    navController.navigate(Settings)
+                },
             )
         }
         composable<Transactions> {
@@ -130,6 +133,15 @@ fun WalletNavHost(
                 onNewAccountClick = {
                     navController.navigate(AccountEdit())
                 },
+                onOpenCategories = {
+                    navController.navigate(Categories())
+                },
+                onOpenRecurring = {
+                    navController.navigate(RecurringList)
+                },
+                onOpenDebts = {
+                    navController.navigate(DebtList)
+                },
             )
         }
         composable<AccountDetail>(
@@ -152,6 +164,9 @@ fun WalletNavHost(
                             accountId = accountId,
                         ),
                     )
+                },
+                onNewTransactionClick = { accountId, type ->
+                    navController.navigate(TransactionEdit(initialType = type, accountId = accountId))
                 },
                 onTransactionClick = { transactionId ->
                     navController.navigate(TransactionEdit(transactionId = transactionId))

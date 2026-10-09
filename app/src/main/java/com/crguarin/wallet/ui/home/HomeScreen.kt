@@ -56,6 +56,7 @@ fun HomeRoute(
     onUpcomingCardClick: (Long) -> Unit = {},
     onViewAllRecurring: () -> Unit = {},
     onViewDebts: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     viewModel: HomeViewModel? = safeHiltViewModel(),
 ) {
     if (viewModel == null) {
@@ -71,6 +72,7 @@ fun HomeRoute(
             onUpcomingCardClick = onUpcomingCardClick,
             onViewAllRecurring = onViewAllRecurring,
             onViewDebts = onViewDebts,
+            onOpenSettings = onOpenSettings,
             modifier = modifier,
         )
         return
@@ -90,6 +92,7 @@ fun HomeRoute(
         onUpcomingCardClick = onUpcomingCardClick,
         onViewAllRecurring = onViewAllRecurring,
         onViewDebts = onViewDebts,
+        onOpenSettings = onOpenSettings,
         modifier = modifier,
     )
 }
@@ -109,6 +112,7 @@ fun HomeScreen(
     onUpcomingCardClick: (Long) -> Unit = {},
     onViewAllRecurring: () -> Unit = {},
     onViewDebts: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
 ) {
     Scaffold(
         contentWindowInsets = WindowInsets(0),

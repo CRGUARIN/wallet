@@ -71,6 +71,7 @@ import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.MonthSummary
 import com.crguarin.wallet.domain.model.TransactionListEntry
+import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.card.CardStatement
 import com.crguarin.wallet.domain.model.card.InstallmentStatus
 import com.crguarin.wallet.ui.components.ConfirmDialog
@@ -98,6 +99,7 @@ fun AccountDetailRoute(
     onPayCardClick: (fromAccountId: Long?, toAccountId: Long, initialAmountMinor: Long?) -> Unit = { _, _, _ -> },
     onReconcileClick: (accountId: Long) -> Unit = {},
     onRechargeClick: (fromAccountId: Long?, toAccountId: Long) -> Unit = { _, _ -> },
+    onNewTransactionClick: (accountId: Long, type: TransactionType) -> Unit = { _, _ -> },
 ) {
     if (viewModel == null) {
         AccountDetailScreen(
