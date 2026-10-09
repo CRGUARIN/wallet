@@ -32,12 +32,18 @@ import com.crguarin.wallet.R
 import com.crguarin.wallet.ui.theme.WalletPalette
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.theme.contentColorOver
+import com.crguarin.wallet.ui.theme.walletSpacing
 
 private const val DISABLED_ALPHA = 0.35f
 
+/** Touch target of a swatch; the colored circle inside is smaller. */
+private val SWATCH_TOUCH_SIZE = 48.dp
+private val SWATCH_SIZE = 40.dp
+
 /**
  * Color swatches. [disabledColors] are shown dimmed and crossed out, and cannot be picked; the
- * selected color is never disabled.
+ * selected color is never disabled. The swatches show the pure palette colors, since choosing one
+ * means seeing it as it will be (the rest of the app shows them as tints).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -51,11 +57,12 @@ fun ColorPicker(
     val colorLabel = stringResource(R.string.cd_color)
     val colorInUseLabel = stringResource(R.string.cd_color_in_use)
     val crossColor = MaterialTheme.colorScheme.onSurface
+    val selectedBorder = MaterialTheme.colorScheme.onSurface
 
     FlowRow(
         modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        horizontalArrangement = Arrangement.spacedBy(MaterialTheme.walletSpacing.xxs, Alignment.CenterHorizontally),
+        verticalArrangement = Arrangement.spacedBy(MaterialTheme.walletSpacing.xxs),
     ) {
         colors.forEach { colorInt ->
             val isSelected = colorInt == selectedColor
@@ -65,35 +72,43 @@ fun ColorPicker(
             Box(
                 modifier =
                     Modifier
-                        .size(40.dp)
-                        // Before the background so the swatch is dimmed and the line drawn on top is not.
-                        .then(
-                            if (isDisabled) {
-                                Modifier.crossedOut(crossColor)
-                            } else {
-                                Modifier
-                            },
-                        ).clip(CircleShape)
-                        .background(color)
-                        .then(
-                            if (isSelected) {
-                                Modifier.border(3.dp, MaterialTheme.colorScheme.onSurface, CircleShape)
-                            } else {
-                                Modifier
-                            },
-                        ).semantics {
+                        .size(SWATCH_TOUCH_SIZE)
+                        .semantics {
                             contentDescription = if (isDisabled) colorInUseLabel else colorLabel
                             if (isDisabled) disabled()
                         }.clickable(enabled = !isDisabled) { onColorSelected(colorInt) },
                 contentAlignment = Alignment.Center,
             ) {
-                if (isSelected) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = stringResource(R.string.cd_selected),
-                        tint = contentColorOver(color),
-                        modifier = Modifier.size(24.dp),
-                    )
+                Box(
+                    modifier =
+                        Modifier
+                            .size(SWATCH_SIZE)
+                            // Before the background so the swatch is dimmed and the line drawn on top is not.
+                            .then(
+                                if (isDisabled) {
+                                    Modifier.crossedOut(crossColor)
+                                } else {
+                                    Modifier
+                                },
+                            ).clip(CircleShape)
+                            .background(color)
+                            .then(
+                                if (isSelected) {
+                                    Modifier.border(3.dp, selectedBorder, CircleShape)
+                                } else {
+                                    Modifier
+                                },
+                            ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (isSelected) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = stringResource(R.string.cd_selected),
+                            tint = contentColorOver(color),
+                            modifier = Modifier.size(24.dp),
+                        )
+                    }
                 }
             }
         }

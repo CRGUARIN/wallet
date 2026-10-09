@@ -14,14 +14,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletSpacing
 
 /**
- * Flat section on a surface-container tone with large rounded corners and no shadow.
+ * Flat section on a tonal layer (`surfaceContainerLow`) with large rounded corners, no border and
+ * no shadow. The padding is `walletSpacing.cardPadding` unless [contentPadding] says otherwise.
  */
 @Composable
 fun SectionCard(
     modifier: Modifier = Modifier,
-    contentPadding: PaddingValues = PaddingValues(20.dp),
+    contentPadding: PaddingValues = PaddingValues(MaterialTheme.walletSpacing.cardPadding),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Card(

@@ -1,19 +1,13 @@
 package com.crguarin.wallet.ui.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,10 +24,16 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.ui.theme.WalletBrushes
 import com.crguarin.wallet.ui.theme.WalletTheme
-import com.crguarin.wallet.ui.theme.contentColorOver
+import com.crguarin.wallet.ui.theme.walletSpacing
 
 /**
- * Story-style item: a colored circle with a gradient ring, the name below and an optional subtitle.
+ * Story-style item: a tinted pebble (rounded square) with a solid 2 dp ring in the pure color, the
+ * name below and an optional subtitle.
+ *
+ * @param needsAttention a card reminder or a credit trip is pending: the ring becomes the warm 3 dp
+ *   sweep (`WalletBrushes.attentionRing()`) and a 12 dp dot marks the corner. The caller still says
+ *   it in words (subtitle), since color alone never carries the meaning.
+ * @param ring brush of the ring when [needsAttention] is false; the default is the pure color.
  */
 @Composable
 fun StoryAvatar(
@@ -43,38 +43,31 @@ fun StoryAvatar(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     ring: Brush = WalletBrushes.storyRing(color),
-    avatarSize: Dp = 64.dp,
+    avatarSize: Dp = 60.dp,
     itemWidth: Dp = 96.dp,
     subtitle: (@Composable ColumnScope.() -> Unit)? = null,
+    needsAttention: Boolean = false,
 ) {
+    val spacing = MaterialTheme.walletSpacing
     Column(
         modifier =
             modifier
                 .width(itemWidth)
                 .clip(MaterialTheme.shapes.medium)
                 .bounceClick(onClick = onClick)
-                .padding(vertical = 4.dp),
+                .padding(vertical = spacing.xs),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(avatarSize)
-                    .border(2.5.dp, ring, CircleShape)
-                    .padding(4.dp)
-                    .clip(CircleShape)
-                    .background(color),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = contentColorOver(color),
-                modifier = Modifier.size(avatarSize * 0.42f),
-            )
-        }
+        PebbleAvatar(
+            icon = icon,
+            color = color,
+            size = avatarSize,
+            showRing = true,
+            needsAttention = needsAttention,
+            ring = ring,
+        )
 
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(spacing.s))
 
         Text(
             text = label,
@@ -110,7 +103,7 @@ private fun StoryAvatarPreviewDark() {
             color = Color(0xFF42A5F5),
             label = "Ahorros",
             onClick = {},
-            ring = WalletBrushes.attentionRing,
+            needsAttention = true,
         )
     }
 }

@@ -1,9 +1,7 @@
 package com.crguarin.wallet.ui.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,7 +11,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
@@ -45,6 +42,11 @@ import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryNode
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletSpacing
+
+private val ROW_AVATAR_SIZE = 40.dp
+private val CHILD_AVATAR_SIZE = 32.dp
+private val CHILD_ROW_START_PADDING = 72.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,24 +62,26 @@ fun CategoryPickerSheet(
     allOptionLabel: String? = null,
     onAllOptionSelected: (() -> Unit)? = null,
 ) {
+    val spacing = MaterialTheme.walletSpacing
     var expandedCategoryIds by remember { mutableStateOf(setOf<Long>()) }
 
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = modifier,
     ) {
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 24.dp),
+                    .padding(bottom = spacing.xxl),
         ) {
             Row(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 24.dp, vertical = 8.dp),
+                        .padding(horizontal = spacing.xxl, vertical = spacing.s),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -92,7 +96,7 @@ fun CategoryPickerSheet(
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
                         )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Spacer(modifier = Modifier.width(spacing.xs))
                         Text(text = stringResource(R.string.action_new_category))
                     }
                 }
@@ -108,29 +112,21 @@ fun CategoryPickerSheet(
                                 Modifier
                                     .fillMaxWidth()
                                     .clickable { onAllOptionSelected() }
-                                    .padding(horizontal = 24.dp, vertical = 12.dp),
+                                    .padding(horizontal = spacing.xxl, vertical = spacing.m),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .size(40.dp)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.DoneAll,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(24.dp),
-                                )
-                            }
+                            TonalPebble(
+                                icon = Icons.Default.DoneAll,
+                                container = MaterialTheme.colorScheme.secondaryContainer,
+                                content = MaterialTheme.colorScheme.onSecondaryContainer,
+                                size = ROW_AVATAR_SIZE,
+                            )
 
-                            Spacer(modifier = Modifier.width(16.dp))
+                            Spacer(modifier = Modifier.width(spacing.l))
 
                             Text(
                                 text = allOptionLabel,
-                                style = MaterialTheme.typography.bodyLarge,
+                                style = MaterialTheme.typography.titleMedium,
                                 modifier = Modifier.weight(1f),
                             )
 
@@ -155,29 +151,20 @@ fun CategoryPickerSheet(
                                 Modifier
                                     .fillMaxWidth()
                                     .clickable { onCategorySelected(rootNode.category) }
-                                    .padding(horizontal = 24.dp, vertical = 10.dp),
+                                    .padding(horizontal = spacing.xxl, vertical = spacing.s),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .size(40.dp)
-                                        .background(Color(rootNode.category.color), CircleShape),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    imageVector = IconCatalog.get(rootNode.category.icon),
-                                    contentDescription = null,
-                                    tint = Color.White,
-                                    modifier = Modifier.size(24.dp),
-                                )
-                            }
+                            PebbleAvatar(
+                                icon = IconCatalog.get(rootNode.category.icon),
+                                color = Color(rootNode.category.color),
+                                size = ROW_AVATAR_SIZE,
+                            )
 
-                            Spacer(modifier = Modifier.width(16.dp))
+                            Spacer(modifier = Modifier.width(spacing.l))
 
                             Text(
                                 text = rootNode.category.displayName(),
-                                style = MaterialTheme.typography.bodyLarge,
+                                style = MaterialTheme.typography.titleMedium,
                                 modifier = Modifier.weight(1f),
                             )
 
@@ -186,7 +173,7 @@ fun CategoryPickerSheet(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = stringResource(R.string.cd_selected),
                                     tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(end = 8.dp),
+                                    modifier = Modifier.padding(end = spacing.s),
                                 )
                             }
 
@@ -229,28 +216,21 @@ fun CategoryPickerSheet(
                                         Modifier
                                             .fillMaxWidth()
                                             .clickable { onCategorySelected(childNode.category) }
-                                            .padding(start = 72.dp, end = 24.dp, top = 8.dp, bottom = 8.dp),
+                                            .padding(
+                                                start = CHILD_ROW_START_PADDING,
+                                                end = spacing.xxl,
+                                                top = spacing.s,
+                                                bottom = spacing.s,
+                                            ),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    Box(
-                                        modifier =
-                                            Modifier
-                                                .size(32.dp)
-                                                .background(
-                                                    Color(childNode.category.color).copy(alpha = 0.8f),
-                                                    CircleShape,
-                                                ),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Icon(
-                                            imageVector = IconCatalog.get(childNode.category.icon),
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(18.dp),
-                                        )
-                                    }
+                                    PebbleAvatar(
+                                        icon = IconCatalog.get(childNode.category.icon),
+                                        color = Color(childNode.category.color),
+                                        size = CHILD_AVATAR_SIZE,
+                                    )
 
-                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Spacer(modifier = Modifier.width(spacing.m))
 
                                     Text(
                                         text = childNode.category.displayName(),

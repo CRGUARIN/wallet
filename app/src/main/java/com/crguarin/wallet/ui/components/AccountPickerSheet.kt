@@ -1,19 +1,15 @@
 package com.crguarin.wallet.ui.components
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DoneAll
@@ -39,8 +35,11 @@ import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.card.CardOverview
 import com.crguarin.wallet.ui.accounts.CardRowBalance
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletSpacing
 import java.time.Instant
 import java.time.LocalDate
+
+private val ROW_AVATAR_SIZE = 40.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,21 +55,23 @@ fun AccountPickerSheet(
     cardOverviews: Map<Long, CardOverview> = emptyMap(),
     today: LocalDate = LocalDate.now(),
 ) {
+    val spacing = MaterialTheme.walletSpacing
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = modifier,
     ) {
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 24.dp),
+                    .padding(bottom = spacing.xxl),
         ) {
             Text(
                 text = stringResource(R.string.account_picker_title),
                 style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                modifier = Modifier.padding(horizontal = spacing.xxl, vertical = spacing.m),
             )
 
             LazyColumn(
@@ -83,29 +84,21 @@ fun AccountPickerSheet(
                                 Modifier
                                     .fillMaxWidth()
                                     .clickable { onAllOptionSelected() }
-                                    .padding(horizontal = 24.dp, vertical = 12.dp),
+                                    .padding(horizontal = spacing.xxl, vertical = spacing.m),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Box(
-                                modifier =
-                                    Modifier
-                                        .size(40.dp)
-                                        .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.DoneAll,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(24.dp),
-                                )
-                            }
+                            TonalPebble(
+                                icon = Icons.Default.DoneAll,
+                                container = MaterialTheme.colorScheme.secondaryContainer,
+                                content = MaterialTheme.colorScheme.onSecondaryContainer,
+                                size = ROW_AVATAR_SIZE,
+                            )
 
-                            Spacer(modifier = Modifier.width(16.dp))
+                            Spacer(modifier = Modifier.width(spacing.l))
 
                             Text(
                                 text = allOptionLabel,
-                                style = MaterialTheme.typography.bodyLarge,
+                                style = MaterialTheme.typography.titleMedium,
                                 modifier = Modifier.weight(1f),
                             )
 
@@ -128,25 +121,16 @@ fun AccountPickerSheet(
                                 .fillMaxWidth()
                                 .clickable {
                                     onAccountSelected(item)
-                                }.padding(horizontal = 24.dp, vertical = 12.dp),
+                                }.padding(horizontal = spacing.xxl, vertical = spacing.m),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .size(40.dp)
-                                    .background(Color(item.account.color), CircleShape),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = IconCatalog.get(item.account.icon),
-                                contentDescription = null,
-                                tint = Color.White,
-                                modifier = Modifier.size(24.dp),
-                            )
-                        }
+                        PebbleAvatar(
+                            icon = IconCatalog.get(item.account.icon),
+                            color = Color(item.account.color),
+                            size = ROW_AVATAR_SIZE,
+                        )
 
-                        Spacer(modifier = Modifier.width(16.dp))
+                        Spacer(modifier = Modifier.width(spacing.l))
 
                         Column(
                             modifier = Modifier.weight(1f),
@@ -154,7 +138,7 @@ fun AccountPickerSheet(
                         ) {
                             Text(
                                 text = item.account.name,
-                                style = MaterialTheme.typography.bodyLarge,
+                                style = MaterialTheme.typography.titleMedium,
                             )
                             val cardOverview = cardOverviews[item.account.id]
                             if (item.account.type == AccountType.CREDIT_CARD && cardOverview != null) {
