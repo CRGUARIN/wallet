@@ -12,10 +12,17 @@ import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavDestination
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavDestination.Companion.hierarchy
+import com.crguarin.wallet.ui.theme.DefaultWalletMotion
 
-private const val FADE_OUT_MILLIS = 90
-private const val FADE_IN_MILLIS = 210
-private const val SLIDE_MILLIS = 300
+/** Total duration of a transition between tabs or screens: `walletMotion.medium` (220 ms). */
+private val TRANSITION_MILLIS = DefaultWalletMotion.medium
+
+/**
+ * Fade-through: the leaving screen fades out during the first two fifths of the transition and the
+ * entering one fades in during the rest, so the two never overlap.
+ */
+private val FADE_OUT_MILLIS = TRANSITION_MILLIS * 2 / 5
+private val FADE_IN_MILLIS = TRANSITION_MILLIS - FADE_OUT_MILLIS
 
 /** Fraction of the width a screen travels while sliding; small so it reads as a nudge, not a swipe. */
 private const val SLIDE_OFFSET_DIVISOR = 8
@@ -29,35 +36,38 @@ fun NavDestination?.isTopLevel(): Boolean =
 
 private fun NavTransitionScope.isTabSwitch(): Boolean = initialState.destination.isTopLevel() && targetState.destination.isTopLevel()
 
+private fun fadeThroughIn(): EnterTransition = fadeIn(tween(FADE_IN_MILLIS, delayMillis = FADE_OUT_MILLIS))
+
+private fun fadeThroughOut(): ExitTransition = fadeOut(tween(FADE_OUT_MILLIS))
+
 // Tabs fade through (the old one leaves quickly, the new one fades in); opening and closing
-// a screen slides it slightly along the horizontal axis, like Material's shared X axis.
+// a screen also slides it slightly along the horizontal axis, like Material's shared X axis. Both
+// take `walletMotion.medium` in total.
 
 fun NavTransitionScope.walletEnterTransition(): EnterTransition =
     if (isTabSwitch()) {
-        fadeIn(tween(FADE_IN_MILLIS, delayMillis = FADE_OUT_MILLIS))
+        fadeThroughIn()
     } else {
-        slideInHorizontally(tween(SLIDE_MILLIS)) { it / SLIDE_OFFSET_DIVISOR } +
-            fadeIn(tween(FADE_IN_MILLIS, delayMillis = FADE_OUT_MILLIS))
+        slideInHorizontally(tween(TRANSITION_MILLIS)) { it / SLIDE_OFFSET_DIVISOR } + fadeThroughIn()
     }
 
 fun NavTransitionScope.walletExitTransition(): ExitTransition =
     if (isTabSwitch()) {
-        fadeOut(tween(FADE_OUT_MILLIS))
+        fadeThroughOut()
     } else {
-        slideOutHorizontally(tween(SLIDE_MILLIS)) { -it / SLIDE_OFFSET_DIVISOR } + fadeOut(tween(FADE_OUT_MILLIS))
+        slideOutHorizontally(tween(TRANSITION_MILLIS)) { -it / SLIDE_OFFSET_DIVISOR } + fadeThroughOut()
     }
 
 fun NavTransitionScope.walletPopEnterTransition(): EnterTransition =
     if (isTabSwitch()) {
-        fadeIn(tween(FADE_IN_MILLIS, delayMillis = FADE_OUT_MILLIS))
+        fadeThroughIn()
     } else {
-        slideInHorizontally(tween(SLIDE_MILLIS)) { -it / SLIDE_OFFSET_DIVISOR } +
-            fadeIn(tween(FADE_IN_MILLIS, delayMillis = FADE_OUT_MILLIS))
+        slideInHorizontally(tween(TRANSITION_MILLIS)) { -it / SLIDE_OFFSET_DIVISOR } + fadeThroughIn()
     }
 
 fun NavTransitionScope.walletPopExitTransition(): ExitTransition =
     if (isTabSwitch()) {
-        fadeOut(tween(FADE_OUT_MILLIS))
+        fadeThroughOut()
     } else {
-        slideOutHorizontally(tween(SLIDE_MILLIS)) { it / SLIDE_OFFSET_DIVISOR } + fadeOut(tween(FADE_OUT_MILLIS))
+        slideOutHorizontally(tween(TRANSITION_MILLIS)) { it / SLIDE_OFFSET_DIVISOR } + fadeThroughOut()
     }

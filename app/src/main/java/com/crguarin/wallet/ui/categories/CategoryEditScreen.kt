@@ -1,41 +1,29 @@
 package com.crguarin.wallet.ui.categories
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -45,25 +33,30 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.crguarin.wallet.R
 import com.crguarin.wallet.domain.model.CategoryType
+import com.crguarin.wallet.ui.accounts.FormSectionTitle
+import com.crguarin.wallet.ui.accounts.TonalSelector
+import com.crguarin.wallet.ui.accounts.WalletSegmentedControl
+import com.crguarin.wallet.ui.accounts.WalletTextField
+import com.crguarin.wallet.ui.components.BottomActionBar
 import com.crguarin.wallet.ui.components.CategoryPickerSheet
 import com.crguarin.wallet.ui.components.ColorPicker
 import com.crguarin.wallet.ui.components.ErrorState
 import com.crguarin.wallet.ui.components.IconCatalog
 import com.crguarin.wallet.ui.components.IconPicker
 import com.crguarin.wallet.ui.components.LoadingState
+import com.crguarin.wallet.ui.components.PebbleAvatar
+import com.crguarin.wallet.ui.components.PrimaryActionButton
 import com.crguarin.wallet.ui.components.displayName
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletSpacing
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 
 @Composable
@@ -162,6 +155,7 @@ fun CategoryEditScreen(
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     var parentDropdownExpanded by remember { mutableStateOf(false) }
+    val spacing = MaterialTheme.walletSpacing
 
     val screenTitle =
         when {
@@ -220,6 +214,21 @@ fun CategoryEditScreen(
                 },
             )
         },
+        bottomBar = {
+            if (!uiState.isLoading && !uiState.notFound) {
+                BottomActionBar {
+                    TextButton(onClick = onNavigateBack) {
+                        Text(text = stringResource(R.string.action_cancel))
+                    }
+                    PrimaryActionButton(
+                        text = stringResource(R.string.action_save),
+                        onClick = onSaveClick,
+                        enabled = uiState.isSaveEnabled,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         if (uiState.isLoading) {
@@ -248,127 +257,60 @@ fun CategoryEditScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
                     .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+                    .padding(spacing.screenGutter),
+            verticalArrangement = Arrangement.spacedBy(spacing.xl),
         ) {
             // Nombre
-            OutlinedTextField(
+            WalletTextField(
                 value = uiState.name,
                 onValueChange = onNameChange,
-                label = { Text(text = stringResource(R.string.category_name_label)) },
-                isError = uiState.nameErrorRes != null,
-                supportingText =
-                    uiState.nameErrorRes?.let {
-                        { Text(text = stringResource(it)) }
-                    },
+                label = stringResource(R.string.category_name_label),
+                errorRes = uiState.nameErrorRes,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
 
             // Tipo
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = stringResource(R.string.category_type_label),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.semantics { heading() },
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s)) {
+                FormSectionTitle(text = stringResource(R.string.category_type_label))
+                WalletSegmentedControl(
+                    options = listOf(CategoryType.EXPENSE, CategoryType.INCOME),
+                    selected = uiState.type,
+                    onSelect = onTypeChange,
+                    enabled = !uiState.isTypeLocked,
+                    label = { type ->
+                        stringResource(
+                            if (type == CategoryType.EXPENSE) R.string.type_expense else R.string.type_income,
+                        )
+                    },
                 )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    FilterChip(
-                        selected = uiState.type == CategoryType.EXPENSE,
-                        onClick = { onTypeChange(CategoryType.EXPENSE) },
-                        label = { Text(text = stringResource(R.string.type_expense)) },
-                        enabled = !uiState.isTypeLocked,
-                        modifier = Modifier.weight(1f),
-                    )
-                    FilterChip(
-                        selected = uiState.type == CategoryType.INCOME,
-                        onClick = { onTypeChange(CategoryType.INCOME) },
-                        label = { Text(text = stringResource(R.string.type_income)) },
-                        enabled = !uiState.isTypeLocked,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
             }
 
             // Categoría padre opcional
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = stringResource(R.string.category_parent_label),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.semantics { heading() },
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s)) {
+                FormSectionTitle(text = stringResource(R.string.category_parent_label))
 
                 val selectedParent = uiState.parentOptions.find { it.id == uiState.parentId }
                 val parentText = selectedParent?.displayName() ?: stringResource(R.string.category_parent_none)
 
                 Box(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedCard(
-                        onClick = {
-                            if (!uiState.isParentDisabled) {
-                                parentDropdownExpanded = true
-                            }
-                        },
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.weight(1f),
-                            ) {
-                                if (selectedParent != null) {
-                                    Box(
-                                        modifier =
-                                            Modifier
-                                                .size(24.dp)
-                                                .clip(CircleShape)
-                                                .background(Color(selectedParent.color)),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Icon(
-                                            imageVector = IconCatalog.get(selectedParent.icon),
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(16.dp),
-                                        )
-                                    }
-                                    Spacer(modifier = Modifier.width(12.dp))
+                    TonalSelector(
+                        value = parentText,
+                        enabled = !uiState.isParentDisabled,
+                        onClick = { parentDropdownExpanded = true },
+                        leading =
+                            selectedParent?.let { parent ->
+                                @Composable {
+                                    PebbleAvatar(
+                                        icon = IconCatalog.get(parent.icon),
+                                        color = Color(parent.color),
+                                        size = PARENT_AVATAR_SIZE,
+                                    )
                                 }
-                                Text(
-                                    text = parentText,
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color =
-                                        if (uiState.isParentDisabled) {
-                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                        } else {
-                                            MaterialTheme.colorScheme.onSurface
-                                        },
-                                )
-                            }
-                            Icon(
-                                imageVector = Icons.Default.ArrowDropDown,
-                                contentDescription = stringResource(R.string.cd_parent_category),
-                                tint =
-                                    if (uiState.isParentDisabled) {
-                                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                    },
-                            )
-                        }
-                    }
+                            },
+                        trailingIcon = Icons.Default.ArrowDropDown,
+                        trailingDescription = stringResource(R.string.cd_parent_category),
+                    )
 
                     DropdownMenu(
                         expanded = parentDropdownExpanded,
@@ -385,21 +327,12 @@ fun CategoryEditScreen(
                         uiState.parentOptions.forEach { option ->
                             DropdownMenuItem(
                                 leadingIcon = {
-                                    Box(
-                                        modifier =
-                                            Modifier
-                                                .size(24.dp)
-                                                .clip(CircleShape)
-                                                .background(Color(option.color)),
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        Icon(
-                                            imageVector = IconCatalog.get(option.icon),
-                                            contentDescription = null,
-                                            tint = Color.White,
-                                            modifier = Modifier.size(16.dp),
-                                        )
-                                    }
+                                    PebbleAvatar(
+                                        icon = IconCatalog.get(option.icon),
+                                        color = Color(option.color),
+                                        size = PARENT_AVATAR_SIZE,
+                                        base = MaterialTheme.colorScheme.surfaceContainer,
+                                    )
                                 },
                                 text = { Text(text = option.displayName()) },
                                 onClick = {
@@ -413,13 +346,8 @@ fun CategoryEditScreen(
             }
 
             // Color
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    text = stringResource(R.string.category_color_label),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.semantics { heading() },
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.m)) {
+                FormSectionTitle(text = stringResource(R.string.category_color_label))
                 // The selected color stays enabled even when another category of this type also uses it.
                 val disabledColors = uiState.usedColors - uiState.color
                 ColorPicker(
@@ -437,13 +365,8 @@ fun CategoryEditScreen(
             }
 
             // Ícono
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    text = stringResource(R.string.category_icon_label),
-                    style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.semantics { heading() },
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.m)) {
+                FormSectionTitle(text = stringResource(R.string.category_icon_label))
                 IconPicker(
                     selectedIcon = uiState.icon,
                     onIconSelected = onIconChange,
@@ -457,28 +380,6 @@ fun CategoryEditScreen(
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyMedium,
                 )
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Botones de acción
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                OutlinedButton(
-                    onClick = onNavigateBack,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(text = stringResource(R.string.action_cancel))
-                }
-                Button(
-                    onClick = onSaveClick,
-                    enabled = uiState.isSaveEnabled,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(text = stringResource(R.string.action_save))
-                }
             }
         }
     }
@@ -501,6 +402,8 @@ fun CategoryEditScreen(
         )
     }
 }
+
+private val PARENT_AVATAR_SIZE = 32.dp
 
 @Preview(name = "Light Mode", showBackground = true)
 @Composable

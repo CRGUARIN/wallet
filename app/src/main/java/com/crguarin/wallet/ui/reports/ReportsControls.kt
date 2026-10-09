@@ -2,28 +2,31 @@ package com.crguarin.wallet.ui.reports
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.R
 import com.crguarin.wallet.domain.model.report.ReportFocus
 import com.crguarin.wallet.domain.model.report.ReportMode
+import com.crguarin.wallet.ui.accounts.WalletFilterChip
+import com.crguarin.wallet.ui.accounts.WalletSegmentedControl
 import com.crguarin.wallet.ui.components.PeriodSelector
+import com.crguarin.wallet.ui.theme.walletSpacing
 import com.crguarin.wallet.ui.util.formatMonthYear
 
+/** From this font scale up the mode and the account filter stack, so neither gets a clipped label. */
+private const val STACKED_FONT_SCALE = 1.3f
+
 /**
- * Top block of the Reports screen: mode (month/year), period selector, focus
- * (expenses/income/balance) and account filter. Every control reports through a lambda; the
- * selection itself lives in the state.
+ * Top block of the Reports screen, three compact rows: the mode (month/year) beside the account
+ * filter, the period selector and the focus (expenses/income/balance). Every control reports
+ * through a lambda; the selection itself lives in the state.
  */
 @Composable
 internal fun ReportsControls(
@@ -36,18 +39,39 @@ internal fun ReportsControls(
     modifier: Modifier = Modifier,
 ) {
     val locale = LocalConfiguration.current.locales[0]
+    val spacing = MaterialTheme.walletSpacing
+    val stacked = LocalDensity.current.fontScale >= STACKED_FONT_SCALE
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(spacing.xs),
     ) {
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            ReportMode.entries.forEachIndexed { index, mode ->
-                SegmentedButton(
-                    selected = uiState.mode == mode,
-                    onClick = { onModeChange(mode) },
-                    shape = SegmentedButtonDefaults.itemShape(index = index, count = ReportMode.entries.size),
-                    label = { Text(text = stringResource(mode.labelRes())) },
-                )
+        val modeControl: @Composable (Modifier) -> Unit = { controlModifier ->
+            WalletSegmentedControl(
+                options = ReportMode.entries,
+                selected = uiState.mode,
+                onSelect = onModeChange,
+                label = { mode -> stringResource(mode.labelRes()) },
+                modifier = controlModifier,
+            )
+        }
+        val accountFilter: @Composable (Modifier) -> Unit = { chipModifier ->
+            WalletFilterChip(
+                selected = uiState.accountId != null,
+                onClick = onOpenAccountSheet,
+                label = uiState.selectedAccountName ?: stringResource(R.string.transactions_filter_all_accounts),
+                modifier = chipModifier,
+            )
+        }
+        if (stacked) {
+            modeControl(Modifier)
+            accountFilter(Modifier)
+        } else {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(spacing.s),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                modeControl(Modifier.weight(1f))
+                accountFilter(Modifier.weight(1f))
             }
         }
 
@@ -79,33 +103,11 @@ internal fun ReportsControls(
                 ),
         )
 
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            ReportFocus.entries.forEachIndexed { index, focus ->
-                SegmentedButton(
-                    selected = uiState.focus == focus,
-                    onClick = { onFocusChange(focus) },
-                    shape = SegmentedButtonDefaults.itemShape(index = index, count = ReportFocus.entries.size),
-                    label = {
-                        Text(
-                            text = stringResource(focus.labelRes()),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    },
-                )
-            }
-        }
-
-        FilterChip(
-            selected = uiState.accountId != null,
-            onClick = onOpenAccountSheet,
-            label = {
-                Text(
-                    text = uiState.selectedAccountName ?: stringResource(R.string.transactions_filter_all_accounts),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            },
+        WalletSegmentedControl(
+            options = ReportFocus.entries,
+            selected = uiState.focus,
+            onSelect = onFocusChange,
+            label = { focus -> stringResource(focus.labelRes()) },
         )
     }
 }

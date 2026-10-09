@@ -1,9 +1,7 @@
 package com.crguarin.wallet.ui.categories
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -11,14 +9,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
@@ -26,17 +22,13 @@ import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Tab
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -46,13 +38,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -60,11 +51,16 @@ import com.crguarin.wallet.R
 import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryNode
 import com.crguarin.wallet.domain.model.CategoryType
+import com.crguarin.wallet.ui.accounts.AddFab
+import com.crguarin.wallet.ui.accounts.WalletSegmentedControl
 import com.crguarin.wallet.ui.components.EmptyState
 import com.crguarin.wallet.ui.components.IconCatalog
 import com.crguarin.wallet.ui.components.LoadingState
+import com.crguarin.wallet.ui.components.PebbleAvatar
 import com.crguarin.wallet.ui.components.displayName
+import com.crguarin.wallet.ui.components.groupedItemBackground
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletSpacing
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 
 @Composable
@@ -134,6 +130,7 @@ fun CategoriesScreen(
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
+    val spacing = MaterialTheme.walletSpacing
     Scaffold(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0),
@@ -151,14 +148,10 @@ fun CategoriesScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
+            AddFab(
+                contentDescription = stringResource(R.string.action_new_category),
                 onClick = { onNewCategoryClick(uiState.selectedType) },
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(R.string.action_new_category),
-                )
-            }
+            )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
@@ -168,20 +161,17 @@ fun CategoriesScreen(
                     .fillMaxSize()
                     .padding(innerPadding),
         ) {
-            PrimaryTabRow(
-                selectedTabIndex = if (uiState.selectedType == CategoryType.EXPENSE) 0 else 1,
-            ) {
-                Tab(
-                    selected = uiState.selectedType == CategoryType.EXPENSE,
-                    onClick = { onSelectType(CategoryType.EXPENSE) },
-                    text = { Text(text = stringResource(R.string.type_expense)) },
-                )
-                Tab(
-                    selected = uiState.selectedType == CategoryType.INCOME,
-                    onClick = { onSelectType(CategoryType.INCOME) },
-                    text = { Text(text = stringResource(R.string.type_income)) },
-                )
-            }
+            WalletSegmentedControl(
+                options = listOf(CategoryType.EXPENSE, CategoryType.INCOME),
+                selected = uiState.selectedType,
+                onSelect = onSelectType,
+                label = { type ->
+                    stringResource(
+                        if (type == CategoryType.EXPENSE) R.string.type_expense else R.string.type_income,
+                    )
+                },
+                modifier = Modifier.padding(horizontal = spacing.screenGutter, vertical = spacing.s),
+            )
 
             val isExpense = uiState.selectedType == CategoryType.EXPENSE
             val emptyTitle =
@@ -207,7 +197,12 @@ fun CategoriesScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.weight(1f),
-                    contentPadding = PaddingValues(bottom = 80.dp),
+                    contentPadding =
+                        PaddingValues(
+                            start = spacing.screenGutter,
+                            end = spacing.screenGutter,
+                            bottom = FAB_CLEARANCE,
+                        ),
                 ) {
                     if (uiState.activeTree.isEmpty()) {
                         // Only archived categories exist for this type.
@@ -222,7 +217,9 @@ fun CategoriesScreen(
                         }
                     }
 
-                    uiState.activeTree.forEach { rootNode ->
+                    // A root and its subcategories share one tonal layer.
+                    uiState.activeTree.forEachIndexed { groupIndex, rootNode ->
+                        val groupSize = 1 + rootNode.children.size
                         item(key = "root_${rootNode.category.id}") {
                             RootCategoryRow(
                                 category = rootNode.category,
@@ -230,36 +227,43 @@ fun CategoriesScreen(
                                 onNewSubcategoryClick = {
                                     onNewSubcategoryClick(rootNode.category.id, uiState.selectedType)
                                 },
+                                modifier =
+                                    Modifier
+                                        .padding(top = if (groupIndex == 0) 0.dp else spacing.m)
+                                        .groupedItemBackground(0, groupSize),
                             )
                         }
 
                         items(
-                            items = rootNode.children,
-                            key = { "child_${it.category.id}" },
-                        ) { childNode ->
+                            count = rootNode.children.size,
+                            key = { "child_${rootNode.children[it].category.id}" },
+                        ) { childIndex ->
+                            val childNode = rootNode.children[childIndex]
                             SubcategoryRow(
                                 category = childNode.category,
                                 onClick = { onCategoryClick(childNode.category.id, uiState.selectedType) },
+                                modifier = Modifier.groupedItemBackground(childIndex + 1, groupSize),
                             )
                         }
                     }
 
                     if (uiState.archivedCategories.isNotEmpty()) {
                         item(key = "archived_header") {
-                            Spacer(modifier = Modifier.height(16.dp))
-                            OutlinedCard(
+                            Surface(
                                 onClick = onToggleArchivedExpanded,
-                                shape = RoundedCornerShape(12.dp),
+                                shape = MaterialTheme.shapes.large,
+                                color = MaterialTheme.colorScheme.surfaceContainerLow,
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                                        .padding(top = spacing.l),
                             ) {
                                 Row(
                                     modifier =
                                         Modifier
                                             .fillMaxWidth()
-                                            .padding(16.dp),
+                                            .heightIn(min = HEADER_MIN_HEIGHT)
+                                            .padding(horizontal = spacing.l, vertical = spacing.s),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
@@ -296,17 +300,18 @@ fun CategoriesScreen(
 
                         if (uiState.isArchivedExpanded) {
                             items(
-                                items = uiState.archivedCategories,
-                                key = { "archived_${it.id}" },
-                            ) { category ->
+                                count = uiState.archivedCategories.size,
+                                key = { "archived_${uiState.archivedCategories[it].id}" },
+                            ) { index ->
+                                val category = uiState.archivedCategories[index]
                                 ArchivedCategoryRow(
                                     category = category,
                                     onClick = { onCategoryClick(category.id, uiState.selectedType) },
                                     onUnarchiveClick = { onUnarchiveCategory(category.id) },
-                                )
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(horizontal = 16.dp),
-                                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f),
+                                    modifier =
+                                        Modifier
+                                            .padding(top = if (index == 0) spacing.s else 0.dp)
+                                            .groupedItemBackground(index, uiState.archivedCategories.size),
                                 )
                             }
                         }
@@ -317,6 +322,14 @@ fun CategoriesScreen(
     }
 }
 
+private val HEADER_MIN_HEIGHT = 56.dp
+
+/** Room under the list so the last row is not covered by the add button. */
+private val FAB_CLEARANCE = 96.dp
+
+private val ROOT_AVATAR_SIZE = 44.dp
+private val CHILD_AVATAR_SIZE = 36.dp
+
 @Composable
 private fun RootCategoryRow(
     category: Category,
@@ -324,49 +337,39 @@ private fun RootCategoryRow(
     onNewSubcategoryClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val spacing = MaterialTheme.walletSpacing
     Row(
         modifier =
             modifier
                 .fillMaxWidth()
                 .clickable(role = Role.Button, onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(start = spacing.l, end = spacing.s, top = spacing.s, bottom = spacing.s),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(Color(category.color)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = IconCatalog.get(category.icon),
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(24.dp),
-            )
-        }
+        PebbleAvatar(
+            icon = IconCatalog.get(category.icon),
+            color = Color(category.color),
+            size = ROOT_AVATAR_SIZE,
+        )
 
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(spacing.m))
 
         Text(
             text = category.displayName(),
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Medium,
             modifier = Modifier.weight(1f),
         )
 
         TextButton(
             onClick = onNewSubcategoryClick,
-            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+            contentPadding = PaddingValues(horizontal = spacing.s, vertical = spacing.xs),
         ) {
             Icon(
                 imageVector = Icons.Default.Add,
                 contentDescription = null,
                 modifier = Modifier.size(16.dp),
             )
-            Spacer(modifier = Modifier.width(4.dp))
+            Spacer(modifier = Modifier.width(spacing.xs))
             Text(
                 text = stringResource(R.string.action_add_subcategory),
                 style = MaterialTheme.typography.labelMedium,
@@ -381,36 +384,35 @@ private fun SubcategoryRow(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val spacing = MaterialTheme.walletSpacing
     Row(
         modifier =
             modifier
                 .fillMaxWidth()
                 .clickable(role = Role.Button, onClick = onClick)
-                .padding(start = 72.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
+                // Lined up with the name of the root: gutter, root avatar and the gap after it.
+                .padding(
+                    start = spacing.l + ROOT_AVATAR_SIZE + spacing.m,
+                    end = spacing.l,
+                    top = spacing.s,
+                    bottom = spacing.s,
+                ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(Color(category.color).copy(alpha = 0.85f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = IconCatalog.get(category.icon),
-                contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(18.dp),
-            )
-        }
+        PebbleAvatar(
+            icon = IconCatalog.get(category.icon),
+            color = Color(category.color),
+            size = CHILD_AVATAR_SIZE,
+        )
 
-        Spacer(modifier = Modifier.width(12.dp))
+        Spacer(modifier = Modifier.width(spacing.m))
 
         Text(
             text = category.displayName(),
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),
         )
     }
@@ -423,36 +425,27 @@ private fun ArchivedCategoryRow(
     onUnarchiveClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val spacing = MaterialTheme.walletSpacing
     Row(
         modifier =
             modifier
                 .fillMaxWidth()
                 .clickable(role = Role.Button, onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(start = spacing.l, end = spacing.s, top = spacing.xs, bottom = spacing.xs),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(Color(category.color).copy(alpha = 0.4f)),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = IconCatalog.get(category.icon),
-                contentDescription = null,
-                tint = Color.White.copy(alpha = 0.8f),
-                modifier = Modifier.size(20.dp),
-            )
-        }
+        PebbleAvatar(
+            icon = IconCatalog.get(category.icon),
+            color = Color(category.color),
+            size = CHILD_AVATAR_SIZE,
+        )
 
-        Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(spacing.m))
 
         Text(
             text = category.displayName(),
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
         )
 

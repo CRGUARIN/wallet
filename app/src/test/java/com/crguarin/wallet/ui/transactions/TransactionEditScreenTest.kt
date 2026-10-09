@@ -145,14 +145,14 @@ class TransactionEditScreenTest {
     fun `save button is disabled without amount`() {
         setScreen(validExpenseState(amountText = ""))
 
-        composeRule.onNodeWithText("Guardar").performScrollTo().assertIsNotEnabled()
+        composeRule.onNodeWithText("Guardar").assertIsNotEnabled()
     }
 
     @Test
     fun `save button is disabled without category`() {
         setScreen(validExpenseState(categoryId = null))
 
-        composeRule.onNodeWithText("Guardar").performScrollTo().assertIsNotEnabled()
+        composeRule.onNodeWithText("Guardar").assertIsNotEnabled()
     }
 
     @Test
@@ -160,7 +160,7 @@ class TransactionEditScreenTest {
         var saveClicked = false
         setScreen(validExpenseState(), onSaveClick = { saveClicked = true })
 
-        composeRule.onNodeWithText("Guardar").performScrollTo().assertIsEnabled()
+        composeRule.onNodeWithText("Guardar").assertIsEnabled()
         composeRule.onNodeWithText("Guardar").performClick()
 
         assertThat(saveClicked).isTrue()
@@ -185,15 +185,15 @@ class TransactionEditScreenTest {
 
         assertThat(selectedType).isEqualTo(TransactionType.TRANSFER)
         composeRule.onNodeWithText("Desde").assertIsDisplayed()
-        composeRule.onNodeWithText("Hacia").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Intercambiar cuentas").assertIsDisplayed()
+        composeRule.onNodeWithText("Hacia").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Intercambiar cuentas").performScrollTo().assertIsDisplayed()
     }
 
     @Test
     fun `transfer save is disabled without destination`() {
         setScreen(validTransferState(toAccountId = null))
 
-        composeRule.onNodeWithText("Guardar").performScrollTo().assertIsNotEnabled()
+        composeRule.onNodeWithText("Guardar").assertIsNotEnabled()
     }
 
     @Test
@@ -201,7 +201,7 @@ class TransactionEditScreenTest {
         var saveClicked = false
         setScreen(validTransferState(), onSaveClick = { saveClicked = true })
 
-        composeRule.onNodeWithText("Guardar").performScrollTo().assertIsEnabled()
+        composeRule.onNodeWithText("Guardar").assertIsEnabled()
         composeRule.onNodeWithText("Guardar").performClick()
 
         assertThat(saveClicked).isTrue()

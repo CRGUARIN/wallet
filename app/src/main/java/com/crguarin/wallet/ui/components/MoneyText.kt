@@ -1,8 +1,10 @@
 package com.crguarin.wallet.ui.components
 
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -12,13 +14,18 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.core.money.MoneyFormatter
 import com.crguarin.wallet.domain.model.TransactionType
+import com.crguarin.wallet.ui.theme.TABULAR_FIGURES
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.theme.walletSemanticColors
+import com.crguarin.wallet.ui.theme.walletTypography
 import java.util.Locale
 
 /**
@@ -29,12 +36,18 @@ import java.util.Locale
  */
 enum class MoneySign { AUTO, PLUS, MINUS, NONE }
 
+/**
+ * A monetary amount with its sign, in tabular figures (every digit the same width, so amounts do
+ * not jiggle) and, by default, the money style of `walletTypography.rowAmount` (Manrope 800). The
+ * sign and the semantic color are never the only carrier of meaning: screen readers get the type
+ * ("Gasto", "Ingreso") instead of the glyph.
+ */
 @Composable
 fun MoneyText(
     amount: Money,
     modifier: Modifier = Modifier,
     type: TransactionType? = null,
-    style: TextStyle = MaterialTheme.typography.bodyLarge,
+    style: TextStyle = MaterialTheme.walletTypography.rowAmount,
     color: Color = Color.Unspecified,
     locale: Locale = LocalConfiguration.current.locales[0],
     sign: MoneySign = MoneySign.AUTO,
@@ -91,13 +104,36 @@ fun MoneyText(
                 }
         }
 
-    Text(
+    // One line, so the sign and "$" never end up on a line apart from the figures: an amount that
+    // does not fit (large font, narrow column) shrinks instead of wrapping, down to 60 % of its size.
+    val merged = LocalTextStyle.current.merge(style)
+    val lineHeight =
+        if (merged.lineHeight.isSp && merged.fontSize.isSp) {
+            (merged.lineHeight.value / merged.fontSize.value).em
+        } else {
+            merged.lineHeight
+        }
+    val fitStyle =
+        merged.merge(TextStyle(color = textColor, lineHeight = lineHeight, fontFeatureSettings = TABULAR_FIGURES))
+    BasicText(
         text = text,
-        style = style.merge(TextStyle(fontFeatureSettings = "tnum")),
-        color = textColor,
+        style = fitStyle,
         modifier = modifier.semantics { contentDescription = description },
+        overflow = TextOverflow.Ellipsis,
+        maxLines = 1,
+        autoSize =
+            if (merged.fontSize.isSp) {
+                TextAutoSize.StepBased(
+                    minFontSize = (merged.fontSize.value * MIN_FONT_FRACTION).sp,
+                    maxFontSize = merged.fontSize,
+                )
+            } else {
+                null
+            },
     )
 }
+
+private const val MIN_FONT_FRACTION = 0.6f
 
 @Preview(name = "Light Mode", showBackground = true)
 @Composable

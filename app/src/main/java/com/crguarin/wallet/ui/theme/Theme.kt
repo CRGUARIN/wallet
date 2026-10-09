@@ -9,70 +9,121 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme =
+// background = surface, onBackground = onSurface, surfaceTint = primary, scrim = black.
+val WalletDarkColorScheme =
     darkColorScheme(
-        primary = GreenPrimaryDark,
-        onPrimary = GreenOnPrimaryDark,
-        primaryContainer = GreenPrimaryContainerDark,
-        onPrimaryContainer = GreenOnPrimaryContainerDark,
-        secondary = GreenSecondaryDark,
-        onSecondary = GreenOnSecondaryDark,
-        secondaryContainer = GreenSecondaryContainerDark,
-        onSecondaryContainer = GreenOnSecondaryContainerDark,
-        tertiary = GreenTertiaryDark,
-        onTertiary = GreenOnTertiaryDark,
-        tertiaryContainer = GreenTertiaryContainerDark,
-        onTertiaryContainer = GreenOnTertiaryContainerDark,
-        background = BackgroundDark,
-        onBackground = OnBackgroundDark,
+        primary = PrimaryDark,
+        onPrimary = OnPrimaryDark,
+        primaryContainer = PrimaryContainerDark,
+        onPrimaryContainer = OnPrimaryContainerDark,
+        inversePrimary = InversePrimaryDark,
+        secondary = SecondaryDark,
+        onSecondary = OnSecondaryDark,
+        secondaryContainer = SecondaryContainerDark,
+        onSecondaryContainer = OnSecondaryContainerDark,
+        tertiary = TertiaryDark,
+        onTertiary = OnTertiaryDark,
+        tertiaryContainer = TertiaryContainerDark,
+        onTertiaryContainer = OnTertiaryContainerDark,
+        background = SurfaceDark,
+        onBackground = OnSurfaceDark,
         surface = SurfaceDark,
         onSurface = OnSurfaceDark,
         surfaceVariant = SurfaceVariantDark,
         onSurfaceVariant = OnSurfaceVariantDark,
+        surfaceTint = PrimaryDark,
+        inverseSurface = InverseSurfaceDark,
+        inverseOnSurface = InverseOnSurfaceDark,
+        error = ErrorDark,
+        onError = OnErrorDark,
+        errorContainer = ErrorContainerDark,
+        onErrorContainer = OnErrorContainerDark,
         outline = OutlineDark,
         outlineVariant = OutlineVariantDark,
+        scrim = ScrimColor,
         surfaceBright = SurfaceBrightDark,
-        surfaceDim = SurfaceDimDark,
-        surfaceContainerLowest = SurfaceContainerLowestDark,
-        surfaceContainerLow = SurfaceContainerLowDark,
         surfaceContainer = SurfaceContainerDark,
         surfaceContainerHigh = SurfaceContainerHighDark,
         surfaceContainerHighest = SurfaceContainerHighestDark,
+        surfaceContainerLow = SurfaceContainerLowDark,
+        surfaceContainerLowest = SurfaceContainerLowestDark,
+        surfaceDim = SurfaceDimDark,
+        primaryFixed = PrimaryFixed,
+        primaryFixedDim = PrimaryFixedDim,
+        onPrimaryFixed = OnPrimaryFixed,
+        onPrimaryFixedVariant = OnPrimaryFixedVariant,
+        secondaryFixed = SecondaryFixed,
+        secondaryFixedDim = SecondaryFixedDim,
+        onSecondaryFixed = OnSecondaryFixed,
+        onSecondaryFixedVariant = OnSecondaryFixedVariant,
+        tertiaryFixed = TertiaryFixed,
+        tertiaryFixedDim = TertiaryFixedDim,
+        onTertiaryFixed = OnTertiaryFixed,
+        onTertiaryFixedVariant = OnTertiaryFixedVariant,
     )
 
-private val LightColorScheme =
+val WalletLightColorScheme =
     lightColorScheme(
-        primary = GreenPrimaryLight,
-        onPrimary = GreenOnPrimaryLight,
-        primaryContainer = GreenPrimaryContainerLight,
-        onPrimaryContainer = GreenOnPrimaryContainerLight,
-        secondary = GreenSecondaryLight,
-        onSecondary = GreenOnSecondaryLight,
-        secondaryContainer = GreenSecondaryContainerLight,
-        onSecondaryContainer = GreenOnSecondaryContainerLight,
-        tertiary = GreenTertiaryLight,
-        onTertiary = GreenOnTertiaryLight,
-        tertiaryContainer = GreenTertiaryContainerLight,
-        onTertiaryContainer = GreenOnTertiaryContainerLight,
-        background = BackgroundLight,
-        onBackground = OnBackgroundLight,
+        primary = PrimaryLight,
+        onPrimary = OnPrimaryLight,
+        primaryContainer = PrimaryContainerLight,
+        onPrimaryContainer = OnPrimaryContainerLight,
+        inversePrimary = InversePrimaryLight,
+        secondary = SecondaryLight,
+        onSecondary = OnSecondaryLight,
+        secondaryContainer = SecondaryContainerLight,
+        onSecondaryContainer = OnSecondaryContainerLight,
+        tertiary = TertiaryLight,
+        onTertiary = OnTertiaryLight,
+        tertiaryContainer = TertiaryContainerLight,
+        onTertiaryContainer = OnTertiaryContainerLight,
+        background = SurfaceLight,
+        onBackground = OnSurfaceLight,
         surface = SurfaceLight,
         onSurface = OnSurfaceLight,
         surfaceVariant = SurfaceVariantLight,
         onSurfaceVariant = OnSurfaceVariantLight,
+        surfaceTint = PrimaryLight,
+        inverseSurface = InverseSurfaceLight,
+        inverseOnSurface = InverseOnSurfaceLight,
+        error = ErrorLight,
+        onError = OnErrorLight,
+        errorContainer = ErrorContainerLight,
+        onErrorContainer = OnErrorContainerLight,
         outline = OutlineLight,
         outlineVariant = OutlineVariantLight,
+        scrim = ScrimColor,
         surfaceBright = SurfaceBrightLight,
-        surfaceDim = SurfaceDimLight,
-        surfaceContainerLowest = SurfaceContainerLowestLight,
-        surfaceContainerLow = SurfaceContainerLowLight,
         surfaceContainer = SurfaceContainerLight,
         surfaceContainerHigh = SurfaceContainerHighLight,
         surfaceContainerHighest = SurfaceContainerHighestLight,
+        surfaceContainerLow = SurfaceContainerLowLight,
+        surfaceContainerLowest = SurfaceContainerLowestLight,
+        surfaceDim = SurfaceDimLight,
+        primaryFixed = PrimaryFixed,
+        primaryFixedDim = PrimaryFixedDim,
+        onPrimaryFixed = OnPrimaryFixed,
+        onPrimaryFixedVariant = OnPrimaryFixedVariant,
+        secondaryFixed = SecondaryFixed,
+        secondaryFixedDim = SecondaryFixedDim,
+        onSecondaryFixed = OnSecondaryFixed,
+        onSecondaryFixedVariant = OnSecondaryFixedVariant,
+        tertiaryFixed = TertiaryFixed,
+        tertiaryFixedDim = TertiaryFixedDim,
+        onTertiaryFixed = OnTertiaryFixed,
+        onTertiaryFixedVariant = OnTertiaryFixedVariant,
     )
 
+/**
+ * App theme. With [dynamicColor] (Android 12+) the Material roles and the hero gradient come from
+ * the wallpaper; typography, shapes, money colors and the other Wallet tokens stay fixed.
+ *
+ * Besides Material 3 it provides `walletSemanticColors`, `walletColors`, `walletSpacing`,
+ * `walletMotion` and `walletTypography` on [MaterialTheme].
+ */
 @Composable
 fun WalletTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
@@ -80,21 +131,35 @@ fun WalletTheme(
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
+    val useDynamic = dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val colorScheme =
         when {
+            // Checked inline (not through useDynamic) so lint sees the API 31 guard.
             dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
                 val context = LocalContext.current
                 if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
             }
 
-            darkTheme -> DarkColorScheme
-            else -> LightColorScheme
+            darkTheme -> WalletDarkColorScheme
+            else -> WalletLightColorScheme
         }
 
     val semanticColors = if (darkTheme) DarkWalletSemanticColors else LightWalletSemanticColors
+    val extendedColors =
+        remember(useDynamic, darkTheme, colorScheme.primary, colorScheme.primaryContainer) {
+            when {
+                useDynamic -> dynamicWalletExtendedColors(colorScheme.primary, colorScheme.primaryContainer, darkTheme)
+                darkTheme -> DarkWalletExtendedColors
+                else -> LightWalletExtendedColors
+            }
+        }
 
     CompositionLocalProvider(
         LocalWalletSemanticColors provides semanticColors,
+        LocalWalletExtendedColors provides extendedColors,
+        LocalWalletSpacing provides DefaultWalletSpacing,
+        LocalWalletMotion provides DefaultWalletMotion,
+        LocalWalletTypography provides DefaultWalletTypography,
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

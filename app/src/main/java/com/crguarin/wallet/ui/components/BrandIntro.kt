@@ -18,7 +18,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
@@ -30,6 +29,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.crguarin.wallet.R
+import com.crguarin.wallet.ui.theme.walletColors
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -51,8 +51,9 @@ private const val FADE_OUT_MILLIS = 300
  * Brief branded intro shown right after the system splash on a cold start: the splash icon rises,
  * the app name fades in below it and the whole screen fades out to reveal the app.
  *
- * [dynamicColor] must match the splash that was shown (wallpaper colors or the app green), so the
- * hand-off has no color jump.
+ * [dynamicColor] must match the splash that was shown (wallpaper colors or the app pine green:
+ * `splash_background`, #1E5A4A light and #0F2420 dark), so the hand-off has no color jump. The
+ * name is set in Manrope 800 (the theme's displaySmall).
  */
 @Composable
 fun BrandIntro(
@@ -80,7 +81,8 @@ fun BrandIntro(
     val density = LocalDensity.current
     val backgroundColor =
         colorResource(if (dynamicColor) R.color.splash_dynamic_background else R.color.splash_background)
-    val nameColor = if (dynamicColor) colorResource(R.color.splash_dynamic_icon_body) else Color.White
+    val nameColor =
+        if (dynamicColor) colorResource(R.color.splash_dynamic_icon_body) else MaterialTheme.walletColors.onHero
     val icon = if (dynamicColor) R.drawable.ic_splash_dynamic else R.drawable.ic_launcher_foreground
     Box(
         modifier =
@@ -104,8 +106,9 @@ fun BrandIntro(
         Text(
             text = stringResource(R.string.app_name),
             color = nameColor,
+            // displaySmall is Manrope 800; the wide tracking is the wordmark's own.
             style = MaterialTheme.typography.displaySmall,
-            fontWeight = FontWeight.SemiBold,
+            fontWeight = FontWeight.ExtraBold,
             letterSpacing = 2.sp,
             modifier =
                 Modifier

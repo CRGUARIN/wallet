@@ -1,14 +1,18 @@
 package com.crguarin.wallet.ui.accounts
 
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.Density
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
@@ -22,6 +26,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 import java.time.Instant
 import java.time.LocalDate
 
@@ -108,7 +113,10 @@ class AccountsScreenTest {
         assertThat(clickedAccountId).isEqualTo(1L)
     }
 
+    // The shortcuts row makes the list taller than the default 470 dp test screen: the lazy list would
+    // not compose the archived row, so the test uses a phone-sized screen.
     @Test
+    @Config(qualifiers = "es-w360dp-h800dp")
     fun `archived accounts section expands and collapses`() {
         var toggleArchivedClicked = false
 
@@ -297,5 +305,164 @@ class AccountsScreenTest {
         )
 
         composeRule.onNodeWithText("Saldo a favor").assertIsDisplayed()
+    }
+
+    @Test
+    fun `shortcuts to debts recurring payments and categories call their callbacks`() {
+        var debtsClicks = 0
+        var recurringClicks = 0
+        var categoriesClicks = 0
+        composeRule.setContent {
+            WalletTheme {
+                AccountsScreen(
+                    uiState =
+                        AccountsUiState(
+                            activeAccounts = listOf(AccountWithBalance(account1, Money(50_000L))),
+                            totalBalance = Money(50_000L),
+                        ),
+                    onAccountClick = {},
+                    onNewAccountClick = {},
+                    onToggleReordering = {},
+                    onMoveAccountUp = {},
+                    onMoveAccountDown = {},
+                    onToggleArchivedExpanded = {},
+                    onOpenCategories = { categoriesClicks++ },
+                    onOpenRecurring = { recurringClicks++ },
+                    onOpenDebts = { debtsClicks++ },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Deudas").assertIsDisplayed().performClick()
+        assertThat(debtsClicks).isEqualTo(1)
+        assertThat(recurringClicks).isEqualTo(0)
+        assertThat(categoriesClicks).isEqualTo(0)
+
+        composeRule.onNodeWithText("Pagos recurrentes").assertIsDisplayed().performClick()
+        assertThat(recurringClicks).isEqualTo(1)
+
+        composeRule.onNodeWithText("Categorías").assertIsDisplayed().performClick()
+        assertThat(categoriesClicks).isEqualTo(1)
+        assertThat(debtsClicks).isEqualTo(1)
+    }
+
+    @Test
+    fun `shortcuts sit right under the total balance and above the accounts`() {
+        composeRule.setContent {
+            WalletTheme {
+                AccountsScreen(
+                    uiState =
+                        AccountsUiState(
+                            activeAccounts = listOf(AccountWithBalance(account1, Money(50_000L))),
+                            totalBalance = Money(50_000L),
+                        ),
+                    onAccountClick = {},
+                    onNewAccountClick = {},
+                    onToggleReordering = {},
+                    onMoveAccountUp = {},
+                    onMoveAccountDown = {},
+                    onToggleArchivedExpanded = {},
+                )
+            }
+        }
+
+        val totalTop =
+            composeRule
+                .onNodeWithText("Saldo total")
+                .fetchSemanticsNode()
+                .boundsInRoot.top
+        val shortcutsTop =
+            composeRule
+                .onNodeWithText("Deudas")
+                .fetchSemanticsNode()
+                .boundsInRoot.top
+        val accountTop =
+            composeRule
+                .onNodeWithText("Efectivo")
+                .fetchSemanticsNode()
+                .boundsInRoot.top
+        assertThat(shortcutsTop).isGreaterThan(totalTop)
+        assertThat(accountTop).isGreaterThan(shortcutsTop)
+    }
+
+    @Test
+    fun `the empty state offers no shortcuts`() {
+        composeRule.setContent {
+            WalletTheme {
+                AccountsScreen(
+                    uiState = AccountsUiState(),
+                    onAccountClick = {},
+                    onNewAccountClick = {},
+                    onToggleReordering = {},
+                    onMoveAccountUp = {},
+                    onMoveAccountDown = {},
+                    onToggleArchivedExpanded = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Deudas").assertDoesNotExist()
+    }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    @Config(qualifiers = "es-w360dp-h800dp")
+    fun `with a big font the balance of a row drops under the name`() {
+        // A name that differs from the type label ("Efectivo"), so the name is found on its own.
+        val named = account1.copy(name = "Caja menor")
+        composeRule.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(density = 1f, fontScale = 2f)) {
+                WalletTheme {
+                    AccountsScreen(
+                        uiState =
+                            AccountsUiState(
+                                activeAccounts = listOf(AccountWithBalance(named, Money(1_234_500L))),
+                                totalBalance = Money(1_234_500L),
+                            ),
+                        onAccountClick = {},
+                        onNewAccountClick = {},
+                        onToggleReordering = {},
+                        onMoveAccountUp = {},
+                        onMoveAccountDown = {},
+                        onToggleArchivedExpanded = {},
+                    )
+                }
+            }
+        }
+
+        val name = composeRule.onNodeWithText("Caja menor", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        // The hero shows the same total: the balance of the row is the one under the name.
+        val balances = composeRule.onAllNodesWithText("12.345", substring = true, useUnmergedTree = true).fetchSemanticsNodes()
+        val rowBalance = balances.map { it.boundsInRoot }.first { it.top >= name.bottom }
+        assertThat(rowBalance.left).isWithin(1f).of(name.left)
+    }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    @Config(qualifiers = "es-w360dp-h800dp")
+    fun `with the normal font the balance of a row sits at the end of the name line`() {
+        val named = account1.copy(name = "Caja menor")
+        composeRule.setContent {
+            WalletTheme {
+                AccountsScreen(
+                    uiState =
+                        AccountsUiState(
+                            activeAccounts = listOf(AccountWithBalance(named, Money(1_234_500L))),
+                            totalBalance = Money(1_234_500L),
+                        ),
+                    onAccountClick = {},
+                    onNewAccountClick = {},
+                    onToggleReordering = {},
+                    onMoveAccountUp = {},
+                    onMoveAccountDown = {},
+                    onToggleArchivedExpanded = {},
+                )
+            }
+        }
+
+        val name = composeRule.onNodeWithText("Caja menor", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val balances = composeRule.onAllNodesWithText("12.345", substring = true, useUnmergedTree = true).fetchSemanticsNodes()
+        val rowBalance = balances.map { it.boundsInRoot }.first { it.top >= name.top - 1f && it.left > name.right }
+        assertThat(rowBalance.left).isGreaterThan(name.right)
     }
 }

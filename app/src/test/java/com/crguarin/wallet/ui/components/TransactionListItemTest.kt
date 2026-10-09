@@ -4,11 +4,14 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.Transaction
 import com.crguarin.wallet.domain.model.TransactionDetails
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -182,5 +185,66 @@ class TransactionListItemTest {
         }
 
         composeRule.onNodeWithContentDescription("Pago recurrente").assertDoesNotExist()
+    }
+
+    @Test
+    @Config(qualifiers = "es-rCO")
+    fun `amount sits at the right of the title with a normal font`() {
+        composeRule.setContent {
+            WalletTheme {
+                TransactionListItem(
+                    details = details(TransactionType.EXPENSE, categorySystemKey = "groceries", parentCategorySystemKey = "food"),
+                    onClick = {},
+                )
+            }
+        }
+
+        val title = composeRule.onNodeWithText("Alimentación › Mercado", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val amount = composeRule.onNodeWithText("− $ 45.500", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+
+        assertThat(amount.left).isAtLeast(title.right)
+        // Same line: the amount starts above the bottom of the title.
+        assertThat(amount.top).isLessThan(title.bottom)
+    }
+
+    @Test
+    @Config(qualifiers = "es-rCO", fontScale = 2.0f)
+    fun `with a large font the amount drops below the title and is not cut`() {
+        composeRule.setContent {
+            WalletTheme {
+                TransactionListItem(
+                    details = details(TransactionType.EXPENSE, categorySystemKey = "groceries", parentCategorySystemKey = "food"),
+                    onClick = {},
+                )
+            }
+        }
+
+        val title = composeRule.onNodeWithText("Alimentación › Mercado", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        val amountNode = composeRule.onNodeWithText("− $ 45.500", useUnmergedTree = true)
+        amountNode.assertIsDisplayed()
+        val amount = amountNode.fetchSemanticsNode().boundsInRoot
+        val root = composeRule.onRoot().fetchSemanticsNode().boundsInRoot
+
+        assertThat(amount.top).isAtLeast(title.bottom)
+        assertThat(amount.right).isAtMost(root.right)
+        // One line of 30 sp text (40 sp line height at a 2.0 scale), not wrapped over two.
+        assertThat(amount.height).isAtMost(with(composeRule.density) { 60.dp.toPx() })
+    }
+
+    @Test
+    @Config(qualifiers = "es-rCO", fontScale = 2.0f)
+    fun `a long title ellipsizes and the amount still shows whole`() {
+        composeRule.setContent {
+            WalletTheme {
+                TransactionListItem(
+                    details =
+                        details(TransactionType.EXPENSE, categorySystemKey = "groceries")
+                            .copy(categoryName = "Una categoría con un nombre larguísimo que no cabe en la fila"),
+                    onClick = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("− $ 45.500").assertIsDisplayed()
     }
 }

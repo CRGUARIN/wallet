@@ -1,12 +1,18 @@
 package com.crguarin.wallet.ui.components
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -79,5 +85,52 @@ class MoneyTextTest {
         composeRule.onNodeWithText("+ $50,000").assertIsDisplayed()
         composeRule.onNodeWithText("− $20,000").assertIsDisplayed()
         composeRule.onNodeWithText("$30,000").assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "es")
+    fun `uses tabular figures and the Manrope 800 amount style by default`() {
+        composeRule.setContent {
+            WalletTheme {
+                MoneyText(amount = Money(4_550_000L), type = TransactionType.EXPENSE, locale = esLocale)
+            }
+        }
+
+        val results = mutableListOf<TextLayoutResult>()
+        composeRule
+            .onNodeWithText("− $ 45.500")
+            .fetchSemanticsNode()
+            .config[SemanticsActions.GetTextLayoutResult]
+            .action
+            ?.invoke(results)
+        val style = results.single().layoutInput.style
+
+        assertThat(style.fontFeatureSettings).isEqualTo("tnum")
+        assertThat(style.fontWeight).isEqualTo(FontWeight.ExtraBold)
+        assertThat(style.fontSize).isEqualTo(15.sp)
+    }
+
+    @Test
+    @Config(qualifiers = "es")
+    fun `keeps tabular figures with any style`() {
+        composeRule.setContent {
+            WalletTheme {
+                MoneyText(amount = Money(4_550_000L), style = MaterialTheme.typography.headlineLarge, locale = esLocale)
+            }
+        }
+
+        val results = mutableListOf<TextLayoutResult>()
+        composeRule
+            .onNodeWithText("$ 45.500")
+            .fetchSemanticsNode()
+            .config[SemanticsActions.GetTextLayoutResult]
+            .action
+            ?.invoke(results)
+
+        assertThat(
+            results
+                .single()
+                .layoutInput.style.fontFeatureSettings,
+        ).isEqualTo("tnum")
     }
 }

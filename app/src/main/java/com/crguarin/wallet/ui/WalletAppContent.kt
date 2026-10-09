@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
@@ -12,6 +13,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -80,10 +82,14 @@ fun WalletAppContent(
         },
         floatingActionButton = {
             if (isFabDestination) {
+                // A pebble (rounded square) in primary with the default FAB shadow, the only shadow of the style.
                 FloatingActionButton(
                     onClick = {
                         navController.navigate(TransactionEdit())
                     },
+                    shape = MaterialTheme.shapes.medium,
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
@@ -96,7 +102,8 @@ fun WalletAppContent(
         WalletNavHost(
             navController = navController,
             startDestination = startDestination,
-            modifier = Modifier.padding(innerPadding),
+            // Consumed so screens can pad for the keyboard (imePadding) without counting the bars twice.
+            modifier = Modifier.padding(innerPadding).consumeWindowInsets(innerPadding),
         )
     }
 }

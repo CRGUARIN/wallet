@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,6 +30,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.R
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletSpacing
 
 private val FEATURED_ICON_KEYS =
     listOf(
@@ -60,18 +60,19 @@ fun IconPicker(
     modifier: Modifier = Modifier,
     icons: List<String> = IconCatalog.keys,
 ) {
+    val spacing = MaterialTheme.walletSpacing
     var expanded by rememberSaveable { mutableStateOf(false) }
     val featuredKeys = (listOf(selectedIcon) + FEATURED_ICON_KEYS).distinct().filter { it in icons }
 
     Column(
         modifier = modifier.fillMaxWidth().animateContentSize(),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(spacing.l),
     ) {
         if (expanded) {
             IconCatalog.groups.forEach { group ->
                 val groupKeys = group.keys.filter { it in icons }
                 if (groupKeys.isNotEmpty()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(spacing.s)) {
                         Text(
                             text = stringResource(group.titleRes),
                             style = MaterialTheme.typography.labelLarge,
@@ -109,14 +110,15 @@ private fun IconFlowRow(
     selectedIcon: String,
     onIconSelected: (String) -> Unit,
 ) {
+    val spacing = MaterialTheme.walletSpacing
+    val shape = MaterialTheme.shapes.small
     FlowRow(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s, Alignment.CenterHorizontally),
+        verticalArrangement = Arrangement.spacedBy(spacing.s),
     ) {
         iconKeys.forEach { iconKey ->
             val isSelected = iconKey == selectedIcon
-            val shape = RoundedCornerShape(12.dp)
 
             Box(
                 modifier =
@@ -129,7 +131,7 @@ private fun IconFlowRow(
                                     .background(MaterialTheme.colorScheme.primaryContainer, shape)
                                     .border(2.dp, MaterialTheme.colorScheme.primary, shape)
                             } else {
-                                Modifier.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), shape)
+                                Modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh, shape)
                             },
                         ).clickable { onIconSelected(iconKey) },
                 contentAlignment = Alignment.Center,

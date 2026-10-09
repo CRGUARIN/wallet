@@ -95,7 +95,7 @@ private class BalanceChartGeometry(
  * @param zeroFraction y of the zero line when the range crosses zero, else null.
  * @param xLabels (slot index, label) pairs for the x axis.
  * @param yLabels y axis labels, bottom to top, evenly spaced.
- * @param selectedIndex selected point, drawn as a circle with a `surface` ring; null = none.
+ * @param selectedIndex selected point, drawn as a circle with a `surfaceContainerLow` ring; null = none.
  * @param contentDescription accessibility summary resolved by the caller with `stringResource`.
  */
 @Composable
@@ -115,7 +115,8 @@ fun BalanceLineChart(
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     val guideColor = MaterialTheme.colorScheme.outlineVariant
     val zeroLineColor = MaterialTheme.colorScheme.outline
-    val surfaceColor = MaterialTheme.colorScheme.surface
+    // The chart sits on a section card, so the ring around the selected point matches that layer.
+    val surfaceColor = MaterialTheme.colorScheme.surfaceContainerLow
     val textMeasurer = rememberTextMeasurer()
     val yLayouts =
         remember(yLabels, labelStyle, textMeasurer) {

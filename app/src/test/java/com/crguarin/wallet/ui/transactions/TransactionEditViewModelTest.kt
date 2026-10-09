@@ -831,4 +831,257 @@ class TransactionEditViewModelTest {
 
             assertThat(transactionRepository.getTransaction(10L)?.recurringId).isEqualTo(7L)
         }
+
+    // ---- Frequent categories (chips under the category selector)
+
+    private val transportCategory =
+        Category(id = 11L, name = "Transporte", type = CategoryType.EXPENSE, color = 3, icon = "bus")
+    private val coffeeCategory =
+        Category(id = 12L, name = "Café", type = CategoryType.EXPENSE, parentId = 10L, color = 4, icon = "coffee")
+    private val leisureCategory =
+        Category(id = 13L, name = "Ocio", type = CategoryType.EXPENSE, color = 5, icon = "movie")
+    private val archivedCategory =
+        Category(id = 14L, name = "Vieja", type = CategoryType.EXPENSE, color = 6, icon = "inbox", isArchived = true)
+    private val bonusCategory =
+        Category(id = 21L, name = "Bono", type = CategoryType.INCOME, color = 7, icon = "payments")
+
+    private var nextFrequentId = 100L
+
+    private fun usage(
+        categoryId: Long,
+        type: TransactionType = TransactionType.EXPENSE,
+        daysAgo: Long = 1L,
+        createdAt: Instant = baseInstant,
+    ) = Transaction(
+        id = nextFrequentId++,
+        type = type,
+        amount = Money(10_000L),
+        accountId = 1L,
+        categoryId = categoryId,
+        date = baseDate.minusDays(daysAgo),
+        createdAt = createdAt,
+        updatedAt = createdAt,
+    )
+
+    private fun frequentIds(viewModel: TransactionEditViewModel): List<Long> =
+        viewModel.uiState.value.frequentCategories
+            .map { it.category.id }
+
+    private fun seedCategories(vararg extra: Category) {
+        categoryRepository.setInitialData(
+            listOf(foodCategory, salaryCategory, transportCategory, coffeeCategory, leisureCategory, archivedCategory, bonusCategory) +
+                extra,
+        )
+    }
+
+    @Test
+    fun `frequent categories are the most used of the last 90 days, most used first`() =
+        runTest(testDispatcher) {
+            seedCategories()
+            transactionRepository.setInitialData(
+                listOf(
+                    usage(10L),
+                    usage(11L),
+                    usage(11L),
+                    usage(11L),
+                    usage(13L),
+                    usage(13L),
+                ),
+            )
+
+            val viewModel = createViewModel()
+
+            assertThat(frequentIds(viewModel)).containsExactly(11L, 13L, 10L).inOrder()
+        }
+
+    @Test
+    fun `ties go to the category used most recently`() =
+        runTest(testDispatcher) {
+            seedCategories()
+            transactionRepository.setInitialData(
+                listOf(
+                    usage(10L, daysAgo = 20L),
+                    usage(10L, daysAgo = 21L),
+                    usage(11L, daysAgo = 2L),
+                    usage(11L, daysAgo = 30L),
+                    usage(13L, daysAgo = 8L),
+                    usage(13L, daysAgo = 9L),
+                ),
+            )
+
+            val viewModel = createViewModel()
+
+            assertThat(frequentIds(viewModel)).containsExactly(11L, 13L, 10L).inOrder()
+        }
+
+    @Test
+    fun `usage older than 90 days does not count`() =
+        runTest(testDispatcher) {
+            seedCategories()
+            transactionRepository.setInitialData(
+                listOf(
+                    usage(10L, daysAgo = 91L),
+                    usage(10L, daysAgo = 120L),
+                    usage(11L, daysAgo = 90L),
+                ),
+            )
+
+            val viewModel = createViewModel()
+
+            assertThat(frequentIds(viewModel)).containsExactly(11L)
+        }
+
+    @Test
+    fun `at most six frequent categories are offered`() =
+        runTest(testDispatcher) {
+            val extra =
+                (30L..35L).map { id ->
+                    Category(id = id, name = "Extra $id", type = CategoryType.EXPENSE, color = 1, icon = "inbox")
+                }
+            seedCategories(*extra.toTypedArray())
+            transactionRepository.setInitialData(
+                (extra.map { it.id } + listOf(10L, 11L, 13L)).mapIndexed { index, id -> usage(id, daysAgo = index + 1L) },
+            )
+
+            val viewModel = createViewModel()
+
+            assertThat(viewModel.uiState.value.frequentCategories).hasSize(FREQUENT_CATEGORIES_LIMIT)
+        }
+
+    @Test
+    fun `only categories of the current type are offered and they follow the type`() =
+        runTest(testDispatcher) {
+            seedCategories()
+            transactionRepository.setInitialData(
+                listOf(
+                    usage(10L),
+                    usage(11L),
+                    usage(20L, type = TransactionType.INCOME),
+                    usage(21L, type = TransactionType.INCOME),
+                    usage(21L, type = TransactionType.INCOME),
+                ),
+            )
+
+            val viewModel = createViewModel()
+            assertThat(frequentIds(viewModel)).containsExactly(10L, 11L)
+
+            viewModel.setType(TransactionType.INCOME)
+            assertThat(frequentIds(viewModel)).containsExactly(21L, 20L).inOrder()
+
+            viewModel.setType(TransactionType.EXPENSE)
+            assertThat(frequentIds(viewModel)).containsExactly(10L, 11L)
+        }
+
+    @Test
+    fun `archived categories are never offered`() =
+        runTest(testDispatcher) {
+            seedCategories()
+            transactionRepository.setInitialData(
+                listOf(usage(14L), usage(14L), usage(14L), usage(10L)),
+            )
+
+            val viewModel = createViewModel()
+
+            assertThat(frequentIds(viewModel)).containsExactly(10L)
+        }
+
+    @Test
+    fun `a category archived later leaves the chips`() =
+        runTest(testDispatcher) {
+            seedCategories()
+            transactionRepository.setInitialData(listOf(usage(10L), usage(11L)))
+            val viewModel = createViewModel()
+            assertThat(frequentIds(viewModel)).containsExactly(10L, 11L)
+
+            categoryRepository.saveCategory(transportCategory.copy(isArchived = true))
+
+            assertThat(frequentIds(viewModel)).containsExactly(10L)
+        }
+
+    @Test
+    fun `transfers and movements without a category offer no chips`() =
+        runTest(testDispatcher) {
+            seedCategories()
+            transactionRepository.setInitialData(
+                listOf(
+                    usage(10L),
+                    Transaction(
+                        id = 900L,
+                        type = TransactionType.TRANSFER,
+                        amount = Money(5_000L),
+                        accountId = 1L,
+                        toAccountId = 2L,
+                        date = baseDate,
+                        createdAt = baseInstant,
+                        updatedAt = baseInstant,
+                    ),
+                ),
+            )
+
+            val viewModel = createViewModel(creationHandle(initialType = TransactionType.TRANSFER))
+            assertThat(viewModel.uiState.value.frequentCategories).isEmpty()
+
+            viewModel.setType(TransactionType.EXPENSE)
+            assertThat(frequentIds(viewModel)).containsExactly(10L)
+
+            viewModel.setType(TransactionType.TRANSFER)
+            assertThat(viewModel.uiState.value.frequentCategories).isEmpty()
+        }
+
+    @Test
+    fun `without recent movements there are no chips`() =
+        runTest(testDispatcher) {
+            seedCategories()
+
+            val viewModel = createViewModel()
+
+            assertThat(viewModel.uiState.value.frequentCategories).isEmpty()
+        }
+
+    @Test
+    fun `a subcategory chip keeps its parent for the label`() =
+        runTest(testDispatcher) {
+            seedCategories()
+            transactionRepository.setInitialData(listOf(usage(12L)))
+
+            val viewModel = createViewModel()
+
+            val chip =
+                viewModel.uiState.value.frequentCategories
+                    .single()
+            assertThat(chip.category.id).isEqualTo(12L)
+            assertThat(chip.parent?.id).isEqualTo(10L)
+        }
+
+    @Test
+    fun `choosing a frequent category selects it like the selector does`() =
+        runTest(testDispatcher) {
+            seedCategories()
+            transactionRepository.setInitialData(listOf(usage(11L), usage(11L), usage(10L)))
+            val viewModel = createViewModel()
+            val chip =
+                viewModel.uiState.value.frequentCategories
+                    .first()
+
+            viewModel.setCategoryId(chip.category.id)
+
+            val state = viewModel.uiState.value
+            assertThat(state.categoryId).isEqualTo(11L)
+            assertThat(state.selectedCategory?.name).isEqualTo("Transporte")
+            assertThat(state.categoryErrorRes).isNull()
+        }
+
+    @Test
+    fun `frequent categories follow new movements as they are saved`() =
+        runTest(testDispatcher) {
+            seedCategories()
+            transactionRepository.setInitialData(listOf(usage(10L)))
+            val viewModel = createViewModel()
+            assertThat(frequentIds(viewModel)).containsExactly(10L)
+
+            transactionRepository.saveTransaction(usage(13L))
+            transactionRepository.saveTransaction(usage(13L))
+
+            assertThat(frequentIds(viewModel)).containsExactly(13L, 10L).inOrder()
+        }
 }

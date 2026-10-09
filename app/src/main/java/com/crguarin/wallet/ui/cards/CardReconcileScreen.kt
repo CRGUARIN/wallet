@@ -2,30 +2,23 @@ package com.crguarin.wallet.ui.cards
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -37,7 +30,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
@@ -50,12 +42,17 @@ import com.crguarin.wallet.core.money.MoneyParser
 import com.crguarin.wallet.core.money.format
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.card.ReconciliationPreview
+import com.crguarin.wallet.ui.accounts.TonalSelector
 import com.crguarin.wallet.ui.components.AmountTextField
+import com.crguarin.wallet.ui.components.BottomActionBar
 import com.crguarin.wallet.ui.components.ErrorState
 import com.crguarin.wallet.ui.components.LoadingState
 import com.crguarin.wallet.ui.components.MoneySign
 import com.crguarin.wallet.ui.components.MoneyText
+import com.crguarin.wallet.ui.components.PrimaryActionButton
+import com.crguarin.wallet.ui.components.SectionCard
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletSpacing
 import com.crguarin.wallet.ui.util.formatMedium
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 import java.time.Instant
@@ -168,6 +165,7 @@ fun CardReconcileScreen(
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
+    val spacing = MaterialTheme.walletSpacing
     Scaffold(
         modifier = modifier.fillMaxSize(),
         contentWindowInsets = WindowInsets(0),
@@ -191,6 +189,28 @@ fun CardReconcileScreen(
                 },
             )
         },
+        bottomBar = {
+            if (!uiState.isLoading && !uiState.notFound) {
+                // One main action at a time: work out the difference first, then save it.
+                BottomActionBar {
+                    if (uiState.preview == null) {
+                        PrimaryActionButton(
+                            text = stringResource(R.string.card_reconcile_calculate),
+                            onClick = onCalculateClick,
+                            enabled = uiState.isCalculateEnabled,
+                            modifier = Modifier.weight(1f),
+                        )
+                    } else {
+                        PrimaryActionButton(
+                            text = stringResource(R.string.card_reconcile_confirm),
+                            onClick = onSaveConfirmed,
+                            enabled = uiState.isSaveEnabled,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         when {
@@ -212,10 +232,10 @@ fun CardReconcileScreen(
                     modifier =
                         Modifier
                             .fillMaxSize()
-                            .verticalScroll(rememberScrollState())
                             .padding(innerPadding)
-                            .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                            .verticalScroll(rememberScrollState())
+                            .padding(spacing.screenGutter),
+                    verticalArrangement = Arrangement.spacedBy(spacing.l),
                 ) {
                     Text(
                         text = stringResource(R.string.card_reconcile_intro),
@@ -223,15 +243,17 @@ fun CardReconcileScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
 
-                    DateSelectorField(
+                    TonalSelector(
                         label = stringResource(R.string.card_reconcile_closing_date),
                         value = uiState.closingDate?.formatMedium().orEmpty(),
+                        leadingIcon = Icons.Default.CalendarMonth,
                         onClick = onOpenClosingDatePicker,
                     )
 
-                    DateSelectorField(
+                    TonalSelector(
                         label = stringResource(R.string.card_reconcile_due_date),
                         value = uiState.dueDate?.formatMedium().orEmpty(),
+                        leadingIcon = Icons.Default.CalendarMonth,
                         onClick = onOpenDueDatePicker,
                     )
 
@@ -258,18 +280,6 @@ fun CardReconcileScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
 
-                    Button(
-                        onClick = onCalculateClick,
-                        enabled = uiState.isCalculateEnabled,
-                        shape = RoundedCornerShape(12.dp),
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .height(50.dp),
-                    ) {
-                        Text(text = stringResource(R.string.card_reconcile_calculate))
-                    }
-
                     if (uiState.generalErrorRes != null) {
                         Text(
                             text = stringResource(uiState.generalErrorRes),
@@ -279,11 +289,9 @@ fun CardReconcileScreen(
                     }
 
                     uiState.preview?.let { preview ->
-                        HorizontalDivider()
                         ReconciliationResult(
                             preview = preview,
                             statedInterest = uiState.interestText.ifBlank { null }?.let { MoneyParser.parse(it) },
-                            onSaveConfirmed = onSaveConfirmed,
                             onForceAdjustConfirmed = onForceAdjustConfirmed,
                             onReviewTransactionsClick = onReviewTransactionsClick,
                             isSaveEnabled = uiState.isSaveEnabled,
@@ -311,11 +319,14 @@ fun CardReconcileScreen(
     }
 }
 
+/**
+ * What the reconciliation found, on a tonal layer. Saving is the main action of the bottom bar, so
+ * only the secondary choices of a negative difference live here.
+ */
 @Composable
 private fun ReconciliationResult(
     preview: ReconciliationPreview,
     statedInterest: Money?,
-    onSaveConfirmed: () -> Unit,
     onForceAdjustConfirmed: () -> Unit,
     onReviewTransactionsClick: () -> Unit,
     isSaveEnabled: Boolean,
@@ -324,135 +335,79 @@ private fun ReconciliationResult(
     val locale = LocalConfiguration.current.locales[0]
     val difference = preview.difference
     val closingText = preview.closingDate.formatMedium(locale)
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        ResultRow(
-            label = stringResource(R.string.card_reconcile_app_debt),
-            amount = preview.appDebt,
-        )
-        ResultRow(
-            label = stringResource(R.string.card_reconcile_statement_balance),
-            amount = preview.statementBalance,
-        )
-        ResultRow(
-            label = stringResource(R.string.card_reconcile_difference),
-            amount = difference,
-            type =
-                when {
-                    difference.isPositive -> TransactionType.EXPENSE
-                    difference.isNegative -> TransactionType.INCOME
-                    else -> null
-                },
-            sign =
-                when {
-                    difference.isPositive -> MoneySign.PLUS
-                    difference.isNegative -> MoneySign.MINUS
-                    else -> MoneySign.NONE
-                },
-        )
+    SectionCard(modifier = modifier) {
+        Column(verticalArrangement = Arrangement.spacedBy(MaterialTheme.walletSpacing.m)) {
+            ResultRow(
+                label = stringResource(R.string.card_reconcile_app_debt),
+                amount = preview.appDebt,
+            )
+            ResultRow(
+                label = stringResource(R.string.card_reconcile_statement_balance),
+                amount = preview.statementBalance,
+            )
+            ResultRow(
+                label = stringResource(R.string.card_reconcile_difference),
+                amount = difference,
+                type =
+                    when {
+                        difference.isPositive -> TransactionType.EXPENSE
+                        difference.isNegative -> TransactionType.INCOME
+                        else -> null
+                    },
+                sign =
+                    when {
+                        difference.isPositive -> MoneySign.PLUS
+                        difference.isNegative -> MoneySign.MINUS
+                        else -> MoneySign.NONE
+                    },
+            )
 
-        when {
-            difference == Money.ZERO -> {
-                Text(
-                    text = stringResource(R.string.card_reconcile_matches),
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-                SaveButton(
-                    onClick = onSaveConfirmed,
-                    enabled = isSaveEnabled,
-                )
-            }
-
-            difference.isPositive -> {
-                Text(
-                    text = stringResource(R.string.card_reconcile_positive, difference.format(locale), closingText),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                if (preview.interestMismatch && statedInterest != null) {
+            when {
+                difference == Money.ZERO -> {
                     Text(
-                        text =
-                            stringResource(
-                                R.string.card_reconcile_mismatch,
-                                difference.format(locale),
-                                statedInterest.format(locale),
-                            ),
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = stringResource(R.string.card_reconcile_matches),
+                        style = MaterialTheme.typography.bodyLarge,
                     )
                 }
-                SaveButton(
-                    onClick = onSaveConfirmed,
-                    enabled = isSaveEnabled,
-                )
-            }
 
-            else -> {
-                Text(
-                    text = stringResource(R.string.card_reconcile_negative, (-difference).format(locale)),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                OutlinedButton(
-                    onClick = onReviewTransactionsClick,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(text = stringResource(R.string.card_reconcile_review_transactions))
+                difference.isPositive -> {
+                    Text(
+                        text = stringResource(R.string.card_reconcile_positive, difference.format(locale), closingText),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    if (preview.interestMismatch && statedInterest != null) {
+                        Text(
+                            text =
+                                stringResource(
+                                    R.string.card_reconcile_mismatch,
+                                    difference.format(locale),
+                                    statedInterest.format(locale),
+                                ),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                 }
-                OutlinedButton(
-                    onClick = onForceAdjustConfirmed,
-                    enabled = isSaveEnabled,
-                    shape = RoundedCornerShape(12.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(text = stringResource(R.string.card_reconcile_force_adjust))
-                }
-                SaveButton(
-                    onClick = onSaveConfirmed,
-                    enabled = isSaveEnabled,
-                )
-            }
-        }
-    }
-}
 
-@Composable
-private fun DateSelectorField(
-    label: String,
-    value: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    OutlinedCard(
-        onClick = onClick,
-        shape = RoundedCornerShape(8.dp),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = Icons.Default.CalendarMonth,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(modifier = Modifier.width(16.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = value,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+                else -> {
+                    Text(
+                        text = stringResource(R.string.card_reconcile_negative, (-difference).format(locale)),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    FilledTonalButton(
+                        onClick = onReviewTransactionsClick,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = SECONDARY_ACTION_HEIGHT),
+                    ) {
+                        Text(text = stringResource(R.string.card_reconcile_review_transactions))
+                    }
+                    FilledTonalButton(
+                        onClick = onForceAdjustConfirmed,
+                        enabled = isSaveEnabled,
+                        modifier = Modifier.fillMaxWidth().heightIn(min = SECONDARY_ACTION_HEIGHT),
+                    ) {
+                        Text(text = stringResource(R.string.card_reconcile_force_adjust))
+                    }
+                }
             }
         }
     }
@@ -480,23 +435,7 @@ private fun ResultRow(
     }
 }
 
-@Composable
-private fun SaveButton(
-    onClick: () -> Unit,
-    enabled: Boolean,
-) {
-    Button(
-        onClick = onClick,
-        enabled = enabled,
-        shape = RoundedCornerShape(12.dp),
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .height(50.dp),
-    ) {
-        Text(text = stringResource(R.string.card_reconcile_confirm))
-    }
-}
+private val SECONDARY_ACTION_HEIGHT = 48.dp
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

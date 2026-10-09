@@ -11,10 +11,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.FilterChip
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,40 +28,41 @@ import com.crguarin.wallet.R
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.recurring.RecurrenceFrequency
 import com.crguarin.wallet.domain.model.recurring.RecurringMode
+import com.crguarin.wallet.ui.accounts.TonalSelector
+import com.crguarin.wallet.ui.accounts.WalletFilterChip
+import com.crguarin.wallet.ui.accounts.WalletSegmentedControl
+import com.crguarin.wallet.ui.accounts.WalletTextField
 import com.crguarin.wallet.ui.util.formatMedium
 import java.time.LocalDate
 
 // Form selectors of [RecurringEditScreen].
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun TypeSelector(
     selected: TransactionType,
     onTypeSelected: (TransactionType) -> Unit,
 ) {
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        FilterChip(
-            selected = selected == TransactionType.EXPENSE,
-            onClick = { onTypeSelected(TransactionType.EXPENSE) },
-            label = { Text(text = stringResource(R.string.type_expense)) },
-        )
-        FilterChip(
-            selected = selected == TransactionType.INCOME,
-            onClick = { onTypeSelected(TransactionType.INCOME) },
-            label = { Text(text = stringResource(R.string.type_income)) },
-        )
-    }
+    WalletSegmentedControl(
+        options = listOf(TransactionType.EXPENSE, TransactionType.INCOME),
+        selected = selected,
+        onSelect = onTypeSelected,
+        label = { type ->
+            stringResource(if (type == TransactionType.EXPENSE) R.string.type_expense else R.string.type_income)
+        },
+    )
 }
 
+/** Caption of a block of a form, above its options. */
 @Composable
 internal fun FieldLabel(text: String) {
     Text(
         text = text,
-        style = MaterialTheme.typography.bodyLarge,
+        style = MaterialTheme.typography.labelLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
 
+/** Field that opens a picker: [label] is its caption, [value] what was chosen (the label itself while empty). */
 @Composable
 internal fun SelectorRow(
     label: String,
@@ -71,19 +71,17 @@ internal fun SelectorRow(
     onClick: () -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        FieldLabel(text = label)
-        Spacer(modifier = Modifier.height(4.dp))
-        OutlinedButton(
+        TonalSelector(
+            label = if (value != null) label else null,
+            value = value ?: label,
             onClick = onClick,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(text = value ?: label)
-        }
+        )
         if (errorRes != null) {
             Text(
                 text = stringResource(errorRes),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(start = 16.dp, top = 4.dp),
             )
         }
     }
@@ -123,14 +121,10 @@ internal fun FrequencySelector(
         FieldLabel(text = stringResource(R.string.recurring_interval_label))
         Spacer(modifier = Modifier.height(4.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
+            WalletTextField(
                 value = intervalText,
                 onValueChange = onIntervalChanged,
-                isError = intervalErrorRes != null,
-                supportingText =
-                    intervalErrorRes?.let { res ->
-                        { Text(text = stringResource(res)) }
-                    },
+                errorRes = intervalErrorRes,
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.weight(1f),
@@ -153,17 +147,16 @@ internal fun FrequencySelector(
     }
 }
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun FrequencyChip(
     selected: Boolean,
     label: String,
     onClick: () -> Unit,
 ) {
-    FilterChip(
+    WalletFilterChip(
         selected = selected,
         onClick = onClick,
-        label = { Text(text = label) },
+        label = label,
     )
 }
 
@@ -190,18 +183,18 @@ internal fun EndsSelector(
         )
         if (!endNever) {
             Spacer(modifier = Modifier.height(4.dp))
-            OutlinedButton(
+            TonalSelector(
+                value = endDate?.formatMedium() ?: stringResource(R.string.recurring_end_on_date),
+                leadingIcon = Icons.Default.CalendarMonth,
                 onClick = onOpenEndDatePicker,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(text = endDate?.formatMedium() ?: stringResource(R.string.recurring_end_on_date))
-            }
+            )
         }
         if (endErrorRes != null) {
             Text(
                 text = stringResource(endErrorRes),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(start = 16.dp, top = 4.dp),
             )
         }
     }
@@ -292,10 +285,10 @@ internal fun ReminderSelector(
                     } else {
                         resources.getQuantityString(R.plurals.recurring_reminder_days_before, days, days)
                     }
-                FilterChip(
+                WalletFilterChip(
                     selected = selected == days,
                     onClick = { onReminderSelected(days) },
-                    label = { Text(text = label) },
+                    label = label,
                 )
             }
         }

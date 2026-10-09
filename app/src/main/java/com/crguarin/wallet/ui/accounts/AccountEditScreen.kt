@@ -1,7 +1,6 @@
 package com.crguarin.wallet.ui.accounts
 
 import android.annotation.SuppressLint
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,30 +14,24 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CreditCard
 import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Savings
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
@@ -47,11 +40,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -60,11 +51,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.crguarin.wallet.R
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.ui.components.AmountTextField
+import com.crguarin.wallet.ui.components.BottomActionBar
 import com.crguarin.wallet.ui.components.ColorPicker
 import com.crguarin.wallet.ui.components.ErrorState
 import com.crguarin.wallet.ui.components.IconPicker
 import com.crguarin.wallet.ui.components.LoadingState
+import com.crguarin.wallet.ui.components.PrimaryActionButton
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletSpacing
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 
 @SuppressLint("LocalContextGetResourceValueCall")
@@ -145,6 +139,7 @@ fun AccountEditScreen(
     onFareChanged: (String) -> Unit = {},
     onTransitBalanceNegativeChanged: (Boolean) -> Unit = {},
 ) {
+    val spacing = MaterialTheme.walletSpacing
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         topBar = {
@@ -168,6 +163,19 @@ fun AccountEditScreen(
                     }
                 },
             )
+        },
+        bottomBar = {
+            if (!uiState.isLoading && !uiState.notFound) {
+                BottomActionBar {
+                    PrimaryActionButton(
+                        text = stringResource(R.string.action_save),
+                        onClick = onSaveClick,
+                        enabled = uiState.isSaveEnabled,
+                        isLoading = uiState.isSaving,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = modifier.fillMaxSize(),
@@ -198,34 +206,27 @@ fun AccountEditScreen(
                     .fillMaxSize()
                     .padding(innerPadding)
                     .verticalScroll(rememberScrollState())
-                    .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                    .padding(spacing.screenGutter),
+            verticalArrangement = Arrangement.spacedBy(spacing.l),
         ) {
             // Name Field
-            OutlinedTextField(
+            WalletTextField(
                 value = uiState.name,
                 onValueChange = onNameChanged,
-                label = { Text(text = stringResource(R.string.account_edit_name_label)) },
-                isError = uiState.nameErrorRes != null,
-                supportingText = uiState.nameErrorRes?.let { { Text(stringResource(it)) } },
+                label = stringResource(R.string.account_edit_name_label),
+                errorRes = uiState.nameErrorRes,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
 
             // Account Type Selector: a column of full-width options so labels fit at fontScale 2.
-            Text(
-                text = stringResource(R.string.account_edit_type_label),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.semantics { heading() },
-            )
+            FormSectionTitle(text = stringResource(R.string.account_edit_type_label))
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(spacing.s),
             ) {
                 AccountTypeEditOption(
-                    type = AccountType.CASH,
                     isSelected = uiState.type == AccountType.CASH,
                     enabled = !uiState.isTypeLocked,
                     onClick = { onTypeChanged(AccountType.CASH) },
@@ -233,7 +234,6 @@ fun AccountEditScreen(
                     label = stringResource(R.string.account_type_cash),
                 )
                 AccountTypeEditOption(
-                    type = AccountType.SAVINGS,
                     isSelected = uiState.type == AccountType.SAVINGS,
                     enabled = !uiState.isTypeLocked,
                     onClick = { onTypeChanged(AccountType.SAVINGS) },
@@ -241,7 +241,6 @@ fun AccountEditScreen(
                     label = stringResource(R.string.account_type_savings),
                 )
                 AccountTypeEditOption(
-                    type = AccountType.CREDIT_CARD,
                     isSelected = uiState.type == AccountType.CREDIT_CARD,
                     enabled = !uiState.isTypeLocked,
                     onClick = { onTypeChanged(AccountType.CREDIT_CARD) },
@@ -249,7 +248,6 @@ fun AccountEditScreen(
                     label = stringResource(R.string.account_type_credit_card),
                 )
                 AccountTypeEditOption(
-                    type = AccountType.TRANSIT_CARD,
                     isSelected = uiState.type == AccountType.TRANSIT_CARD,
                     enabled = !uiState.isTypeLocked,
                     onClick = { onTypeChanged(AccountType.TRANSIT_CARD) },
@@ -288,70 +286,41 @@ fun AccountEditScreen(
                 )
 
                 if (uiState.isTransitCard) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Card(
-                        shape = RoundedCornerShape(12.dp),
-                        colors =
-                            CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            ),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = stringResource(R.string.transit_negative_balance_label),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    fontWeight = FontWeight.SemiBold,
-                                )
-                                if (uiState.transitBalanceNegative) {
-                                    Text(
-                                        text = stringResource(R.string.transit_negative_balance_supporting),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Switch(
-                                checked = uiState.transitBalanceNegative,
-                                onCheckedChange = onTransitBalanceNegativeChanged,
-                            )
-                        }
-                    }
+                    Spacer(modifier = Modifier.height(spacing.s))
+                    ToggleCard(
+                        title = stringResource(R.string.transit_negative_balance_label),
+                        subtitle =
+                            if (uiState.transitBalanceNegative) {
+                                stringResource(R.string.transit_negative_balance_supporting)
+                            } else {
+                                null
+                            },
+                        checked = uiState.transitBalanceNegative,
+                        onCheckedChange = onTransitBalanceNegativeChanged,
+                    )
                 }
 
                 if (uiState.showInitialBalanceWarning) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Card(
-                        colors =
-                            CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.5f),
-                            ),
-                        shape = RoundedCornerShape(8.dp),
+                    Spacer(modifier = Modifier.height(spacing.s))
+                    Surface(
+                        color = MaterialTheme.colorScheme.tertiaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                        shape = MaterialTheme.shapes.medium,
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Row(
-                            modifier = Modifier.padding(12.dp),
+                            modifier = Modifier.padding(spacing.m),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Info,
                                 contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onTertiaryContainer,
                                 modifier = Modifier.size(20.dp),
                             )
-                            Spacer(modifier = Modifier.width(8.dp))
+                            Spacer(modifier = Modifier.width(spacing.s))
                             Text(
                                 text = stringResource(R.string.account_edit_initial_balance_warning),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer,
                             )
                         }
                     }
@@ -366,34 +335,22 @@ fun AccountEditScreen(
                     errorMessage = uiState.creditLimitErrorRes?.let { stringResource(it) },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                WalletTextField(
                     value = uiState.statementDayText,
                     onValueChange = onStatementDayChanged,
-                    label = { Text(text = stringResource(R.string.card_statement_day_label)) },
-                    supportingText = {
-                        Text(
-                            text =
-                                uiState.statementDayErrorRes?.let { stringResource(it) }
-                                    ?: stringResource(R.string.card_day_hint),
-                        )
-                    },
-                    isError = uiState.statementDayErrorRes != null,
+                    label = stringResource(R.string.card_statement_day_label),
+                    supportingText = stringResource(R.string.card_day_hint),
+                    errorRes = uiState.statementDayErrorRes,
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                WalletTextField(
                     value = uiState.paymentDueDayText,
                     onValueChange = onPaymentDueDayChanged,
-                    label = { Text(text = stringResource(R.string.card_payment_due_day_label)) },
-                    supportingText = {
-                        Text(
-                            text =
-                                uiState.paymentDueDayErrorRes?.let { stringResource(it) }
-                                    ?: stringResource(R.string.card_day_hint),
-                        )
-                    },
-                    isError = uiState.paymentDueDayErrorRes != null,
+                    label = stringResource(R.string.card_payment_due_day_label),
+                    supportingText = stringResource(R.string.card_day_hint),
+                    errorRes = uiState.paymentDueDayErrorRes,
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.fillMaxWidth(),
@@ -414,19 +371,14 @@ fun AccountEditScreen(
                             text = stringResource(R.string.transit_fare_supporting),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = 16.dp, top = 4.dp),
+                            modifier = Modifier.padding(start = spacing.l, top = spacing.xs),
                         )
                     }
                 }
             }
 
             // Color Picker
-            Text(
-                text = stringResource(R.string.account_edit_color_label),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.semantics { heading() },
-            )
+            FormSectionTitle(text = stringResource(R.string.account_edit_color_label))
 
             val disabledColors = uiState.usedColors - uiState.color
             ColorPicker(
@@ -443,12 +395,7 @@ fun AccountEditScreen(
             }
 
             // Icon Picker
-            Text(
-                text = stringResource(R.string.account_edit_icon_label),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.semantics { heading() },
-            )
+            FormSectionTitle(text = stringResource(R.string.account_edit_icon_label))
 
             IconPicker(
                 selectedIcon = uiState.icon,
@@ -456,40 +403,12 @@ fun AccountEditScreen(
             )
 
             // Include in Total Switch
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors =
-                    CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                    ),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.account_edit_include_in_total_title),
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold,
-                        )
-                        Text(
-                            text = stringResource(R.string.account_edit_include_in_total_subtitle),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Switch(
-                        checked = uiState.includeInTotal,
-                        onCheckedChange = onIncludeInTotalChanged,
-                    )
-                }
-            }
+            ToggleCard(
+                title = stringResource(R.string.account_edit_include_in_total_title),
+                subtitle = stringResource(R.string.account_edit_include_in_total_subtitle),
+                checked = uiState.includeInTotal,
+                onCheckedChange = onIncludeInTotalChanged,
+            )
 
             if (uiState.generalErrorRes != null) {
                 Text(
@@ -500,73 +419,32 @@ fun AccountEditScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Button(
-                onClick = onSaveClick,
-                enabled = uiState.isSaveEnabled,
-                shape = RoundedCornerShape(12.dp),
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-            ) {
-                if (uiState.isSaving) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp,
-                    )
-                } else {
-                    Text(
-                        text = stringResource(R.string.action_save),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }
 
+/** One account type to choose among four: a tonal card with a leading icon and a check when chosen. */
 @Composable
 private fun AccountTypeEditOption(
-    type: AccountType,
     isSelected: Boolean,
     onClick: () -> Unit,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     label: String,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    OutlinedCard(
+    val spacing = MaterialTheme.walletSpacing
+    TonalOptionCard(
+        selected = isSelected,
         onClick = onClick,
         enabled = enabled,
-        shape = RoundedCornerShape(12.dp),
-        border =
-            if (isSelected) {
-                BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-            } else {
-                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-            },
-        colors =
-            CardDefaults.outlinedCardColors(
-                containerColor =
-                    if (isSelected) {
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
-                    } else {
-                        MaterialTheme.colorScheme.surface
-                    },
-            ),
         modifier = modifier.fillMaxWidth(),
     ) {
         Row(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(horizontal = spacing.l, vertical = spacing.m),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
@@ -574,19 +452,25 @@ private fun AccountTypeEditOption(
                 contentDescription = null,
                 tint =
                     if (isSelected) {
-                        MaterialTheme.colorScheme.primary
+                        MaterialTheme.colorScheme.onSecondaryContainer
                     } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                        MaterialTheme.colorScheme.primary
                     },
                 modifier = Modifier.size(28.dp),
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(spacing.m))
             Text(
                 text = label,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                style = MaterialTheme.typography.titleSmall,
                 modifier = Modifier.weight(1f),
             )
+            if (isSelected) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         }
     }
 }

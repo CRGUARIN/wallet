@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -11,9 +12,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.R
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletSpacing
 
 /** Centered progress indicator shared by every screen while its data is loading. */
 @Composable
@@ -25,7 +26,7 @@ fun LoadingState(
     Box(
         modifier =
             modifier
-                .then(if (fillMaxSize) Modifier.fillMaxSize() else Modifier.padding(32.dp))
+                .then(if (fillMaxSize) Modifier.fillMaxSize() else Modifier.padding(MaterialTheme.walletSpacing.xxxl))
                 .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {

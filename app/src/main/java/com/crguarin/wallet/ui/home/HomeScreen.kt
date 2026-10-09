@@ -1,8 +1,11 @@
 package com.crguarin.wallet.ui.home
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,18 +13,31 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -38,11 +54,14 @@ import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.ui.components.EmptyState
 import com.crguarin.wallet.ui.components.LoadingState
 import com.crguarin.wallet.ui.components.TransactionListItem
+import com.crguarin.wallet.ui.components.groupedItemBackground
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletSpacing
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 import java.time.Instant
 import java.time.LocalDate
 
+@SuppressLint("LocalContextGetResourceValueCall")
 @Composable
 fun HomeRoute(
     onAccountClick: (Long) -> Unit,
@@ -56,6 +75,7 @@ fun HomeRoute(
     onUpcomingCardClick: (Long) -> Unit = {},
     onViewAllRecurring: () -> Unit = {},
     onViewDebts: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
     viewModel: HomeViewModel? = safeHiltViewModel(),
 ) {
     if (viewModel == null) {
@@ -71,12 +91,36 @@ fun HomeRoute(
             onUpcomingCardClick = onUpcomingCardClick,
             onViewAllRecurring = onViewAllRecurring,
             onViewDebts = onViewDebts,
+            onOpenSettings = onOpenSettings,
             modifier = modifier,
         )
         return
     }
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val context = LocalContext.current
+
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is HomeEvent.TripRegistered -> {
+                    val result =
+                        snackbarHostState.showSnackbar(
+                            message = context.getString(R.string.transit_trip_registered),
+                            actionLabel = context.getString(R.string.action_undo),
+                            duration = SnackbarDuration.Short,
+                        )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        viewModel.undoTrip(event.transactionId)
+                    }
+                }
+                is HomeEvent.ShowSnackbar -> {
+                    snackbarHostState.showSnackbar(context.getString(event.messageRes))
+                }
+            }
+        }
+    }
 
     HomeScreen(
         uiState = uiState,
@@ -90,11 +134,20 @@ fun HomeRoute(
         onUpcomingCardClick = onUpcomingCardClick,
         onViewAllRecurring = onViewAllRecurring,
         onViewDebts = onViewDebts,
+        onOpenSettings = onOpenSettings,
+        onTripClick = viewModel::onTripClick,
+        onTripCardSelected = viewModel::onTripCardSelected,
+        onDismissTripChooser = viewModel::dismissTripChooser,
+        snackbarHostState = snackbarHostState,
         modifier = modifier,
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * Home: the total balance first, then the shortcuts (expense, income, transfer, trip), every
+ * account at a glance, what is coming up, the month and the latest movements.
+ */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen(
     uiState: HomeUiState,
@@ -109,13 +162,35 @@ fun HomeScreen(
     onUpcomingCardClick: (Long) -> Unit = {},
     onViewAllRecurring: () -> Unit = {},
     onViewDebts: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+    onTripClick: () -> Unit = {},
+    onTripCardSelected: (Long) -> Unit = {},
+    onDismissTripChooser: () -> Unit = {},
+    snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
+    val spacing = MaterialTheme.walletSpacing
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         topBar = {
-            TopAppBar(title = { Text(text = stringResource(R.string.home_title)) })
+            TopAppBar(
+                title = { Text(text = stringResource(R.string.home_title)) },
+                actions = {
+                    IconButton(onClick = onOpenSettings) {
+                        Icon(
+                            imageVector = Icons.Outlined.Settings,
+                            contentDescription = stringResource(R.string.nav_settings),
+                        )
+                    }
+                },
+                scrollBehavior = scrollBehavior,
+            )
         },
-        modifier = modifier.fillMaxSize(),
+        snackbarHost = {
+            // Lifted above the floating "new movement" button, which would hide the undo action.
+            SnackbarHost(snackbarHostState, modifier = Modifier.padding(bottom = FabClearance))
+        },
+        modifier = modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
     ) { innerPadding ->
         if (uiState.isLoading) {
             LoadingState(modifier = Modifier.padding(innerPadding))
@@ -126,31 +201,36 @@ fun HomeScreen(
                 Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(spacing.screenGutter),
+            verticalArrangement = Arrangement.spacedBy(spacing.l),
         ) {
             item(key = "total_balance") {
                 TotalBalanceCard(totalBalance = uiState.totalBalance)
             }
 
-            item(key = "month_summary") {
-                MonthSummaryCard(
-                    monthSummary = uiState.monthSummary,
-                    onViewReports = onViewReports,
+            item(key = "quick_actions") {
+                QuickActions(
+                    canTransfer = uiState.canTransfer,
+                    canRegisterTrip = uiState.canRegisterTrip,
+                    onQuickAction = onQuickAction,
+                    onTripClick = onTripClick,
                 )
             }
 
             if (uiState.accounts.isNotEmpty()) {
-                item(key = "accounts_header") {
-                    SectionHeader(title = stringResource(R.string.accounts_title))
-                }
-                item(key = "accounts_list") {
-                    AccountsRow(
-                        accounts = uiState.accounts,
-                        onAccountClick = onAccountClick,
-                        cardOverviews = uiState.cardOverviews,
-                        today = uiState.today,
-                    )
+                item(key = "accounts") {
+                    Column(verticalArrangement = Arrangement.spacedBy(spacing.s)) {
+                        SectionHeader(
+                            title = stringResource(R.string.accounts_title),
+                            modifier = Modifier.padding(horizontal = spacing.xs),
+                        )
+                        AccountsList(
+                            accounts = uiState.accounts,
+                            onAccountClick = onAccountClick,
+                            cardOverviews = uiState.cardOverviews,
+                            today = uiState.today,
+                        )
+                    }
                 }
             }
 
@@ -168,6 +248,13 @@ fun HomeScreen(
                 }
             }
 
+            item(key = "month_summary") {
+                MonthSummaryCard(
+                    monthSummary = uiState.monthSummary,
+                    onViewReports = onViewReports,
+                )
+            }
+
             val debts = uiState.debts
             if (debts != null && debts.hasActive) {
                 item(key = "debts") {
@@ -179,22 +266,16 @@ fun HomeScreen(
                 }
             }
 
-            item(key = "quick_actions") {
-                QuickActions(
-                    canTransfer = uiState.canTransfer,
-                    onQuickAction = onQuickAction,
-                )
-            }
-
             item(key = "recent_header") {
-                Row(
+                // FlowRow: with large fonts "Ver todos" moves under the title instead of splitting its words.
+                FlowRow(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
+                    itemVerticalAlignment = Alignment.CenterVertically,
                 ) {
                     SectionHeader(
                         title = stringResource(R.string.home_recent_transactions),
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.padding(horizontal = spacing.xs),
                     )
                     TextButton(onClick = onViewAllTransactions) {
                         Text(text = stringResource(R.string.home_view_all))
@@ -212,24 +293,50 @@ fun HomeScreen(
                     )
                 }
             } else {
-                items(
-                    items = uiState.recentTransactions,
-                    key = { it.transaction.id },
-                    contentType = { "home_transaction" },
-                ) { details ->
-                    TransactionListItem(
-                        details = details,
-                        onClick = { onTransactionClick(details.transaction.id) },
+                item(key = "recent_transactions") {
+                    RecentTransactions(
+                        transactions = uiState.recentTransactions,
+                        onTransactionClick = onTransactionClick,
                     )
                 }
             }
 
             item(key = "bottom_spacer") {
-                Spacer(modifier = Modifier.height(72.dp))
+                Spacer(modifier = Modifier.height(FabClearance))
+            }
+        }
+    }
+
+    if (uiState.showTripChooser) {
+        TripCardSheet(
+            cards = uiState.transitCards,
+            onCardSelected = onTripCardSelected,
+            onDismissRequest = onDismissTripChooser,
+        )
+    }
+}
+
+/** Latest movements on one tonal layer, one row after another with no divider lines. */
+@Composable
+private fun RecentTransactions(
+    transactions: List<TransactionDetails>,
+    onTransactionClick: (Long) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        transactions.forEachIndexed { index, details ->
+            key(details.transaction.id) {
+                TransactionListItem(
+                    details = details,
+                    onClick = { onTransactionClick(details.transaction.id) },
+                    modifier = Modifier.groupedItemBackground(index, transactions.size),
+                )
             }
         }
     }
 }
+
+/** Space the floating action button takes at the bottom end, kept free of snackbars and content. */
+private val FabClearance = 72.dp
 
 private val previewInstant: Instant = Instant.EPOCH
 private val previewDate: LocalDate = LocalDate.of(2026, 9, 28)
@@ -238,17 +345,22 @@ private fun previewAccount(
     id: Long,
     name: String,
     balance: Money,
+    type: AccountType = AccountType.CASH,
+    icon: String = "wallet",
+    color: Int = 0xFF66BB6A.toInt(),
+    fare: Money? = null,
 ): AccountWithBalance =
     AccountWithBalance(
         account =
             Account(
                 id = id,
                 name = name,
-                type = AccountType.CASH,
+                type = type,
                 initialBalance = balance,
-                color = 0xFF66BB6A.toInt(),
-                icon = "wallet",
+                color = color,
+                icon = icon,
                 sortOrder = id.toInt(),
+                fare = fare,
                 createdAt = previewInstant,
             ),
         balance = balance,
@@ -280,15 +392,24 @@ private fun previewTransaction(
         categoryIcon = if (type == TransactionType.TRANSFER) null else "restaurant",
     )
 
-private fun previewState(): HomeUiState =
+private fun previewState(totalBalance: Money = Money(12_500_000L)): HomeUiState =
     HomeUiState(
         isLoading = false,
-        totalBalance = Money(12_500_000L),
+        totalBalance = totalBalance,
         monthSummary = MonthSummary(income = Money(5_000_000L), expense = Money(2_300_000L)),
         accounts =
             listOf(
                 previewAccount(1L, "Efectivo", Money(4_500_000L)),
-                previewAccount(2L, "Ahorros", Money(8_000_000L)),
+                previewAccount(2L, "Ahorros", Money(8_000_000L), icon = "savings", color = 0xFF42A5F5.toInt()),
+                previewAccount(
+                    3L,
+                    "Cívica",
+                    Money(1_205_000L),
+                    type = AccountType.TRANSIT_CARD,
+                    icon = "directions_bus",
+                    color = 0xFFFFA726.toInt(),
+                    fare = Money(355_000L),
+                ),
             ),
         recentTransactions =
             listOf(
@@ -318,7 +439,7 @@ private fun HomeScreenPreviewLight() {
 private fun HomeScreenPreviewLargeFont() {
     WalletTheme(darkTheme = false) {
         HomeScreen(
-            uiState = previewState(),
+            uiState = previewState(totalBalance = Money(99_999_999_999_900L)),
             onAccountClick = {},
             onTransactionClick = {},
             onViewAllTransactions = {},

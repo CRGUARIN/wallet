@@ -5,11 +5,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,6 +31,7 @@ import com.crguarin.wallet.domain.model.report.BalanceGranularity
 import com.crguarin.wallet.domain.model.report.BalancePoint
 import com.crguarin.wallet.domain.model.report.ReportFocus
 import com.crguarin.wallet.domain.model.report.ReportMode
+import com.crguarin.wallet.ui.components.SectionCard
 import com.crguarin.wallet.ui.reports.charts.BalanceLineChart
 import com.crguarin.wallet.ui.theme.WalletTheme
 import java.time.LocalDate
@@ -79,17 +76,11 @@ internal fun BalanceEvolutionCard(
             balanceXLabels(evolution.granularity, dataMonth, slotCount, locale)
         }
 
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+    SectionCard(modifier = modifier) {
+        Column {
             Text(
                 text = stringResource(R.string.reports_balance_evolution),
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.semantics { heading() },
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -102,7 +93,7 @@ internal fun BalanceEvolutionCard(
                                 pointDateLabel(selectedPoint.date, evolution.granularity, locale),
                                 formattedMoney(selectedPoint.balance, locale),
                             ),
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
                         modifier = Modifier.weight(1f),
                     )
                     Spacer(modifier = Modifier.width(8.dp))

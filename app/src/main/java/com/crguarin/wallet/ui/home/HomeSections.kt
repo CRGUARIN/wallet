@@ -2,7 +2,6 @@ package com.crguarin.wallet.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,33 +11,33 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.PieChart
 import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -47,29 +46,48 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
+import com.crguarin.wallet.core.money.MoneyFormatter
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.MonthSummary
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.card.CardOverview
+import com.crguarin.wallet.domain.model.card.StatementPaymentStatus
 import com.crguarin.wallet.domain.model.recurring.UpcomingKind
 import com.crguarin.wallet.domain.model.recurring.UpcomingPayment
 import com.crguarin.wallet.domain.model.transit.TransitMath
-import com.crguarin.wallet.ui.accounts.CardRowBalance
-import com.crguarin.wallet.ui.accounts.TransitRowBalance
 import com.crguarin.wallet.ui.accounts.showPaymentReminder
+import com.crguarin.wallet.ui.components.HeroAmountText
 import com.crguarin.wallet.ui.components.HeroCard
 import com.crguarin.wallet.ui.components.IconCatalog
 import com.crguarin.wallet.ui.components.MoneyText
+import com.crguarin.wallet.ui.components.PebbleAvatar
 import com.crguarin.wallet.ui.components.SectionCard
-import com.crguarin.wallet.ui.components.StoryAvatar
 import com.crguarin.wallet.ui.components.bounceClick
-import com.crguarin.wallet.ui.theme.WalletBrushes
+import com.crguarin.wallet.ui.theme.WalletShapeTokens
+import com.crguarin.wallet.ui.theme.tintOver
+import com.crguarin.wallet.ui.theme.walletColors
 import com.crguarin.wallet.ui.theme.walletSemanticColors
+import com.crguarin.wallet.ui.theme.walletSpacing
+import com.crguarin.wallet.ui.theme.walletTypography
+import com.crguarin.wallet.ui.util.formatMedium
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
 // Sections of the Home screen, composed by [HomeScreen].
+
+/** Quick action pebbles: the semantic color mixed over the surface at 13% (light) and 20% (dark). */
+private const val QUICK_TINT_LIGHT = 0.13f
+private const val QUICK_TINT_DARK = 0.20f
+
+/** Above this font scale the quick actions and the account balances stack instead of sitting side by side. */
+private const val STACKED_FONT_SCALE = 1.3f
+private const val STACKED_ROW_FONT_SCALE = 1.15f
+
+private val QuickActionPebbleSize = 56.dp
+
+/** Avatar of an account row, ring included: the tinted pebble inside it is 44 dp. */
+internal val AccountAvatarSize = 52.dp
 
 @Composable
 internal fun UpcomingPaymentsCard(
@@ -83,7 +101,7 @@ internal fun UpcomingPaymentsCard(
 ) {
     SectionCard(modifier = modifier) {
         SectionHeader(title = stringResource(R.string.home_upcoming_title))
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(MaterialTheme.walletSpacing.s))
         payments.take(5).forEach { payment ->
             UpcomingPaymentRow(
                 payment = payment,
@@ -112,6 +130,7 @@ internal fun UpcomingPaymentRow(
     today: LocalDate,
     onClick: () -> Unit,
 ) {
+    val spacing = MaterialTheme.walletSpacing
     val daysUntil =
         ChronoUnit.DAYS
             .between(today, payment.date)
@@ -123,12 +142,15 @@ internal fun UpcomingPaymentRow(
             1 -> stringResource(R.string.upcoming_tomorrow)
             else -> pluralStringResource(R.plurals.upcoming_in_days, daysUntil, daysUntil)
         }
+    // With large fonts the amount goes under the texts, so the name keeps the whole width.
+    val stacked = LocalDensity.current.fontScale > STACKED_ROW_FONT_SCALE
     Row(
         modifier =
             Modifier
                 .fillMaxWidth()
+                .heightIn(min = 48.dp)
                 .clickable(onClick = onClick)
-                .padding(vertical = 8.dp),
+                .padding(vertical = spacing.s),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(modifier = Modifier.weight(1f)) {
@@ -141,8 +163,8 @@ internal fun UpcomingPaymentRow(
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                maxLines = 1,
+                fontWeight = FontWeight.Bold,
+                maxLines = if (stacked) 2 else 1,
                 overflow = TextOverflow.Ellipsis,
             )
             if (payment.kind == UpcomingKind.RECURRING_PENDING) {
@@ -156,59 +178,100 @@ internal fun UpcomingPaymentRow(
                 text = "$whenText · ${payment.accountName}",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
+                maxLines = if (stacked) 2 else 1,
                 overflow = TextOverflow.Ellipsis,
             )
+            if (stacked) {
+                UpcomingPaymentAmount(payment)
+            }
         }
-        Spacer(modifier = Modifier.width(12.dp))
-        if (payment.amount != null) {
-            MoneyText(
-                amount = payment.amount,
-                type = payment.type,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-            )
-        } else {
-            Text(
-                text = stringResource(R.string.upcoming_amount_unknown),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+        if (!stacked) {
+            Spacer(modifier = Modifier.width(spacing.m))
+            UpcomingPaymentAmount(payment)
         }
+    }
+}
+
+@Composable
+private fun UpcomingPaymentAmount(payment: UpcomingPayment) {
+    if (payment.amount != null) {
+        MoneyText(
+            amount = payment.amount,
+            type = payment.type,
+            style = MaterialTheme.walletTypography.rowAmount,
+        )
+    } else {
+        Text(
+            text = stringResource(R.string.upcoming_amount_unknown),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
 /** Headline card with the signature gradient: the total balance of every active account. */
 @Composable
 internal fun TotalBalanceCard(totalBalance: Money) {
-    HeroCard {
+    val colors = MaterialTheme.walletColors
+    val locale = LocalConfiguration.current.locales[0]
+    // Same text MoneyText would draw: the formatter's no-break spaces become plain ones.
+    val formatted =
+        MoneyFormatter
+            .format(totalBalance, locale)
+            .replace(' ', ' ')
+            .replace(' ', ' ')
+    HeroCard(animateContours = true) {
         Text(
             text = stringResource(R.string.accounts_total_balance),
-            style = MaterialTheme.typography.titleSmall,
-            color = LocalContentColor.current.copy(alpha = 0.85f),
+            style = MaterialTheme.typography.labelLarge,
+            color = colors.onHero,
         )
-        Spacer(modifier = Modifier.height(6.dp))
-        MoneyText(
-            amount = totalBalance,
-            style = MaterialTheme.typography.headlineLarge,
-            color = LocalContentColor.current,
+        Spacer(modifier = Modifier.height(MaterialTheme.walletSpacing.xs))
+        HeroAmountText(
+            text = formatted,
+            color = colors.onHero,
+            modifier = Modifier.fillMaxWidth().semantics { contentDescription = formatted },
         )
     }
 }
 
+/**
+ * Month totals in one compact card: the three figures sit in a row when they fit and wrap with
+ * large fonts. "Ver reportes" shares the title row.
+ */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun MonthSummaryCard(
     monthSummary: MonthSummary,
     onViewReports: () -> Unit,
 ) {
+    val spacing = MaterialTheme.walletSpacing
     SectionCard {
-        SectionHeader(title = stringResource(R.string.account_detail_month_summary))
-        Spacer(modifier = Modifier.height(12.dp))
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            itemVerticalAlignment = Alignment.CenterVertically,
+        ) {
+            SectionHeader(
+                title = stringResource(R.string.account_detail_month_summary),
+                modifier = Modifier.padding(end = spacing.s),
+            )
+            TextButton(onClick = onViewReports) {
+                Icon(
+                    imageVector = Icons.Default.PieChart,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(spacing.xs))
+                Text(text = stringResource(R.string.home_view_reports))
+            }
+        }
+        Spacer(modifier = Modifier.height(spacing.xs))
         // FlowRow so the three amounts wrap instead of overlapping with large font scales.
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(spacing.s),
         ) {
             SummaryColumn(
                 label = stringResource(R.string.account_detail_income),
@@ -225,19 +288,6 @@ internal fun MonthSummaryCard(
                 amount = monthSummary.net,
             )
         }
-        Spacer(modifier = Modifier.height(4.dp))
-        TextButton(
-            onClick = onViewReports,
-            modifier = Modifier.align(Alignment.End),
-        ) {
-            Icon(
-                imageVector = Icons.Default.PieChart,
-                contentDescription = null,
-                modifier = Modifier.size(18.dp),
-            )
-            Spacer(modifier = Modifier.width(4.dp))
-            Text(text = stringResource(R.string.home_view_reports))
-        }
     }
 }
 
@@ -248,6 +298,7 @@ internal fun SummaryColumn(
     type: TransactionType? = null,
 ) {
     val semanticColors = MaterialTheme.walletSemanticColors
+    val spacing = MaterialTheme.walletSpacing
     // Colored dot before the label: income, expense, or neutral for the net and for zero totals.
     val dotColor =
         when (type) {
@@ -265,20 +316,20 @@ internal fun SummaryColumn(
                         .clip(CircleShape)
                         .background(dotColor),
             )
-            Spacer(modifier = Modifier.width(6.dp))
+            Spacer(modifier = Modifier.width(spacing.xs + spacing.xxs))
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Spacer(modifier = Modifier.height(2.dp))
+        Spacer(modifier = Modifier.height(spacing.xxs))
         MoneyText(
             amount = amount,
             type = type,
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
             // Indented so the amount lines up with the label, after the dot.
-            modifier = Modifier.padding(start = 14.dp),
+            modifier = Modifier.padding(start = spacing.m + spacing.xxs),
         )
     }
 }
@@ -291,147 +342,327 @@ internal fun SectionHeader(
     Text(
         text = title,
         style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.SemiBold,
         color = MaterialTheme.colorScheme.onSurface,
         modifier = modifier.semantics { heading() },
     )
 }
 
+/** What a row says under the account name, and the color it is drawn in. */
+private data class AccountStatus(
+    val text: String,
+    val color: Color,
+)
+
 /**
- * Accounts as Instagram-style stories: a colored circle per account, with a warm ring when the
- * account needs attention (a card payment reminder or a transit card that cannot pay one trip).
+ * Status line of a credit card row: the payment reminder when it applies (overdue or due within a
+ * week), otherwise how much credit is still available.
  */
 @Composable
-internal fun AccountsRow(
-    accounts: List<AccountWithBalance>,
-    onAccountClick: (Long) -> Unit,
-    cardOverviews: Map<Long, CardOverview> = emptyMap(),
-    today: LocalDate = LocalDate.now(),
-) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = Modifier.horizontalScroll(rememberScrollState()),
-    ) {
-        accounts.forEach { item ->
-            val cardOverview = cardOverviews[item.account.id]
-            val color = Color(item.account.color)
-            val needsAttention =
-                when {
-                    cardOverview != null && item.account.type == AccountType.CREDIT_CARD ->
-                        showPaymentReminder(cardOverview.paymentStatus, cardOverview.pendingStatementDueDate, today)
-                    item.account.type == AccountType.TRANSIT_CARD ->
-                        TransitMath.isCreditTrip(item.balance, item.account.fare) ||
-                            TransitMath.isCreditUsed(item.balance)
-                    else -> false
-                }
-            StoryAvatar(
-                icon = IconCatalog.get(item.account.icon),
-                color = color,
-                label = item.account.name,
-                onClick = { onAccountClick(item.account.id) },
-                ring = if (needsAttention) WalletBrushes.attentionRing else WalletBrushes.storyRing(color),
-                itemWidth = 136.dp,
-                subtitle = {
-                    when {
-                        cardOverview != null && item.account.type == AccountType.CREDIT_CARD ->
-                            CardRowBalance(
-                                overview = cardOverview,
-                                today = today,
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            )
-                        item.account.type == AccountType.TRANSIT_CARD ->
-                            TransitRowBalance(
-                                balance = item.balance,
-                                fare = item.account.fare,
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                            )
-                        else ->
-                            MoneyText(
-                                amount = item.balance,
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                    }
-                },
+private fun cardStatus(
+    overview: CardOverview,
+    today: LocalDate,
+): AccountStatus {
+    val dueDate = overview.pendingStatementDueDate
+    return when {
+        showPaymentReminder(overview.paymentStatus, dueDate, today) && dueDate != null ->
+            if (overview.paymentStatus == StatementPaymentStatus.OVERDUE) {
+                AccountStatus(stringResource(R.string.card_overdue), MaterialTheme.colorScheme.error)
+            } else {
+                AccountStatus(
+                    stringResource(R.string.card_pay_before, dueDate.formatMedium()),
+                    MaterialTheme.colorScheme.tertiary,
+                )
+            }
+        else -> {
+            val locale = LocalConfiguration.current.locales[0]
+            AccountStatus(
+                stringResource(R.string.card_available) + " " + MoneyFormatter.format(overview.available, locale),
+                MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }
 }
 
-private const val STACKED_FONT_SCALE = 1.3f
+/** Status line of a transit card: trips left, or the state of the credit trip. Null without a fare. */
+@Composable
+internal fun transitStatusText(
+    balance: Money,
+    fare: Money?,
+): String? =
+    when {
+        fare == null -> null
+        TransitMath.isCreditUsed(balance) -> stringResource(R.string.transit_credit_used_short)
+        TransitMath.isCreditTrip(balance, fare) -> stringResource(R.string.transit_credit_available_short)
+        else -> {
+            val trips = TransitMath.tripsLeft(balance, fare)
+            pluralStringResource(R.plurals.transit_trips_short, trips, trips)
+        }
+    }
 
-/** One quick action of the Home screen: the label and icon, the color it is drawn in, and the type it creates. */
+/** True when a transit card cannot pay a regular trip: only the credit trip is left, or it is owed. */
+internal fun transitNeedsAttention(
+    balance: Money,
+    fare: Money?,
+): Boolean = TransitMath.isCreditTrip(balance, fare) || TransitMath.isCreditUsed(balance)
+
+@Composable
+private fun transitStatus(
+    balance: Money,
+    fare: Money?,
+): AccountStatus? {
+    val text = transitStatusText(balance, fare) ?: return null
+    val warn = transitNeedsAttention(balance, fare)
+    return AccountStatus(
+        text = text,
+        color = if (warn) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+/**
+ * All active accounts as a vertical list on one tonal layer: tinted pebble (with its ring, or the
+ * warm attention ring and dot when the account needs attention), name, a status line and the
+ * balance at the end. With large fonts the balance drops under the name.
+ */
+@Composable
+internal fun AccountsList(
+    accounts: List<AccountWithBalance>,
+    onAccountClick: (Long) -> Unit,
+    modifier: Modifier = Modifier,
+    cardOverviews: Map<Long, CardOverview> = emptyMap(),
+    today: LocalDate = LocalDate.now(),
+) {
+    Column(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.large)
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .padding(vertical = MaterialTheme.walletSpacing.s),
+    ) {
+        accounts.forEach { item ->
+            AccountRow(
+                item = item,
+                overview = cardOverviews[item.account.id],
+                today = today,
+                onClick = { onAccountClick(item.account.id) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun AccountRow(
+    item: AccountWithBalance,
+    overview: CardOverview?,
+    today: LocalDate,
+    onClick: () -> Unit,
+) {
+    val spacing = MaterialTheme.walletSpacing
+    val account = item.account
+    val cardOverview = overview?.takeIf { account.type == AccountType.CREDIT_CARD }
+    val needsAttention =
+        when {
+            cardOverview != null ->
+                showPaymentReminder(cardOverview.paymentStatus, cardOverview.pendingStatementDueDate, today)
+            account.type == AccountType.TRANSIT_CARD -> transitNeedsAttention(item.balance, account.fare)
+            else -> false
+        }
+    val status =
+        when {
+            cardOverview != null -> cardStatus(cardOverview, today)
+            account.type == AccountType.TRANSIT_CARD -> transitStatus(item.balance, account.fare)
+            else -> null
+        }
+    val stacked = LocalDensity.current.fontScale > STACKED_ROW_FONT_SCALE
+
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 64.dp)
+                .clickable(onClick = onClick)
+                .padding(horizontal = spacing.l, vertical = spacing.s),
+        // With the balance under the name the text is taller than the avatar: line them up at the top.
+        verticalAlignment = if (stacked) Alignment.Top else Alignment.CenterVertically,
+    ) {
+        PebbleAvatar(
+            icon = IconCatalog.get(account.icon),
+            color = Color(account.color),
+            size = AccountAvatarSize,
+            showRing = true,
+            needsAttention = needsAttention,
+        )
+        Spacer(modifier = Modifier.width(spacing.m))
+        if (stacked) {
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.xxs)) {
+                AccountNameAndStatus(name = account.name, status = status)
+                AccountBalance(item = item, overview = cardOverview, alignment = Alignment.Start)
+            }
+        } else {
+            Column(modifier = Modifier.weight(1f)) {
+                AccountNameAndStatus(name = account.name, status = status)
+            }
+            Spacer(modifier = Modifier.width(spacing.m))
+            AccountBalance(item = item, overview = cardOverview, alignment = Alignment.End)
+        }
+    }
+}
+
+@Composable
+private fun AccountNameAndStatus(
+    name: String,
+    status: AccountStatus?,
+) {
+    Text(
+        text = name,
+        style = MaterialTheme.typography.bodyLarge,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.onSurface,
+        maxLines = 2,
+        overflow = TextOverflow.Ellipsis,
+    )
+    if (status != null) {
+        Text(
+            text = status.text,
+            style = MaterialTheme.typography.bodySmall,
+            color = status.color,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/** Balance of an account row. A credit card shows its debt (or the credit in its favor) with a label. */
+@Composable
+private fun AccountBalance(
+    item: AccountWithBalance,
+    overview: CardOverview?,
+    alignment: Alignment.Horizontal,
+) {
+    Column(horizontalAlignment = alignment) {
+        if (overview != null) {
+            val inFavor = overview.debt < Money.ZERO
+            Text(
+                text = stringResource(if (inFavor) R.string.card_credit_in_favor else R.string.card_debt),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            MoneyText(
+                amount = if (inFavor) -overview.debt else overview.debt,
+                type = if (inFavor) TransactionType.INCOME else TransactionType.EXPENSE,
+                style = MaterialTheme.walletTypography.rowAmount,
+            )
+        } else {
+            MoneyText(
+                amount = item.balance,
+                style = MaterialTheme.walletTypography.rowAmount,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+    }
+}
+
+/** One quick action of the Home screen: the label and icon, the color it is drawn in, and what it does. */
 private data class QuickAction(
+    val key: String,
     val label: String,
     val icon: ImageVector,
     val color: Color,
-    val type: TransactionType,
+    val onClick: () -> Unit,
 )
 
+/**
+ * Shortcuts under the balance: Expense, Income, Transfer (with two accounts) and Trip (with a
+ * transit card). The section title is not drawn; it stays as a heading for screen readers.
+ */
 @Composable
 internal fun QuickActions(
     canTransfer: Boolean,
+    canRegisterTrip: Boolean,
     onQuickAction: (TransactionType) -> Unit,
+    onTripClick: () -> Unit,
 ) {
     val semanticColors = MaterialTheme.walletSemanticColors
     val actions =
         listOfNotNull(
             QuickAction(
+                key = "expense",
                 label = stringResource(R.string.type_expense),
                 icon = Icons.Default.ArrowDownward,
                 color = semanticColors.expense,
-                type = TransactionType.EXPENSE,
+                onClick = { onQuickAction(TransactionType.EXPENSE) },
             ),
             QuickAction(
+                key = "income",
                 label = stringResource(R.string.type_income),
                 icon = Icons.Default.ArrowUpward,
                 color = semanticColors.income,
-                type = TransactionType.INCOME,
+                onClick = { onQuickAction(TransactionType.INCOME) },
             ),
             QuickAction(
+                key = "transfer",
                 label = stringResource(R.string.type_transfer),
                 icon = Icons.Default.SwapHoriz,
                 color = semanticColors.transfer,
-                type = TransactionType.TRANSFER,
+                onClick = { onQuickAction(TransactionType.TRANSFER) },
             ).takeIf { canTransfer },
+            QuickAction(
+                key = "trip",
+                label = stringResource(R.string.home_quick_trip),
+                icon = Icons.Default.DirectionsBus,
+                color = MaterialTheme.colorScheme.primary,
+                onClick = onTripClick,
+            ).takeIf { canRegisterTrip },
         )
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionHeader(title = stringResource(R.string.home_quick_actions))
-        // Large font scales do not fit three buttons side by side: stack them instead.
-        val stacked = LocalDensity.current.fontScale > STACKED_FONT_SCALE
-        if (stacked) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                actions.forEach { action ->
-                    QuickActionButton(
-                        label = action.label,
-                        icon = action.icon,
-                        onClick = { onQuickAction(action.type) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
+    val title = stringResource(R.string.home_quick_actions)
+    // Large font scales do not fit the buttons side by side: stack them instead.
+    val stacked = LocalDensity.current.fontScale > STACKED_FONT_SCALE
+    val groupModifier =
+        Modifier
+            .fillMaxWidth()
+            .semantics {
+                heading()
+                contentDescription = title
             }
-        } else {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-            ) {
-                actions.forEach { action ->
-                    QuickActionItem(
-                        label = action.label,
-                        icon = action.icon,
-                        color = action.color,
-                        onClick = { onQuickAction(action.type) },
-                    )
-                }
+    if (stacked) {
+        Column(
+            modifier = groupModifier,
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.walletSpacing.s),
+        ) {
+            actions.forEach { action ->
+                QuickActionRow(
+                    label = action.label,
+                    icon = action.icon,
+                    color = action.color,
+                    onClick = action.onClick,
+                )
+            }
+        }
+    } else {
+        Row(
+            modifier = groupModifier,
+            horizontalArrangement = Arrangement.SpaceEvenly,
+        ) {
+            actions.forEach { action ->
+                QuickActionItem(
+                    label = action.label,
+                    icon = action.icon,
+                    color = action.color,
+                    onClick = action.onClick,
+                )
             }
         }
     }
 }
 
-/** Circular quick action: a tinted circle with the icon and the label below it. */
+/** Tint of a quick action pebble: [color] over the screen surface. */
+@Composable
+private fun quickActionContainer(color: Color): Color {
+    val fraction = if (MaterialTheme.walletColors.isDark) QUICK_TINT_DARK else QUICK_TINT_LIGHT
+    return tintOver(color, MaterialTheme.colorScheme.surface, fraction)
+}
+
+/** Quick action: a 56 dp tinted pebble with the icon in the semantic color and the label below it. */
 @Composable
 internal fun QuickActionItem(
     label: String,
@@ -439,33 +670,36 @@ internal fun QuickActionItem(
     color: Color,
     onClick: () -> Unit,
 ) {
+    val spacing = MaterialTheme.walletSpacing
     Column(
         modifier =
             Modifier
+                .widthIn(min = 72.dp)
                 .clip(MaterialTheme.shapes.medium)
                 .bounceClick(onClick = onClick)
-                .padding(vertical = 4.dp),
+                .padding(horizontal = spacing.xs, vertical = spacing.xs),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
             modifier =
                 Modifier
-                    .size(56.dp)
-                    .clip(CircleShape)
-                    .background(color.copy(alpha = 0.14f)),
+                    .size(QuickActionPebbleSize)
+                    .clip(WalletShapeTokens.pebble)
+                    .background(quickActionContainer(color)),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = color,
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(26.dp),
             )
         }
-        Spacer(modifier = Modifier.height(6.dp))
+        Spacer(modifier = Modifier.height(spacing.xs + spacing.xxs))
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -473,24 +707,47 @@ internal fun QuickActionItem(
     }
 }
 
+/** Stacked form of a quick action, for large fonts: the pebble and the label side by side, full width. */
 @Composable
-internal fun QuickActionButton(
+private fun QuickActionRow(
     label: String,
     icon: ImageVector,
+    color: Color,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    FilledTonalButton(
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        modifier = modifier,
+    val spacing = MaterialTheme.walletSpacing
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clip(MaterialTheme.shapes.large)
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .bounceClick(onClick = onClick)
+                .padding(spacing.s),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(18.dp),
+        Box(
+            modifier =
+                Modifier
+                    .size(QuickActionPebbleSize)
+                    .clip(WalletShapeTokens.pebble)
+                    .background(quickActionContainer(color)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(26.dp),
+            )
+        }
+        Spacer(modifier = Modifier.width(spacing.m))
+        Text(
+            text = label,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
         )
-        Spacer(modifier = Modifier.width(4.dp))
-        Text(text = label, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }

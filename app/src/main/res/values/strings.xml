@@ -221,7 +221,6 @@
     <string name="transactions_empty_filtered_title">Sin resultados</string>
     <string name="transactions_empty_filtered_message">Prueba con otros filtros.</string>
     <string name="action_undo">Deshacer</string>
-    <string name="cd_clear_search">Limpiar búsqueda</string>
     <string name="transaction_transfer_accounts">%1$s → %2$s</string>
 
     <!-- Home -->
@@ -740,4 +739,11 @@
     <string name="icon_group_other">Otros</string>
     <string name="icons_show_all">Ver todos los íconos</string>
     <string name="icons_show_less">Ver menos</string>
+
+    <!-- Ergonomía -->
+    <string name="home_quick_trip">Viaje</string>
+    <string name="home_trip_choose_card">Elige la tarjeta</string>
+    <string name="action_search">Buscar</string>
+    <string name="cd_close_search">Cerrar búsqueda</string>
+    <string name="transaction_edit_frequent_categories">Frecuentes</string>
 </resources>

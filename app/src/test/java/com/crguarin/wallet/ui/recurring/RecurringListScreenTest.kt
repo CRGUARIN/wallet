@@ -176,7 +176,9 @@ class RecurringListScreenTest {
         assertThat(addClicked).isTrue()
     }
 
+    // The payment cards are taller now: a phone-sized screen keeps the three sections in reach.
     @Test
+    @Config(qualifiers = "es-w360dp-h800dp")
     fun `three sections are shown with their payments`() {
         val overview =
             RecurringOverview(

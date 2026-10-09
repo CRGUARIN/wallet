@@ -14,15 +14,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.PieChart
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -39,7 +36,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -57,9 +53,13 @@ import com.crguarin.wallet.ui.components.EmptyState
 import com.crguarin.wallet.ui.components.IconCatalog
 import com.crguarin.wallet.ui.components.MoneySign
 import com.crguarin.wallet.ui.components.MoneyText
+import com.crguarin.wallet.ui.components.PebbleAvatar
+import com.crguarin.wallet.ui.components.SectionCard
 import com.crguarin.wallet.ui.components.categoryDisplayName
 import com.crguarin.wallet.ui.reports.charts.DonutChart
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletSpacing
+import com.crguarin.wallet.ui.theme.walletTypography
 import java.math.BigDecimal
 import java.text.NumberFormat
 import java.time.LocalDate
@@ -78,13 +78,8 @@ internal fun CategoryBreakdownCard(
     onViewTransactions: (categoryId: Long?, accountId: Long?, type: TransactionType, yearMonth: YearMonth) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RoundedCornerShape(16.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Column(modifier = Modifier.padding(20.dp)) {
+    SectionCard(modifier = modifier) {
+        Column {
             val parent = uiState.drillDownParent
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (parent != null) {
@@ -98,7 +93,6 @@ internal fun CategoryBreakdownCard(
                 Text(
                     text = parent?.let { sliceLabel(it) } ?: stringResource(R.string.reports_by_category),
                     style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.semantics { heading() },
                 )
             }
@@ -120,7 +114,7 @@ internal fun CategoryBreakdownCard(
                 val slices = uiState.breakdown.slices
                 val refreshing = uiState.isRefreshing
                 val othersColor = MaterialTheme.colorScheme.outline
-                val uncategorizedColor = MaterialTheme.colorScheme.outlineVariant
+                val uncategorizedColor = MaterialTheme.colorScheme.onSurfaceVariant
                 val donutSlices =
                     remember(uiState.breakdown, othersColor, uncategorizedColor) {
                         ReportsChartMapper.donutSlices(uiState.breakdown, othersColor, uncategorizedColor)
@@ -234,6 +228,11 @@ private fun CenterAmountText(
     )
 }
 
+/**
+ * One category of the legend. The name goes on the first line with the amount and may take two
+ * lines, so it is never cut ("Vivi…"); the bar and the two shortcuts go on the second line, where
+ * the 48 dp buttons do not steal width from the name.
+ */
 @Composable
 private fun LegendRow(
     slice: CategorySlice,
@@ -244,108 +243,109 @@ private fun LegendRow(
     onDrillInto: ((Long) -> Unit)?,
     onViewTransactions: () -> Unit,
 ) {
+    val spacing = MaterialTheme.walletSpacing
     val color =
         ReportsChartMapper.sliceColor(
             slice = slice,
             othersColor = MaterialTheme.colorScheme.outline,
-            uncategorizedColor = MaterialTheme.colorScheme.outlineVariant,
+            uncategorizedColor = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-    Row(
+    Column(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .defaultMinSize(minHeight = 48.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(MaterialTheme.shapes.medium)
+                .background(if (selected) MaterialTheme.colorScheme.surfaceContainerHigh else Color.Transparent)
                 .clickable(enabled = actionsEnabled, role = Role.Button, onClick = onSelect)
                 .semantics(mergeDescendants = true) {}
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
+                .padding(horizontal = spacing.s, vertical = spacing.xs),
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(12.dp)
-                    .clip(CircleShape)
-                    .background(color),
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Icon(
-            imageVector = IconCatalog.get(slice.icon ?: IconCatalog.DEFAULT_ICON_KEY),
-            contentDescription = null,
-            tint = color,
-            modifier = Modifier.size(20.dp),
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Column(modifier = Modifier.weight(1f)) {
+        Row(verticalAlignment = Alignment.Top) {
+            PebbleAvatar(
+                icon = IconCatalog.get(slice.icon ?: IconCatalog.DEFAULT_ICON_KEY),
+                color = color,
+                size = LEGEND_AVATAR_SIZE,
+            )
+            Spacer(modifier = Modifier.width(spacing.m))
             Text(
                 text = sliceLabel(slice),
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                maxLines = 1,
+                style = if (selected) MaterialTheme.typography.titleSmall else MaterialTheme.typography.bodyLarge,
+                maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
+                modifier =
+                    Modifier
+                        .weight(1f)
+                        .padding(top = spacing.xs),
             )
-            Spacer(modifier = Modifier.height(4.dp))
-            ProgressBar(perMille = slice.perMille, color = color)
-        }
-        Spacer(modifier = Modifier.width(8.dp))
-        Column(horizontalAlignment = Alignment.End) {
-            MoneyText(
-                amount = slice.amount,
-                style = MaterialTheme.typography.bodyMedium,
-                sign = MoneySign.NONE,
-            )
-            Text(
-                text = perMillePercent(slice.perMille),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        // Both trailing slots always keep their width, so amounts, percents and progress bars
-        // line up across rows whether or not the row has a chevron or a shortcut.
-        if (slice.hasChildren && slice.key is SliceKey.Category) {
-            IconButton(
-                onClick = { onDrillInto?.invoke(slice.key.categoryId) },
-                enabled = actionsEnabled,
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ChevronRight,
-                    contentDescription = stringResource(R.string.reports_view_subcategories),
+            Spacer(modifier = Modifier.width(spacing.s))
+            Column(horizontalAlignment = Alignment.End) {
+                MoneyText(
+                    amount = slice.amount,
+                    style = MaterialTheme.walletTypography.rowAmount,
+                    sign = MoneySign.NONE,
+                )
+                Text(
+                    text = perMillePercent(slice.perMille),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        } else {
-            Spacer(modifier = Modifier.size(48.dp))
         }
-        if (showViewTransactions) {
-            IconButton(onClick = onViewTransactions, enabled = actionsEnabled) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
-                    contentDescription = stringResource(R.string.reports_view_transactions),
-                )
+        Row(
+            modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = spacing.l),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Spacer(modifier = Modifier.width(LEGEND_AVATAR_SIZE + spacing.m))
+            ProgressBar(
+                perMille = slice.perMille,
+                color = color,
+                modifier = Modifier.weight(1f),
+            )
+            if (slice.hasChildren && slice.key is SliceKey.Category) {
+                IconButton(
+                    onClick = { onDrillInto?.invoke(slice.key.categoryId) },
+                    enabled = actionsEnabled,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = stringResource(R.string.reports_view_subcategories),
+                    )
+                }
             }
-        } else {
-            Spacer(modifier = Modifier.size(48.dp))
+            if (showViewTransactions) {
+                IconButton(onClick = onViewTransactions, enabled = actionsEnabled) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
+                        contentDescription = stringResource(R.string.reports_view_transactions),
+                    )
+                }
+            }
         }
     }
 }
+
+private val LEGEND_AVATAR_SIZE = 36.dp
 
 @Composable
 private fun ProgressBar(
     perMille: Int,
     color: Color,
+    modifier: Modifier = Modifier,
 ) {
     Box(
         modifier =
-            Modifier
+            modifier
                 .fillMaxWidth()
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant),
+                .height(6.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
     ) {
         Box(
             modifier =
                 Modifier
                     .fillMaxWidth((perMille / 1000f).coerceIn(0f, 1f))
-                    .height(4.dp)
+                    .height(6.dp)
                     .background(color),
         )
     }

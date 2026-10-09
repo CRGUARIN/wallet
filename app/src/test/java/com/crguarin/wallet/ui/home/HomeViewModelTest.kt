@@ -1,5 +1,7 @@
 package com.crguarin.wallet.ui.home
 
+import app.cash.turbine.test
+import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.fake.FakeAccountRepository
 import com.crguarin.wallet.domain.fake.FakeCardStatementRepository
@@ -8,6 +10,7 @@ import com.crguarin.wallet.domain.fake.FakeDebtRepository
 import com.crguarin.wallet.domain.fake.FakeRecurringRepository
 import com.crguarin.wallet.domain.fake.FakeTimeProvider
 import com.crguarin.wallet.domain.fake.FakeTransactionRepository
+import com.crguarin.wallet.domain.fake.FakeTransactionRunner
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.Category
@@ -18,14 +21,20 @@ import com.crguarin.wallet.domain.model.debt.DebtDirection
 import com.crguarin.wallet.domain.model.debt.testDebt
 import com.crguarin.wallet.domain.model.recurring.RecurrenceFrequency
 import com.crguarin.wallet.domain.model.recurring.RecurringPayment
+import com.crguarin.wallet.domain.repository.TransactionRunner
+import com.crguarin.wallet.domain.usecase.CheckNegativeBalanceUseCase
+import com.crguarin.wallet.domain.usecase.DeleteTransactionUseCase
 import com.crguarin.wallet.domain.usecase.ObserveAccountsUseCase
 import com.crguarin.wallet.domain.usecase.ObserveMonthSummaryUseCase
 import com.crguarin.wallet.domain.usecase.ObserveTotalBalanceUseCase
+import com.crguarin.wallet.domain.usecase.SaveTransactionUseCase
 import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewUseCase
 import com.crguarin.wallet.domain.usecase.card.ObserveCardOverviewsUseCase
 import com.crguarin.wallet.domain.usecase.debt.ObserveDebtsOverviewUseCase
 import com.crguarin.wallet.domain.usecase.recurring.ObserveUpcomingPaymentsUseCase
+import com.crguarin.wallet.domain.usecase.transit.RegisterTripUseCase
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
@@ -54,6 +63,7 @@ class HomeViewModelTest {
     private lateinit var recurringRepository: FakeRecurringRepository
     private lateinit var debtRepository: FakeDebtRepository
     private lateinit var timeProvider: FakeTimeProvider
+    private lateinit var tripRunner: GatedTransactionRunner
 
     private val cash =
         Account(
@@ -88,6 +98,7 @@ class HomeViewModelTest {
         recurringRepository = FakeRecurringRepository()
         debtRepository = FakeDebtRepository()
         timeProvider = FakeTimeProvider(baseInstant)
+        tripRunner = GatedTransactionRunner()
     }
 
     @After
@@ -119,6 +130,23 @@ class HomeViewModelTest {
                     timeProvider,
                 ),
             observeDebtsOverviewUseCase = ObserveDebtsOverviewUseCase(debtRepository),
+            registerTripUseCase =
+                RegisterTripUseCase(
+                    accountRepository,
+                    categoryRepository,
+                    SaveTransactionUseCase(
+                        transactionRepository,
+                        accountRepository,
+                        categoryRepository,
+                        timeProvider,
+                        CheckNegativeBalanceUseCase(accountRepository, transactionRepository),
+                        FakeTransactionRunner(),
+                    ),
+                    timeProvider,
+                    tripRunner,
+                ),
+            deleteTransactionUseCase =
+                DeleteTransactionUseCase(transactionRepository, cardStatementRepository, FakeTransactionRunner()),
         )
 
     private fun transaction(
@@ -304,4 +332,195 @@ class HomeViewModelTest {
             assertThat(debts?.hasActive).isTrue()
             assertThat(debts?.totalOwedToMe).isEqualTo(Money(500_000L))
         }
+
+    private val fare = Money(355_000L)
+
+    private fun transitCard(
+        id: Long,
+        name: String = "Cívica",
+    ) = cash.copy(
+        id = id,
+        name = name,
+        type = AccountType.TRANSIT_CARD,
+        initialBalance = Money(1_050_000L),
+        icon = "directions_bus",
+        sortOrder = id.toInt(),
+        fare = fare,
+    )
+
+    @Test
+    fun `the trip shortcut is offered only with an active transit card`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(listOf(cash, savings))
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+            assertThat(viewModel.uiState.value.canRegisterTrip).isFalse()
+
+            accountRepository.saveAccount(transitCard(id = 5L))
+            advanceUntilIdle()
+            assertThat(viewModel.uiState.value.canRegisterTrip).isTrue()
+            assertThat(
+                viewModel.uiState.value.transitCards
+                    .map { it.account.id },
+            ).containsExactly(5L)
+        }
+
+    @Test
+    fun `tapping trip with one transit card registers it at once and can be undone`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(listOf(cash, transitCard(id = 5L)))
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+
+            viewModel.events.test {
+                viewModel.onTripClick()
+
+                val event = awaitItem() as HomeEvent.TripRegistered
+                val trip = transactionRepository.getTransaction(event.transactionId)
+                assertThat(trip?.type).isEqualTo(TransactionType.EXPENSE)
+                assertThat(trip?.amount).isEqualTo(fare)
+                assertThat(trip?.accountId).isEqualTo(5L)
+                assertThat(viewModel.uiState.value.showTripChooser).isFalse()
+
+                viewModel.undoTrip(event.transactionId)
+                assertThat(transactionRepository.getTransaction(event.transactionId)).isNull()
+                expectNoEvents()
+            }
+        }
+
+    @Test
+    fun `tapping trip with several transit cards asks which one before registering`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                listOf(cash, transitCard(id = 5L, name = "Cívica"), transitCard(id = 6L, name = "Tullave")),
+            )
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+
+            viewModel.events.test {
+                viewModel.onTripClick()
+
+                assertThat(viewModel.uiState.value.showTripChooser).isTrue()
+                assertThat(tripRunner.runs).isEqualTo(0)
+                expectNoEvents()
+
+                viewModel.onTripCardSelected(6L)
+
+                val event = awaitItem() as HomeEvent.TripRegistered
+                assertThat(transactionRepository.getTransaction(event.transactionId)?.accountId).isEqualTo(6L)
+                assertThat(viewModel.uiState.value.showTripChooser).isFalse()
+            }
+        }
+
+    @Test
+    fun `dismissing the card chooser registers nothing`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(listOf(transitCard(id = 5L), transitCard(id = 6L, name = "Tullave")))
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+
+            viewModel.onTripClick()
+            assertThat(viewModel.uiState.value.showTripChooser).isTrue()
+            viewModel.dismissTripChooser()
+
+            assertThat(viewModel.uiState.value.showTripChooser).isFalse()
+            assertThat(tripRunner.runs).isEqualTo(0)
+        }
+
+    @Test
+    fun `a trip owed on credit shows the error instead of registering`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                accountList = listOf(transitCard(id = 5L)),
+                balanceMap = mapOf(5L to Money(-1L)),
+            )
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+
+            viewModel.events.test {
+                viewModel.onTripClick()
+
+                val event = awaitItem() as HomeEvent.ShowSnackbar
+                assertThat(event.messageRes).isEqualTo(R.string.error_transit_credit_used)
+                assertThat(transactionRepository.getTransaction(1L)).isNull()
+            }
+        }
+
+    @Test
+    fun `a double tap on trip registers a single trip`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(
+                accountList = listOf(transitCard(id = 5L)),
+                balanceMap = mapOf(5L to Money.ZERO),
+            )
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+            tripRunner.holdNextRuns()
+
+            viewModel.events.test {
+                viewModel.onTripClick()
+                viewModel.onTripClick()
+                tripRunner.release()
+
+                val event = awaitItem() as HomeEvent.TripRegistered
+                expectNoEvents()
+                assertThat(tripRunner.runs).isEqualTo(1)
+                assertThat(transactionRepository.getTransaction(event.transactionId)).isNotNull()
+                assertThat(transactionRepository.getTransaction(event.transactionId + 1)).isNull()
+            }
+        }
+
+    @Test
+    fun `a new tap registers another trip once the previous one has finished`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(listOf(transitCard(id = 5L)))
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+
+            viewModel.events.test {
+                viewModel.onTripClick()
+                val first = awaitItem() as HomeEvent.TripRegistered
+                viewModel.onTripClick()
+                val second = awaitItem() as HomeEvent.TripRegistered
+
+                assertThat(second.transactionId).isNotEqualTo(first.transactionId)
+            }
+        }
+
+    @Test
+    fun `tapping trip without transit cards does nothing`() =
+        runTest(testDispatcher) {
+            accountRepository.setInitialData(listOf(cash, savings))
+            val viewModel = observeState(createViewModel())
+            advanceUntilIdle()
+
+            viewModel.events.test {
+                viewModel.onTripClick()
+
+                expectNoEvents()
+                assertThat(viewModel.uiState.value.showTripChooser).isFalse()
+            }
+        }
+
+    /** Runs blocks directly, or parks them until [release] so a test can keep a registration in flight. */
+    private class GatedTransactionRunner : TransactionRunner {
+        private var gate: CompletableDeferred<Unit>? = null
+
+        var runs: Int = 0
+            private set
+
+        fun holdNextRuns() {
+            gate = CompletableDeferred()
+        }
+
+        fun release() {
+            gate?.complete(Unit)
+        }
+
+        override suspend fun <T> run(block: suspend () -> T): T {
+            runs++
+            gate?.await()
+            return block()
+        }
+    }
 }

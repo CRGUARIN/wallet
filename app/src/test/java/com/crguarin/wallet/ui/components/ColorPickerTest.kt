@@ -1,11 +1,14 @@
 package com.crguarin.wallet.ui.components
 
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertWidthIsAtLeast
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
@@ -73,5 +76,26 @@ class ColorPickerTest {
         }
 
         composeRule.onNodeWithContentDescription("Color en uso").assertDoesNotExist()
+    }
+
+    @Test
+    fun `every swatch has a touch target of at least 48 dp`() {
+        composeRule.setContent {
+            WalletTheme {
+                ColorPicker(
+                    selectedColor = red,
+                    onColorSelected = {},
+                    disabledColors = setOf(blue),
+                    colors = listOf(green, blue, red),
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription("Color en uso").assertWidthIsAtLeast(48.dp).assertHeightIsAtLeast(48.dp)
+        composeRule
+            .onAllNodesWithContentDescription("Color")
+            .onFirst()
+            .assertWidthIsAtLeast(48.dp)
+            .assertHeightIsAtLeast(48.dp)
     }
 }

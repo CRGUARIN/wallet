@@ -84,6 +84,7 @@ data class DebtEdit(
     val debtId: Long? = null,
 )
 
+/** Settings. Not a bottom bar tab: Home's gear pushes it on top of Home and its back arrow pops it. */
 @Serializable
 data object Settings
 

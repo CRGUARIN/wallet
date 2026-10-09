@@ -1,8 +1,13 @@
 package com.crguarin.wallet.ui.transactions
 
+import androidx.annotation.StringRes
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -21,6 +26,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -28,8 +34,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.crguarin.wallet.R
@@ -37,16 +45,20 @@ import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.AccountWithBalance
+import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.card.BalanceWarning
 import com.crguarin.wallet.ui.components.AccountPickerSheet
+import com.crguarin.wallet.ui.components.BottomActionBar
 import com.crguarin.wallet.ui.components.CategoryPickerSheet
 import com.crguarin.wallet.ui.components.ConfirmDialog
 import com.crguarin.wallet.ui.components.EmptyState
 import com.crguarin.wallet.ui.components.ErrorState
 import com.crguarin.wallet.ui.components.LoadingState
+import com.crguarin.wallet.ui.components.PrimaryActionButton
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletSpacing
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 import java.time.Instant
 import java.time.LocalDate
@@ -220,11 +232,20 @@ fun TransactionEditScreen(
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     onInstallmentsChanged: (Int) -> Unit = {},
 ) {
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+    // The form (and with it the save button) only exists once there is something to fill in.
+    val showForm =
+        !uiState.isLoading &&
+            !uiState.notFound &&
+            !uiState.showTransferNeedsAccounts &&
+            !uiState.showNoAccounts
+
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
+                scrollBehavior = scrollBehavior,
                 title = {
                     Text(
                         text =
@@ -257,6 +278,16 @@ fun TransactionEditScreen(
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
+        bottomBar = {
+            if (showForm) {
+                SaveBar(
+                    isEnabled = uiState.isSaveEnabled,
+                    isSaving = uiState.isSaving,
+                    errorRes = uiState.generalErrorRes,
+                    onSaveClick = onSaveClick,
+                )
+            }
+        },
     ) { innerPadding ->
         Box(
             modifier =
@@ -309,12 +340,12 @@ fun TransactionEditScreen(
                         onOpenToAccountSheet = onOpenToAccountSheet,
                         onSwapAccounts = onSwapAccounts,
                         onOpenCategorySheet = onOpenCategorySheet,
+                        onCategorySelected = onCategorySelected,
                         onOpenDatePicker = onOpenDatePicker,
                         onTodayClick = onTodayClick,
                         onYesterdayClick = onYesterdayClick,
                         onNoteChanged = onNoteChanged,
                         onInstallmentsChanged = onInstallmentsChanged,
-                        onSaveClick = onSaveClick,
                     )
                 }
             }
@@ -398,6 +429,42 @@ fun TransactionEditScreen(
     }
 }
 
+/**
+ * Save button pinned to the bottom, above the keyboard and the navigation bar. A general error
+ * (for example a rejected save) shows right above it, where it cannot be missed.
+ */
+@Composable
+private fun SaveBar(
+    isEnabled: Boolean,
+    isSaving: Boolean,
+    @StringRes errorRes: Int?,
+    onSaveClick: () -> Unit,
+) {
+    BottomActionBar(modifier = Modifier.navigationBarsPadding()) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.walletSpacing.xs),
+        ) {
+            if (errorRes != null) {
+                Text(
+                    text = stringResource(errorRes),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            PrimaryActionButton(
+                text = stringResource(R.string.action_save),
+                onClick = onSaveClick,
+                enabled = isEnabled,
+                isLoading = isSaving,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun TransactionDatePickerDialog(
@@ -435,20 +502,23 @@ private fun TransactionDatePickerDialog(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-private fun TransactionType.labelRes(): Int =
-    when (this) {
-        TransactionType.INCOME -> R.string.type_income
-        TransactionType.EXPENSE -> R.string.type_expense
-        TransactionType.TRANSFER -> R.string.type_transfer
-    }
-
 @Preview(name = "New expense Light", showBackground = true)
 @Composable
 private fun TransactionEditScreenPreviewLight() {
     WalletTheme(darkTheme = false) {
         TransactionEditScreen(
-            uiState = inspectionUiState().copy(amountText = "125000"),
+            uiState =
+                inspectionUiState().copy(
+                    amountText = "125000",
+                    frequentCategories =
+                        listOf(
+                            FrequentCategory(previewCategory(10L, "Alimentación")),
+                            FrequentCategory(previewCategory(11L, "Transporte")),
+                            FrequentCategory(previewCategory(12L, "Café"), parent = previewCategory(10L, "Alimentación")),
+                        ),
+                    categoryId = 11L,
+                    selectedCategory = previewCategory(11L, "Transporte"),
+                ),
             onNavigateBack = {},
             onTypeSelected = {},
             onAmountChanged = {},
@@ -524,3 +594,8 @@ private fun TransactionEditScreenPreviewDark() {
         )
     }
 }
+
+private fun previewCategory(
+    id: Long,
+    name: String,
+): Category = Category(id = id, name = name, type = CategoryType.EXPENSE, color = 0xFF66BB6A.toInt(), icon = "restaurant")

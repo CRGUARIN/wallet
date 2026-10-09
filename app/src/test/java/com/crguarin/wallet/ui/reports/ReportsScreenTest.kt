@@ -46,6 +46,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.annotation.GraphicsMode
 import java.time.LocalDate
 import java.time.YearMonth
 import java.util.Locale
@@ -706,5 +707,70 @@ class ReportsScreenTest {
 
         assertThat(pointDateLabel(LocalDate.of(2026, 10, 3), BalanceGranularity.DAILY, locale)).isEqualTo("3 oct")
         assertThat(pointDateLabel(LocalDate.of(2026, 10, 15), BalanceGranularity.MONTHLY, locale)).isEqualTo("octubre")
+    }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    @Config(qualifiers = "es-rCO-w360dp-h3000dp")
+    fun `long category names wrap to two lines at 360 dp instead of being cut`() {
+        val longName = "Vivienda y servicios"
+        val breakdown =
+            CategoryBreakdown(
+                total = Money(250_000_000L),
+                slices =
+                    listOf(
+                        slice(SliceKey.Category(10L), longName, null, 112_500_000L, 450, hasChildren = true),
+                        slice(SliceKey.Category(20L), "Transporte", "transport", 50_000_000L, 200),
+                        slice(SliceKey.Others, null, null, 87_500_000L, 350),
+                    ),
+                parentId = null,
+            )
+        setScreen(state(breakdown = breakdown))
+
+        val layouts = mutableListOf<TextLayoutResult>()
+        composeRule
+            .onNodeWithText(longName, useUnmergedTree = true)
+            .fetchSemanticsNode()
+            .config[SemanticsActions.GetTextLayoutResult]
+            .action
+            ?.invoke(layouts)
+        val layout = layouts.single()
+        assertThat(layout.hasVisualOverflow).isFalse()
+        assertThat(layout.lineCount).isAtMost(2)
+        // Still reachable next to its shortcuts: the name does not hide the buttons.
+        composeRule.onNodeWithContentDescription("Ver subcategorías").assertIsDisplayed()
+    }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun `mode and account filter share one compact row`() {
+        setScreen(state())
+
+        val mode = composeRule.onNodeWithText("Mes").fetchSemanticsNode().boundsInRoot
+        val account = composeRule.onNodeWithText("Todas las cuentas").fetchSemanticsNode().boundsInRoot
+
+        assertThat(account.center.y).isWithin(2f).of(mode.center.y)
+        assertThat(account.left).isGreaterThan(mode.right)
+    }
+
+    @Test
+    @GraphicsMode(GraphicsMode.Mode.NATIVE)
+    fun `mode and account filter stack at double font scale`() {
+        setScreen(state(), density = Density(density = 1f, fontScale = 2f))
+
+        val mode = composeRule.onNodeWithText("Mes").fetchSemanticsNode().boundsInRoot
+        val account = composeRule.onNodeWithText("Todas las cuentas").fetchSemanticsNode().boundsInRoot
+
+        assertThat(account.top).isGreaterThan(mode.bottom)
+    }
+
+    @Test
+    fun `selecting a segment of the controls reports the change`() {
+        var mode: ReportMode? = null
+        setScreen(state(), onModeChange = { mode = it })
+
+        composeRule.onNodeWithText("Año").performClick()
+
+        assertThat(mode).isEqualTo(ReportMode.YEAR)
     }
 }

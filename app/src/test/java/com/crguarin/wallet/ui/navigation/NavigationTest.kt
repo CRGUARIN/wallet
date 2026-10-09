@@ -57,6 +57,12 @@ class NavigationTest {
         }
     }
 
+    /** Opens Settings the way a person does: with the gear in Home's top bar. */
+    private fun openSettingsFromHome() {
+        composeRule.onNodeWithContentDescription("Ajustes").performClick()
+        composeRule.waitForIdle()
+    }
+
     private fun deepLinkIntent(uri: String): Intent = Intent(Intent.ACTION_VIEW, Uri.parse(uri))
 
     /**
@@ -87,7 +93,7 @@ class NavigationTest {
         composeRule.onNodeWithText("Bienvenido a Wallet").assertIsDisplayed()
         // Bottom bar is hidden on Onboarding
         composeRule.onNodeWithText("Inicio").assertDoesNotExist()
-        composeRule.onNodeWithText("Ajustes").assertDoesNotExist()
+        composeRule.onNodeWithText("Reportes").assertDoesNotExist()
         // FAB is hidden on Onboarding
         composeRule.onNodeWithContentDescription("Nuevo movimiento").assertDoesNotExist()
     }
@@ -120,10 +126,10 @@ class NavigationTest {
         // FAB is hidden on Accounts
         composeRule.onNodeWithContentDescription("Nuevo movimiento").assertDoesNotExist()
 
-        // Click Ajustes tab
-        composeRule.onNodeWithText("Ajustes").performClick()
-        composeRule.onAllNodesWithText("Ajustes").onFirst().assertIsDisplayed()
-        // FAB is hidden on Settings
+        // Click Reportes tab
+        composeRule.onNodeWithText("Reportes").performClick()
+        composeRule.onAllNodesWithText("Reportes").onFirst().assertIsDisplayed()
+        // FAB is hidden on Reports
         composeRule.onNodeWithContentDescription("Nuevo movimiento").assertDoesNotExist()
 
         // Click Inicio tab
@@ -146,7 +152,7 @@ class NavigationTest {
         composeRule.onNodeWithText("Transferencia").assertIsDisplayed()
 
         // Bottom bar destinations should be hidden
-        composeRule.onNodeWithText("Ajustes").assertDoesNotExist()
+        composeRule.onNodeWithText("Reportes").assertDoesNotExist()
         composeRule.onNodeWithText("Cuentas").assertDoesNotExist()
         // FAB should also be hidden
         composeRule.onNodeWithContentDescription("Nuevo movimiento").assertDoesNotExist()
@@ -165,7 +171,7 @@ class NavigationTest {
         composeRule.onNodeWithText("Detalle de cuenta").assertIsDisplayed()
 
         // Bottom bar is hidden
-        composeRule.onNodeWithText("Ajustes").assertDoesNotExist()
+        composeRule.onNodeWithText("Reportes").assertDoesNotExist()
         composeRule.onNodeWithText("Cuentas").assertDoesNotExist()
     }
 
@@ -177,7 +183,7 @@ class NavigationTest {
         composeRule.onAllNodesWithText("Inicio").onFirst().assertIsDisplayed()
         composeRule.onNodeWithText("Movimientos").assertIsDisplayed()
         composeRule.onNodeWithText("Cuentas").assertIsDisplayed()
-        composeRule.onNodeWithText("Ajustes").assertIsDisplayed()
+        composeRule.onNodeWithText("Reportes").assertIsDisplayed()
     }
 
     @Test
@@ -188,35 +194,69 @@ class NavigationTest {
         composeRule.onAllNodesWithText("Home").onFirst().assertIsDisplayed()
         composeRule.onNodeWithText("Transactions").assertIsDisplayed()
         composeRule.onNodeWithText("Accounts").assertIsDisplayed()
-        composeRule.onNodeWithText("Settings").assertIsDisplayed()
+        composeRule.onNodeWithText("Reports").assertIsDisplayed()
     }
 
     @Test
     @Config(qualifiers = "es-w1000dp-h3000dp")
-    fun `bottom bar has five destinations with reports between transactions and accounts`() {
+    fun `bottom bar has four destinations in order home transactions accounts reports`() {
         setAppContent()
 
-        val transactionsX =
-            composeRule
-                .onNodeWithContentDescription("Movimientos", useUnmergedTree = true)
-                .fetchSemanticsNode()
-                .boundsInRoot.left
-        val reportsX =
-            composeRule
-                .onNodeWithContentDescription("Reportes", useUnmergedTree = true)
-                .fetchSemanticsNode()
-                .boundsInRoot.left
-        val accountsX =
-            composeRule
-                .onNodeWithContentDescription("Cuentas", useUnmergedTree = true)
-                .fetchSemanticsNode()
-                .boundsInRoot.left
+        val order = listOf("Inicio", "Movimientos", "Cuentas", "Reportes")
+        val lefts =
+            order.map { label ->
+                composeRule
+                    .onNodeWithContentDescription(label, useUnmergedTree = true)
+                    .fetchSemanticsNode()
+                    .boundsInRoot.left
+            }
 
-        assertThat(transactionsX).isLessThan(reportsX)
-        assertThat(reportsX).isLessThan(accountsX)
+        assertThat(lefts).isInStrictOrder()
+        // "Inicio" is also the title of the Home top bar, so the bar items are found by their icon.
+        order.forEach { composeRule.onNodeWithContentDescription(it, useUnmergedTree = true).assertIsDisplayed() }
+        // Settings is not a tab: it opens from the gear in Home's top bar.
+        composeRule.onNodeWithText("Ajustes").assertDoesNotExist()
+    }
 
-        composeRule.onNodeWithText("Reportes").assertIsDisplayed()
-        composeRule.onNodeWithText("Ajustes").assertIsDisplayed()
+    @Test
+    @Config(qualifiers = "es")
+    fun `home gear opens settings`() {
+        setAppContent()
+
+        openSettingsFromHome()
+
+        assertThat(navController.currentBackStackEntry?.destination?.hasRoute(Settings::class)).isTrue()
+        composeRule.onAllNodesWithText("Ajustes").onFirst().assertIsDisplayed()
+        // The settings screen has its own back arrow
+        composeRule.onNodeWithContentDescription("Atrás").assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "es")
+    fun `settings shows no bottom bar and no new transaction button`() {
+        setAppContent()
+
+        openSettingsFromHome()
+
+        listOf("Inicio", "Movimientos", "Cuentas", "Reportes").forEach {
+            composeRule.onNodeWithContentDescription(it, useUnmergedTree = true).assertDoesNotExist()
+        }
+        composeRule.onNodeWithContentDescription("Nuevo movimiento").assertDoesNotExist()
+    }
+
+    @Test
+    @Config(qualifiers = "es")
+    fun `settings back arrow returns to home with the bottom bar`() {
+        setAppContent()
+
+        openSettingsFromHome()
+        composeRule.onNodeWithContentDescription("Atrás").performClick()
+        composeRule.waitForIdle()
+
+        assertThat(navController.currentBackStackEntry?.destination?.hasRoute(Home::class)).isTrue()
+        assertThat(navController.currentBackStack.value.count { it.destination.hasRoute(Settings::class) }).isEqualTo(0)
+        composeRule.onNodeWithContentDescription("Movimientos", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Nuevo movimiento").assertIsDisplayed()
     }
 
     @Test
@@ -224,8 +264,7 @@ class NavigationTest {
     fun `navigating from Settings to Categories opens Categories screen`() {
         setAppContent()
 
-        // Click Ajustes tab
-        composeRule.onNodeWithText("Ajustes").performClick()
+        openSettingsFromHome()
         composeRule.onAllNodesWithText("Ajustes").onFirst().assertIsDisplayed()
 
         // Click Categorías item in settings (the screen scrolls, so it may start below the fold)
@@ -337,7 +376,8 @@ class NavigationTest {
         val route = navController.currentBackStackEntry?.toRoute<CardReconcile>()
         assertThat(route?.accountId).isEqualTo(7L)
         composeRule.onNodeWithText("Conciliar extracto").assertIsDisplayed()
-        composeRule.onNodeWithText("Calcular diferencia").performScrollTo().assertIsDisplayed()
+        // The main action is pinned at the bottom of the form (BottomActionBar), so it needs no scrolling.
+        composeRule.onNodeWithText("Calcular diferencia").assertIsDisplayed()
     }
 
     @Test
@@ -435,8 +475,7 @@ class NavigationTest {
     fun `recurring payments entry from settings opens the list`() {
         setAppContent()
 
-        // Click Ajustes tab
-        composeRule.onNodeWithText("Ajustes").performClick()
+        openSettingsFromHome()
         composeRule.onAllNodesWithText("Ajustes").onFirst().assertIsDisplayed()
 
         // The "Datos" entry is identified by its subtitle (the title is also used by the
@@ -472,8 +511,7 @@ class NavigationTest {
     fun `debts entry from settings opens the list`() {
         setAppContent()
 
-        // Click Ajustes tab
-        composeRule.onNodeWithText("Ajustes").performClick()
+        openSettingsFromHome()
         composeRule.onAllNodesWithText("Ajustes").onFirst().assertIsDisplayed()
 
         // The "Datos" entry is identified by its subtitle; the screen scrolls, so it may start below the fold.

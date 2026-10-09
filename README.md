@@ -10,10 +10,10 @@ Wallet es una app Android de finanzas personales que funciona **sin conexión y 
 - **Categorías y subcategorías** con colores e íconos; vienen unas por defecto y puedes crear, editar, archivar o reasignar las tuyas.
 - **Colores únicos**: una cuenta activa no comparte color con otra, y una categoría no comparte color con otra familia de su mismo tipo (Gastos o Ingresos). Hay 30 colores para elegir y los que ya usa otra cuenta o categoría aparecen tachados. Si vienes de una versión anterior, los colores repetidos que ya tengas se conservan; la regla se aplica solo cuando cambias un color.
 - **Unos 180 íconos** organizados por tema (dinero, comida, transporte, hogar, salud, compras, ocio, familia, tecnología…), con un selector compacto.
-- **Movimientos** por mes, con filtros (tipo, cuenta, categoría), búsqueda y deshacer al eliminar.
+- **Movimientos** por mes, con filtros (tipo, cuenta, categoría) en una sola fila, búsqueda por nota tras la lupa y deshacer al eliminar.
 - **Reportes con gráficas**: dona por categoría con drill-down a subcategorías, evolución mensual de ingresos y gastos, y ritmo del mes frente al anterior, con filtro por período, tipo y cuenta. Vista Balance: neto, tasa de ahorro y evolución del saldo.
-- **Inicio** con saldo total, resumen del mes, cuentas y últimos movimientos.
-- **Diseño renovado**: tipografía más marcada, tarjetas redondeadas, degradado de marca en el saldo, cuentas como historias en Inicio y pequeñas animaciones al tocar. Se adapta al color dinámico y al modo oscuro.
+- **Inicio** con saldo total, accesos rápidos (gasto, ingreso, transferencia y viaje de un toque en la tarjeta de transporte), todas tus cuentas con su estado, próximos pagos, resumen del mes y últimos movimientos. Ajustes se abre desde el engranaje de Inicio.
+- **Estilo Montaña**: verde pino, tipografía Manrope con cifras tabulares, tarjeta de saldo con curvas de nivel, capas tonales en lugar de bordes y el botón principal de cada formulario fijo sobre el teclado. Se adapta al color dinámico y al modo oscuro.
 - **Deudas**: lleva la cuenta de lo que te deben y de lo que debes, con abonos parciales hasta saldarlas.
 - **Backup en JSON**: exporta todos tus datos a un archivo e impórtalos después (reemplaza los datos actuales, con confirmación previa).
 - **Español e inglés** (idioma por app), **tema claro, oscuro o del sistema** y color dinámico en Android 12+.
@@ -33,11 +33,12 @@ Moneda única: COP. El dinero se maneja como enteros en centavos, nunca como dec
 - Crea una cuenta de tipo **Tarjeta de transporte** (como la Cívica de Medellín) indicando la tarifa por viaje.
 - **Recargar** registra una transferencia desde otra cuenta hacia la tarjeta; no es un gasto.
 - **Registrar viaje** descuenta la tarifa como un gasto en Transporte público, con la fecha de hoy. Si el saldo no alcanza, la app pide confirmación antes de registrarlo; después, **Deshacer** permite borrar el viaje si fue un error.
+- También puedes registrar el viaje con el acceso **Viaje** de Inicio; si tienes varias tarjetas de transporte, eliges cuál.
 - La tarjeta muestra cuántos viajes alcanzan con el saldo actual.
 
 ## Pagos recurrentes y notificaciones
 
-- Crea una suscripción o servicio desde Ajustes > Datos > Pagos recurrentes: nombre, monto, cuenta (puede ser una tarjeta), categoría, cada cuánto se repite y el próximo cobro.
+- Crea una suscripción o servicio desde Cuentas > Pagos recurrentes (o Ajustes > Datos > Pagos recurrentes): nombre, monto, cuenta (puede ser una tarjeta), categoría, cada cuánto se repite y el próximo cobro.
 - **Automático** lo descuenta solo en cada periodo; **Preguntarme antes** te avisa para que confirmes el valor y la fecha (útil si cambia, como los servicios) u omitas ese cobro.
 - Un cobro automático con fecha de hoy se registra apenas lo guardas. Si el teléfono estuvo apagado, al abrir la app se registran los cobros pendientes con su fecha real, cada uno como un movimiento normal.
 - En Ajustes > Notificaciones eliges la hora de los avisos y qué te avisa: recordatorios antes del cobro, cobros registrados, cobros por confirmar, y de cada tarjeta el corte, la fecha límite de pago y si quedó vencido.
@@ -45,7 +46,7 @@ Moneda única: COP. El dinero se maneja como enteros en centavos, nunca como dec
 
 ## Deudas
 
-- Anota desde Ajustes > Datos > Deudas lo que te deben (**Me deben**) y lo que debes (**Debo**): persona, monto, fecha, fecha límite opcional y concepto.
+- Anota desde Cuentas > Deudas (o Ajustes > Datos > Deudas) lo que te deben (**Me deben**) y lo que debes (**Debo**): persona, monto, fecha, fecha límite opcional y concepto.
 - Registra **abonos** parciales hasta saldarla, o márcala como **saldada** de una vez; cada deuda muestra lo abonado, lo pendiente y si está vencida.
 - Inicio muestra cuánto te deben y cuánto debes mientras haya deudas pendientes.
 - Es un registro aparte: las deudas no crean movimientos ni cambian el saldo de tus cuentas ni los reportes. Si el préstamo salió de una cuenta, regístralo también como movimiento si quieres reflejarlo ahí.
@@ -124,11 +125,13 @@ Stack: Kotlin, Jetpack Compose + Material 3, Hilt, Room, DataStore, Paging 3, Na
 
 Licencia MIT; consulta el archivo [`LICENSE`](LICENSE).
 
+La app incluye la fuente [Manrope](https://github.com/googlefonts/manrope) (SIL Open Font License 1.1); consulta [`docs/licenses/Manrope-OFL.txt`](docs/licenses/Manrope-OFL.txt).
+
 ---
 
 ## English summary
 
-Wallet is an offline, account-free personal finance app for Android (8.0+): multiple accounts, income/expense/transfer tracking, categories and subcategories, credit cards (debt, available limit, installments, payments and statement reconciliation), transit cards (top-ups, a fixed fare per trip and trips left), unique colors for accounts and categories, about 180 icons, a refreshed look that follows dynamic color and dark mode, recurring payments and subscriptions (automatic or confirm-first) with configurable notifications for them and for card dates, a personal debts ledger (what others owe you and what you owe, with partial payments), monthly transaction lists with filters, reports with a category donut, monthly evolution bars and month pace, balance view with net, savings rate and balance over time, JSON backup export/import, Spanish and English UI, and light/dark/dynamic themes. Build and verify with `./gradlew ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease` (JDK 17, Android SDK 37). See "Release firmado" above for signing the release build with `WALLET_KEYSTORE_*` environment variables or a git-ignored `keystore.properties`. The debug build installs as `com.crguarin.wallet.debug` ("Wallet Debug") alongside the release build and does not share data with it.
+Wallet is an offline, account-free personal finance app for Android (8.0+): multiple accounts, income/expense/transfer tracking, categories and subcategories, credit cards (debt, available limit, installments, payments and statement reconciliation), transit cards (top-ups, a fixed fare per trip and trips left), unique colors for accounts and categories, about 180 icons, the Montaña look (pine green, Manrope with tabular figures, tonal layers, pinned form actions) that follows dynamic color and dark mode, quick actions on Home (expense, income, transfer and a one-tap transit trip), recurring payments and subscriptions (automatic or confirm-first) with configurable notifications for them and for card dates, a personal debts ledger (what others owe you and what you owe, with partial payments), monthly transaction lists with filters, reports with a category donut, monthly evolution bars and month pace, balance view with net, savings rate and balance over time, JSON backup export/import, Spanish and English UI, and light/dark/dynamic themes. Build and verify with `./gradlew ktlintCheck lintDebug lintRelease testDebugUnitTest assembleDebug assembleRelease` (JDK 17, Android SDK 37). See "Release firmado" above for signing the release build with `WALLET_KEYSTORE_*` environment variables or a git-ignored `keystore.properties`. The debug build installs as `com.crguarin.wallet.debug` ("Wallet Debug") alongside the release build and does not share data with it.
 
 ### Credit cards
 
@@ -136,12 +139,12 @@ Create your card under Accounts with its credit limit, statement day and payment
 
 ### Transit cards
 
-Create a **Transit card** account (like Medellín's Cívica) with its fare per trip. **Top up** records a transfer from another account to the card, not an expense. **Log trip** charges the fare as a transport expense dated today; if the balance will not cover it, the app asks you to confirm first. The snackbar shown after logging the trip has **Undo**, in case it was a mistake. The card shows how many trips the current balance covers.
+Create a **Transit card** account (like Medellín's Cívica) with its fare per trip. **Top up** records a transfer from another account to the card, not an expense. **Log trip** charges the fare as a transport expense dated today; if the balance will not cover it, the app asks you to confirm first. The snackbar shown after logging the trip has **Undo**, in case it was a mistake. Home's **Trip** shortcut logs it in one tap (with several transit cards you pick one first). The card shows how many trips the current balance covers.
 
 ### Recurring payments and notifications
 
-Create a subscription or bill under Settings > Data > Recurring payments: name, amount, account (it can be a card), category, how often it repeats and the next charge. **Automatic** deducts it on its own each period; **Ask me first** notifies you so you confirm the amount and date (useful when it changes, like utility bills) or skip that charge. If the phone was off, pending charges are recorded with their real date when you open the app, each as a normal transaction. Under Settings > Notifications you choose the daily reminder time and what to be notified about: reminders before the charge, recorded charges, charges to confirm, and per card the statement date, the payment due date and whether it is overdue. Charges are recorded even with notifications off; on Android 13+ the app asks for the permission only when you enable reminders.
+Create a subscription or bill under Accounts > Recurring payments (or Settings > Data > Recurring payments): name, amount, account (it can be a card), category, how often it repeats and the next charge. **Automatic** deducts it on its own each period; **Ask me first** notifies you so you confirm the amount and date (useful when it changes, like utility bills) or skip that charge. If the phone was off, pending charges are recorded with their real date when you open the app, each as a normal transaction. Under Settings > Notifications you choose the daily reminder time and what to be notified about: reminders before the charge, recorded charges, charges to confirm, and per card the statement date, the payment due date and whether it is overdue. Charges are recorded even with notifications off; on Android 13+ the app asks for the permission only when you enable reminders.
 
 ### Debts
 
-Under Settings > Data > Debts, write down what others owe you (**Owed to me**) and what you owe (**I owe**): person, amount, date, optional due date and description. Record partial payments until the debt is settled, or mark it as settled in one step; each debt shows what was paid, what is outstanding and whether it is overdue. Home shows the totals while there are outstanding debts. Debts are a separate ledger: they do not create transactions nor change account balances or reports.
+Under Accounts > Debts (or Settings > Data > Debts), write down what others owe you (**Owed to me**) and what you owe (**I owe**): person, amount, date, optional due date and description. Record partial payments until the debt is settled, or mark it as settled in one step; each debt shows what was paid, what is outstanding and whether it is overdue. Home shows the totals while there are outstanding debts. Debts are a separate ledger: they do not create transactions nor change account balances or reports.
