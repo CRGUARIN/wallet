@@ -2,56 +2,57 @@ package com.crguarin.wallet.ui.recurring
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.crguarin.wallet.R
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.recurring.RecurrenceFrequency
 import com.crguarin.wallet.domain.model.recurring.RecurringMode
+import com.crguarin.wallet.ui.accounts.ToggleCard
+import com.crguarin.wallet.ui.accounts.TonalSelector
+import com.crguarin.wallet.ui.accounts.WalletTextField
 import com.crguarin.wallet.ui.components.AccountPickerSheet
 import com.crguarin.wallet.ui.components.AmountTextField
+import com.crguarin.wallet.ui.components.BottomActionBar
 import com.crguarin.wallet.ui.components.CategoryPickerSheet
 import com.crguarin.wallet.ui.components.ConfirmDialog
 import com.crguarin.wallet.ui.components.ErrorState
 import com.crguarin.wallet.ui.components.LoadingState
 import com.crguarin.wallet.ui.components.NotificationPermissionState
+import com.crguarin.wallet.ui.components.PrimaryActionButton
 import com.crguarin.wallet.ui.components.TransactionListItem
 import com.crguarin.wallet.ui.components.displayName
+import com.crguarin.wallet.ui.components.groupedItemBackground
 import com.crguarin.wallet.ui.components.rememberNotificationPermissionState
+import com.crguarin.wallet.ui.theme.walletSpacing
 import com.crguarin.wallet.ui.util.formatMedium
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 import java.time.LocalDate
@@ -198,8 +199,10 @@ fun RecurringEditScreen(
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
 ) {
+    val spacing = MaterialTheme.walletSpacing
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
                 title = {
@@ -231,6 +234,18 @@ fun RecurringEditScreen(
                 },
             )
         },
+        bottomBar = {
+            if (!uiState.isLoading && !uiState.notFound) {
+                BottomActionBar {
+                    PrimaryActionButton(
+                        text = stringResource(R.string.action_save),
+                        onClick = onSaveClick,
+                        enabled = !uiState.isSaving,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
         when {
@@ -252,23 +267,19 @@ fun RecurringEditScreen(
                             .fillMaxSize()
                             .padding(innerPadding)
                             .verticalScroll(rememberScrollState())
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                            .padding(horizontal = spacing.screenGutter, vertical = spacing.s),
                 ) {
                     TypeSelector(
                         selected = uiState.type,
                         onTypeSelected = onTypeSelected,
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
+                    WalletTextField(
                         value = uiState.name,
                         onValueChange = onNameChanged,
-                        label = { Text(text = stringResource(R.string.recurring_name_label)) },
-                        placeholder = { Text(text = stringResource(R.string.recurring_name_hint)) },
-                        isError = uiState.nameErrorRes != null,
-                        supportingText =
-                            uiState.nameErrorRes?.let { res ->
-                                { Text(text = stringResource(res)) }
-                            },
+                        label = stringResource(R.string.recurring_name_label),
+                        placeholder = stringResource(R.string.recurring_name_hint),
+                        errorRes = uiState.nameErrorRes,
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -307,23 +318,25 @@ fun RecurringEditScreen(
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     FieldLabel(text = stringResource(R.string.recurring_next_date_label))
-                    OutlinedButton(
+                    Spacer(modifier = Modifier.height(spacing.xs))
+                    TonalSelector(
+                        value = (uiState.nextDate ?: uiState.today).formatMedium(),
+                        leadingIcon = Icons.Default.CalendarMonth,
                         onClick = onOpenNextDatePicker,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(text = (uiState.nextDate ?: uiState.today).formatMedium())
-                    }
+                    )
                     if (uiState.dateErrorRes != null) {
                         Text(
                             text = stringResource(uiState.dateErrorRes),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(start = spacing.l, top = spacing.xs),
                         )
                     }
                     Text(
                         text = stringResource(R.string.recurring_next_date_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = spacing.l, top = spacing.xs),
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     EndsSelector(
@@ -345,41 +358,20 @@ fun RecurringEditScreen(
                         onReminderSelected = onReminderSelected,
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
+                    WalletTextField(
                         value = uiState.note,
                         onValueChange = onNoteChanged,
-                        label = { Text(text = stringResource(R.string.transaction_edit_note_label)) },
-                        isError = uiState.noteErrorRes != null,
-                        supportingText =
-                            uiState.noteErrorRes?.let { res ->
-                                { Text(text = stringResource(res)) }
-                            },
+                        label = stringResource(R.string.transaction_edit_note_label),
+                        errorRes = uiState.noteErrorRes,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     if (uiState.isEditMode) {
                         Spacer(modifier = Modifier.height(12.dp))
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .selectable(
-                                        selected = uiState.isActive,
-                                        role = Role.Switch,
-                                        onClick = { onActiveChanged(!uiState.isActive) },
-                                    ),
-                        ) {
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = stringResource(R.string.recurring_active_label),
-                                    style = MaterialTheme.typography.bodyLarge,
-                                )
-                            }
-                            Switch(
-                                checked = uiState.isActive,
-                                onCheckedChange = null,
-                            )
-                        }
+                        ToggleCard(
+                            title = stringResource(R.string.recurring_active_label),
+                            checked = uiState.isActive,
+                            onCheckedChange = onActiveChanged,
+                        )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
                             text = stringResource(R.string.recurring_history_title),
@@ -393,10 +385,11 @@ fun RecurringEditScreen(
                             )
                         } else {
                             Column {
-                                uiState.history.forEach { details ->
+                                uiState.history.forEachIndexed { index, details ->
                                     TransactionListItem(
                                         details = details,
                                         onClick = { onTransactionClick(details.transaction.id) },
+                                        modifier = Modifier.groupedItemBackground(index, uiState.history.size),
                                     )
                                 }
                             }
@@ -410,15 +403,7 @@ fun RecurringEditScreen(
                             color = MaterialTheme.colorScheme.error,
                         )
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = onSaveClick,
-                        enabled = !uiState.isSaving,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(text = stringResource(R.string.action_save))
-                    }
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(spacing.l))
                 }
             }
         }

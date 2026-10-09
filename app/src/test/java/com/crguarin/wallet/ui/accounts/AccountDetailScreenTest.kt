@@ -71,6 +71,7 @@ class AccountDetailScreenTest {
         onReconcileClick: () -> Unit = {},
         onRegisterTripClick: () -> Unit = {},
         onRechargeClick: () -> Unit = {},
+        onNewTransactionClick: (TransactionType) -> Unit = {},
         entries: List<TransactionListEntry> = emptyList(),
     ) {
         WalletTheme {
@@ -92,6 +93,7 @@ class AccountDetailScreenTest {
                 onReconcileClick = onReconcileClick,
                 onRegisterTripClick = onRegisterTripClick,
                 onRechargeClick = onRechargeClick,
+                onNewTransactionClick = onNewTransactionClick,
             )
         }
     }
@@ -248,19 +250,176 @@ class AccountDetailScreenTest {
     }
 
     @Test
-    fun `overflow menu options trigger corresponding callbacks`() {
-        var editClicked = false
+    fun `the pencil in the top bar calls onEditClick`() {
+        var editClicks = 0
 
         composeRule.setContent {
-            TestScreen(onEditClick = { editClicked = true })
+            TestScreen(onEditClick = { editClicks++ })
         }
 
-        // Open overflow menu
+        composeRule.onNodeWithContentDescription("Editar").assertIsDisplayed().performClick()
+
+        assertThat(editClicks).isEqualTo(1)
+    }
+
+    @Test
+    fun `overflow menu no longer repeats edit`() {
+        composeRule.setContent {
+            TestScreen()
+        }
+
         composeRule.onNodeWithContentDescription("Más opciones").performClick()
 
-        // Click Edit
-        composeRule.onNodeWithText("Editar").performClick()
-        assertThat(editClicked).isTrue()
+        composeRule.onNodeWithText("Editar").assertDoesNotExist()
+        composeRule.onNodeWithText("Archivar").assertIsDisplayed()
+        composeRule.onNodeWithText("Eliminar").assertIsDisplayed()
+    }
+
+    @Test
+    fun `overflow menu archive and delete trigger their callbacks`() {
+        var archiveClicked = false
+        var deleteClicked = false
+
+        composeRule.setContent {
+            WalletTheme {
+                AccountDetailScreen(
+                    uiState = baseState,
+                    pagingItems = rememberEntriesPagingItems(emptyList()),
+                    onNavigateBack = {},
+                    onEditClick = {},
+                    onTransferClick = {},
+                    onTransactionClick = {},
+                    onViewAllTransactions = {},
+                    onArchiveClick = { archiveClicked = true },
+                    onUnarchiveClick = {},
+                    onDeleteClick = { deleteClicked = true },
+                    onConfirmDelete = {},
+                    onConfirmArchiveInsteadOfDelete = {},
+                    onDismissDialogs = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithContentDescription("Más opciones").performClick()
+        composeRule.onNodeWithText("Archivar").performClick()
+        assertThat(archiveClicked).isTrue()
+
+        composeRule.onNodeWithContentDescription("Más opciones").performClick()
+        composeRule.onNodeWithText("Eliminar").performClick()
+        assertThat(deleteClicked).isTrue()
+    }
+
+    @Test
+    fun `cash account shows expense income and transfer actions under the header`() {
+        val clicked = mutableListOf<TransactionType>()
+
+        composeRule.setContent {
+            TestScreen(
+                uiState = baseState.copy(canTransfer = true),
+                onNewTransactionClick = { clicked += it },
+            )
+        }
+
+        composeRule.onNodeWithText("Gasto").assertIsDisplayed().performClick()
+        composeRule.onNodeWithText("Ingreso").assertIsDisplayed().performClick()
+        composeRule.onNodeWithText("Transferencia").assertIsDisplayed().performClick()
+
+        assertThat(clicked)
+            .containsExactly(TransactionType.EXPENSE, TransactionType.INCOME, TransactionType.TRANSFER)
+            .inOrder()
+        // The payment and trip actions belong to other account types.
+        composeRule.onNodeWithText("Pagar tarjeta").assertDoesNotExist()
+        composeRule.onNodeWithText("Registrar viaje").assertDoesNotExist()
+    }
+
+    @Test
+    fun `savings account has the same actions and hides transfer without another account`() {
+        val savings = sampleAccount.copy(id = 43L, name = "Ahorros", type = AccountType.SAVINGS)
+        composeRule.setContent {
+            TestScreen(
+                uiState = baseState.copy(accountWithBalance = AccountWithBalance(savings, Money(450_000L))),
+            )
+        }
+
+        composeRule.onNodeWithText("Gasto").assertIsDisplayed()
+        composeRule.onNodeWithText("Ingreso").assertIsDisplayed()
+        composeRule.onNodeWithText("Transferencia").assertDoesNotExist()
+    }
+
+    @Test
+    fun `archived cash account has no actions to add movements`() {
+        composeRule.setContent {
+            TestScreen(
+                uiState =
+                    baseState.copy(
+                        accountWithBalance =
+                            AccountWithBalance(sampleAccount.copy(isArchived = true), Money(450_000L)),
+                        canTransfer = true,
+                    ),
+            )
+        }
+
+        composeRule.onNodeWithText("Gasto").assertDoesNotExist()
+        composeRule.onNodeWithText("Ingreso").assertDoesNotExist()
+        composeRule.onNodeWithText("Transferencia").assertDoesNotExist()
+    }
+
+    @Test
+    @Config(qualifiers = "es-w1000dp-h3000dp")
+    fun `card shows pay as the main action with expense and reconcile beside it`() {
+        var expenseType: TransactionType? = null
+        composeRule.setContent {
+            TestScreen(
+                uiState = cardState(),
+                onNewTransactionClick = { expenseType = it },
+            )
+        }
+
+        composeRule.onNodeWithText("Pagar tarjeta").assertIsDisplayed()
+        composeRule.onNodeWithText("Conciliar extracto").assertIsDisplayed()
+        composeRule.onNodeWithText("Gasto").assertIsDisplayed().performClick()
+
+        assertThat(expenseType).isEqualTo(TransactionType.EXPENSE)
+        // A card does not register income or trips from here.
+        composeRule.onNodeWithText("Ingreso").assertDoesNotExist()
+        composeRule.onNodeWithText("Registrar viaje").assertDoesNotExist()
+    }
+
+    @Test
+    @Config(qualifiers = "es-w1000dp-h3000dp")
+    fun `archived card keeps pay and reconcile but cannot add an expense`() {
+        composeRule.setContent {
+            TestScreen(
+                uiState =
+                    cardState().copy(
+                        accountWithBalance =
+                            AccountWithBalance(cardAccount.copy(isArchived = true), Money(-250_000_00L)),
+                    ),
+            )
+        }
+
+        composeRule.onNodeWithText("Pagar tarjeta").assertIsDisplayed()
+        composeRule.onNodeWithText("Conciliar extracto").assertIsDisplayed()
+        composeRule.onNodeWithText("Gasto").assertDoesNotExist()
+    }
+
+    @Test
+    fun `transit card shows trip and top up but not expense or income`() {
+        composeRule.setContent {
+            TestScreen(
+                uiState =
+                    baseState.copy(
+                        accountWithBalance = AccountWithBalance(transitAccount, Money(1_050_000L)),
+                        canTransfer = true,
+                    ),
+            )
+        }
+
+        composeRule.onNodeWithText("Registrar viaje").assertIsDisplayed()
+        composeRule.onNodeWithText("Recargar").assertIsDisplayed()
+        composeRule.onNodeWithText("Gasto").assertDoesNotExist()
+        composeRule.onNodeWithText("Ingreso").assertDoesNotExist()
+        composeRule.onNodeWithText("Transferencia").assertDoesNotExist()
     }
 
     @Test

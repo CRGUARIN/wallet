@@ -5,6 +5,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -23,6 +25,7 @@ import com.crguarin.wallet.domain.model.TransactionDetails
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.recurring.RecurrenceFrequency
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.util.formatMedium
 import com.google.common.truth.Truth.assertThat
 import org.junit.Rule
 import org.junit.Test
@@ -31,6 +34,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.time.Instant
 import java.time.LocalDate
+import java.util.Locale
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "es")
@@ -76,6 +80,10 @@ class RecurringEditScreenTest {
         onSaveClick: () -> Unit = {},
         onTransactionClick: (Long) -> Unit = {},
         density: Density? = null,
+        onTypeSelected: (TransactionType) -> Unit = {},
+        onOpenNextDatePicker: () -> Unit = {},
+        onActiveChanged: (Boolean) -> Unit = {},
+        onReminderSelected: (Int?) -> Unit = {},
     ) {
         composeRule.setContent {
             val content: @Composable () -> Unit = {
@@ -83,7 +91,7 @@ class RecurringEditScreenTest {
                     RecurringEditScreen(
                         uiState = uiState,
                         onNavigateBack = {},
-                        onTypeSelected = {},
+                        onTypeSelected = onTypeSelected,
                         onNameChanged = {},
                         onAmountChanged = {},
                         onOpenAccountSheet = {},
@@ -94,7 +102,7 @@ class RecurringEditScreenTest {
                         onCategorySelected = {},
                         onFrequencySelected = {},
                         onIntervalChanged = {},
-                        onOpenNextDatePicker = {},
+                        onOpenNextDatePicker = onOpenNextDatePicker,
                         onDismissNextDatePicker = {},
                         onNextDateSelected = {},
                         onEndNeverSelected = {},
@@ -103,9 +111,9 @@ class RecurringEditScreenTest {
                         onDismissEndDatePicker = {},
                         onEndDateSelected = {},
                         onModeSelected = {},
-                        onReminderSelected = {},
+                        onReminderSelected = onReminderSelected,
                         onNoteChanged = {},
-                        onActiveChanged = {},
+                        onActiveChanged = onActiveChanged,
                         onSaveClick = onSaveClick,
                         onDeleteClick = {},
                         onDismissDeleteDialog = {},
@@ -142,7 +150,7 @@ class RecurringEditScreenTest {
         composeRule.onNodeWithText(str(R.string.recurring_mode_auto)).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(str(R.string.recurring_mode_confirm)).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(str(R.string.recurring_reminder_none)).performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText(str(R.string.action_save)).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(str(R.string.action_save)).assertIsDisplayed()
     }
 
     @Test
@@ -213,7 +221,7 @@ class RecurringEditScreenTest {
         var saved = false
         setScreen(baseState(), onSaveClick = { saved = true })
 
-        composeRule.onNodeWithText(str(R.string.action_save)).performScrollTo().performClick()
+        composeRule.onNodeWithText(str(R.string.action_save)).performClick()
         assertThat(saved).isTrue()
     }
 
@@ -224,6 +232,58 @@ class RecurringEditScreenTest {
         composeRule.onNodeWithText(str(R.string.type_expense)).assertIsDisplayed()
         composeRule.onNodeWithText(str(R.string.recurring_frequency_weekly)).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText(str(R.string.recurring_reminder_none)).performScrollTo().assertExists()
-        composeRule.onNodeWithText(str(R.string.action_save)).performScrollTo().assertExists()
+        composeRule.onNodeWithText(str(R.string.action_save)).assertIsDisplayed()
+    }
+
+    @Test
+    fun `type segments show the current type and report the change`() {
+        var chosen: TransactionType? = null
+        setScreen(baseState().copy(type = TransactionType.EXPENSE), onTypeSelected = { chosen = it })
+
+        composeRule.onNodeWithText(str(R.string.type_expense)).assertIsSelected()
+        composeRule.onNodeWithText(str(R.string.type_income)).assertIsNotSelected()
+        composeRule.onNodeWithText(str(R.string.type_income)).performClick()
+
+        assertThat(chosen).isEqualTo(TransactionType.INCOME)
+    }
+
+    @Test
+    fun `the next date field opens the date picker`() {
+        var opened = 0
+        setScreen(baseState(), onOpenNextDatePicker = { opened++ })
+
+        // The field shows the date itself, under the caption.
+        composeRule.onNodeWithText(today.formatMedium(Locale.forLanguageTag("es"))).performScrollTo().performClick()
+
+        assertThat(opened).isEqualTo(1)
+    }
+
+    @Test
+    fun `reminder chips show the chosen one and report taps`() {
+        var chosen: Int? = -1
+        setScreen(baseState().copy(reminderDaysBefore = null), onReminderSelected = { chosen = it })
+
+        composeRule.onNodeWithText(str(R.string.recurring_reminder_none)).performScrollTo().assertIsSelected()
+        val threeDays = app.resources.getQuantityString(R.plurals.recurring_reminder_days_before, 3, 3)
+        composeRule.onNodeWithText(threeDays).performScrollTo().performClick()
+
+        assertThat(chosen).isEqualTo(3)
+    }
+
+    @Test
+    fun `the active switch only exists when editing`() {
+        setScreen(baseState())
+
+        composeRule.onNodeWithText(str(R.string.recurring_active_label)).assertDoesNotExist()
+    }
+
+    @Test
+    fun `editing shows the active switch and reports the change`() {
+        var active: Boolean? = null
+        setScreen(baseState().copy(isEditMode = true, isActive = true), onActiveChanged = { active = it })
+
+        composeRule.onNodeWithText(str(R.string.recurring_active_label)).performScrollTo().performClick()
+
+        assertThat(active).isFalse()
     }
 }

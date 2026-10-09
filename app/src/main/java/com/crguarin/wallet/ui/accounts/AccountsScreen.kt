@@ -1,9 +1,11 @@
 package com.crguarin.wallet.ui.accounts
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,31 +13,30 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Payments
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.SwapVert
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -43,12 +44,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -62,12 +62,16 @@ import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.card.CardOverview
 import com.crguarin.wallet.ui.components.EmptyState
+import com.crguarin.wallet.ui.components.HeroAmountText
 import com.crguarin.wallet.ui.components.HeroCard
 import com.crguarin.wallet.ui.components.IconCatalog
 import com.crguarin.wallet.ui.components.LoadingState
 import com.crguarin.wallet.ui.components.MoneyText
+import com.crguarin.wallet.ui.components.PebbleAvatar
+import com.crguarin.wallet.ui.components.groupedItemBackground
 import com.crguarin.wallet.ui.theme.WalletTheme
-import com.crguarin.wallet.ui.theme.contentColorOver
+import com.crguarin.wallet.ui.theme.walletSpacing
+import com.crguarin.wallet.ui.theme.walletTypography
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 import java.time.Instant
 import java.time.LocalDate
@@ -131,6 +135,8 @@ fun AccountsScreen(
     onOpenRecurring: () -> Unit = {},
     onOpenDebts: () -> Unit = {},
 ) {
+    val spacing = MaterialTheme.walletSpacing
+    val locale = LocalConfiguration.current.locales[0]
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         topBar = {
@@ -146,7 +152,7 @@ fun AccountsScreen(
                                         contentDescription = null,
                                         modifier = Modifier.size(18.dp),
                                     )
-                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Spacer(modifier = Modifier.width(spacing.xs))
                                     Text(text = stringResource(R.string.accounts_reorder_done))
                                 }
                             }
@@ -164,12 +170,10 @@ fun AccountsScreen(
         },
         floatingActionButton = {
             if (!uiState.isReordering) {
-                FloatingActionButton(onClick = onNewAccountClick) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = stringResource(R.string.account_edit_new_title),
-                    )
-                }
+                AddFab(
+                    contentDescription = stringResource(R.string.account_edit_new_title),
+                    onClick = onNewAccountClick,
+                )
             }
         },
         modifier = modifier.fillMaxSize(),
@@ -198,38 +202,43 @@ fun AccountsScreen(
                     Modifier
                         .fillMaxSize()
                         .padding(innerPadding),
-                contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                contentPadding =
+                    PaddingValues(
+                        start = spacing.screenGutter,
+                        end = spacing.screenGutter,
+                        top = spacing.s,
+                        bottom = FAB_CLEARANCE,
+                    ),
             ) {
-                // Total Balance Card
+                // Total balance
                 item(key = "total_balance_card") {
+                    val totalText = uiState.totalBalance.displayText(locale)
                     HeroCard {
                         Text(
                             text = stringResource(R.string.accounts_total_balance),
                             style = MaterialTheme.typography.titleSmall,
-                            color = LocalContentColor.current.copy(alpha = 0.85f),
                         )
-                        Spacer(modifier = Modifier.height(6.dp))
-                        MoneyText(
-                            amount = uiState.totalBalance,
-                            style = MaterialTheme.typography.headlineLarge,
-                            color = LocalContentColor.current,
-                        )
+                        Spacer(modifier = Modifier.height(spacing.s))
+                        HeroAmountText(text = totalText, color = LocalContentColor.current)
                     }
+                }
+
+                // Shortcuts to the screens that used to live only in Settings
+                item(key = "shortcuts") {
+                    AccountsShortcuts(
+                        onOpenDebts = onOpenDebts,
+                        onOpenRecurring = onOpenRecurring,
+                        onOpenCategories = onOpenCategories,
+                        modifier = Modifier.padding(top = spacing.m),
+                    )
                 }
 
                 // Active Accounts Header
                 if (uiState.archivedAccounts.isNotEmpty()) {
                     item(key = "active_header") {
-                        Text(
+                        FormSectionTitle(
                             text = stringResource(R.string.accounts_active_header),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier =
-                                Modifier
-                                    .padding(top = 8.dp, bottom = 4.dp)
-                                    .semantics { heading() },
+                            modifier = Modifier.padding(top = spacing.l, bottom = spacing.s),
                         )
                     }
                 }
@@ -238,7 +247,7 @@ fun AccountsScreen(
                     // Only archived accounts exist: a compact hint keeps the archived section reachable.
                     item(key = "no_active_accounts") {
                         Column(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            modifier = Modifier.fillMaxWidth().padding(vertical = spacing.l),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Text(
@@ -255,7 +264,7 @@ fun AccountsScreen(
                     }
                 }
 
-                // Active Accounts List
+                // Active Accounts List: one tonal layer, like the accounts of Home
                 itemsIndexed(
                     items = uiState.activeAccounts,
                     key = { _, item -> item.account.id },
@@ -270,25 +279,31 @@ fun AccountsScreen(
                         onClick = { onAccountClick(item.account.id) },
                         cardOverview = uiState.cardOverviews[item.account.id],
                         today = uiState.today,
+                        modifier =
+                            Modifier
+                                .padding(top = if (index == 0 && uiState.archivedAccounts.isEmpty()) spacing.l else 0.dp)
+                                .groupedItemBackground(index, uiState.activeAccounts.size),
                     )
                 }
 
                 // Archived Accounts Section
                 if (uiState.archivedAccounts.isNotEmpty()) {
                     item(key = "archived_header") {
-                        OutlinedCard(
+                        Surface(
                             onClick = onToggleArchivedExpanded,
                             shape = MaterialTheme.shapes.large,
+                            color = MaterialTheme.colorScheme.surfaceContainerLow,
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 8.dp),
+                                    .padding(top = spacing.l),
                         ) {
                             Row(
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .padding(16.dp),
+                                        .heightIn(min = ARCHIVED_HEADER_MIN_HEIGHT)
+                                        .padding(horizontal = spacing.l, vertical = spacing.s),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
@@ -324,7 +339,7 @@ fun AccountsScreen(
                         itemsIndexed(
                             items = uiState.archivedAccounts,
                             key = { _, item -> "archived_${item.account.id}" },
-                        ) { _, item ->
+                        ) { index, item ->
                             AccountItemRow(
                                 item = item,
                                 isReordering = false,
@@ -336,19 +351,60 @@ fun AccountsScreen(
                                 isArchived = true,
                                 cardOverview = uiState.cardOverviews[item.account.id],
                                 today = uiState.today,
+                                modifier =
+                                    Modifier
+                                        .padding(top = if (index == 0) spacing.s else 0.dp)
+                                        .groupedItemBackground(index, uiState.archivedAccounts.size),
                             )
                         }
                     }
-                }
-
-                item(key = "bottom_spacer") {
-                    Spacer(modifier = Modifier.height(72.dp))
                 }
             }
         }
     }
 }
 
+/** Debts, recurring payments and categories: one touch from the accounts, besides Settings. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AccountsShortcuts(
+    onOpenDebts: () -> Unit,
+    onOpenRecurring: () -> Unit,
+    onOpenCategories: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val spacing = MaterialTheme.walletSpacing
+    FlowRow(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s),
+        verticalArrangement = Arrangement.spacedBy(spacing.s),
+    ) {
+        TonalPill(
+            icon = Icons.Default.Payments,
+            label = stringResource(R.string.debts_title),
+            onClick = onOpenDebts,
+        )
+        TonalPill(
+            icon = Icons.Default.Repeat,
+            label = stringResource(R.string.recurring_title),
+            onClick = onOpenRecurring,
+        )
+        TonalPill(
+            icon = Icons.Default.Category,
+            label = stringResource(R.string.categories_title),
+            onClick = onOpenCategories,
+        )
+    }
+}
+
+/** From this font scale up the balance of a row moves under the name, so neither is squeezed. */
+private const val STACKED_FONT_SCALE = 1.3f
+
+/**
+ * One account of the list, the same language as the accounts of Home: a pebble with the account
+ * ring (or the warm attention ring), the name, a status line and the balance at the end. With big
+ * fonts the balance drops under the name.
+ */
 @Composable
 internal fun AccountItemRow(
     item: AccountWithBalance,
@@ -363,139 +419,151 @@ internal fun AccountItemRow(
     cardOverview: CardOverview? = null,
     today: LocalDate = LocalDate.now(),
 ) {
-    val accountColor = Color(item.account.color)
-    Card(
-        onClick =
-            if (!isReordering) {
-                onClick
-            } else {
-                {}
-            },
-        shape = MaterialTheme.shapes.large,
-        colors =
-            CardDefaults.cardColors(
-                containerColor =
-                    if (isArchived) {
-                        MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.6f)
-                    } else {
-                        MaterialTheme.colorScheme.surfaceContainerLow
-                    },
-            ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        modifier = modifier.fillMaxWidth(),
+    val spacing = MaterialTheme.walletSpacing
+    val account = item.account
+    val stacked = LocalDensity.current.fontScale >= STACKED_FONT_SCALE
+    val isCard = account.type == AccountType.CREDIT_CARD && cardOverview != null
+    val isTransit = account.type == AccountType.TRANSIT_CARD
+    val showReminder =
+        isCard && showPaymentReminder(cardOverview.paymentStatus, cardOverview.pendingStatementDueDate, today)
+    val transitStatus = if (isTransit) transitStatus(item.balance, account.fare) else null
+    val needsAttention = !isArchived && (showReminder || (transitStatus?.isWarning == true))
+    val nameColor = if (isArchived) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(enabled = !isReordering, role = Role.Button, onClick = onClick)
+                .padding(horizontal = spacing.l, vertical = spacing.m),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Box(
-                modifier =
-                    Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(accountColor.copy(alpha = if (isArchived) 0.5f else 1f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    imageVector = IconCatalog.get(item.account.icon),
-                    contentDescription = null,
-                    tint = contentColorOver(accountColor),
-                    modifier = Modifier.size(24.dp),
-                )
-            }
+        PebbleAvatar(
+            icon = IconCatalog.get(account.icon),
+            color = Color(account.color),
+            size = ROW_AVATAR_SIZE,
+            showRing = !isArchived,
+            needsAttention = needsAttention,
+        )
 
-            Spacer(modifier = Modifier.width(16.dp))
+        Spacer(modifier = Modifier.width(spacing.m))
 
-            Column(modifier = Modifier.weight(1f)) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = account.name,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                color = nameColor,
+            )
+            val typeString = accountTypeLabel(account.type)
+            Text(
+                text =
+                    if (!account.includeInTotal) {
+                        "$typeString • " + stringResource(R.string.accounts_not_included_in_total)
+                    } else {
+                        typeString
+                    },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (isCard) {
                 Text(
-                    text = item.account.name,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                    color =
-                        if (isArchived) {
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-                val typeString =
-                    when (item.account.type) {
-                        AccountType.CASH -> stringResource(R.string.account_type_cash)
-                        AccountType.SAVINGS -> stringResource(R.string.account_type_savings)
-                        AccountType.CREDIT_CARD -> stringResource(R.string.account_type_credit_card)
-                        AccountType.TRANSIT_CARD -> stringResource(R.string.account_type_transit_card)
-                    }
-                Text(
-                    text =
-                        if (!item.account.includeInTotal) {
-                            "$typeString • " + stringResource(R.string.accounts_not_included_in_total)
-                        } else {
-                            typeString
-                        },
+                    text = cardAvailableText(cardOverview),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            if (isReordering) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(
-                        onClick = onMoveUp,
-                        enabled = canMoveUp,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowUpward,
-                            contentDescription = stringResource(R.string.accounts_move_up),
-                        )
-                    }
-                    IconButton(
-                        onClick = onMoveDown,
-                        enabled = canMoveDown,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowDownward,
-                            contentDescription = stringResource(R.string.accounts_move_down),
-                        )
-                    }
+                if (showReminder) {
+                    Spacer(modifier = Modifier.height(spacing.xs))
+                    PaymentReminderChip(
+                        status = cardOverview.paymentStatus!!,
+                        dueDate = cardOverview.pendingStatementDueDate!!,
+                        today = today,
+                    )
                 }
-            } else if (item.account.type == AccountType.CREDIT_CARD && cardOverview != null) {
-                CardRowBalance(
-                    overview = cardOverview,
-                    today = today,
-                )
-            } else if (item.account.type == AccountType.TRANSIT_CARD) {
-                TransitRowBalance(
-                    balance = item.balance,
-                    fare = item.account.fare,
-                    balanceColor =
-                        if (isArchived) {
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
-                )
-            } else {
-                MoneyText(
-                    amount = item.balance,
-                    style = MaterialTheme.typography.titleMedium,
+            }
+            if (transitStatus != null) {
+                Text(
+                    text = transitStatus.text,
+                    style = MaterialTheme.typography.bodySmall,
                     color =
-                        if (isArchived) {
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        if (transitStatus.isWarning) {
+                            MaterialTheme.colorScheme.error
                         } else {
-                            MaterialTheme.colorScheme.onSurface
+                            MaterialTheme.colorScheme.onSurfaceVariant
                         },
+                )
+            }
+            if (stacked && !isReordering) {
+                Spacer(modifier = Modifier.height(spacing.xs))
+                AccountRowBalance(
+                    item = item,
+                    isArchived = isArchived,
+                    cardOverview = cardOverview,
+                    horizontalAlignment = Alignment.Start,
                 )
             }
         }
+
+        if (isReordering) {
+            Spacer(modifier = Modifier.width(spacing.s))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(
+                    onClick = onMoveUp,
+                    enabled = canMoveUp,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowUpward,
+                        contentDescription = stringResource(R.string.accounts_move_up),
+                    )
+                }
+                IconButton(
+                    onClick = onMoveDown,
+                    enabled = canMoveDown,
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ArrowDownward,
+                        contentDescription = stringResource(R.string.accounts_move_down),
+                    )
+                }
+            }
+        } else if (!stacked) {
+            Spacer(modifier = Modifier.width(spacing.m))
+            AccountRowBalance(
+                item = item,
+                isArchived = isArchived,
+                cardOverview = cardOverview,
+                horizontalAlignment = Alignment.End,
+            )
+        }
     }
 }
+
+/** The figure at the end of an account row: the debt of a card, or the balance of any other account. */
+@Composable
+private fun AccountRowBalance(
+    item: AccountWithBalance,
+    isArchived: Boolean,
+    cardOverview: CardOverview?,
+    horizontalAlignment: Alignment.Horizontal,
+) {
+    val color = if (isArchived) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
+    if (item.account.type == AccountType.CREDIT_CARD && cardOverview != null) {
+        CardDebtBlock(overview = cardOverview, horizontalAlignment = horizontalAlignment)
+    } else {
+        MoneyText(
+            amount = item.balance,
+            style = MaterialTheme.walletTypography.rowAmount,
+            color = color,
+        )
+    }
+}
+
+private val ROW_AVATAR_SIZE = 44.dp
+private val ARCHIVED_HEADER_MIN_HEIGHT = 56.dp
+
+/** Room under the list so the last row is not covered by the add button. */
+private val FAB_CLEARANCE = 96.dp
 
 @Preview(name = "Accounts Light", showBackground = true)
 @Composable

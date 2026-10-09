@@ -8,23 +8,22 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -40,7 +39,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -51,14 +51,19 @@ import com.crguarin.wallet.domain.model.debt.DebtDetail
 import com.crguarin.wallet.domain.model.debt.DebtDirection
 import com.crguarin.wallet.domain.model.debt.DebtPayment
 import com.crguarin.wallet.domain.model.debt.DebtSummary
+import com.crguarin.wallet.ui.accounts.WalletTextField
 import com.crguarin.wallet.ui.components.AmountTextField
 import com.crguarin.wallet.ui.components.ConfirmDialog
 import com.crguarin.wallet.ui.components.ErrorState
 import com.crguarin.wallet.ui.components.LoadingState
 import com.crguarin.wallet.ui.components.MoneyText
+import com.crguarin.wallet.ui.components.SectionCard
+import com.crguarin.wallet.ui.components.groupedItemBackground
 import com.crguarin.wallet.ui.recurring.FieldLabel
 import com.crguarin.wallet.ui.recurring.RecurringDatePickerDialog
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletSpacing
+import com.crguarin.wallet.ui.theme.walletTypography
 import com.crguarin.wallet.ui.util.formatMedium
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 import java.time.Instant
@@ -220,32 +225,37 @@ fun DebtDetailScreen(
             else -> {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(innerPadding),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    contentPadding = PaddingValues(MaterialTheme.walletSpacing.screenGutter),
                 ) {
                     item(key = "header") {
                         DebtHeaderCard(detail = detail, today = uiState.today)
                     }
                     if (!detail.summary.isSettled) {
                         item(key = "actions") {
-                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(MaterialTheme.walletSpacing.s),
+                                modifier = Modifier.padding(top = MaterialTheme.walletSpacing.m),
+                            ) {
                                 Button(
                                     onClick = onAddPaymentClick,
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = ACTION_HEIGHT),
                                 ) {
-                                    Text(text = stringResource(R.string.debts_add_payment))
+                                    Text(text = stringResource(R.string.debts_add_payment), style = MaterialTheme.typography.titleMedium)
                                 }
-                                OutlinedButton(
+                                FilledTonalButton(
                                     onClick = onSettleClick,
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = ACTION_HEIGHT),
                                 ) {
-                                    Text(text = stringResource(R.string.debts_settle))
+                                    Text(text = stringResource(R.string.debts_settle), style = MaterialTheme.typography.titleMedium)
                                 }
                             }
                         }
                     }
                     item(key = "payments_header") {
-                        DetailSectionTitle(text = stringResource(R.string.debts_payments_title))
+                        DetailSectionTitle(
+                            text = stringResource(R.string.debts_payments_title),
+                            modifier = Modifier.padding(top = MaterialTheme.walletSpacing.xl, bottom = MaterialTheme.walletSpacing.s),
+                        )
                     }
                     if (detail.payments.isEmpty()) {
                         item(key = "payments_empty") {
@@ -256,10 +266,11 @@ fun DebtDetailScreen(
                             )
                         }
                     } else {
-                        items(items = detail.payments, key = { payment -> "payment_${payment.id}" }) { payment ->
+                        itemsIndexed(items = detail.payments, key = { _, payment -> "payment_${payment.id}" }) { index, payment ->
                             PaymentRow(
                                 payment = payment,
                                 onDeleteClick = { onDeletePaymentClick(payment) },
+                                modifier = Modifier.groupedItemBackground(index, detail.payments.size),
                             )
                         }
                     }
@@ -329,12 +340,11 @@ private fun DebtHeaderCard(
         } else {
             stringResource(R.string.debts_detail_i_owe, debt.personName)
         }
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(20.dp)) {
+    SectionCard {
+        Column {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
             )
             Spacer(modifier = Modifier.height(12.dp))
             Text(
@@ -344,11 +354,13 @@ private fun DebtHeaderCard(
             )
             MoneyText(
                 amount = summary.remaining,
-                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                style = MaterialTheme.typography.headlineMedium,
             )
             Spacer(modifier = Modifier.height(12.dp))
             LinearProgressIndicator(
                 progress = { paymentProgress(paid = summary.paid, amount = debt.amount) },
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(modifier = Modifier.height(12.dp))
@@ -388,7 +400,6 @@ private fun DebtHeaderCard(
                 Text(
                     text = stringResource(R.string.debts_settled_badge),
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
@@ -419,12 +430,15 @@ private fun DetailAmountLine(
 }
 
 @Composable
-private fun DetailSectionTitle(text: String) {
+private fun DetailSectionTitle(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
     Text(
         text = text,
         style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier.semantics { heading() },
     )
 }
 
@@ -432,40 +446,41 @@ private fun DetailSectionTitle(text: String) {
 private fun PaymentRow(
     payment: DebtPayment,
     onDeleteClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                MoneyText(
-                    amount = payment.amount,
-                    style = MaterialTheme.typography.titleMedium,
-                )
+    Row(
+        modifier = modifier.fillMaxWidth().padding(start = 16.dp, end = 4.dp, top = 8.dp, bottom = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            MoneyText(
+                amount = payment.amount,
+                style = MaterialTheme.walletTypography.rowAmount,
+            )
+            Text(
+                text = payment.date.formatMedium(),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            payment.note?.let { note ->
                 Text(
-                    text = payment.date.formatMedium(),
+                    text = note,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                payment.note?.let { note ->
-                    Text(
-                        text = note,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
             }
-            IconButton(onClick = onDeleteClick) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = stringResource(R.string.debts_payment_delete),
-                    tint = MaterialTheme.colorScheme.error,
-                )
-            }
+        }
+        IconButton(onClick = onDeleteClick) {
+            Icon(
+                imageVector = Icons.Default.Delete,
+                contentDescription = stringResource(R.string.debts_payment_delete),
+                tint = MaterialTheme.colorScheme.error,
+            )
         }
     }
 }
+
+private val ACTION_HEIGHT = 56.dp
 
 /** Records a payment. The amount starts at what is still owed; errors show inline. */
 @Composable
@@ -503,15 +518,11 @@ private fun PaymentDialog(
                     )
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
+                WalletTextField(
                     value = uiState.paymentNote,
                     onValueChange = onNoteChanged,
-                    label = { Text(text = stringResource(R.string.debts_payment_note_label)) },
-                    isError = uiState.paymentNoteErrorRes != null,
-                    supportingText =
-                        uiState.paymentNoteErrorRes?.let { res ->
-                            { Text(text = stringResource(res)) }
-                        },
+                    label = stringResource(R.string.debts_payment_note_label),
+                    errorRes = uiState.paymentNoteErrorRes,
                     enabled = !uiState.isProcessing,
                 )
                 uiState.dialogErrorRes?.let { res ->

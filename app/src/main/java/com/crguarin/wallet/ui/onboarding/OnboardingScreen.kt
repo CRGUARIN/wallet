@@ -1,7 +1,5 @@
 package com.crguarin.wallet.ui.onboarding
 
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,45 +14,44 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Savings
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedCard
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.crguarin.wallet.R
 import com.crguarin.wallet.domain.model.AccountType
+import com.crguarin.wallet.ui.accounts.FormSectionTitle
+import com.crguarin.wallet.ui.accounts.ToggleCard
+import com.crguarin.wallet.ui.accounts.TonalOptionCard
+import com.crguarin.wallet.ui.accounts.WalletTextField
 import com.crguarin.wallet.ui.components.AmountTextField
+import com.crguarin.wallet.ui.components.BottomActionBar
 import com.crguarin.wallet.ui.components.ColorPicker
 import com.crguarin.wallet.ui.components.IconPicker
+import com.crguarin.wallet.ui.components.PrimaryActionButton
+import com.crguarin.wallet.ui.components.TonalPebble
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletSpacing
 import com.crguarin.wallet.ui.util.AppLanguage
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 
@@ -131,6 +128,31 @@ fun OnboardingScreen(
         // No TopAppBar here, so the screen itself keeps clear of the status bar.
         contentWindowInsets = WindowInsets.statusBars,
         modifier = modifier.fillMaxSize(),
+        bottomBar = {
+            BottomActionBar {
+                if (uiState.step == 1) {
+                    PrimaryActionButton(
+                        text = stringResource(R.string.action_continue),
+                        onClick = onNextStep,
+                        modifier = Modifier.weight(1f),
+                    )
+                } else {
+                    FilledTonalButton(
+                        onClick = onPreviousStep,
+                        modifier = Modifier.height(ONBOARDING_ACTION_HEIGHT),
+                    ) {
+                        Text(text = stringResource(R.string.action_previous), style = MaterialTheme.typography.titleMedium)
+                    }
+                    PrimaryActionButton(
+                        text = stringResource(R.string.action_start),
+                        onClick = onComplete,
+                        enabled = uiState.isAccountValid,
+                        isLoading = uiState.isSaving,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+            }
+        },
     ) { innerPadding ->
         Box(
             modifier =
@@ -142,20 +164,17 @@ fun OnboardingScreen(
                 OnboardingStepWelcome(
                     selectedLanguage = uiState.selectedLanguage,
                     onLanguageSelected = onLanguageSelected,
-                    onContinue = onNextStep,
                     modifier = Modifier.fillMaxSize(),
                 )
             } else {
                 OnboardingStepFirstAccount(
                     uiState = uiState,
-                    onPrevious = onPreviousStep,
                     onAccountNameChanged = onAccountNameChanged,
                     onAccountTypeChanged = onAccountTypeChanged,
                     onInitialBalanceChanged = onInitialBalanceChanged,
                     onColorSelected = onColorSelected,
                     onIconSelected = onIconSelected,
                     onIncludeInTotalChanged = onIncludeInTotalChanged,
-                    onComplete = onComplete,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
@@ -167,46 +186,36 @@ fun OnboardingScreen(
 private fun OnboardingStepWelcome(
     selectedLanguage: AppLanguage,
     onLanguageSelected: (AppLanguage) -> Unit,
-    onContinue: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val spacing = MaterialTheme.walletSpacing
     Column(
         modifier =
             modifier
                 .verticalScroll(rememberScrollState())
-                .padding(24.dp),
+                .padding(spacing.xxl),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
     ) {
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(spacing.xxxl))
 
-        Box(
-            modifier =
-                Modifier
-                    .size(96.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                imageVector = Icons.Default.AccountBalanceWallet,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(52.dp),
-            )
-        }
+        TonalPebble(
+            icon = Icons.Default.AccountBalanceWallet,
+            container = MaterialTheme.colorScheme.primaryContainer,
+            content = MaterialTheme.colorScheme.onPrimaryContainer,
+            size = 96.dp,
+        )
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(spacing.xxl))
 
         Text(
             text = stringResource(R.string.onboarding_welcome_title),
             style = MaterialTheme.typography.headlineLarge,
-            fontWeight = FontWeight.Bold,
             textAlign = TextAlign.Center,
             modifier = Modifier.semantics { heading() },
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(spacing.m))
 
         Text(
             text = stringResource(R.string.onboarding_welcome_subtitle),
@@ -220,11 +229,10 @@ private fun OnboardingStepWelcome(
         Text(
             text = stringResource(R.string.onboarding_language_title),
             style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
             modifier = Modifier.fillMaxWidth().semantics { heading() },
         )
 
-        Spacer(modifier = Modifier.height(12.dp))
+        Spacer(modifier = Modifier.height(spacing.m))
 
         val languages =
             listOf(
@@ -235,149 +243,107 @@ private fun OnboardingStepWelcome(
 
         languages.forEach { (language, label) ->
             val isSelected = selectedLanguage == language
-            OutlinedCard(
+            TonalOptionCard(
+                selected = isSelected,
                 onClick = { onLanguageSelected(language) },
-                shape = RoundedCornerShape(12.dp),
-                border =
-                    if (isSelected) {
-                        BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-                    } else {
-                        BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-                    },
-                colors =
-                    CardDefaults.outlinedCardColors(
-                        containerColor =
-                            if (isSelected) {
-                                MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
-                            } else {
-                                MaterialTheme.colorScheme.surface
-                            },
-                    ),
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp)
-                        .semantics(mergeDescendants = true) {},
+                        .padding(vertical = spacing.xs),
             ) {
                 Row(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
+                            .padding(spacing.l),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     RadioButton(
                         selected = isSelected,
                         onClick = null,
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(spacing.m))
                     Text(
                         text = label,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
+                        style = MaterialTheme.typography.titleSmall,
                     )
                 }
             }
         }
 
-        Spacer(modifier = Modifier.height(36.dp))
-
-        Button(
-            onClick = onContinue,
-            shape = RoundedCornerShape(12.dp),
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.action_continue),
-                style = MaterialTheme.typography.titleMedium,
-            )
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(spacing.xxl))
     }
 }
 
 @Composable
 private fun OnboardingStepFirstAccount(
     uiState: OnboardingUiState,
-    onPrevious: () -> Unit,
     onAccountNameChanged: (String) -> Unit,
     onAccountTypeChanged: (AccountType) -> Unit,
     onInitialBalanceChanged: (String) -> Unit,
     onColorSelected: (Int) -> Unit,
     onIconSelected: (String) -> Unit,
     onIncludeInTotalChanged: (Boolean) -> Unit,
-    onComplete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val spacing = MaterialTheme.walletSpacing
     Column(
         modifier =
             modifier
                 .verticalScroll(rememberScrollState())
-                .padding(24.dp),
+                .padding(spacing.xxl),
         horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(spacing.l),
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Spacer(modifier = Modifier.height(spacing.l))
 
-        Text(
-            text = stringResource(R.string.onboarding_step_indicator, 2, 2),
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-        )
+            Text(
+                text = stringResource(R.string.onboarding_step_indicator, 2, 2),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
 
-        Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(spacing.s))
 
-        Text(
-            text = stringResource(R.string.onboarding_first_account_title),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            textAlign = TextAlign.Center,
-            modifier = Modifier.semantics { heading() },
-        )
+            Text(
+                text = stringResource(R.string.onboarding_first_account_title),
+                style = MaterialTheme.typography.headlineMedium,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.semantics { heading() },
+            )
 
-        Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(spacing.s))
 
-        Text(
-            text = stringResource(R.string.onboarding_first_account_subtitle),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            textAlign = TextAlign.Center,
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
+            Text(
+                text = stringResource(R.string.onboarding_first_account_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
+        }
 
         // Account Name
-        OutlinedTextField(
+        WalletTextField(
             value = uiState.accountName,
             onValueChange = onAccountNameChanged,
-            label = { Text(text = stringResource(R.string.account_edit_name_label)) },
-            isError = uiState.nameErrorRes != null,
-            supportingText = uiState.nameErrorRes?.let { { Text(stringResource(it)) } },
+            label = stringResource(R.string.account_edit_name_label),
+            errorRes = uiState.nameErrorRes,
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
         // Account Type
-        Text(
+        FormSectionTitle(
             text = stringResource(R.string.account_edit_type_label),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.fillMaxWidth().semantics { heading() },
+            modifier = Modifier.fillMaxWidth(),
         )
-
-        Spacer(modifier = Modifier.height(8.dp))
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(spacing.m),
         ) {
             AccountTypeOption(
-                type = AccountType.CASH,
                 isSelected = uiState.accountType == AccountType.CASH,
                 onClick = { onAccountTypeChanged(AccountType.CASH) },
                 icon = Icons.Default.AccountBalanceWallet,
@@ -385,7 +351,6 @@ private fun OnboardingStepFirstAccount(
                 modifier = Modifier.weight(1f),
             )
             AccountTypeOption(
-                type = AccountType.SAVINGS,
                 isSelected = uiState.accountType == AccountType.SAVINGS,
                 onClick = { onAccountTypeChanged(AccountType.SAVINGS) },
                 icon = Icons.Default.Savings,
@@ -393,8 +358,6 @@ private fun OnboardingStepFirstAccount(
                 modifier = Modifier.weight(1f),
             )
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
 
         // Initial Balance
         AmountTextField(
@@ -405,77 +368,37 @@ private fun OnboardingStepFirstAccount(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
         // Color Picker
-        Text(
+        FormSectionTitle(
             text = stringResource(R.string.account_edit_color_label),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.fillMaxWidth().semantics { heading() },
+            modifier = Modifier.fillMaxWidth(),
         )
-
-        Spacer(modifier = Modifier.height(8.dp))
 
         ColorPicker(
             selectedColor = uiState.selectedColor,
             onColorSelected = onColorSelected,
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
         // Icon Picker
-        Text(
+        FormSectionTitle(
             text = stringResource(R.string.account_edit_icon_label),
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.fillMaxWidth().semantics { heading() },
+            modifier = Modifier.fillMaxWidth(),
         )
-
-        Spacer(modifier = Modifier.height(8.dp))
 
         IconPicker(
             selectedIcon = uiState.selectedIcon,
             onIconSelected = onIconSelected,
         )
 
-        Spacer(modifier = Modifier.height(16.dp))
-
         // Include in total switch
-        Card(
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = stringResource(R.string.account_edit_include_in_total_title),
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.SemiBold,
-                    )
-                    Text(
-                        text = stringResource(R.string.account_edit_include_in_total_subtitle),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                Spacer(modifier = Modifier.width(8.dp))
-                Switch(
-                    checked = uiState.includeInTotal,
-                    onCheckedChange = onIncludeInTotalChanged,
-                )
-            }
-        }
+        ToggleCard(
+            title = stringResource(R.string.account_edit_include_in_total_title),
+            subtitle = stringResource(R.string.account_edit_include_in_total_subtitle),
+            checked = uiState.includeInTotal,
+            onCheckedChange = onIncludeInTotalChanged,
+        )
 
         if (uiState.generalErrorRes != null) {
-            Spacer(modifier = Modifier.height(16.dp))
             Text(
                 text = stringResource(uiState.generalErrorRes),
                 color = MaterialTheme.colorScheme.error,
@@ -484,85 +407,30 @@ private fun OnboardingStepFirstAccount(
             )
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            OutlinedButton(
-                onClick = onPrevious,
-                shape = RoundedCornerShape(12.dp),
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .height(50.dp),
-            ) {
-                Text(text = stringResource(R.string.action_previous))
-            }
-
-            Button(
-                onClick = onComplete,
-                enabled = uiState.isAccountValid,
-                shape = RoundedCornerShape(12.dp),
-                modifier =
-                    Modifier
-                        .weight(1f)
-                        .height(50.dp),
-            ) {
-                if (uiState.isSaving) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = MaterialTheme.colorScheme.onPrimary,
-                        strokeWidth = 2.dp,
-                    )
-                } else {
-                    Text(
-                        text = stringResource(R.string.action_start),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(spacing.s))
     }
 }
 
+/** One of the two account types of the first account: a tonal card with a leading icon and a check when chosen. */
 @Composable
 private fun AccountTypeOption(
-    type: AccountType,
     isSelected: Boolean,
     onClick: () -> Unit,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     label: String,
     modifier: Modifier = Modifier,
 ) {
-    OutlinedCard(
+    val spacing = MaterialTheme.walletSpacing
+    TonalOptionCard(
+        selected = isSelected,
         onClick = onClick,
-        shape = RoundedCornerShape(12.dp),
-        border =
-            if (isSelected) {
-                BorderStroke(2.dp, MaterialTheme.colorScheme.primary)
-            } else {
-                BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
-            },
-        colors =
-            CardDefaults.outlinedCardColors(
-                containerColor =
-                    if (isSelected) {
-                        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f)
-                    } else {
-                        MaterialTheme.colorScheme.surface
-                    },
-            ),
         modifier = modifier,
     ) {
         Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
+                    .padding(spacing.l),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             Icon(
@@ -570,22 +438,35 @@ private fun AccountTypeOption(
                 contentDescription = null,
                 tint =
                     if (isSelected) {
-                        MaterialTheme.colorScheme.primary
+                        MaterialTheme.colorScheme.onSecondaryContainer
                     } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                        MaterialTheme.colorScheme.primary
                     },
                 modifier = Modifier.size(32.dp),
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(spacing.s))
             Text(
                 text = label,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                style = MaterialTheme.typography.titleSmall,
                 textAlign = TextAlign.Center,
             )
+            // The check keeps its room when off, so both cards are the same height.
+            if (isSelected) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(CHECK_SIZE),
+                )
+            } else {
+                Spacer(modifier = Modifier.size(CHECK_SIZE))
+            }
         }
     }
 }
+
+private val CHECK_SIZE = 18.dp
+
+private val ONBOARDING_ACTION_HEIGHT = 56.dp
 
 @Preview(name = "Step 1 Light", showBackground = true)
 @Composable

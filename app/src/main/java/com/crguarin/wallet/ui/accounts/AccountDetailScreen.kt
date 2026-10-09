@@ -1,9 +1,13 @@
 package com.crguarin.wallet.ui.accounts
 
 import android.annotation.SuppressLint
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,27 +15,28 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DirectionsBus
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
@@ -48,12 +53,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -80,7 +86,10 @@ import com.crguarin.wallet.ui.components.ErrorState
 import com.crguarin.wallet.ui.components.LoadingState
 import com.crguarin.wallet.ui.components.TransactionDayHeader
 import com.crguarin.wallet.ui.components.TransactionListItem
+import com.crguarin.wallet.ui.components.groupedItemBackground
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletSpacing
+import com.crguarin.wallet.ui.theme.walletTypography
 import com.crguarin.wallet.ui.transactions.rememberEntriesPagingItems
 import com.crguarin.wallet.ui.util.formatMedium
 import com.crguarin.wallet.ui.util.safeHiltViewModel
@@ -168,6 +177,7 @@ fun AccountDetailRoute(
         onReconcileClick = { onReconcileClick(viewModel.accountId) },
         onRegisterTripClick = viewModel::onRegisterTripClick,
         onRechargeClick = { onRechargeClick(uiState.rechargeFromAccountId, viewModel.accountId) },
+        onNewTransactionClick = { type -> onNewTransactionClick(viewModel.accountId, type) },
         snackbarHostState = snackbarHostState,
         modifier = modifier,
     )
@@ -195,9 +205,11 @@ fun AccountDetailScreen(
     onReconcileClick: () -> Unit = {},
     onRegisterTripClick: () -> Unit = {},
     onRechargeClick: () -> Unit = {},
+    onNewTransactionClick: (TransactionType) -> Unit = {},
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val account = uiState.accountWithBalance?.account
+    val spacing = MaterialTheme.walletSpacing
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -214,6 +226,13 @@ fun AccountDetailScreen(
                 },
                 actions = {
                     if (account != null) {
+                        // Editing is the most common reason to open the menu, so it gets its own icon.
+                        IconButton(onClick = onEditClick) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = stringResource(R.string.account_detail_menu_edit),
+                            )
+                        }
                         IconButton(onClick = { menuExpanded = true }) {
                             Icon(
                                 imageVector = Icons.Default.MoreVert,
@@ -224,13 +243,6 @@ fun AccountDetailScreen(
                             expanded = menuExpanded,
                             onDismissRequest = { menuExpanded = false },
                         ) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.account_detail_menu_edit)) },
-                                onClick = {
-                                    menuExpanded = false
-                                    onEditClick()
-                                },
-                            )
                             if (!account.isArchived) {
                                 if (uiState.canTransfer) {
                                     DropdownMenuItem(
@@ -303,146 +315,116 @@ fun AccountDetailScreen(
                 Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            // The side gutter is applied by each item: the day headers bring their own.
+            contentPadding = PaddingValues(top = spacing.s, bottom = spacing.xxxl),
         ) {
-            if (account != null) {
-                val balance = uiState.accountWithBalance.balance
-                val cardOverview = uiState.cardOverview
-                if (account.type == AccountType.CREDIT_CARD && cardOverview != null) {
-                    item(key = "header") {
-                        CardSummaryCard(
-                            overview = cardOverview,
-                            today = uiState.today,
-                            account = account,
+            val gutter = Modifier.padding(horizontal = spacing.screenGutter)
+            val balance = uiState.accountWithBalance.balance
+            val cardOverview = uiState.cardOverview
+            if (account.type == AccountType.CREDIT_CARD && cardOverview != null) {
+                item(key = "header") {
+                    CardSummaryCard(
+                        overview = cardOverview,
+                        today = uiState.today,
+                        account = account,
+                        modifier = gutter,
+                        actions = {
+                            CardActions(
+                                canAddExpense = !account.isArchived,
+                                onPayCardClick = onPayCardClick,
+                                onReconcileClick = onReconcileClick,
+                                onNewTransactionClick = onNewTransactionClick,
+                            )
+                        },
+                    )
+                }
+                if (cardOverview.activeInstallments.isNotEmpty()) {
+                    item(key = "installments_header") {
+                        DetailSectionTitle(text = stringResource(R.string.card_installments_title), modifier = gutter)
+                    }
+                    itemsIndexed(
+                        items = cardOverview.activeInstallments,
+                        // Prefixed: the same transaction also appears in the movements list below.
+                        key = { _, installment -> "installment_${installment.transactionId}" },
+                    ) { index, installment ->
+                        InstallmentRow(
+                            installment = installment,
+                            onClick = { onTransactionClick(installment.transactionId) },
+                            modifier = gutter.groupedItemBackground(index, cardOverview.activeInstallments.size),
                         )
                     }
-                    item(key = "card_actions") {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Button(
-                                onClick = onPayCardClick,
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(text = stringResource(R.string.card_action_pay))
-                            }
-                            OutlinedButton(
-                                onClick = onReconcileClick,
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(text = stringResource(R.string.card_action_reconcile))
-                            }
-                        }
+                }
+                if (uiState.statements.isNotEmpty()) {
+                    item(key = "statements_header") {
+                        DetailSectionTitle(text = stringResource(R.string.card_statements_history), modifier = gutter)
                     }
-                    if (cardOverview.activeInstallments.isNotEmpty()) {
-                        item(key = "installments_header") {
-                            Text(
-                                text = stringResource(R.string.card_installments_title),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.semantics { heading() },
-                            )
-                        }
-                        items(
-                            items = cardOverview.activeInstallments,
-                            // Prefixed: the same transaction also appears in the movements list below.
-                            key = { "installment_${it.transactionId}" },
-                        ) { installment ->
-                            InstallmentRow(
-                                installment = installment,
-                                onClick = { onTransactionClick(installment.transactionId) },
-                            )
-                        }
-                    }
-                    if (uiState.statements.isNotEmpty()) {
-                        item(key = "statements_header") {
-                            Text(
-                                text = stringResource(R.string.card_statements_history),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.SemiBold,
-                                modifier = Modifier.semantics { heading() },
-                            )
-                        }
-                        items(
-                            items = uiState.statements,
-                            key = { "statement_${it.id}" },
-                        ) { statement ->
-                            StatementRow(
-                                statement = statement,
-                                adjustmentAmount = uiState.adjustmentAmounts[statement.id],
-                            )
-                        }
-                    }
-                } else if (account.type == AccountType.TRANSIT_CARD) {
-                    item(key = "header") {
-                        TransitCardSummaryCard(
-                            account = account,
-                            balance = balance,
-                            monthSummary = uiState.monthSummary,
+                    itemsIndexed(
+                        items = uiState.statements,
+                        key = { _, statement -> "statement_${statement.id}" },
+                    ) { index, statement ->
+                        StatementRow(
+                            statement = statement,
+                            adjustmentAmount = uiState.adjustmentAmounts[statement.id],
+                            modifier = gutter.groupedItemBackground(index, uiState.statements.size),
                         )
                     }
-                    if (!account.isArchived) {
-                        item(key = "transit_actions") {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Button(
-                                    onClick = onRegisterTripClick,
-                                    enabled = uiState.canRegisterTrip,
-                                    modifier = Modifier.weight(1f),
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.DirectionsBus,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(18.dp),
+                }
+            } else if (account.type == AccountType.TRANSIT_CARD) {
+                item(key = "header") {
+                    TransitCardSummaryCard(
+                        account = account,
+                        balance = balance,
+                        monthSummary = uiState.monthSummary,
+                        modifier = gutter,
+                        actions =
+                            if (account.isArchived) {
+                                null
+                            } else {
+                                {
+                                    TransitActions(
+                                        canRegisterTrip = uiState.canRegisterTrip,
+                                        canRecharge = uiState.canTransfer,
+                                        onRegisterTripClick = onRegisterTripClick,
+                                        onRechargeClick = onRechargeClick,
                                     )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(text = stringResource(R.string.transit_action_trip))
                                 }
-                                if (uiState.canTransfer) {
-                                    OutlinedButton(
-                                        onClick = onRechargeClick,
-                                        modifier = Modifier.weight(1f),
-                                    ) {
-                                        Icon(
-                                            imageVector = Icons.Default.Add,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(18.dp),
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Text(text = stringResource(R.string.transit_action_recharge))
-                                    }
+                            },
+                    )
+                }
+            } else {
+                item(key = "header") {
+                    AccountHeaderCard(
+                        account = account,
+                        balance = balance,
+                        monthSummary = uiState.monthSummary,
+                        modifier = gutter,
+                        actions =
+                            if (account.isArchived) {
+                                null
+                            } else {
+                                {
+                                    CashActions(
+                                        canTransfer = uiState.canTransfer,
+                                        onNewTransactionClick = onNewTransactionClick,
+                                    )
                                 }
-                            }
-                        }
-                    }
-                } else {
-                    item(key = "header") {
-                        AccountHeaderCard(
-                            account = account,
-                            balance = balance,
-                            monthSummary = uiState.monthSummary,
-                        )
-                    }
+                            },
+                    )
                 }
             }
 
             item(key = "transactions_header") {
                 Row(
                     modifier =
-                        Modifier
+                        gutter
                             .fillMaxWidth()
-                            .padding(top = 8.dp),
+                            .padding(top = spacing.l),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
                         text = stringResource(R.string.account_detail_transactions_title),
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
                         modifier =
                             Modifier
                                 .weight(1f)
@@ -463,7 +445,7 @@ fun AccountDetailScreen(
             when {
                 isLoading -> {
                     item(key = "transactions_loading") {
-                        LoadingState(fillMaxSize = false, modifier = Modifier.fillMaxWidth())
+                        LoadingState(fillMaxSize = false, modifier = gutter.fillMaxWidth())
                     }
                 }
 
@@ -473,6 +455,7 @@ fun AccountDetailScreen(
                             message = stringResource(R.string.transactions_load_error),
                             actionLabel = stringResource(R.string.action_retry),
                             onActionClick = { pagingItems.retry() },
+                            modifier = gutter,
                         )
                     }
                 }
@@ -483,7 +466,7 @@ fun AccountDetailScreen(
                             icon = Icons.AutoMirrored.Filled.ReceiptLong,
                             title = stringResource(R.string.account_detail_transactions_empty_title),
                             message = stringResource(R.string.account_detail_transactions_empty_message),
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = gutter.fillMaxWidth(),
                         )
                     }
                 }
@@ -515,20 +498,29 @@ fun AccountDetailScreen(
                                 )
                             }
                             is TransactionListEntry.Item -> {
+                                // The rows of one day share a tonal layer: the first has the top
+                                // corners rounded and the last the bottom ones.
+                                val previous = if (index > 0) pagingItems.peek(index - 1) else null
+                                val next = if (index < pagingItems.itemCount - 1) pagingItems.peek(index + 1) else null
+                                val first = previous == null || previous is TransactionListEntry.DayHeader
+                                val last = next == null || next is TransactionListEntry.DayHeader
                                 TransactionListItem(
                                     details = entry.details,
-                                    perspectiveAccountId = account?.id,
+                                    perspectiveAccountId = account.id,
                                     onClick = { onTransactionClick(entry.details.transaction.id) },
+                                    modifier =
+                                        when {
+                                            first && last -> gutter.groupedItemBackground(0, 1)
+                                            first -> gutter.groupedItemBackground(0, 2)
+                                            last -> gutter.groupedItemBackground(1, 2)
+                                            else -> gutter.groupedItemBackground(1, 3)
+                                        },
                                 )
                             }
                             null -> Unit
                         }
                     }
                 }
-            }
-
-            item(key = "bottom_spacer") {
-                Spacer(modifier = Modifier.height(72.dp))
             }
         }
     }
@@ -557,48 +549,194 @@ fun AccountDetailScreen(
     }
 }
 
+/** Heading of a block of the detail (installments, statements). */
+@Composable
+private fun DetailSectionTitle(
+    text: String,
+    modifier: Modifier = Modifier,
+) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium,
+        modifier =
+            modifier
+                .padding(top = MaterialTheme.walletSpacing.l, bottom = MaterialTheme.walletSpacing.s)
+                .semantics { heading() },
+    )
+}
+
+/** Height of the main action of a screen, as in the form bars. */
+private val PRIMARY_ACTION_HEIGHT = 56.dp
+
+/** Height of the secondary actions: the 48 dp touch target. */
+private val SECONDARY_ACTION_HEIGHT = 48.dp
+
+/** Main action: a 56 dp pill in `primary` with an optional leading icon. */
+@Composable
+private fun PrimaryAction(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    icon: ImageVector? = null,
+) {
+    Button(
+        onClick = onClick,
+        enabled = enabled,
+        modifier = modifier.fillMaxWidth().height(PRIMARY_ACTION_HEIGHT),
+    ) {
+        if (icon != null) {
+            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(20.dp))
+            Spacer(modifier = Modifier.width(MaterialTheme.walletSpacing.s))
+        }
+        Text(text = text, style = MaterialTheme.typography.titleMedium)
+    }
+}
+
+/** Secondary action: a tonal pill (`secondaryContainer`) at least 48 dp tall. */
+@Composable
+private fun SecondaryAction(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    icon: ImageVector? = null,
+) {
+    FilledTonalButton(
+        onClick = onClick,
+        enabled = enabled,
+        contentPadding = PaddingValues(horizontal = MaterialTheme.walletSpacing.l),
+        modifier = modifier.heightIn(min = SECONDARY_ACTION_HEIGHT),
+    ) {
+        if (icon != null) {
+            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp))
+            Spacer(modifier = Modifier.width(MaterialTheme.walletSpacing.s))
+        }
+        Text(text = text, style = MaterialTheme.typography.labelLarge)
+    }
+}
+
+/** Expense, income and transfer from this account: the three things done most with cash and savings. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ColumnScope.CashActions(
+    canTransfer: Boolean,
+    onNewTransactionClick: (TransactionType) -> Unit,
+) {
+    val spacing = MaterialTheme.walletSpacing
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s),
+        verticalArrangement = Arrangement.spacedBy(spacing.s),
+    ) {
+        SecondaryAction(
+            text = stringResource(R.string.type_expense),
+            onClick = { onNewTransactionClick(TransactionType.EXPENSE) },
+        )
+        SecondaryAction(
+            text = stringResource(R.string.type_income),
+            onClick = { onNewTransactionClick(TransactionType.INCOME) },
+        )
+        if (canTransfer) {
+            SecondaryAction(
+                text = stringResource(R.string.type_transfer),
+                onClick = { onNewTransactionClick(TransactionType.TRANSFER) },
+            )
+        }
+    }
+}
+
+/** Pay is the main action of a card; an expense and the statement reconciliation sit beside it. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ColumnScope.CardActions(
+    canAddExpense: Boolean,
+    onPayCardClick: () -> Unit,
+    onReconcileClick: () -> Unit,
+    onNewTransactionClick: (TransactionType) -> Unit,
+) {
+    val spacing = MaterialTheme.walletSpacing
+    PrimaryAction(text = stringResource(R.string.card_action_pay), onClick = onPayCardClick)
+    Spacer(modifier = Modifier.height(spacing.s))
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s),
+        verticalArrangement = Arrangement.spacedBy(spacing.s),
+    ) {
+        if (canAddExpense) {
+            SecondaryAction(
+                text = stringResource(R.string.type_expense),
+                onClick = { onNewTransactionClick(TransactionType.EXPENSE) },
+            )
+        }
+        SecondaryAction(text = stringResource(R.string.card_action_reconcile), onClick = onReconcileClick)
+    }
+}
+
+/** Registering a trip is the main action of a transit card (one big button); top up is beside it. */
+@Composable
+private fun ColumnScope.TransitActions(
+    canRegisterTrip: Boolean,
+    canRecharge: Boolean,
+    onRegisterTripClick: () -> Unit,
+    onRechargeClick: () -> Unit,
+) {
+    PrimaryAction(
+        text = stringResource(R.string.transit_action_trip),
+        onClick = onRegisterTripClick,
+        enabled = canRegisterTrip,
+        icon = Icons.Default.DirectionsBus,
+    )
+    if (canRecharge) {
+        Spacer(modifier = Modifier.height(MaterialTheme.walletSpacing.s))
+        SecondaryAction(
+            text = stringResource(R.string.transit_action_recharge),
+            onClick = onRechargeClick,
+            icon = Icons.Default.Add,
+        )
+    }
+}
+
 @Composable
 private fun InstallmentRow(
     installment: InstallmentStatus,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val spacing = MaterialTheme.walletSpacing
     val locale = LocalConfiguration.current.locales[0]
-    Card(
-        onClick = onClick,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = modifier.fillMaxWidth(),
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .clickable(role = Role.Button, onClick = onClick)
+                .padding(horizontal = spacing.l, vertical = spacing.m),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = installment.note?.takeIf { it.isNotBlank() } ?: installment.date.formatMedium(),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text =
-                        stringResource(
-                            R.string.card_installment_progress,
-                            // The installment billed next: plans are listed only while unfinished.
-                            (installment.billedInstallments + 1).coerceAtMost(installment.installments),
-                            installment.installments,
-                            MoneyFormatter.format(installment.remainingAmount, locale),
-                        ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            Spacer(modifier = Modifier.width(12.dp))
+        Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = MoneyFormatter.format(installment.amount, locale),
+                text = installment.note?.takeIf { it.isNotBlank() } ?: installment.date.formatMedium(),
                 style = MaterialTheme.typography.titleSmall,
             )
+            Spacer(modifier = Modifier.height(spacing.xs))
+            Text(
+                text =
+                    stringResource(
+                        R.string.card_installment_progress,
+                        // The installment billed next: plans are listed only while unfinished.
+                        (installment.billedInstallments + 1).coerceAtMost(installment.installments),
+                        installment.installments,
+                        MoneyFormatter.format(installment.remainingAmount, locale),
+                    ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
+        Spacer(modifier = Modifier.width(spacing.m))
+        Text(
+            text = MoneyFormatter.format(installment.amount, locale),
+            style = MaterialTheme.walletTypography.rowAmount,
+        )
     }
 }
 
@@ -608,37 +746,37 @@ private fun StatementRow(
     adjustmentAmount: Money?,
     modifier: Modifier = Modifier,
 ) {
+    val spacing = MaterialTheme.walletSpacing
     val locale = LocalConfiguration.current.locales[0]
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        modifier = modifier.fillMaxWidth(),
+    Column(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .padding(horizontal = spacing.l, vertical = spacing.m),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text =
+        Text(
+            text =
+                stringResource(
+                    R.string.card_statement_row,
+                    statement.closingDate.formatMedium(),
+                    MoneyFormatter.format(statement.statementBalance, locale),
+                ),
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Spacer(modifier = Modifier.height(spacing.xs))
+        Text(
+            text =
+                if (statement.adjustmentTransactionId != null && adjustmentAmount != null) {
                     stringResource(
-                        R.string.card_statement_row,
-                        statement.closingDate.formatMedium(),
-                        MoneyFormatter.format(statement.statementBalance, locale),
-                    ),
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.SemiBold,
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text =
-                    if (statement.adjustmentTransactionId != null && adjustmentAmount != null) {
-                        stringResource(
-                            R.string.card_statement_adjusted,
-                            MoneyFormatter.format(adjustmentAmount, locale),
-                        )
-                    } else {
-                        stringResource(R.string.card_statement_matched)
-                    },
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+                        R.string.card_statement_adjusted,
+                        MoneyFormatter.format(adjustmentAmount, locale),
+                    )
+                } else {
+                    stringResource(R.string.card_statement_matched)
+                },
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 

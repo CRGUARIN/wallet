@@ -90,7 +90,7 @@ class CardReconcileScreenTest {
         composeRule.onNodeWithText("Fecha de corte").assertIsDisplayed()
         composeRule.onNodeWithText("Fecha límite de pago").assertIsDisplayed()
         composeRule.onNodeWithText("Saldo total del extracto").assertIsDisplayed()
-        composeRule.onNodeWithText("Calcular diferencia").performScrollTo().assertIsEnabled()
+        composeRule.onNodeWithText("Calcular diferencia").assertIsEnabled()
         composeRule.onNodeWithText("Calcular diferencia").performClick()
 
         assertThat(calculateClicked).isTrue()
@@ -110,7 +110,7 @@ class CardReconcileScreenTest {
 
         composeRule.onNodeWithText("¡Cuadra con el banco!").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Deuda según la app al corte").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Guardar conciliación").performScrollTo().performClick()
+        composeRule.onNodeWithText("Guardar conciliación").performClick()
 
         assertThat(saved).isTrue()
     }
@@ -125,7 +125,7 @@ class CardReconcileScreenTest {
             .onNodeWithText("intereses y comisiones", substring = true)
             .performScrollTo()
             .assertIsDisplayed()
-        composeRule.onNodeWithText("Guardar conciliación").performScrollTo().performClick()
+        composeRule.onNodeWithText("Guardar conciliación").performClick()
 
         assertThat(saved).isTrue()
     }
@@ -168,7 +168,29 @@ class CardReconcileScreenTest {
         composeRule.onNodeWithText("Ajustar de todos modos").performScrollTo().performClick()
         assertThat(forced).isTrue()
 
-        composeRule.onNodeWithText("Guardar conciliación").performScrollTo().performClick()
+        composeRule.onNodeWithText("Guardar conciliación").performClick()
         assertThat(saved).isTrue()
+    }
+
+    @Test
+    fun `the bottom bar offers calculate first and save once there is a preview`() {
+        setScreen(formState())
+        composeRule.onNodeWithText("Calcular diferencia").assertIsDisplayed()
+        composeRule.onNodeWithText("Guardar conciliación").assertDoesNotExist()
+    }
+
+    @Test
+    fun `with a preview the bottom bar offers save instead of calculate`() {
+        setScreen(previewState(Money(100_000L)))
+
+        composeRule.onNodeWithText("Guardar conciliación").assertIsDisplayed().assertIsEnabled()
+        composeRule.onNodeWithText("Calcular diferencia").assertDoesNotExist()
+    }
+
+    @Test
+    fun `save stays disabled while the statement is being saved`() {
+        setScreen(previewState(Money.ZERO).copy(isSaving = true))
+
+        composeRule.onNodeWithText("Guardar conciliación").assertIsNotEnabled()
     }
 }

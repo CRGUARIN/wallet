@@ -1,30 +1,23 @@
 package com.crguarin.wallet.ui.recurring
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -41,13 +34,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.crguarin.wallet.R
@@ -57,6 +49,9 @@ import com.crguarin.wallet.domain.model.recurring.RecurringBlockReason
 import com.crguarin.wallet.domain.model.recurring.RecurringItem
 import com.crguarin.wallet.domain.model.recurring.RecurringMode
 import com.crguarin.wallet.domain.model.recurring.RecurringOverview
+import com.crguarin.wallet.ui.accounts.AddFab
+import com.crguarin.wallet.ui.accounts.StatusPill
+import com.crguarin.wallet.ui.accounts.TonalCard
 import com.crguarin.wallet.ui.components.AmountTextField
 import com.crguarin.wallet.ui.components.ConfirmDialog
 import com.crguarin.wallet.ui.components.EmptyState
@@ -64,7 +59,11 @@ import com.crguarin.wallet.ui.components.IconCatalog
 import com.crguarin.wallet.ui.components.LoadingState
 import com.crguarin.wallet.ui.components.MoneyText
 import com.crguarin.wallet.ui.components.NotificationPermissionState
+import com.crguarin.wallet.ui.components.PebbleAvatar
+import com.crguarin.wallet.ui.components.SectionCard
 import com.crguarin.wallet.ui.components.rememberNotificationPermissionState
+import com.crguarin.wallet.ui.theme.walletSpacing
+import com.crguarin.wallet.ui.theme.walletTypography
 import com.crguarin.wallet.ui.util.formatMedium
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 import java.time.LocalDate
@@ -191,12 +190,10 @@ fun RecurringListScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddClick) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(R.string.recurring_add),
-                )
-            }
+            AddFab(
+                contentDescription = stringResource(R.string.recurring_add),
+                onClick = onAddClick,
+            )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
@@ -217,20 +214,22 @@ fun RecurringListScreen(
                 modifier = Modifier.padding(innerPadding),
             )
         } else {
+            val spacing = MaterialTheme.walletSpacing
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(innerPadding),
+                contentPadding = PaddingValues(horizontal = spacing.screenGutter),
             ) {
                 item(key = "summary") {
                     MonthlySummary(
                         overview = overview,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        modifier = Modifier.padding(vertical = spacing.s),
                     )
                 }
                 if (notificationsBlocked) {
                     item(key = "permission") {
                         PermissionBanner(
                             onEnableClick = onEnableNotifications,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(vertical = spacing.s),
                         )
                     }
                 }
@@ -238,7 +237,7 @@ fun RecurringListScreen(
                     item(key = "pending_header") {
                         SectionHeader(
                             text = stringResource(R.string.recurring_section_pending),
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(top = spacing.l, bottom = spacing.s),
                         )
                     }
                     overview.pending.forEach { item ->
@@ -247,7 +246,7 @@ fun RecurringListScreen(
                                 item = item,
                                 onConfirmClick = { onConfirmClick(item) },
                                 onSkipClick = { onSkipClick(item) },
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                                modifier = Modifier.padding(vertical = spacing.xs),
                             )
                         }
                     }
@@ -256,7 +255,7 @@ fun RecurringListScreen(
                     item(key = "active_header") {
                         SectionHeader(
                             text = stringResource(R.string.recurring_section_active),
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(top = spacing.l, bottom = spacing.s),
                         )
                     }
                     overview.active.forEach { item ->
@@ -265,7 +264,7 @@ fun RecurringListScreen(
                                 item = item,
                                 dimmed = false,
                                 onClick = { onPaymentClick(item.payment.id) },
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                                modifier = Modifier.padding(vertical = spacing.xs),
                             )
                         }
                     }
@@ -274,7 +273,7 @@ fun RecurringListScreen(
                     item(key = "inactive_header") {
                         SectionHeader(
                             text = stringResource(R.string.recurring_section_inactive),
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(top = spacing.l, bottom = spacing.s),
                         )
                     }
                     overview.inactive.forEach { item ->
@@ -283,7 +282,7 @@ fun RecurringListScreen(
                                 item = item,
                                 dimmed = true,
                                 onClick = { onPaymentClick(item.payment.id) },
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                                modifier = Modifier.padding(vertical = spacing.xs),
                             )
                         }
                     }
@@ -334,9 +333,8 @@ private fun SectionHeader(
     Text(
         text = text,
         style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = modifier,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier.semantics { heading() },
     )
 }
 
@@ -346,28 +344,26 @@ private fun MonthlySummary(
     modifier: Modifier = Modifier,
 ) {
     if (overview == null) return
-    Card(modifier = modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            SummaryLine(
-                label = stringResource(R.string.recurring_monthly_expense),
-                amount = overview.monthlyExpense,
-                type = TransactionType.EXPENSE,
-            )
-            if (overview.monthlyIncome.minorUnits > 0) {
-                Spacer(modifier = Modifier.height(4.dp))
-                SummaryLine(
-                    label = stringResource(R.string.recurring_monthly_income),
-                    amount = overview.monthlyIncome,
-                    type = TransactionType.INCOME,
-                )
-            }
+    SectionCard(modifier = modifier) {
+        SummaryLine(
+            label = stringResource(R.string.recurring_monthly_expense),
+            amount = overview.monthlyExpense,
+            type = TransactionType.EXPENSE,
+        )
+        if (overview.monthlyIncome.minorUnits > 0) {
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = stringResource(R.string.recurring_monthly_note),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            SummaryLine(
+                label = stringResource(R.string.recurring_monthly_income),
+                amount = overview.monthlyIncome,
+                type = TransactionType.INCOME,
             )
         }
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = stringResource(R.string.recurring_monthly_note),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -396,16 +392,14 @@ private fun PermissionBanner(
     onEnableClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(modifier = modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(
-                text = stringResource(R.string.recurring_notifications_blocked),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            TextButton(onClick = onEnableClick) {
-                Text(text = stringResource(R.string.recurring_notifications_enable))
-            }
+    SectionCard(modifier = modifier) {
+        Text(
+            text = stringResource(R.string.recurring_notifications_blocked),
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        TextButton(onClick = onEnableClick) {
+            Text(text = stringResource(R.string.recurring_notifications_enable))
         }
     }
 }
@@ -419,8 +413,8 @@ private fun PendingRow(
     modifier: Modifier = Modifier,
 ) {
     val resources = LocalResources.current
-    Card(modifier = modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
+    TonalCard(modifier = modifier) {
+        Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -449,7 +443,7 @@ private fun PendingRow(
                 MoneyText(
                     amount = item.payment.amount,
                     type = item.payment.type,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.walletTypography.rowAmount,
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -489,27 +483,15 @@ private fun ActiveRow(
         }
     val category = item.category
     val icon = IconCatalog.get(category?.icon.orEmpty())
-    val iconTint = category?.let { Color(it.color) } ?: MaterialTheme.colorScheme.surfaceVariant
-    Card(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .alpha(if (dimmed) 0.6f else 1f)
-                .clickable(role = Role.Button, onClick = onClick),
+    // Without a category (it can be archived or gone) the tile takes the neutral secondary color.
+    val iconTint = category?.let { Color(it.color) } ?: MaterialTheme.colorScheme.secondary
+    TonalCard(
+        onClick = onClick,
+        modifier = modifier.alpha(if (dimmed) 0.7f else 1f),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier =
-                        Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(iconTint)
-                            .padding(8.dp),
-                )
+                PebbleAvatar(icon = icon, color = iconTint, size = 44.dp)
                 Spacer(modifier = Modifier.width(12.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -519,7 +501,7 @@ private fun ActiveRow(
                     MoneyText(
                         amount = payment.amount,
                         type = payment.type,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.walletTypography.rowAmount,
                     )
                 }
             }
@@ -582,19 +564,16 @@ private fun ActiveRow(
 
 @Composable
 private fun ModeBadge(mode: RecurringMode) {
-    AssistChip(
-        onClick = {},
-        label = {
-            Text(
-                text =
-                    stringResource(
-                        when (mode) {
-                            RecurringMode.AUTO -> R.string.recurring_badge_auto
-                            RecurringMode.CONFIRM -> R.string.recurring_badge_confirm
-                        },
-                    ),
-            )
-        },
+    StatusPill(
+        text =
+            stringResource(
+                when (mode) {
+                    RecurringMode.AUTO -> R.string.recurring_badge_auto
+                    RecurringMode.CONFIRM -> R.string.recurring_badge_confirm
+                },
+            ),
+        container = MaterialTheme.colorScheme.secondaryContainer,
+        content = MaterialTheme.colorScheme.onSecondaryContainer,
     )
 }
 

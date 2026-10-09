@@ -45,7 +45,8 @@ class AccountEditScreenTest {
         }
 
         composeRule.onNodeWithText("Nueva cuenta").assertIsDisplayed()
-        composeRule.onNodeWithText("Guardar").performScrollTo().assertIsNotEnabled()
+        // The save button lives in the bottom bar: it needs no scrolling.
+        composeRule.onNodeWithText("Guardar").assertIsNotEnabled()
     }
 
     @Test
@@ -130,7 +131,7 @@ class AccountEditScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("Guardar").performScrollTo().assertIsEnabled()
+        composeRule.onNodeWithText("Guardar").assertIsEnabled()
         composeRule.onNodeWithText("Guardar").performClick()
         assertThat(saveClicked).isTrue()
     }

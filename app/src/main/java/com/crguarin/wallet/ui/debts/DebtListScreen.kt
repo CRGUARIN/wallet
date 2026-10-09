@@ -5,24 +5,23 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Payments
-import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -37,7 +36,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -49,11 +49,16 @@ import com.crguarin.wallet.domain.model.debt.Debt
 import com.crguarin.wallet.domain.model.debt.DebtDirection
 import com.crguarin.wallet.domain.model.debt.DebtSummary
 import com.crguarin.wallet.domain.model.debt.DebtsOverview
+import com.crguarin.wallet.ui.accounts.AddFab
+import com.crguarin.wallet.ui.accounts.TonalCard
 import com.crguarin.wallet.ui.components.EmptyState
 import com.crguarin.wallet.ui.components.LoadingState
 import com.crguarin.wallet.ui.components.MoneyText
+import com.crguarin.wallet.ui.components.SectionCard
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.theme.walletSemanticColors
+import com.crguarin.wallet.ui.theme.walletSpacing
+import com.crguarin.wallet.ui.theme.walletTypography
 import com.crguarin.wallet.ui.util.formatMedium
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 import java.time.Instant
@@ -119,12 +124,10 @@ fun DebtListScreen(
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddClick) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(R.string.debts_add),
-                )
-            }
+            AddFab(
+                contentDescription = stringResource(R.string.debts_add),
+                onClick = onAddClick,
+            )
         },
     ) { innerPadding ->
         if (uiState.isLoading) {
@@ -142,20 +145,22 @@ fun DebtListScreen(
                 modifier = Modifier.padding(innerPadding),
             )
         } else {
+            val spacing = MaterialTheme.walletSpacing
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(innerPadding),
+                contentPadding = PaddingValues(horizontal = spacing.screenGutter),
             ) {
                 item(key = "summary") {
                     DebtsSummaryCard(
                         overview = overview,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        modifier = Modifier.padding(vertical = spacing.s),
                     )
                 }
                 if (overview.owedToMe.isNotEmpty()) {
                     item(key = "owed_header") {
                         SectionHeader(
                             text = stringResource(R.string.debts_total_owed_to_me),
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(top = spacing.l, bottom = spacing.s),
                         )
                     }
                     debtRows(
@@ -169,7 +174,7 @@ fun DebtListScreen(
                     item(key = "i_owe_header") {
                         SectionHeader(
                             text = stringResource(R.string.debts_total_i_owe),
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(top = spacing.l, bottom = spacing.s),
                         )
                     }
                     debtRows(
@@ -184,7 +189,7 @@ fun DebtListScreen(
                         SettledHeader(
                             expanded = uiState.settledExpanded,
                             onClick = onToggleSettled,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            modifier = Modifier.padding(top = spacing.l, bottom = spacing.s),
                         )
                     }
                     if (uiState.settledExpanded) {
@@ -197,14 +202,14 @@ fun DebtListScreen(
                     }
                 }
                 item(key = "bottom_space") {
-                    Spacer(modifier = Modifier.height(88.dp))
+                    Spacer(modifier = Modifier.height(FAB_CLEARANCE))
                 }
             }
         }
     }
 }
 
-/** One row per debt. Keys are prefixed so a debt listed twice (never the case) would not clash. */
+/** One card per debt. Keys are prefixed so a debt listed twice (never the case) would not clash. */
 private fun LazyListScope.debtRows(
     keyPrefix: String,
     summaries: List<DebtSummary>,
@@ -216,10 +221,13 @@ private fun LazyListScope.debtRows(
             summary = summary,
             today = today,
             onClick = { onDebtClick(summary.debt.id) },
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            modifier = Modifier.padding(vertical = 4.dp),
         )
     }
 }
+
+/** Room under the list so the last row is not covered by the add button. */
+private val FAB_CLEARANCE = 88.dp
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -235,31 +243,29 @@ private fun DebtsSummaryCard(
             net.isNegative -> TransactionType.EXPENSE
             else -> null
         }
-    Card(modifier = modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            // FlowRow so the three amounts wrap instead of overlapping with large font scales.
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                SummaryAmount(
-                    label = stringResource(R.string.debts_total_owed_to_me),
-                    amount = overview.totalOwedToMe,
-                    color = semanticColors.income,
-                )
-                SummaryAmount(
-                    label = stringResource(R.string.debts_total_i_owe),
-                    amount = overview.totalIOwe,
-                    color = semanticColors.expense,
-                )
-                // The balance is signed by its type: "+" when debts owed to me outweigh mine.
-                SummaryAmount(
-                    label = stringResource(R.string.debts_total_net),
-                    amount = if (net.isNegative) -net else net,
-                    type = netType,
-                )
-            }
+    SectionCard(modifier = modifier) {
+        // FlowRow so the three amounts wrap instead of overlapping with large font scales.
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalArrangement = Arrangement.spacedBy(MaterialTheme.walletSpacing.s),
+        ) {
+            SummaryAmount(
+                label = stringResource(R.string.debts_total_owed_to_me),
+                amount = overview.totalOwedToMe,
+                color = semanticColors.income,
+            )
+            SummaryAmount(
+                label = stringResource(R.string.debts_total_i_owe),
+                amount = overview.totalIOwe,
+                color = semanticColors.expense,
+            )
+            // The balance is signed by its type: "+" when debts owed to me outweigh mine.
+            SummaryAmount(
+                label = stringResource(R.string.debts_total_net),
+                amount = if (net.isNegative) -net else net,
+                type = netType,
+            )
         }
     }
 }
@@ -283,7 +289,7 @@ private fun SummaryAmount(
             amount = amount,
             type = type,
             color = color,
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            style = MaterialTheme.walletTypography.rowAmount,
         )
     }
 }
@@ -296,9 +302,8 @@ private fun SectionHeader(
     Text(
         text = text,
         style = MaterialTheme.typography.titleSmall,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = modifier,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier.semantics { heading() },
     )
 }
 
@@ -310,14 +315,17 @@ private fun SettledHeader(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick),
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .clickable(role = Role.Button, onClick = onClick),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
             text = stringResource(R.string.debts_section_settled),
             style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
         )
         Icon(
@@ -326,7 +334,7 @@ private fun SettledHeader(
                 stringResource(
                     if (expanded) R.string.action_collapse else R.string.action_expand,
                 ),
-            tint = MaterialTheme.colorScheme.primary,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
 }
@@ -340,10 +348,8 @@ private fun DebtRow(
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val debt = summary.debt
-    Card(
-        modifier = modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onClick),
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+    TonalCard(onClick = onClick, modifier = modifier) {
+        Column {
             Text(
                 text = debt.personName,
                 style = MaterialTheme.typography.titleMedium,
@@ -362,7 +368,7 @@ private fun DebtRow(
                 // Nothing is left to pay, so the row shows what the debt was and that it is closed.
                 MoneyText(
                     amount = debt.amount,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.walletTypography.rowAmount,
                 )
                 Text(
                     text = stringResource(R.string.debts_settled_badge),
@@ -372,7 +378,7 @@ private fun DebtRow(
             } else {
                 MoneyText(
                     amount = summary.remaining,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.walletTypography.rowAmount,
                 )
                 if (summary.paid.isPositive) {
                     Text(

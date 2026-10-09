@@ -1,11 +1,12 @@
 package com.crguarin.wallet.ui.categories
 
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
 import com.crguarin.wallet.domain.model.Category
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.ui.theme.WalletTheme
@@ -59,7 +60,7 @@ class CategoryEditScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("Guardar").performScrollTo().assertIsNotEnabled()
+        composeRule.onNodeWithText("Guardar").assertIsNotEnabled()
     }
 
     @Test
@@ -97,7 +98,7 @@ class CategoryEditScreenTest {
         composeRule.onNodeWithText("Nueva subcategoría").assertIsDisplayed()
         composeRule.onNodeWithText("Transporte").assertIsDisplayed()
 
-        composeRule.onNodeWithText("Guardar").performScrollTo().performClick()
+        composeRule.onNodeWithText("Guardar").performClick()
         assertThat(saveClicked).isTrue()
     }
 
@@ -145,5 +146,75 @@ class CategoryEditScreenTest {
 
         composeRule.onNodeWithText("Reasignar y eliminar").performClick()
         assertThat(reassignClicked).isTrue()
+    }
+
+    private fun setEditor(
+        uiState: CategoryEditUiState,
+        onNavigateBack: () -> Unit = {},
+        onTypeChange: (CategoryType) -> Unit = {},
+        onSaveClick: () -> Unit = {},
+    ) {
+        composeRule.setContent {
+            WalletTheme {
+                CategoryEditScreen(
+                    uiState = uiState,
+                    onNavigateBack = onNavigateBack,
+                    onNameChange = {},
+                    onTypeChange = onTypeChange,
+                    onParentIdChange = {},
+                    onColorChange = {},
+                    onIconChange = {},
+                    onSaveClick = onSaveClick,
+                    onArchiveClick = {},
+                    onDeleteClick = {},
+                    onDismissDeleteDialog = {},
+                    onConfirmSimpleDelete = {},
+                    onReassignOptionSelected = {},
+                    onDismissReassignSheet = {},
+                    onReassignAndConfirm = {},
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `cancel and save share the bottom bar and cancel goes back`() {
+        var backClicks = 0
+        var saveClicks = 0
+        setEditor(
+            CategoryEditUiState(name = "Mascotas"),
+            onNavigateBack = { backClicks++ },
+            onSaveClick = { saveClicks++ },
+        )
+
+        composeRule.onNodeWithText("Guardar").assertIsEnabled()
+        composeRule.onNodeWithText("Cancelar").assertIsDisplayed().performClick()
+        assertThat(backClicks).isEqualTo(1)
+        assertThat(saveClicks).isEqualTo(0)
+    }
+
+    @Test
+    fun `type segments show the current type and report the change`() {
+        var chosen: CategoryType? = null
+        setEditor(CategoryEditUiState(name = "Mascotas", type = CategoryType.EXPENSE), onTypeChange = { chosen = it })
+
+        composeRule.onNodeWithText("Gasto").assertIsSelected()
+        composeRule.onNodeWithText("Ingreso").performClick()
+
+        assertThat(chosen).isEqualTo(CategoryType.INCOME)
+    }
+
+    @Test
+    fun `a locked type cannot be changed`() {
+        var chosen: CategoryType? = null
+        setEditor(
+            CategoryEditUiState(name = "Taxi", type = CategoryType.EXPENSE, isTypeLocked = true),
+            onTypeChange = { chosen = it },
+        )
+
+        composeRule.onNodeWithText("Ingreso").assertIsNotEnabled()
+        composeRule.onNodeWithText("Ingreso").performClick()
+
+        assertThat(chosen).isNull()
     }
 }

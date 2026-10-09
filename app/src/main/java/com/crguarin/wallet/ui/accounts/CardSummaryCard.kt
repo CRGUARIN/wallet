@@ -1,25 +1,27 @@
 package com.crguarin.wallet.ui.accounts
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.AssistChip
-import androidx.compose.material3.AssistChipDefaults
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
@@ -30,6 +32,8 @@ import com.crguarin.wallet.domain.model.card.CardOverview
 import com.crguarin.wallet.domain.model.card.StatementPaymentStatus
 import com.crguarin.wallet.ui.components.MoneyText
 import com.crguarin.wallet.ui.components.SectionCard
+import com.crguarin.wallet.ui.theme.walletSpacing
+import com.crguarin.wallet.ui.theme.walletTypography
 import com.crguarin.wallet.ui.util.formatMedium
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
@@ -48,6 +52,10 @@ fun showPaymentReminder(
     }
 }
 
+/**
+ * Tonal pill that flags a card payment: warm (`tertiaryContainer`) when it is due soon and red
+ * (`errorContainer`) when it is overdue. The text says it too, so the color is never the only cue.
+ */
 @Composable
 fun PaymentReminderChip(
     status: StatementPaymentStatus,
@@ -56,28 +64,31 @@ fun PaymentReminderChip(
     modifier: Modifier = Modifier,
 ) {
     val overdue = status == StatementPaymentStatus.OVERDUE
-    AssistChip(
-        onClick = {},
-        enabled = false,
-        label = {
-            Text(
-                text =
-                    if (overdue) {
-                        stringResource(R.string.card_overdue)
-                    } else {
-                        stringResource(R.string.card_pay_before, dueDate.formatMedium())
-                    },
-            )
-        },
-        colors =
+    val spacing = MaterialTheme.walletSpacing
+    Text(
+        text =
             if (overdue) {
-                AssistChipDefaults.assistChipColors(
-                    disabledLabelColor = MaterialTheme.colorScheme.error,
-                )
+                stringResource(R.string.card_overdue)
             } else {
-                AssistChipDefaults.assistChipColors()
+                stringResource(R.string.card_pay_before, dueDate.formatMedium())
             },
-        modifier = modifier,
+        style = MaterialTheme.typography.labelMedium,
+        color =
+            if (overdue) {
+                MaterialTheme.colorScheme.onErrorContainer
+            } else {
+                MaterialTheme.colorScheme.onTertiaryContainer
+            },
+        modifier =
+            modifier
+                .clip(CircleShape)
+                .background(
+                    if (overdue) {
+                        MaterialTheme.colorScheme.errorContainer
+                    } else {
+                        MaterialTheme.colorScheme.tertiaryContainer
+                    },
+                ).padding(horizontal = spacing.m, vertical = spacing.xs),
     )
 }
 
@@ -112,7 +123,7 @@ fun CardRowBalance(
         MoneyText(
             amount = displayAmount,
             type = if (inFavor) TransactionType.INCOME else TransactionType.EXPENSE,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.walletTypography.rowAmount,
         )
         val locale = LocalConfiguration.current.locales[0]
         Text(
@@ -134,23 +145,71 @@ fun CardRowBalance(
     }
 }
 
+/**
+ * Debt (or credit in favor) of a card with its label above, for the trailing side of an account
+ * row. Same amounts as [CardRowBalance] without the availability and reminder, which the account
+ * row prints under the name.
+ */
+@Composable
+internal fun CardDebtBlock(
+    overview: CardOverview,
+    modifier: Modifier = Modifier,
+    horizontalAlignment: Alignment.Horizontal = Alignment.End,
+) {
+    val inFavor = overview.debt < Money.ZERO
+    val displayAmount = if (inFavor) -overview.debt else overview.debt
+    Column(
+        horizontalAlignment = horizontalAlignment,
+        modifier = modifier,
+    ) {
+        Text(
+            text =
+                if (inFavor) {
+                    stringResource(R.string.card_credit_in_favor)
+                } else {
+                    stringResource(R.string.card_debt)
+                },
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        MoneyText(
+            amount = displayAmount,
+            type = if (inFavor) TransactionType.INCOME else TransactionType.EXPENSE,
+            style = MaterialTheme.walletTypography.rowAmount,
+        )
+    }
+}
+
+/** "Disponible $ 750.000": how much of the credit limit is left. */
+@Composable
+internal fun cardAvailableText(overview: CardOverview): String {
+    val locale = LocalConfiguration.current.locales[0]
+    return stringResource(R.string.card_available) + " " + MoneyFormatter.format(overview.available, locale)
+}
+
+/**
+ * Header of a credit card: the tinted block with the debt, then [actions] (the main buttons of the
+ * screen) and the section with the limit, the closing and the statement.
+ */
 @Composable
 fun CardSummaryCard(
     overview: CardOverview,
     today: LocalDate,
     modifier: Modifier = Modifier,
     account: Account? = null,
+    actions: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val inFavor = overview.debt < Money.ZERO
     val displayDebt = if (inFavor) -overview.debt else overview.debt
     // Without an account (previews, tests) the block uses the theme primary as its accent.
     val accentColor = account?.let { Color(it.color) } ?: MaterialTheme.colorScheme.primary
+    val spacing = MaterialTheme.walletSpacing
     Column(modifier = modifier.fillMaxWidth()) {
-        AccountHeaderBlock(accentColor = accentColor) { contentColor ->
+        AccountHeaderBlock(accentColor = accentColor) { swatch ->
             if (account != null) {
-                AccountIdentityRow(account = account, contentColor = contentColor)
-                Spacer(modifier = Modifier.height(12.dp))
+                AccountIdentityRow(account = account, headerSwatch = swatch)
+                Spacer(modifier = Modifier.height(spacing.m))
             }
             Text(
                 text =
@@ -160,22 +219,27 @@ fun CardSummaryCard(
                         stringResource(R.string.card_debt)
                     },
                 style = MaterialTheme.typography.titleSmall,
-                color = contentColor.copy(alpha = 0.85f),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Spacer(modifier = Modifier.height(4.dp))
+            Spacer(modifier = Modifier.height(spacing.xs))
             HeaderAmount(
                 amount = displayDebt,
-                contentColor = contentColor,
-                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
                 type = if (inFavor) TransactionType.INCOME else TransactionType.EXPENSE,
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        if (actions != null) {
+            Spacer(modifier = Modifier.height(spacing.m))
+            actions()
+        }
 
-        SectionCard(contentPadding = AccountSectionPadding) {
+        Spacer(modifier = Modifier.height(spacing.m))
+
+        SectionCard {
             LinearProgressIndicator(
                 progress = { overview.usedPerMille / 1000f },
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -192,8 +256,7 @@ fun CardSummaryCard(
                 text =
                     stringResource(R.string.card_available) +
                         " " + MoneyFormatter.format(overview.available, locale),
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleSmall,
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -205,8 +268,7 @@ fun CardSummaryCard(
                     } else {
                         pluralStringResource(R.plurals.card_closing_in_days, daysUntilClosing, daysUntilClosing)
                     },
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary,
             )
 
@@ -229,7 +291,7 @@ fun CardSummaryCard(
                 Spacer(modifier = Modifier.width(8.dp))
                 MoneyText(
                     amount = overview.nextStatementCapitalEstimate,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.walletTypography.rowAmount,
                 )
             }
             Text(
@@ -259,7 +321,7 @@ private fun CardStatementStatusRow(overview: CardOverview) {
             if (overview.pendingStatementAmount != null) {
                 MoneyText(
                     amount = overview.pendingStatementAmount,
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                    style = MaterialTheme.walletTypography.rowAmount,
                 )
             }
         }
@@ -284,9 +346,8 @@ private fun CardStatementStatusRow(overview: CardOverview) {
             StatementPaymentStatus.OVERDUE -> {
                 Text(
                     text = stringResource(R.string.card_overdue),
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.error,
-                    fontWeight = FontWeight.SemiBold,
                 )
             }
         }
