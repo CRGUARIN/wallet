@@ -1,15 +1,20 @@
 package com.crguarin.wallet.ui.home
 
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.Density
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
@@ -268,8 +273,54 @@ class HomeScreenTest {
 
         composeRule.onNodeWithText("RappiCard").assertIsDisplayed()
         composeRule.onNodeWithText("Deuda").assertIsDisplayed()
-        composeRule.onNodeWithText("Disponible", substring = true).assertIsDisplayed()
         composeRule.onNodeWithText("Pagar antes del", substring = true).assertIsDisplayed()
+        // The status line says the reminder when there is one; the available credit takes its place otherwise.
+        composeRule.onNodeWithText("Disponible", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `home account row shows the available credit when no payment is close`() {
+        val today = LocalDate.of(2026, 9, 28)
+        val card =
+            Account(
+                id = 7L,
+                name = "RappiCard",
+                type = AccountType.CREDIT_CARD,
+                initialBalance = Money(-250_000_00L),
+                color = 0xFFFF6F00.toInt(),
+                icon = "credit_card",
+                sortOrder = 2,
+                createdAt = Instant.EPOCH,
+            )
+        composeRule.setContent {
+            WalletTheme {
+                HomeScreen(
+                    uiState =
+                        HomeUiState(
+                            isLoading = false,
+                            accounts = listOf(AccountWithBalance(card, Money(-250_000_00L))),
+                            cardOverviews =
+                                mapOf(
+                                    7L to
+                                        sampleCardOverview(
+                                            accountId = 7L,
+                                            dueDate = LocalDate.of(2026, 11, 5),
+                                        ),
+                                ),
+                            today = today,
+                        ),
+                    onAccountClick = {},
+                    onTransactionClick = {},
+                    onViewAllTransactions = {},
+                    onQuickAction = {},
+                    onViewReports = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Deuda").assertIsDisplayed()
+        composeRule.onNodeWithText("Disponible", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Pagar antes del", substring = true).assertDoesNotExist()
     }
 
     private val upcomingToday = LocalDate.of(2026, 9, 28)
@@ -487,5 +538,245 @@ class HomeScreenTest {
         composeRule.onNodeWithText("Ver deudas").performClick()
 
         assertThat(viewDebtsClicks).isEqualTo(1)
+    }
+
+    private val transitCard =
+        Account(
+            id = 5L,
+            name = "Cívica",
+            type = AccountType.TRANSIT_CARD,
+            initialBalance = Money(1_050_000L),
+            color = 0xFFFFA726.toInt(),
+            icon = "directions_bus",
+            sortOrder = 3,
+            fare = Money(355_000L),
+            createdAt = Instant.EPOCH,
+        )
+
+    private fun showHome(
+        uiState: HomeUiState,
+        onQuickAction: (TransactionType) -> Unit = {},
+        onOpenSettings: () -> Unit = {},
+        onAccountClick: (Long) -> Unit = {},
+        onTripClick: () -> Unit = {},
+        onTripCardSelected: (Long) -> Unit = {},
+        onDismissTripChooser: () -> Unit = {},
+    ) {
+        composeRule.setContent {
+            WalletTheme {
+                HomeScreen(
+                    uiState = uiState,
+                    onAccountClick = onAccountClick,
+                    onTransactionClick = {},
+                    onViewAllTransactions = {},
+                    onQuickAction = onQuickAction,
+                    onViewReports = {},
+                    onOpenSettings = onOpenSettings,
+                    onTripClick = onTripClick,
+                    onTripCardSelected = onTripCardSelected,
+                    onDismissTripChooser = onDismissTripChooser,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `the settings gear in the top bar opens settings`() {
+        var opened = 0
+        showHome(state(accounts = emptyList(), transactions = emptyList()), onOpenSettings = { opened++ })
+
+        composeRule.onNodeWithContentDescription("Ajustes").assertIsDisplayed().performClick()
+
+        assertThat(opened).isEqualTo(1)
+    }
+
+    @Test
+    fun `quick actions have no visible title but keep a heading for screen readers`() {
+        showHome(state(accounts = listOf(AccountWithBalance(account, Money(450_000L))), transactions = emptyList()))
+
+        composeRule.onNodeWithText("Acciones rápidas").assertDoesNotExist()
+        composeRule
+            .onNode(
+                hasContentDescription("Acciones rápidas") and SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading),
+            ).assertExists()
+    }
+
+    @Test
+    fun `expense income and transfer shortcuts report the movement type`() {
+        val types = mutableListOf<TransactionType>()
+        showHome(
+            state(
+                accounts =
+                    listOf(
+                        AccountWithBalance(account, Money(450_000L)),
+                        AccountWithBalance(savingsAccount, Money(800_000L)),
+                    ),
+                transactions = emptyList(),
+            ),
+            onQuickAction = { types += it },
+        )
+
+        composeRule.onNodeWithText("Gasto").performClick()
+        composeRule.onNodeWithText("Ingreso").performClick()
+        composeRule.onNodeWithText("Transferencia").performClick()
+
+        assertThat(types)
+            .containsExactly(TransactionType.EXPENSE, TransactionType.INCOME, TransactionType.TRANSFER)
+            .inOrder()
+    }
+
+    @Test
+    fun `the trip shortcut only shows with a transit card and calls its callback`() {
+        var trips = 0
+        showHome(
+            state(
+                accounts =
+                    listOf(
+                        AccountWithBalance(account, Money(450_000L)),
+                        AccountWithBalance(transitCard, Money(1_050_000L)),
+                    ),
+                transactions = emptyList(),
+            ),
+            onTripClick = { trips++ },
+        )
+
+        composeRule.onNodeWithText("Viaje").assertIsDisplayed().performClick()
+
+        assertThat(trips).isEqualTo(1)
+    }
+
+    @Test
+    fun `the trip shortcut is hidden without a transit card`() {
+        showHome(state(accounts = listOf(AccountWithBalance(account, Money(450_000L))), transactions = emptyList()))
+
+        composeRule.onNodeWithText("Viaje").assertDoesNotExist()
+    }
+
+    @Test
+    fun `with several transit cards the sheet asks to choose one and reports it`() {
+        val second = transitCard.copy(id = 6L, name = "Tullave", sortOrder = 4)
+        var chosen: Long? = null
+        showHome(
+            state(
+                accounts =
+                    listOf(
+                        AccountWithBalance(transitCard, Money(1_050_000L)),
+                        AccountWithBalance(second, Money(-100_000L)),
+                    ),
+                transactions = emptyList(),
+            ).copy(showTripChooser = true),
+            onTripCardSelected = { chosen = it },
+        )
+
+        composeRule.onNodeWithText("Elige la tarjeta").assertIsDisplayed()
+        // The same names appear in the account list behind the sheet; the sheet is the second one.
+        composeRule.onAllNodesWithText("Tullave").onLast().performClick()
+
+        assertThat(chosen).isEqualTo(6L)
+    }
+
+    @Test
+    fun `the card chooser stays closed unless the state asks for it`() {
+        showHome(
+            state(
+                accounts =
+                    listOf(
+                        AccountWithBalance(transitCard, Money(1_050_000L)),
+                        AccountWithBalance(transitCard.copy(id = 6L, name = "Tullave"), Money(1_050_000L)),
+                    ),
+                transactions = emptyList(),
+            ),
+        )
+
+        composeRule.onNodeWithText("Elige la tarjeta").assertDoesNotExist()
+    }
+
+    @Test
+    fun `accounts are listed vertically with their status and balance`() {
+        showHome(
+            state(
+                accounts =
+                    listOf(
+                        AccountWithBalance(account, Money(450_000L)),
+                        AccountWithBalance(transitCard, Money(1_065_000L)),
+                        AccountWithBalance(transitCard.copy(id = 6L, name = "Tullave"), Money(-100_000L)),
+                    ),
+                transactions = emptyList(),
+            ),
+        )
+
+        composeRule.onNodeWithText("Cívica").assertIsDisplayed()
+        composeRule.onNodeWithText("3 viajes").assertIsDisplayed()
+        composeRule.onNodeWithText("$ 10.650").assertIsDisplayed()
+        composeRule.onNodeWithText("Tullave").assertIsDisplayed()
+        composeRule.onNodeWithText("Recarga para viajar").assertIsDisplayed()
+    }
+
+    @Test
+    fun `tapping an account row opens its detail`() {
+        var opened: Long? = null
+        showHome(
+            state(accounts = listOf(AccountWithBalance(savingsAccount, Money(800_000L))), transactions = emptyList()),
+            onAccountClick = { opened = it },
+        )
+
+        composeRule.onNodeWithText("Ahorros").performClick()
+
+        assertThat(opened).isEqualTo(2L)
+    }
+
+    @Test
+    fun `blocks follow the new order from balance to latest movements`() {
+        showHome(
+            state(
+                accounts = listOf(AccountWithBalance(account, Money(450_000L))),
+                transactions = listOf(details(1L, TransactionType.EXPENSE, "food")),
+            ),
+        )
+
+        fun top(text: String) =
+            composeRule
+                .onAllNodesWithText(text)
+                .onFirst()
+                .fetchSemanticsNode()
+                .boundsInRoot.top
+
+        val order = listOf("Saldo total", "Gasto", "Cuentas", "Resumen del mes", "Últimos movimientos").map(::top)
+        assertThat(order).isInOrder()
+    }
+
+    @Test
+    fun `at 200 percent font the long balance, the actions and the account rows still show in full`() {
+        composeRule.setContent {
+            val base = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(base.density, fontScale = 2f)) {
+                WalletTheme {
+                    HomeScreen(
+                        uiState =
+                            state(
+                                accounts =
+                                    listOf(
+                                        AccountWithBalance(account, Money(99_999_999_999_900L)),
+                                        AccountWithBalance(savingsAccount, Money(800_000L)),
+                                        AccountWithBalance(transitCard, Money(1_065_000L)),
+                                    ),
+                                transactions = emptyList(),
+                            ).copy(totalBalance = Money(99_999_999_999_900L)),
+                        onAccountClick = {},
+                        onTransactionClick = {},
+                        onViewAllTransactions = {},
+                        onQuickAction = {},
+                        onViewReports = {},
+                    )
+                }
+            }
+        }
+
+        // Both the hero and the first account row draw the same long amount.
+        composeRule.onAllNodesWithText("$ 999.999.999.999").onFirst().assertIsDisplayed()
+        composeRule.onNodeWithText("Gasto").assertIsDisplayed()
+        composeRule.onNodeWithText("Transferencia").assertIsDisplayed()
+        composeRule.onNodeWithText("Viaje").assertIsDisplayed()
+        composeRule.onNodeWithText("3 viajes").assertIsDisplayed()
     }
 }
