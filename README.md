@@ -124,6 +124,8 @@ Stack: Kotlin, Jetpack Compose + Material 3, Hilt, Room, DataStore, Paging 3, Na
 
 Licencia MIT; consulta el archivo [`LICENSE`](LICENSE).
 
+La app incluye la fuente [Manrope](https://github.com/googlefonts/manrope) (SIL Open Font License 1.1); consulta [`docs/licenses/Manrope-OFL.txt`](docs/licenses/Manrope-OFL.txt).
+
 ---
 
 ## English summary
