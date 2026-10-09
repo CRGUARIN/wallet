@@ -18,6 +18,21 @@ import java.time.LocalDate
 val TRANSACTION_CREATION_TYPES: List<TransactionType> =
     listOf(TransactionType.EXPENSE, TransactionType.INCOME, TransactionType.TRANSFER)
 
+/** How many frequent categories the form offers as chips at most. */
+const val FREQUENT_CATEGORIES_LIMIT = 6
+
+/** The frequent categories are the most used ones in this many days. */
+const val FREQUENT_CATEGORIES_DAYS = 90L
+
+/**
+ * A category offered as a chip under the category selector. [parent] is kept so the chip can read
+ * "Parent › Child" like the selector does.
+ */
+data class FrequentCategory(
+    val category: Category,
+    val parent: Category? = null,
+)
+
 data class TransactionEditUiState(
     val isLoading: Boolean = true,
     /** Editing an id that no longer exists (e.g. deleted from another screen). */
@@ -37,6 +52,8 @@ data class TransactionEditUiState(
     val selectedCategory: Category? = null,
     val selectedParentCategory: Category? = null,
     val categoryErrorRes: Int? = null,
+    /** Most used active categories of the current type in the last 90 days; empty for transfers. */
+    val frequentCategories: List<FrequentCategory> = emptyList(),
     val date: LocalDate? = null,
     val dateErrorRes: Int? = null,
     val note: String = "",

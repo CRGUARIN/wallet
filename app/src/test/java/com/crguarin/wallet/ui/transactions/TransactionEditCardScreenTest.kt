@@ -130,8 +130,9 @@ class TransactionEditCardScreenTest {
     fun `installments field is shown for card expenses with its hint`() {
         setScreen(cardExpenseState())
 
-        composeRule.onNodeWithText("Cuotas").assertIsDisplayed()
-        composeRule.onNodeWithText("Solo informativo. No cambia el valor.").assertIsDisplayed()
+        // The installments field sits below the amount, category, account and date: scroll to it.
+        composeRule.onNodeWithText("Cuotas").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Solo informativo. No cambia el valor.").performScrollTo().assertIsDisplayed()
     }
 
     @Test

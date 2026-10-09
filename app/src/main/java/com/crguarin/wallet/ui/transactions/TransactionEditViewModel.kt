@@ -11,9 +11,12 @@ import com.crguarin.wallet.core.result.DomainError
 import com.crguarin.wallet.core.result.DomainResult
 import com.crguarin.wallet.core.time.TimeProvider
 import com.crguarin.wallet.domain.model.Account
+import com.crguarin.wallet.domain.model.CategoryNode
 import com.crguarin.wallet.domain.model.CategoryType
 import com.crguarin.wallet.domain.model.DomainLimits
 import com.crguarin.wallet.domain.model.Transaction
+import com.crguarin.wallet.domain.model.TransactionDetails
+import com.crguarin.wallet.domain.model.TransactionFilter
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.card.BalanceWarning
 import com.crguarin.wallet.domain.repository.AccountRepository
@@ -37,6 +40,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -121,6 +125,27 @@ class TransactionEditViewModel
                         }
                     }.collect { nodes ->
                         _uiState.update { it.copy(categoryNodes = nodes) }
+                    }
+            }
+            viewModelScope.launch {
+                // The chips under the category selector: what was used most lately, for the current type.
+                selectedTypeFlow
+                    .flatMapLatest { type ->
+                        if (type == TransactionType.TRANSFER) {
+                            flowOf(emptyList())
+                        } else {
+                            combine(
+                                transactionRepository.observeTransactions(
+                                    TransactionFilter(
+                                        startDate = today.minusDays(FREQUENT_CATEGORIES_DAYS),
+                                        type = type,
+                                    ),
+                                ),
+                                observeCategoryTreeUseCase(type.toCategoryType()),
+                            ) { details, tree -> frequentCategoriesOf(details, tree) }
+                        }
+                    }.collect { frequent ->
+                        _uiState.update { it.copy(frequentCategories = frequent) }
                     }
             }
             viewModelScope.launch {
@@ -299,6 +324,9 @@ class TransactionEditViewModel
         fun setType(type: TransactionType) {
             if (type == _uiState.value.selectedType) return
             val leavingTransfer = _uiState.value.selectedType == TransactionType.TRANSFER
+            // The chips belong to the previous type: clear them before the new ones can arrive, since
+            // changing the type below may already deliver them.
+            _uiState.update { it.copy(frequentCategories = emptyList()) }
             selectedTypeFlow.value = type
             formStore.type = type
             formStore.categoryId = null
@@ -628,3 +656,41 @@ class TransactionEditViewModel
         private fun TransactionType.toCategoryType(): CategoryType =
             if (this == TransactionType.INCOME) CategoryType.INCOME else CategoryType.EXPENSE
     }
+
+/**
+ * The categories to offer as chips: the active ones used most in [details] (already limited to one
+ * type and period), most used first, ties broken by the most recent use, at most [limit].
+ * Archived categories, and children whose parent is archived, are not in [tree] and so never show up.
+ */
+internal fun frequentCategoriesOf(
+    details: List<TransactionDetails>,
+    tree: List<CategoryNode>,
+    limit: Int = FREQUENT_CATEGORIES_LIMIT,
+): List<FrequentCategory> {
+    val active = mutableMapOf<Long, FrequentCategory>()
+    tree.forEach { root ->
+        active[root.category.id] = FrequentCategory(root.category)
+        root.children.forEach { child -> active[child.category.id] = FrequentCategory(child.category, root.category) }
+    }
+    val recency = compareBy<Transaction>({ it.date }, { it.createdAt })
+    return details
+        .map { it.transaction }
+        .filter { it.categoryId != null && it.categoryId in active }
+        .groupBy { it.categoryId }
+        .map { (categoryId, transactions) ->
+            val last = transactions.maxWith(recency)
+            FrequentUsage(active.getValue(categoryId!!), transactions.size, last)
+        }.sortedWith(
+            compareByDescending<FrequentUsage> { it.uses }
+                .thenByDescending { it.last.date }
+                .thenByDescending { it.last.createdAt }
+                .thenBy { it.frequent.category.id },
+        ).take(limit)
+        .map { it.frequent }
+}
+
+private class FrequentUsage(
+    val frequent: FrequentCategory,
+    val uses: Int,
+    val last: Transaction,
+)

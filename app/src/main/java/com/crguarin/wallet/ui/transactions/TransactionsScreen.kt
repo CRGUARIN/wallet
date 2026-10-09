@@ -1,9 +1,10 @@
 package com.crguarin.wallet.ui.transactions
 
 import android.annotation.SuppressLint
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,6 +12,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.Close
@@ -20,7 +24,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -28,17 +31,31 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -60,7 +77,10 @@ import com.crguarin.wallet.ui.components.LoadingState
 import com.crguarin.wallet.ui.components.PeriodSelector
 import com.crguarin.wallet.ui.components.TransactionDayHeader
 import com.crguarin.wallet.ui.components.TransactionListItem
+import com.crguarin.wallet.ui.components.groupedItemBackground
+import com.crguarin.wallet.ui.components.groupedRowShape
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletSpacing
 import com.crguarin.wallet.ui.util.formatMonthYear
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -142,7 +162,7 @@ fun TransactionsRoute(
     )
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TransactionsScreen(
     uiState: TransactionsUiState,
@@ -165,14 +185,63 @@ fun TransactionsScreen(
 ) {
     val listState = rememberLazyListState()
     val locale = LocalConfiguration.current.locales[0]
+    val spacing = MaterialTheme.walletSpacing
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+
+    // The search field takes no room until the magnifier is tapped. A query that is already active
+    // (for example restored after the process died) keeps it visible.
+    var searchOpen by rememberSaveable { mutableStateOf(false) }
+    var focusRequests by remember { mutableIntStateOf(0) }
+    val searchVisible = searchOpen || uiState.searchQuery.isNotEmpty()
+    val closeSearch = {
+        searchOpen = false
+        onSearchQueryChanged("")
+    }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
         topBar = {
-            TopAppBar(title = { Text(text = stringResource(R.string.transactions_title)) })
+            Column {
+                TopAppBar(
+                    title = { Text(text = stringResource(R.string.transactions_title)) },
+                    actions = {
+                        IconButton(
+                            onClick = {
+                                if (searchVisible) {
+                                    closeSearch()
+                                } else {
+                                    searchOpen = true
+                                    focusRequests++
+                                }
+                            },
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Search,
+                                contentDescription = stringResource(R.string.action_search),
+                            )
+                        }
+                    },
+                    scrollBehavior = scrollBehavior,
+                )
+                AnimatedVisibility(visible = searchVisible) {
+                    SearchField(
+                        query = uiState.searchQuery,
+                        onQueryChange = onSearchQueryChanged,
+                        onClose = closeSearch,
+                        focusRequests = focusRequests,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = spacing.screenGutter, vertical = spacing.xs),
+                    )
+                }
+            }
         },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        modifier = modifier.fillMaxSize(),
+        snackbarHost = {
+            // Lifted above the floating "new movement" button, which would hide the undo action.
+            SnackbarHost(snackbarHostState, modifier = Modifier.padding(bottom = FabClearance))
+        },
+        modifier = modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
     ) { innerPadding ->
         LazyColumn(
             state = listState,
@@ -201,35 +270,6 @@ fun TransactionsScreen(
                     onOpenAccountSheet = onOpenAccountSheet,
                     onOpenCategorySheet = onOpenCategorySheet,
                     onClearFilters = onClearFilters,
-                )
-            }
-
-            item(key = "search", contentType = "controls") {
-                OutlinedTextField(
-                    value = uiState.searchQuery,
-                    onValueChange = onSearchQueryChanged,
-                    singleLine = true,
-                    leadingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.Search,
-                            contentDescription = null,
-                        )
-                    },
-                    trailingIcon = {
-                        if (uiState.searchQuery.isNotEmpty()) {
-                            IconButton(onClick = { onSearchQueryChanged("") }) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = stringResource(R.string.cd_clear_search),
-                                )
-                            }
-                        }
-                    },
-                    placeholder = { Text(text = stringResource(R.string.transactions_search_hint)) },
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 4.dp),
                 )
             }
 
@@ -301,14 +341,31 @@ fun TransactionsScreen(
                                     date = entry.date,
                                     net = uiState.dailyTotals[entry.date] ?: Money.ZERO,
                                     today = uiState.today,
+                                    // The header pads its own sides; this only separates one day from the previous.
+                                    modifier = Modifier.padding(top = spacing.m),
                                 )
                             }
                             is TransactionListEntry.Item -> {
+                                // The rows of a day share one rounded layer: find this row's place in its
+                                // day. Reading the count makes the row that was last square its corners
+                                // when the next page is appended.
+                                val loadedCount = pagingItems.itemCount
+                                var dayStart = index
+                                while (dayStart > 0 && pagingItems.peek(dayStart - 1) is TransactionListEntry.Item) {
+                                    dayStart--
+                                }
+                                var dayEnd = index
+                                while (dayEnd + 1 < loadedCount && pagingItems.peek(dayEnd + 1) is TransactionListEntry.Item) {
+                                    dayEnd++
+                                }
                                 SwipeableTransactionRow(
                                     details = entry.details,
                                     perspectiveAccountId = uiState.accountId,
+                                    positionInDay = index - dayStart,
+                                    rowsInDay = dayEnd - dayStart + 1,
                                     onClick = { onTransactionClick(entry.details.transaction.id) },
                                     onDelete = { onDeleteTransaction(entry.details) },
+                                    modifier = Modifier.padding(horizontal = spacing.screenGutter),
                                 )
                             }
                             null -> Unit
@@ -353,13 +410,70 @@ fun TransactionsScreen(
     }
 }
 
+/** Search field: a pill that gets the focus (and the keyboard) when it appears, with a button that closes it. */
+@Composable
+private fun SearchField(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onClose: () -> Unit,
+    focusRequests: Int,
+    modifier: Modifier = Modifier,
+) {
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+    // Only a tap on the magnifier asks for focus; a field shown because of a restored query does not steal it.
+    LaunchedEffect(focusRequests) {
+        if (focusRequests > 0) {
+            focusRequester.requestFocus()
+            keyboardController?.show()
+        }
+    }
+    val clear = Color.Transparent
+    TextField(
+        value = query,
+        onValueChange = onQueryChange,
+        singleLine = true,
+        shape = RoundedCornerShape(SearchFieldRadius),
+        colors =
+            TextFieldDefaults.colors(
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                focusedIndicatorColor = clear,
+                unfocusedIndicatorColor = clear,
+                disabledIndicatorColor = clear,
+                errorIndicatorColor = clear,
+            ),
+        leadingIcon = {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+            )
+        },
+        trailingIcon = {
+            IconButton(onClick = onClose) {
+                Icon(
+                    imageVector = Icons.Default.Close,
+                    contentDescription = stringResource(R.string.cd_close_search),
+                )
+            }
+        },
+        placeholder = { Text(text = stringResource(R.string.transactions_search_hint)) },
+        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
+        modifier = modifier.focusRequester(focusRequester),
+    )
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun SwipeableTransactionRow(
     details: TransactionDetails,
     perspectiveAccountId: Long?,
+    positionInDay: Int,
+    rowsInDay: Int,
     onClick: () -> Unit,
     onDelete: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val dismissState = rememberSwipeToDismissBoxState()
 
@@ -372,13 +486,14 @@ private fun SwipeableTransactionRow(
     SwipeToDismissBox(
         state = dismissState,
         enableDismissFromStartToEnd = false,
+        modifier = modifier.clip(groupedRowShape(positionInDay, rowsInDay)),
         backgroundContent = {
             Box(
                 modifier =
                     Modifier
                         .fillMaxSize()
                         .background(MaterialTheme.colorScheme.errorContainer)
-                        .padding(horizontal = 24.dp),
+                        .padding(horizontal = MaterialTheme.walletSpacing.xxl),
                 contentAlignment = Alignment.CenterEnd,
             ) {
                 Icon(
@@ -393,10 +508,16 @@ private fun SwipeableTransactionRow(
             details = details,
             perspectiveAccountId = perspectiveAccountId,
             onClick = onClick,
-            modifier = Modifier.background(MaterialTheme.colorScheme.surface),
+            modifier = Modifier.groupedItemBackground(positionInDay, rowsInDay),
         )
     }
 }
+
+/** Corner radius of the search pill. */
+private val SearchFieldRadius = 26.dp
+
+/** Space the floating action button takes at the bottom end, kept free of snackbars. */
+private val FabClearance = 72.dp
 
 private fun entryKey(
     entry: TransactionListEntry?,
@@ -420,13 +541,6 @@ fun rememberEntriesPagingItems(entries: List<TransactionListEntry>): LazyPagingI
     val flow = remember(entries) { MutableStateFlow(PagingData.from(entries)) }
     return flow.collectAsLazyPagingItems()
 }
-
-private fun TransactionType.labelRes(): Int =
-    when (this) {
-        TransactionType.INCOME -> R.string.type_income
-        TransactionType.EXPENSE -> R.string.type_expense
-        TransactionType.TRANSFER -> R.string.type_transfer
-    }
 
 private fun previewDetails(
     id: Long,

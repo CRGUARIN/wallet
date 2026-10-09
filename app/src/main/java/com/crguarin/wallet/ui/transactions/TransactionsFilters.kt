@@ -1,22 +1,28 @@
 package com.crguarin.wallet.ui.transactions
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.FilterChip
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.R
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.ui.components.categoryFullDisplayName
+import com.crguarin.wallet.ui.theme.walletSpacing
 
-@OptIn(ExperimentalLayoutApi::class)
+/**
+ * All filters in one row that scrolls sideways: All, Expense, Income, Transfer, Account and
+ * Category (these two open a list), plus "Clear" while any filter is on. Expense comes before
+ * Income, as in the movement form.
+ */
 @Composable
 internal fun FilterRow(
     uiState: TransactionsUiState,
@@ -25,48 +31,45 @@ internal fun FilterRow(
     onOpenCategorySheet: () -> Unit,
     onClearFilters: () -> Unit,
 ) {
+    val spacing = MaterialTheme.walletSpacing
     val categoryLabel =
         categoryFullDisplayName(
             parent = uiState.selectedParentCategory,
             category = uiState.selectedCategory,
         )
 
-    FlowRow(
+    Row(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                .horizontalScroll(rememberScrollState())
+                .padding(horizontal = spacing.screenGutter, vertical = spacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(spacing.s),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        FilterChip(
+        TonalChip(
+            label = stringResource(R.string.transactions_filter_all_types),
             selected = uiState.type == null,
             onClick = { onTypeSelected(null) },
-            label = { Text(text = stringResource(R.string.transactions_filter_all_types)) },
         )
-        TransactionType.entries.forEach { type ->
-            FilterChip(
+        TRANSACTION_CREATION_TYPES.forEach { type ->
+            TonalChip(
+                label = stringResource(type.labelRes()),
                 selected = uiState.type == type,
                 onClick = { onTypeSelected(type) },
-                label = { Text(text = stringResource(type.labelRes())) },
             )
         }
-        FilterChip(
+        TonalChip(
+            label = uiState.selectedAccountName ?: stringResource(R.string.transactions_filter_account),
             selected = uiState.accountId != null,
             onClick = onOpenAccountSheet,
-            label = {
-                Text(
-                    text = uiState.selectedAccountName ?: stringResource(R.string.transactions_filter_account),
-                )
-            },
+            dropdown = true,
         )
-        FilterChip(
+        TonalChip(
+            label = categoryLabel.ifBlank { stringResource(R.string.transactions_filter_category) },
             selected = uiState.categoryId != null,
             onClick = onOpenCategorySheet,
-            label = {
-                Text(
-                    text = categoryLabel.ifBlank { stringResource(R.string.transactions_filter_category) },
-                )
-            },
+            dropdown = true,
         )
         if (uiState.hasActiveFilters) {
             TextButton(onClick = onClearFilters) {
