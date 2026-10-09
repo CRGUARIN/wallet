@@ -5,6 +5,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
@@ -96,7 +97,8 @@ fun WalletAppContent(
         WalletNavHost(
             navController = navController,
             startDestination = startDestination,
-            modifier = Modifier.padding(innerPadding),
+            // Consumed so screens can pad for the keyboard (imePadding) without counting the bars twice.
+            modifier = Modifier.padding(innerPadding).consumeWindowInsets(innerPadding),
         )
     }
 }
