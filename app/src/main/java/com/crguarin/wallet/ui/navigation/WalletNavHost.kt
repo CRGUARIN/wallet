@@ -230,6 +230,7 @@ fun WalletNavHost(
         }
         composable<Settings> {
             SettingsRoute(
+                onNavigateBack = { navController.popBackStack() },
                 onCategoriesClick = {
                     navController.navigate(Categories())
                 },

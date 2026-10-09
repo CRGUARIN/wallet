@@ -19,6 +19,7 @@ private val IMPORT_MIME_TYPES = arrayOf("application/json", "text/plain", "appli
 
 @Composable
 fun SettingsRoute(
+    onNavigateBack: () -> Unit,
     onCategoriesClick: () -> Unit,
     modifier: Modifier = Modifier,
     onRecurringClick: () -> Unit = {},
@@ -33,6 +34,7 @@ fun SettingsRoute(
             onThemeSelected = {},
             onDynamicColorChanged = {},
             onCategoriesClick = onCategoriesClick,
+            onNavigateBack = onNavigateBack,
             onExportClick = {},
             onImportClick = {},
             onConfirmImport = {},
@@ -80,6 +82,7 @@ fun SettingsRoute(
         onConfirmImport = viewModel::confirmImport,
         onDismissImport = viewModel::dismissImport,
         snackbarHostState = snackbarHostState,
+        onNavigateBack = onNavigateBack,
         onRecurringClick = onRecurringClick,
         onDebtsClick = onDebtsClick,
         onNotificationsEnabledChanged = viewModel::setNotificationsEnabled,

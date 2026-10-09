@@ -1,5 +1,7 @@
 package com.crguarin.wallet.ui.settings
 
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
@@ -45,6 +47,8 @@ class SettingsScreenTest {
         var confirm = 0
         var dismiss = 0
         var recurring = 0
+        var debts = 0
+        var back = 0
         var notificationsEnabled: Boolean? = null
         var time: Pair<Int, Int>? = null
         var reminders: Boolean? = null
@@ -81,7 +85,9 @@ class SettingsScreenTest {
                     onConfirmImport = { calls.confirm++ },
                     onDismissImport = { calls.dismiss++ },
                     dynamicColorSupported = dynamicColorSupported,
+                    onNavigateBack = { calls.back++ },
                     onRecurringClick = { calls.recurring++ },
+                    onDebtsClick = { calls.debts++ },
                     onNotificationsEnabledChanged = { calls.notificationsEnabled = it },
                     onNotificationTimeChanged = { hour, minute -> calls.time = hour to minute },
                     onRecurringRemindersChanged = { calls.reminders = it },
@@ -113,6 +119,43 @@ class SettingsScreenTest {
         composeRule.onNodeWithText("Importar datos").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Categorías").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("1.2.3").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun `back arrow is visible and goes back`() {
+        val calls = Calls()
+        show(calls = calls)
+
+        composeRule.onNodeWithContentDescription("Atrás").assertIsDisplayed().performClick()
+
+        assertThat(calls.back).isEqualTo(1)
+    }
+
+    @Test
+    @Config(qualifiers = "es-w400dp-h3000dp")
+    fun `sections are ordered by use data notifications theme language backup about`() {
+        show()
+
+        val order = listOf("Datos", "Notificaciones", "Tema", "Idioma", "Backup", "Acerca de")
+        val tops =
+            order.map { title ->
+                composeRule
+                    .onNode(hasText(title) and SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
+                    .fetchSemanticsNode()
+                    .boundsInRoot.top
+            }
+
+        assertThat(tops).isInStrictOrder()
+    }
+
+    @Test
+    fun `debts entry opens the debts list`() {
+        val calls = Calls()
+        show(calls = calls)
+
+        composeRule.onNodeWithText("Lo que te deben y lo que debes").performScrollTo().performClick()
+
+        assertThat(calls.debts).isEqualTo(1)
     }
 
     @Test

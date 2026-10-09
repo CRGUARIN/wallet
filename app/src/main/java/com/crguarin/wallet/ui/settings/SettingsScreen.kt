@@ -4,6 +4,7 @@ import android.os.Build
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +16,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Category
 import androidx.compose.material.icons.filled.FileDownload
@@ -26,10 +28,11 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -41,6 +44,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TimePickerDialog
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -50,6 +54,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -65,8 +72,11 @@ import com.crguarin.wallet.domain.model.ThemeMode
 import com.crguarin.wallet.domain.model.notifications.NotificationSettings
 import com.crguarin.wallet.ui.components.ConfirmDialog
 import com.crguarin.wallet.ui.components.NotificationPermissionState
+import com.crguarin.wallet.ui.components.SectionCard
+import com.crguarin.wallet.ui.components.TonalPebble
 import com.crguarin.wallet.ui.components.rememberNotificationPermissionState
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletSpacing
 import com.crguarin.wallet.ui.util.AppLanguage
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -88,6 +98,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
     dynamicColorSupported: Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
+    onNavigateBack: () -> Unit = {},
     onRecurringClick: () -> Unit = {},
     onDebtsClick: () -> Unit = {},
     onNotificationsEnabledChanged: (Boolean) -> Unit = {},
@@ -113,12 +124,23 @@ fun SettingsScreen(
             onSendTestNotification()
         }
     }
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
+    val spacing = MaterialTheme.walletSpacing
     Scaffold(
-        modifier = modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
         contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
                 title = { Text(text = stringResource(R.string.settings_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
+                    }
+                },
+                scrollBehavior = scrollBehavior,
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -130,9 +152,15 @@ fun SettingsScreen(
                     .padding(innerPadding),
         ) {
             BusyIndicator(isBusy = uiState.isBusy)
-            Column(modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                LanguageSection(uiState.language, onLanguageSelected)
-                ThemeSection(uiState, dynamicColorSupported, onThemeSelected, onDynamicColorChanged)
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = spacing.screenGutter)
+                        .padding(bottom = spacing.xxl),
+            ) {
+                // Ordered by how often they are used.
                 DataSection(onCategoriesClick, onRecurringClick, onDebtsClick)
                 NotificationsSection(
                     settings = uiState.notificationSettings,
@@ -161,6 +189,8 @@ fun SettingsScreen(
                         }
                     },
                 )
+                ThemeSection(uiState, dynamicColorSupported, onThemeSelected, onDynamicColorChanged)
+                LanguageSection(uiState.language, onLanguageSelected)
                 BackupSection(uiState.isBusy, onExportClick, onImportClick)
                 AboutSection(appVersion)
             }
@@ -259,8 +289,10 @@ private fun baseSummaryText(summary: BackupSummary): String {
     }
 }
 
+/** Title of a settings section, above its tonal card. */
 @Composable
 private fun SectionHeader(text: String) {
+    val spacing = MaterialTheme.walletSpacing
     Text(
         text = text,
         style = MaterialTheme.typography.titleSmall,
@@ -268,21 +300,88 @@ private fun SectionHeader(text: String) {
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 4.dp))
+                .padding(start = spacing.l, end = spacing.l, top = spacing.xl, bottom = spacing.s)
                 .semantics { heading() },
     )
 }
+
+/** Title of a group inside a card (for example the recurring payments switches), on the card layer. */
+@Composable
+private fun GroupHeader(text: String) {
+    val spacing = MaterialTheme.walletSpacing
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelLarge,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(start = spacing.l, end = spacing.l, top = spacing.m, bottom = spacing.xs)
+                .semantics { heading() },
+    )
+}
+
+/** A settings section: its [title] and a `surfaceContainerLow` card with the rows. */
+@Composable
+private fun SettingsSection(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    SectionHeader(title)
+    SectionCard(contentPadding = PaddingValues(vertical = MaterialTheme.walletSpacing.s), content = content)
+}
+
+/** [ListItem] that lets the card layer show through. */
+@Composable
+private fun SettingsListItem(
+    headlineContent: @Composable () -> Unit,
+    modifier: Modifier = Modifier,
+    supportingContent: (@Composable () -> Unit)? = null,
+    leadingContent: (@Composable () -> Unit)? = null,
+    trailingContent: (@Composable () -> Unit)? = null,
+) {
+    ListItem(
+        headlineContent = headlineContent,
+        modifier = modifier,
+        supportingContent = supportingContent,
+        leadingContent = leadingContent,
+        trailingContent = trailingContent,
+        colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+    )
+}
+
+/** Leading icon of a row: a small tonal pebble. */
+@Composable
+private fun RowIcon(icon: ImageVector) {
+    TonalPebble(
+        icon = icon,
+        container = MaterialTheme.colorScheme.secondaryContainer,
+        content = MaterialTheme.colorScheme.onSecondaryContainer,
+        size = ROW_ICON_SIZE,
+    )
+}
+
+@Composable
+private fun Chevron() {
+    Icon(
+        imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+        contentDescription = null,
+        modifier = Modifier.size(16.dp),
+    )
+}
+
+private val ROW_ICON_SIZE = 40.dp
 
 @Composable
 private fun LanguageSection(
     selected: AppLanguage,
     onSelected: (AppLanguage) -> Unit,
 ) {
-    SectionHeader(stringResource(R.string.settings_section_language))
-    RadioOption(stringResource(R.string.language_system), selected == AppLanguage.SYSTEM) { onSelected(AppLanguage.SYSTEM) }
-    RadioOption(stringResource(R.string.language_es), selected == AppLanguage.SPANISH) { onSelected(AppLanguage.SPANISH) }
-    RadioOption(stringResource(R.string.language_en), selected == AppLanguage.ENGLISH) { onSelected(AppLanguage.ENGLISH) }
-    HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+    SettingsSection(stringResource(R.string.settings_section_language)) {
+        RadioOption(stringResource(R.string.language_system), selected == AppLanguage.SYSTEM) { onSelected(AppLanguage.SYSTEM) }
+        RadioOption(stringResource(R.string.language_es), selected == AppLanguage.SPANISH) { onSelected(AppLanguage.SPANISH) }
+        RadioOption(stringResource(R.string.language_en), selected == AppLanguage.ENGLISH) { onSelected(AppLanguage.ENGLISH) }
+    }
 }
 
 @Composable
@@ -292,24 +391,24 @@ private fun ThemeSection(
     onThemeSelected: (ThemeMode) -> Unit,
     onDynamicColorChanged: (Boolean) -> Unit,
 ) {
-    SectionHeader(stringResource(R.string.settings_section_theme))
-    RadioOption(stringResource(R.string.theme_system), uiState.themeMode == ThemeMode.SYSTEM) { onThemeSelected(ThemeMode.SYSTEM) }
-    RadioOption(stringResource(R.string.theme_light), uiState.themeMode == ThemeMode.LIGHT) { onThemeSelected(ThemeMode.LIGHT) }
-    RadioOption(stringResource(R.string.theme_dark), uiState.themeMode == ThemeMode.DARK) { onThemeSelected(ThemeMode.DARK) }
-    if (dynamicColorSupported) {
-        ListItem(
-            headlineContent = { Text(text = stringResource(R.string.settings_dynamic_color)) },
-            supportingContent = { Text(text = stringResource(R.string.settings_dynamic_color_subtitle)) },
-            trailingContent = { Switch(checked = uiState.dynamicColor, onCheckedChange = null) },
-            modifier =
-                Modifier.toggleable(
-                    value = uiState.dynamicColor,
-                    role = Role.Switch,
-                    onValueChange = onDynamicColorChanged,
-                ),
-        )
+    SettingsSection(stringResource(R.string.settings_section_theme)) {
+        RadioOption(stringResource(R.string.theme_system), uiState.themeMode == ThemeMode.SYSTEM) { onThemeSelected(ThemeMode.SYSTEM) }
+        RadioOption(stringResource(R.string.theme_light), uiState.themeMode == ThemeMode.LIGHT) { onThemeSelected(ThemeMode.LIGHT) }
+        RadioOption(stringResource(R.string.theme_dark), uiState.themeMode == ThemeMode.DARK) { onThemeSelected(ThemeMode.DARK) }
+        if (dynamicColorSupported) {
+            SettingsListItem(
+                headlineContent = { Text(text = stringResource(R.string.settings_dynamic_color)) },
+                supportingContent = { Text(text = stringResource(R.string.settings_dynamic_color_subtitle)) },
+                trailingContent = { Switch(checked = uiState.dynamicColor, onCheckedChange = null) },
+                modifier =
+                    Modifier.toggleable(
+                        value = uiState.dynamicColor,
+                        role = Role.Switch,
+                        onValueChange = onDynamicColorChanged,
+                    ),
+            )
+        }
     }
-    HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
 }
 
 @Composable
@@ -318,47 +417,29 @@ private fun DataSection(
     onRecurringClick: () -> Unit = {},
     onDebtsClick: () -> Unit = {},
 ) {
-    SectionHeader(stringResource(R.string.settings_section_data))
-    ListItem(
-        headlineContent = { Text(text = stringResource(R.string.settings_item_categories)) },
-        supportingContent = { Text(text = stringResource(R.string.settings_item_categories_subtitle)) },
-        leadingContent = { Icon(imageVector = Icons.Default.Category, contentDescription = null) },
-        trailingContent = {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-            )
-        },
-        modifier = Modifier.clickable(onClick = onCategoriesClick),
-    )
-    ListItem(
-        headlineContent = { Text(text = stringResource(R.string.settings_item_recurring)) },
-        supportingContent = { Text(text = stringResource(R.string.recurring_settings_subtitle)) },
-        leadingContent = { Icon(imageVector = Icons.Default.Repeat, contentDescription = null) },
-        trailingContent = {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-            )
-        },
-        modifier = Modifier.clickable(onClick = onRecurringClick),
-    )
-    ListItem(
-        headlineContent = { Text(text = stringResource(R.string.debts_title)) },
-        supportingContent = { Text(text = stringResource(R.string.debts_settings_subtitle)) },
-        leadingContent = { Icon(imageVector = Icons.Default.Payments, contentDescription = null) },
-        trailingContent = {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
-            )
-        },
-        modifier = Modifier.clickable(onClick = onDebtsClick),
-    )
-    HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+    SettingsSection(stringResource(R.string.settings_section_data)) {
+        SettingsListItem(
+            headlineContent = { Text(text = stringResource(R.string.settings_item_categories)) },
+            supportingContent = { Text(text = stringResource(R.string.settings_item_categories_subtitle)) },
+            leadingContent = { RowIcon(Icons.Default.Category) },
+            trailingContent = { Chevron() },
+            modifier = Modifier.clickable(onClick = onCategoriesClick),
+        )
+        SettingsListItem(
+            headlineContent = { Text(text = stringResource(R.string.settings_item_recurring)) },
+            supportingContent = { Text(text = stringResource(R.string.recurring_settings_subtitle)) },
+            leadingContent = { RowIcon(Icons.Default.Repeat) },
+            trailingContent = { Chevron() },
+            modifier = Modifier.clickable(onClick = onRecurringClick),
+        )
+        SettingsListItem(
+            headlineContent = { Text(text = stringResource(R.string.debts_title)) },
+            supportingContent = { Text(text = stringResource(R.string.debts_settings_subtitle)) },
+            leadingContent = { RowIcon(Icons.Default.Payments) },
+            trailingContent = { Chevron() },
+            modifier = Modifier.clickable(onClick = onDebtsClick),
+        )
+    }
 }
 
 private val CARD_LEAD_DAY_OPTIONS = listOf(0, 1, 2, 3, 5, 7)
@@ -392,100 +473,94 @@ private fun NotificationsSection(
             DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT),
         )
 
-    SectionHeader(stringResource(R.string.settings_section_notifications))
-    SwitchRow(
-        title = stringResource(R.string.settings_notifications_enabled),
-        checked = settings.enabled,
-        enabled = true,
-        onCheckedChange = onEnabledChanged,
-    )
-    if (settings.enabled && !permissionGranted) {
-        ListItem(
-            headlineContent = { Text(text = stringResource(R.string.settings_notifications_blocked)) },
-            supportingContent = {
-                TextButton(onClick = onRequestPermission) {
-                    Text(text = stringResource(R.string.settings_notifications_open_system))
-                }
-            },
+    SettingsSection(stringResource(R.string.settings_section_notifications)) {
+        SwitchRow(
+            title = stringResource(R.string.settings_notifications_enabled),
+            checked = settings.enabled,
+            enabled = true,
+            onCheckedChange = onEnabledChanged,
         )
-    }
-    val controlsEnabled = settings.enabled
-    ListItem(
-        headlineContent = { Text(text = stringResource(R.string.settings_notifications_time)) },
-        supportingContent = {
-            Text(text = stringResource(R.string.settings_notifications_time_value, timeText))
-        },
-        leadingContent = { Icon(imageVector = Icons.Default.Schedule, contentDescription = null) },
-        trailingContent = {
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                contentDescription = null,
-                modifier = Modifier.size(16.dp),
+        if (settings.enabled && !permissionGranted) {
+            SettingsListItem(
+                headlineContent = { Text(text = stringResource(R.string.settings_notifications_blocked)) },
+                supportingContent = {
+                    TextButton(onClick = onRequestPermission) {
+                        Text(text = stringResource(R.string.settings_notifications_open_system))
+                    }
+                },
             )
-        },
-        modifier = Modifier.clickable(enabled = controlsEnabled, role = Role.Button) { showTimePicker = true },
-    )
-    SectionHeader(stringResource(R.string.settings_notifications_recurring_header))
-    SwitchRow(
-        title = stringResource(R.string.settings_notif_recurring_reminders),
-        subtitle = stringResource(R.string.settings_notif_recurring_reminders_desc),
-        checked = settings.recurringReminders,
-        enabled = controlsEnabled,
-        onCheckedChange = onRecurringRemindersChanged,
-    )
-    SwitchRow(
-        title = stringResource(R.string.settings_notif_recurring_posted),
-        checked = settings.recurringPosted,
-        enabled = controlsEnabled,
-        onCheckedChange = onRecurringPostedChanged,
-    )
-    SwitchRow(
-        title = stringResource(R.string.settings_notif_recurring_pending),
-        checked = settings.recurringPendingConfirm,
-        enabled = controlsEnabled,
-        onCheckedChange = onRecurringPendingChanged,
-    )
-    if (hasCreditCard) {
-        SectionHeader(stringResource(R.string.settings_notifications_cards_header))
-        SwitchRow(
-            title = stringResource(R.string.settings_notif_card_closing),
-            checked = settings.cardClosing,
-            enabled = controlsEnabled,
-            onCheckedChange = onCardClosingChanged,
+        }
+        val controlsEnabled = settings.enabled
+        SettingsListItem(
+            headlineContent = { Text(text = stringResource(R.string.settings_notifications_time)) },
+            supportingContent = {
+                Text(text = stringResource(R.string.settings_notifications_time_value, timeText))
+            },
+            leadingContent = { RowIcon(Icons.Default.Schedule) },
+            trailingContent = { Chevron() },
+            modifier = Modifier.clickable(enabled = controlsEnabled, role = Role.Button) { showTimePicker = true },
         )
-        LeadDaysSelector(
-            selectedDays = settings.cardClosingDaysBefore,
-            enabled = controlsEnabled && settings.cardClosing,
-            onSelected = onCardClosingDaysChanged,
+        GroupHeader(stringResource(R.string.settings_notifications_recurring_header))
+        SwitchRow(
+            title = stringResource(R.string.settings_notif_recurring_reminders),
+            subtitle = stringResource(R.string.settings_notif_recurring_reminders_desc),
+            checked = settings.recurringReminders,
+            enabled = controlsEnabled,
+            onCheckedChange = onRecurringRemindersChanged,
         )
         SwitchRow(
-            title = stringResource(R.string.settings_notif_card_payment),
-            checked = settings.cardPayment,
+            title = stringResource(R.string.settings_notif_recurring_posted),
+            checked = settings.recurringPosted,
             enabled = controlsEnabled,
-            onCheckedChange = onCardPaymentChanged,
-        )
-        LeadDaysSelector(
-            selectedDays = settings.cardPaymentDaysBefore,
-            enabled = controlsEnabled && settings.cardPayment,
-            onSelected = onCardPaymentDaysChanged,
+            onCheckedChange = onRecurringPostedChanged,
         )
         SwitchRow(
-            title = stringResource(R.string.settings_notif_card_overdue),
-            checked = settings.cardOverdue,
+            title = stringResource(R.string.settings_notif_recurring_pending),
+            checked = settings.recurringPendingConfirm,
             enabled = controlsEnabled,
-            onCheckedChange = onCardOverdueChanged,
+            onCheckedChange = onRecurringPendingChanged,
+        )
+        if (hasCreditCard) {
+            GroupHeader(stringResource(R.string.settings_notifications_cards_header))
+            SwitchRow(
+                title = stringResource(R.string.settings_notif_card_closing),
+                checked = settings.cardClosing,
+                enabled = controlsEnabled,
+                onCheckedChange = onCardClosingChanged,
+            )
+            LeadDaysSelector(
+                selectedDays = settings.cardClosingDaysBefore,
+                enabled = controlsEnabled && settings.cardClosing,
+                onSelected = onCardClosingDaysChanged,
+            )
+            SwitchRow(
+                title = stringResource(R.string.settings_notif_card_payment),
+                checked = settings.cardPayment,
+                enabled = controlsEnabled,
+                onCheckedChange = onCardPaymentChanged,
+            )
+            LeadDaysSelector(
+                selectedDays = settings.cardPaymentDaysBefore,
+                enabled = controlsEnabled && settings.cardPayment,
+                onSelected = onCardPaymentDaysChanged,
+            )
+            SwitchRow(
+                title = stringResource(R.string.settings_notif_card_overdue),
+                checked = settings.cardOverdue,
+                enabled = controlsEnabled,
+                onCheckedChange = onCardOverdueChanged,
+            )
+        }
+        SettingsListItem(
+            headlineContent = { Text(text = stringResource(R.string.settings_notifications_test)) },
+            modifier =
+                Modifier.clickable(
+                    enabled = controlsEnabled,
+                    role = Role.Button,
+                    onClick = onSendTestNotification,
+                ),
         )
     }
-    ListItem(
-        headlineContent = { Text(text = stringResource(R.string.settings_notifications_test)) },
-        modifier =
-            Modifier.clickable(
-                enabled = controlsEnabled,
-                role = Role.Button,
-                onClick = onSendTestNotification,
-            ),
-    )
-    HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
 
     if (showTimePicker) {
         val timePickerState =
@@ -526,7 +601,7 @@ private fun SwitchRow(
     onCheckedChange: (Boolean) -> Unit,
     subtitle: String? = null,
 ) {
-    ListItem(
+    SettingsListItem(
         headlineContent = { Text(text = title) },
         supportingContent = subtitle?.let { { Text(text = it) } },
         trailingContent = { Switch(checked = checked, enabled = enabled, onCheckedChange = null) },
@@ -554,16 +629,10 @@ private fun LeadDaysSelector(
             pluralStringResource(R.plurals.settings_notif_days_before, selectedDays, selectedDays)
         }
     Box {
-        ListItem(
+        SettingsListItem(
             headlineContent = { Text(text = stringResource(R.string.settings_notif_lead_days)) },
             supportingContent = { Text(text = selectedLabel) },
-            trailingContent = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                )
-            },
+            trailingContent = { Chevron() },
             modifier = Modifier.clickable(enabled = enabled, role = Role.Button) { expanded = true },
         )
         DropdownMenu(
@@ -595,30 +664,31 @@ private fun BackupSection(
     onExportClick: () -> Unit,
     onImportClick: () -> Unit,
 ) {
-    SectionHeader(stringResource(R.string.settings_section_backup))
-    ListItem(
-        headlineContent = { Text(text = stringResource(R.string.backup_export_title)) },
-        supportingContent = { Text(text = stringResource(R.string.backup_export_subtitle)) },
-        leadingContent = { Icon(imageVector = Icons.Default.FileUpload, contentDescription = null) },
-        modifier = Modifier.clickable(enabled = !isBusy, role = Role.Button, onClick = onExportClick),
-    )
-    ListItem(
-        headlineContent = { Text(text = stringResource(R.string.backup_import_title)) },
-        supportingContent = { Text(text = stringResource(R.string.backup_import_subtitle)) },
-        leadingContent = { Icon(imageVector = Icons.Default.FileDownload, contentDescription = null) },
-        modifier = Modifier.clickable(enabled = !isBusy, role = Role.Button, onClick = onImportClick),
-    )
-    HorizontalDivider(modifier = Modifier.padding(top = 8.dp))
+    SettingsSection(stringResource(R.string.settings_section_backup)) {
+        SettingsListItem(
+            headlineContent = { Text(text = stringResource(R.string.backup_export_title)) },
+            supportingContent = { Text(text = stringResource(R.string.backup_export_subtitle)) },
+            leadingContent = { RowIcon(Icons.Default.FileUpload) },
+            modifier = Modifier.clickable(enabled = !isBusy, role = Role.Button, onClick = onExportClick),
+        )
+        SettingsListItem(
+            headlineContent = { Text(text = stringResource(R.string.backup_import_title)) },
+            supportingContent = { Text(text = stringResource(R.string.backup_import_subtitle)) },
+            leadingContent = { RowIcon(Icons.Default.FileDownload) },
+            modifier = Modifier.clickable(enabled = !isBusy, role = Role.Button, onClick = onImportClick),
+        )
+    }
 }
 
 @Composable
 private fun AboutSection(appVersion: String) {
-    SectionHeader(stringResource(R.string.settings_section_about))
-    ListItem(
-        headlineContent = { Text(text = stringResource(R.string.settings_about_version)) },
-        supportingContent = { Text(text = appVersion) },
-        leadingContent = { Icon(imageVector = Icons.Default.Info, contentDescription = null) },
-    )
+    SettingsSection(stringResource(R.string.settings_section_about)) {
+        SettingsListItem(
+            headlineContent = { Text(text = stringResource(R.string.settings_about_version)) },
+            supportingContent = { Text(text = appVersion) },
+            leadingContent = { RowIcon(Icons.Default.Info) },
+        )
+    }
 }
 
 @Composable
@@ -627,7 +697,7 @@ private fun RadioOption(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    ListItem(
+    SettingsListItem(
         headlineContent = { Text(text = label) },
         leadingContent = { RadioButton(selected = selected, onClick = null) },
         modifier = Modifier.selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
