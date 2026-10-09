@@ -221,7 +221,6 @@
     <string name="transactions_empty_filtered_title">Sin resultados</string>
     <string name="transactions_empty_filtered_message">Prueba con otros filtros.</string>
     <string name="action_undo">Deshacer</string>
-    <string name="cd_clear_search">Limpiar búsqueda</string>
     <string name="transaction_transfer_accounts">%1$s → %2$s</string>
 
     <!-- Home -->

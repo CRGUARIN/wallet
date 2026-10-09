@@ -11,7 +11,6 @@ import androidx.compose.ui.graphics.LinearGradientShader
 import androidx.compose.ui.graphics.Shader
 import androidx.compose.ui.graphics.ShaderBrush
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.lerp
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.sin
@@ -45,20 +44,6 @@ object WalletBrushes {
         val colors = MaterialTheme.walletColors
         return Brush.sweepGradient(listOf(colors.attentionStart, colors.attentionMid, colors.attentionStart))
     }
-
-    @Deprecated(
-        message = "Not theme aware (it was a fixed Instagram-like sweep). Use attentionRing().",
-        replaceWith = ReplaceWith("attentionRing()"),
-    )
-    val attentionRing: Brush =
-        Brush.sweepGradient(
-            listOf(Color(0xFFFEDA75), Color(0xFFFA7E1E), Color(0xFFD62976), Color(0xFF962FBF), Color(0xFFFEDA75)),
-        )
-
-    @Deprecated(
-        message = "The account header is now a tinted layer: use rememberWalletSwatch(color).container with onSurface text.",
-    )
-    fun account(color: Color): Brush = Brush.linearGradient(listOf(color, lerp(color, Color.Black, 0.3f)))
 }
 
 /**
