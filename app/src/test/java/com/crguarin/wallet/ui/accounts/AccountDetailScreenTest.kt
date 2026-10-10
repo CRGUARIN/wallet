@@ -3,7 +3,6 @@ package com.crguarin.wallet.ui.accounts
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
@@ -499,7 +498,7 @@ class AccountDetailScreenTest {
     // The header pushes the action row to the bottom edge of the default screen.
     @Test
     @Config(qualifiers = "es-w1000dp-h3000dp")
-    fun `transit card with a negative balance shows the credit used message and disables the trip`() {
+    fun `transit card with a negative balance hides the trip button and keeps top up as the main action`() {
         composeRule.setContent {
             TestScreen(
                 uiState =
@@ -514,7 +513,31 @@ class AccountDetailScreenTest {
             .onNodeWithText("Debes el viaje a crédito")
             .performScrollTo()
             .assertIsDisplayed()
-        composeRule.onNodeWithText("Registrar viaje").performScrollTo().assertIsNotEnabled()
+        composeRule.onNodeWithText("Registrar viaje").assertDoesNotExist()
+        composeRule.onNodeWithText("Recargar").performScrollTo().assertIsEnabled()
+    }
+
+    // The header pushes the action row to the bottom edge of the default screen.
+    @Test
+    @Config(qualifiers = "es-w1000dp-h3000dp")
+    fun `credit trip leaves top up as a single main action that calls back`() {
+        var rechargeClicked = false
+
+        composeRule.setContent {
+            TestScreen(
+                uiState =
+                    baseState.copy(
+                        accountWithBalance = AccountWithBalance(transitAccount, Money(-1L)),
+                        canTransfer = true,
+                    ),
+                onRechargeClick = { rechargeClicked = true },
+            )
+        }
+
+        composeRule.onNodeWithText("Registrar viaje").assertDoesNotExist()
+        composeRule.onNodeWithText("Recargar").performScrollTo().performClick()
+
+        assertThat(rechargeClicked).isTrue()
     }
 
     @Test

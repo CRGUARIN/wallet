@@ -673,7 +673,10 @@ private fun ColumnScope.CardActions(
     }
 }
 
-/** Registering a trip is the main action of a transit card (one big button); top up is beside it. */
+/**
+ * Registering a trip is the main action of a transit card; top up is beside it. While the credit
+ * trip is owed there is no trip button, so top up becomes the main action alone.
+ */
 @Composable
 private fun ColumnScope.TransitActions(
     canRegisterTrip: Boolean,
@@ -681,15 +684,22 @@ private fun ColumnScope.TransitActions(
     onRegisterTripClick: () -> Unit,
     onRechargeClick: () -> Unit,
 ) {
-    PrimaryAction(
-        text = stringResource(R.string.transit_action_trip),
-        onClick = onRegisterTripClick,
-        enabled = canRegisterTrip,
-        icon = Icons.Default.DirectionsBus,
-    )
-    if (canRecharge) {
-        Spacer(modifier = Modifier.height(MaterialTheme.walletSpacing.s))
-        SecondaryAction(
+    if (canRegisterTrip) {
+        PrimaryAction(
+            text = stringResource(R.string.transit_action_trip),
+            onClick = onRegisterTripClick,
+            icon = Icons.Default.DirectionsBus,
+        )
+        if (canRecharge) {
+            Spacer(modifier = Modifier.height(MaterialTheme.walletSpacing.s))
+            SecondaryAction(
+                text = stringResource(R.string.transit_action_recharge),
+                onClick = onRechargeClick,
+                icon = Icons.Default.Add,
+            )
+        }
+    } else if (canRecharge) {
+        PrimaryAction(
             text = stringResource(R.string.transit_action_recharge),
             onClick = onRechargeClick,
             icon = Icons.Default.Add,
