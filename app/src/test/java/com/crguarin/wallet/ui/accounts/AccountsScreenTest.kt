@@ -265,17 +265,26 @@ class AccountsScreenTest {
     }
 
     @Test
-    fun `card row shows debt available and payment reminder chip`() {
+    fun `card row shows the payment reminder in one status line without the debt label`() {
         val today = LocalDate.of(2026, 9, 28)
         showCardState(sampleCardOverview(accountId = 7L, today = today), today)
 
-        composeRule.onNodeWithText("Deuda").assertIsDisplayed()
-        composeRule.onNodeWithText("Disponible", substring = true).assertIsDisplayed()
-        composeRule.onNodeWithText("Pagar antes del", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Pagar en 7 días").assertIsDisplayed()
+        composeRule.onNodeWithText("Deuda").assertDoesNotExist()
+        composeRule.onNodeWithText("Disponible", substring = true).assertDoesNotExist()
     }
 
     @Test
-    fun `overdue card row shows overdue chip`() {
+    fun `card row without a near payment shows the available credit`() {
+        val today = LocalDate.of(2026, 9, 28)
+        showCardState(sampleCardOverview(accountId = 7L, today = today, dueDate = LocalDate.of(2026, 11, 5)), today)
+
+        composeRule.onNodeWithText("Disponible", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Pagar en", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun `overdue card row shows the overdue status`() {
         val today = LocalDate.of(2026, 10, 10)
         showCardState(
             sampleCardOverview(
@@ -290,7 +299,7 @@ class AccountsScreenTest {
     }
 
     @Test
-    fun `card with credit in favor shows credit balance label`() {
+    fun `card with credit in favor has no debt label in its row`() {
         val today = LocalDate.of(2026, 9, 28)
         showCardState(
             sampleCardOverview(
@@ -304,7 +313,34 @@ class AccountsScreenTest {
             today,
         )
 
-        composeRule.onNodeWithText("Saldo a favor").assertIsDisplayed()
+        composeRule.onNodeWithText("Saldo a favor").assertDoesNotExist()
+        composeRule.onNodeWithText("Disponible", substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun `the three shortcuts sit side by side on one row`() {
+        composeRule.setContent {
+            WalletTheme {
+                AccountsScreen(
+                    uiState = AccountsUiState(activeAccounts = listOf(AccountWithBalance(account1, Money.ZERO))),
+                    onAccountClick = {},
+                    onNewAccountClick = {},
+                    onToggleReordering = {},
+                    onMoveAccountUp = {},
+                    onMoveAccountDown = {},
+                    onToggleArchivedExpanded = {},
+                )
+            }
+        }
+
+        val tops =
+            listOf("Deudas", "Pagos recurrentes", "Categorías").map { label ->
+                composeRule
+                    .onNodeWithText(label)
+                    .fetchSemanticsNode()
+                    .boundsInRoot.top
+            }
+        assertThat(tops.distinct()).hasSize(1)
     }
 
     @Test

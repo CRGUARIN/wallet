@@ -6,11 +6,9 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -201,7 +199,14 @@ fun HomeScreen(
                 Modifier
                     .fillMaxSize()
                     .padding(innerPadding),
-            contentPadding = PaddingValues(spacing.screenGutter),
+            contentPadding =
+                PaddingValues(
+                    start = spacing.screenGutter,
+                    end = spacing.screenGutter,
+                    top = spacing.screenGutter,
+                    // Room for the floating "new movement" button, so the last movement stays reachable.
+                    bottom = FabClearance,
+                ),
             verticalArrangement = Arrangement.spacedBy(spacing.l),
         ) {
             item(key = "total_balance") {
@@ -299,10 +304,6 @@ fun HomeScreen(
                         onTransactionClick = onTransactionClick,
                     )
                 }
-            }
-
-            item(key = "bottom_spacer") {
-                Spacer(modifier = Modifier.height(FabClearance))
             }
         }
     }

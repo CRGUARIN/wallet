@@ -253,8 +253,14 @@ internal fun AccountIdentityRow(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Spacer(modifier = Modifier.height(2.dp))
+            val typeLabel = accountTypeLabel(account.type)
             Text(
-                text = accountTypeLabel(account.type),
+                text =
+                    if (account.includeInTotal) {
+                        typeLabel
+                    } else {
+                        typeLabel + " · " + stringResource(R.string.accounts_not_included_in_total)
+                    },
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -33,11 +33,10 @@ import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.card.CardOverview
-import com.crguarin.wallet.ui.accounts.CardRowBalance
+import com.crguarin.wallet.ui.accounts.cardAvailableText
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.theme.walletSpacing
 import java.time.Instant
-import java.time.LocalDate
 
 private val ROW_AVATAR_SIZE = 40.dp
 
@@ -53,7 +52,6 @@ fun AccountPickerSheet(
     allOptionLabel: String? = null,
     onAllOptionSelected: (() -> Unit)? = null,
     cardOverviews: Map<Long, CardOverview> = emptyMap(),
-    today: LocalDate = LocalDate.now(),
 ) {
     val spacing = MaterialTheme.walletSpacing
     ModalBottomSheet(
@@ -142,10 +140,11 @@ fun AccountPickerSheet(
                             )
                             val cardOverview = cardOverviews[item.account.id]
                             if (item.account.type == AccountType.CREDIT_CARD && cardOverview != null) {
-                                CardRowBalance(
-                                    overview = cardOverview,
-                                    today = today,
-                                    horizontalAlignment = Alignment.Start,
+                                // What a card can still spend is what matters when picking it.
+                                Text(
+                                    text = cardAvailableText(cardOverview),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             } else {
                                 MoneyText(

@@ -425,6 +425,12 @@
     <string name="card_pay_before">Pay before %1$s</string>
     <string name="card_paid">Statement paid</string>
     <string name="card_overdue">Payment overdue</string>
+    <string name="card_pay_today">Pay today</string>
+    <string name="card_pay_tomorrow">Pay tomorrow</string>
+    <plurals name="card_pay_in_days">
+        <item quantity="one">Pay in %d day</item>
+        <item quantity="other">Pay in %d days</item>
+    </plurals>
     <string name="card_statement_pending">Statement balance due</string>
     <string name="card_next_statement_estimate">Installments in next statement</string>
     <string name="card_estimate_note">Estimate, without interest</string>

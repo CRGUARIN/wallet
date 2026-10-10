@@ -1,6 +1,5 @@
 package com.crguarin.wallet.ui.accounts
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -8,16 +7,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.pluralStringResource
@@ -49,134 +45,6 @@ fun showPaymentReminder(
         StatementPaymentStatus.OVERDUE -> true
         StatementPaymentStatus.PENDING -> !dueDate.isAfter(today.plusDays(7))
         StatementPaymentStatus.PAID -> false
-    }
-}
-
-/**
- * Tonal pill that flags a card payment: warm (`tertiaryContainer`) when it is due soon and red
- * (`errorContainer`) when it is overdue. The text says it too, so the color is never the only cue.
- */
-@Composable
-fun PaymentReminderChip(
-    status: StatementPaymentStatus,
-    dueDate: LocalDate,
-    today: LocalDate,
-    modifier: Modifier = Modifier,
-) {
-    val overdue = status == StatementPaymentStatus.OVERDUE
-    val spacing = MaterialTheme.walletSpacing
-    Text(
-        text =
-            if (overdue) {
-                stringResource(R.string.card_overdue)
-            } else {
-                stringResource(R.string.card_pay_before, dueDate.formatMedium())
-            },
-        style = MaterialTheme.typography.labelMedium,
-        color =
-            if (overdue) {
-                MaterialTheme.colorScheme.onErrorContainer
-            } else {
-                MaterialTheme.colorScheme.onTertiaryContainer
-            },
-        modifier =
-            modifier
-                .clip(CircleShape)
-                .background(
-                    if (overdue) {
-                        MaterialTheme.colorScheme.errorContainer
-                    } else {
-                        MaterialTheme.colorScheme.tertiaryContainer
-                    },
-                ).padding(horizontal = spacing.m, vertical = spacing.xs),
-    )
-}
-
-/**
- * Amounts for a card row: debt (or credit in favor) with its label, available below,
- * and the payment reminder chip when it applies.
- */
-@Composable
-fun CardRowBalance(
-    overview: CardOverview,
-    today: LocalDate,
-    modifier: Modifier = Modifier,
-    // End for the trailing side of list rows; Start where the block sits under the account name.
-    horizontalAlignment: Alignment.Horizontal = Alignment.End,
-) {
-    val inFavor = overview.debt < Money.ZERO
-    val displayAmount = if (inFavor) -overview.debt else overview.debt
-    Column(
-        horizontalAlignment = horizontalAlignment,
-        modifier = modifier,
-    ) {
-        Text(
-            text =
-                if (inFavor) {
-                    stringResource(R.string.card_credit_in_favor)
-                } else {
-                    stringResource(R.string.card_debt)
-                },
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        MoneyText(
-            amount = displayAmount,
-            type = if (inFavor) TransactionType.INCOME else TransactionType.EXPENSE,
-            style = MaterialTheme.walletTypography.rowAmount,
-        )
-        val locale = LocalConfiguration.current.locales[0]
-        Text(
-            text =
-                stringResource(
-                    R.string.card_available,
-                ) + " " + MoneyFormatter.format(overview.available, locale),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        if (showPaymentReminder(overview.paymentStatus, overview.pendingStatementDueDate, today)) {
-            Spacer(modifier = Modifier.height(4.dp))
-            PaymentReminderChip(
-                status = overview.paymentStatus!!,
-                dueDate = overview.pendingStatementDueDate!!,
-                today = today,
-            )
-        }
-    }
-}
-
-/**
- * Debt (or credit in favor) of a card with its label above, for the trailing side of an account
- * row. Same amounts as [CardRowBalance] without the availability and reminder, which the account
- * row prints under the name.
- */
-@Composable
-internal fun CardDebtBlock(
-    overview: CardOverview,
-    modifier: Modifier = Modifier,
-    horizontalAlignment: Alignment.Horizontal = Alignment.End,
-) {
-    val inFavor = overview.debt < Money.ZERO
-    val displayAmount = if (inFavor) -overview.debt else overview.debt
-    Column(
-        horizontalAlignment = horizontalAlignment,
-        modifier = modifier,
-    ) {
-        Text(
-            text =
-                if (inFavor) {
-                    stringResource(R.string.card_credit_in_favor)
-                } else {
-                    stringResource(R.string.card_debt)
-                },
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        MoneyText(
-            amount = displayAmount,
-            type = if (inFavor) TransactionType.INCOME else TransactionType.EXPENSE,
-            style = MaterialTheme.walletTypography.rowAmount,
-        )
     }
 }
 

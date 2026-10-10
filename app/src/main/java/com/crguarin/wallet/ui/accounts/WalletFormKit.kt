@@ -459,36 +459,6 @@ internal fun AddFab(
     }
 }
 
-/** Tonal pill with an icon and a label (`secondaryContainer`), at least 48 dp tall. */
-@Composable
-internal fun TonalPill(
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val spacing = MaterialTheme.walletSpacing
-    Surface(
-        onClick = onClick,
-        shape = CircleShape,
-        color = MaterialTheme.colorScheme.secondaryContainer,
-        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-        modifier = modifier.semantics { role = Role.Button },
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .heightIn(min = TOUCH_TARGET)
-                    .padding(horizontal = spacing.l),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(20.dp))
-            Spacer(modifier = Modifier.width(spacing.s))
-            Text(text = label, style = MaterialTheme.typography.labelLarge)
-        }
-    }
-}
-
 /**
  * Card on the `surfaceContainerLow` layer (radius 28, no border, no shadow) for the items of a
  * list that have a lot to say, such as a recurring payment or a debt. With [onClick] the whole card

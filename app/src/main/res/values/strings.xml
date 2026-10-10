@@ -152,7 +152,7 @@
     <string name="accounts_reorder_done">Listo</string>
     <string name="accounts_move_up">Subir</string>
     <string name="accounts_move_down">Bajar</string>
-    <string name="accounts_not_included_in_total">No incluida en saldo total</string>
+    <string name="accounts_not_included_in_total">Fuera del saldo total</string>
 
     <!-- Detalle de cuenta -->
     <string name="account_detail_current_balance">Saldo actual</string>
@@ -429,6 +429,12 @@
     <string name="card_pay_before">Pagar antes del %1$s</string>
     <string name="card_paid">Extracto pagado</string>
     <string name="card_overdue">Pago vencido</string>
+    <string name="card_pay_today">Pagar hoy</string>
+    <string name="card_pay_tomorrow">Pagar mañana</string>
+    <plurals name="card_pay_in_days">
+        <item quantity="one">Pagar en %d día</item>
+        <item quantity="other">Pagar en %d días</item>
+    </plurals>
     <string name="card_statement_pending">Por pagar del extracto</string>
     <string name="card_next_statement_estimate">Cuotas del próximo extracto</string>
     <string name="card_estimate_note">Estimado, sin intereses</string>
