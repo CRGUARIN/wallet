@@ -33,6 +33,7 @@ class TransactionListItemTest {
         categorySystemKey: String? = null,
         parentCategorySystemKey: String? = null,
         recurringId: Long? = null,
+        note: String? = null,
     ) = TransactionDetails(
         transaction =
             Transaction(
@@ -43,6 +44,7 @@ class TransactionListItemTest {
                 toAccountId = toAccountId,
                 categoryId = if (type == TransactionType.TRANSFER) null else 10L,
                 date = LocalDate.of(2026, 9, 28),
+                note = note,
                 createdAt = Instant.EPOCH,
                 updatedAt = Instant.EPOCH,
                 recurringId = recurringId,
@@ -205,6 +207,85 @@ class TransactionListItemTest {
         assertThat(amount.left).isAtLeast(title.right)
         // Same line: the amount starts above the bottom of the title.
         assertThat(amount.top).isLessThan(title.bottom)
+    }
+
+    @Test
+    @Config(qualifiers = "es-rCO")
+    fun `expense subtitle joins the note and the account`() {
+        composeRule.setContent {
+            WalletTheme {
+                TransactionListItem(
+                    details = details(TransactionType.EXPENSE, categorySystemKey = "groceries", note = "Almuerzo"),
+                    onClick = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Almuerzo · Efectivo").assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "es-rCO")
+    fun `in the detail of the same account the subtitle shows only the note`() {
+        composeRule.setContent {
+            WalletTheme {
+                TransactionListItem(
+                    details = details(TransactionType.EXPENSE, categorySystemKey = "groceries", note = "Almuerzo"),
+                    onClick = {},
+                    perspectiveAccountId = 1L,
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Almuerzo").assertIsDisplayed()
+        composeRule.onNodeWithText("Almuerzo · Efectivo").assertDoesNotExist()
+    }
+
+    @Test
+    @Config(qualifiers = "es-rCO")
+    fun `in the detail of the same account without a note there is no subtitle`() {
+        composeRule.setContent {
+            WalletTheme {
+                TransactionListItem(
+                    details = details(TransactionType.EXPENSE, categorySystemKey = "groceries"),
+                    onClick = {},
+                    perspectiveAccountId = 1L,
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Efectivo").assertDoesNotExist()
+        composeRule.onNodeWithText("− $ 45.500").assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "es-rCO")
+    fun `a blank note is not shown`() {
+        composeRule.setContent {
+            WalletTheme {
+                TransactionListItem(
+                    details = details(TransactionType.EXPENSE, categorySystemKey = "groceries", note = "   "),
+                    onClick = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Efectivo").assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "es-rCO")
+    fun `transfer subtitle adds the note after the route`() {
+        composeRule.setContent {
+            WalletTheme {
+                TransactionListItem(
+                    details = details(TransactionType.TRANSFER, accountId = 1L, toAccountId = 2L, note = "Pago tarjeta"),
+                    onClick = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Efectivo → Ahorros · Pago tarjeta").assertIsDisplayed()
     }
 
     @Test

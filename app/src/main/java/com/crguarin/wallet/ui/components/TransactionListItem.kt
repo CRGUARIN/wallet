@@ -44,6 +44,9 @@ private val ROW_MIN_HEIGHT = 64.dp
 /** From this font scale up the amount moves below the title, so neither of them is squeezed. */
 private const val LARGE_FONT_SCALE = 1.3f
 
+/** Separates the parts of the subtitle (note, account, transfer route). Not translatable. */
+private const val SUBTITLE_SEPARATOR = " · "
+
 /**
  * Single transaction row shared by the transactions list, the account detail and Home. It has no
  * background of its own: put it on a tonal layer (`surfaceContainerLow`, see
@@ -77,15 +80,23 @@ fun TransactionListItem(
             ).ifBlank { stringResource(transaction.type.labelRes()) }
         }
 
+    val note = transaction.note?.takeIf { it.isNotBlank() }
+    // The account is left out when we are already looking at it (account detail).
     val subtitle =
         if (isTransfer) {
-            stringResource(
-                R.string.transaction_transfer_accounts,
-                details.accountName,
-                details.toAccountName.orEmpty(),
-            )
+            val accounts =
+                stringResource(
+                    R.string.transaction_transfer_accounts,
+                    details.accountName,
+                    details.toAccountName.orEmpty(),
+                )
+            listOfNotNull(accounts, note).joinToString(SUBTITLE_SEPARATOR)
         } else {
-            details.accountName
+            val account =
+                details.accountName.takeIf {
+                    it.isNotBlank() && perspectiveAccountId != transaction.accountId
+                }
+            listOfNotNull(note, account).joinToString(SUBTITLE_SEPARATOR)
         }
     val stacked = LocalDensity.current.fontScale > LARGE_FONT_SCALE
 
@@ -127,19 +138,12 @@ fun TransactionListItem(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (!details.transaction.note.isNullOrBlank()) {
+            if (subtitle.isNotEmpty()) {
                 Text(
-                    text = details.transaction.note,
+                    text = subtitle,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    maxLines = if (stacked) 2 else 1,
                     overflow = TextOverflow.Ellipsis,
                 )
             }
