@@ -18,7 +18,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.time.Instant
-import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)
 @RunWith(RobolectricTestRunner::class)
@@ -52,8 +51,7 @@ class AccountPickerSheetTest {
         )
 
     @Test
-    fun `card row shows debt and available instead of the raw balance`() {
-        val today = LocalDate.of(2026, 9, 28)
+    fun `card row shows only the available credit instead of the raw balance`() {
         composeRule.setContent {
             WalletTheme {
                 AccountPickerSheet(
@@ -65,14 +63,13 @@ class AccountPickerSheetTest {
                     onAccountSelected = {},
                     onDismissRequest = {},
                     cardOverviews = mapOf(7L to sampleCardOverview(accountId = 7L)),
-                    today = today,
                 )
             }
         }
 
         composeRule.onNodeWithText("RappiCard").assertIsDisplayed()
-        composeRule.onNodeWithText("Deuda").assertIsDisplayed()
         composeRule.onNodeWithText("Disponible", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Deuda").assertDoesNotExist()
     }
 
     @Test

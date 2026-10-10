@@ -47,21 +47,17 @@ import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.core.money.MoneyFormatter
-import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.domain.model.MonthSummary
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.card.CardOverview
-import com.crguarin.wallet.domain.model.card.StatementPaymentStatus
 import com.crguarin.wallet.domain.model.recurring.UpcomingKind
 import com.crguarin.wallet.domain.model.recurring.UpcomingPayment
 import com.crguarin.wallet.domain.model.transit.TransitMath
-import com.crguarin.wallet.ui.accounts.showPaymentReminder
+import com.crguarin.wallet.ui.accounts.AccountListRow
 import com.crguarin.wallet.ui.components.HeroAmountText
 import com.crguarin.wallet.ui.components.HeroCard
-import com.crguarin.wallet.ui.components.IconCatalog
 import com.crguarin.wallet.ui.components.MoneyText
-import com.crguarin.wallet.ui.components.PebbleAvatar
 import com.crguarin.wallet.ui.components.SectionCard
 import com.crguarin.wallet.ui.components.bounceClick
 import com.crguarin.wallet.ui.theme.WalletShapeTokens
@@ -70,7 +66,6 @@ import com.crguarin.wallet.ui.theme.walletColors
 import com.crguarin.wallet.ui.theme.walletSemanticColors
 import com.crguarin.wallet.ui.theme.walletSpacing
 import com.crguarin.wallet.ui.theme.walletTypography
-import com.crguarin.wallet.ui.util.formatMedium
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 
@@ -175,7 +170,12 @@ internal fun UpcomingPaymentRow(
                 )
             }
             Text(
-                text = "$whenText · ${payment.accountName}",
+                text =
+                    if (payment.kind == UpcomingKind.CARD_PAYMENT) {
+                        whenText
+                    } else {
+                        "$whenText · ${payment.accountName}"
+                    },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = if (stacked) 2 else 1,
@@ -267,35 +267,68 @@ internal fun MonthSummaryCard(
             }
         }
         Spacer(modifier = Modifier.height(spacing.xs))
-        // FlowRow so the three amounts wrap instead of overlapping with large font scales.
-        FlowRow(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalArrangement = Arrangement.spacedBy(spacing.s),
-        ) {
-            SummaryColumn(
-                label = stringResource(R.string.account_detail_income),
-                amount = monthSummary.income,
-                type = TransactionType.INCOME,
-            )
-            SummaryColumn(
-                label = stringResource(R.string.account_detail_expense),
-                amount = monthSummary.expense,
-                type = TransactionType.EXPENSE,
-            )
-            SummaryColumn(
-                label = stringResource(R.string.account_detail_net),
-                amount = monthSummary.net,
-            )
+        // One row of three equal columns; with large fonts they stack, so no amount is squeezed.
+        if (LocalDensity.current.fontScale > STACKED_FONT_SCALE) {
+            Column(verticalArrangement = Arrangement.spacedBy(spacing.s)) {
+                SummaryColumn(
+                    label = stringResource(R.string.account_detail_income),
+                    amount = monthSummary.income,
+                    type = TransactionType.INCOME,
+                    showDot = false,
+                )
+                SummaryColumn(
+                    label = stringResource(R.string.account_detail_expense),
+                    amount = monthSummary.expense,
+                    type = TransactionType.EXPENSE,
+                    showDot = false,
+                )
+                SummaryColumn(
+                    label = stringResource(R.string.account_detail_net),
+                    amount = monthSummary.net,
+                    showDot = false,
+                )
+            }
+        } else {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.s),
+            ) {
+                SummaryColumn(
+                    label = stringResource(R.string.account_detail_income),
+                    amount = monthSummary.income,
+                    type = TransactionType.INCOME,
+                    modifier = Modifier.weight(1f),
+                    showDot = false,
+                )
+                SummaryColumn(
+                    label = stringResource(R.string.account_detail_expense),
+                    amount = monthSummary.expense,
+                    type = TransactionType.EXPENSE,
+                    modifier = Modifier.weight(1f),
+                    showDot = false,
+                )
+                SummaryColumn(
+                    label = stringResource(R.string.account_detail_net),
+                    amount = monthSummary.net,
+                    modifier = Modifier.weight(1f),
+                    showDot = false,
+                )
+            }
         }
     }
 }
 
+/**
+ * Label above an amount, colored by [type] when it has one. [showDot] adds the colored dot before
+ * the label; the month summary leaves it out.
+ */
 @Composable
 internal fun SummaryColumn(
     label: String,
     amount: Money,
     type: TransactionType? = null,
+    modifier: Modifier = Modifier,
+    showDot: Boolean = true,
 ) {
     val semanticColors = MaterialTheme.walletSemanticColors
     val spacing = MaterialTheme.walletSpacing
@@ -307,16 +340,18 @@ internal fun SummaryColumn(
             TransactionType.TRANSFER -> semanticColors.transfer
             null -> MaterialTheme.colorScheme.onSurfaceVariant
         }
-    Column {
+    Column(modifier = modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Spacer(
-                modifier =
-                    Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(dotColor),
-            )
-            Spacer(modifier = Modifier.width(spacing.xs + spacing.xxs))
+            if (showDot) {
+                Spacer(
+                    modifier =
+                        Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(dotColor),
+                )
+                Spacer(modifier = Modifier.width(spacing.xs + spacing.xxs))
+            }
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodySmall,
@@ -329,7 +364,7 @@ internal fun SummaryColumn(
             type = type,
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
             // Indented so the amount lines up with the label, after the dot.
-            modifier = Modifier.padding(start = spacing.m + spacing.xxs),
+            modifier = Modifier.padding(start = if (showDot) spacing.m + spacing.xxs else 0.dp),
         )
     }
 }
@@ -345,42 +380,6 @@ internal fun SectionHeader(
         color = MaterialTheme.colorScheme.onSurface,
         modifier = modifier.semantics { heading() },
     )
-}
-
-/** What a row says under the account name, and the color it is drawn in. */
-private data class AccountStatus(
-    val text: String,
-    val color: Color,
-)
-
-/**
- * Status line of a credit card row: the payment reminder when it applies (overdue or due within a
- * week), otherwise how much credit is still available.
- */
-@Composable
-private fun cardStatus(
-    overview: CardOverview,
-    today: LocalDate,
-): AccountStatus {
-    val dueDate = overview.pendingStatementDueDate
-    return when {
-        showPaymentReminder(overview.paymentStatus, dueDate, today) && dueDate != null ->
-            if (overview.paymentStatus == StatementPaymentStatus.OVERDUE) {
-                AccountStatus(stringResource(R.string.card_overdue), MaterialTheme.colorScheme.error)
-            } else {
-                AccountStatus(
-                    stringResource(R.string.card_pay_before, dueDate.formatMedium()),
-                    MaterialTheme.colorScheme.tertiary,
-                )
-            }
-        else -> {
-            val locale = LocalConfiguration.current.locales[0]
-            AccountStatus(
-                stringResource(R.string.card_available) + " " + MoneyFormatter.format(overview.available, locale),
-                MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
 }
 
 /** Status line of a transit card: trips left, or the state of the credit trip. Null without a fare. */
@@ -405,23 +404,9 @@ internal fun transitNeedsAttention(
     fare: Money?,
 ): Boolean = TransitMath.isCreditTrip(balance, fare) || TransitMath.isCreditUsed(balance)
 
-@Composable
-private fun transitStatus(
-    balance: Money,
-    fare: Money?,
-): AccountStatus? {
-    val text = transitStatusText(balance, fare) ?: return null
-    val warn = transitNeedsAttention(balance, fare)
-    return AccountStatus(
-        text = text,
-        color = if (warn) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-}
-
 /**
- * All active accounts as a vertical list on one tonal layer: tinted pebble (with its ring, or the
- * warm attention ring and dot when the account needs attention), name, a status line and the
- * balance at the end. With large fonts the balance drops under the name.
+ * All active accounts as a vertical list on one tonal layer, one [AccountListRow] after another with
+ * no divider lines.
  */
 @Composable
 internal fun AccountsList(
@@ -440,123 +425,11 @@ internal fun AccountsList(
                 .padding(vertical = MaterialTheme.walletSpacing.s),
     ) {
         accounts.forEach { item ->
-            AccountRow(
+            AccountListRow(
                 item = item,
-                overview = cardOverviews[item.account.id],
-                today = today,
                 onClick = { onAccountClick(item.account.id) },
-            )
-        }
-    }
-}
-
-@Composable
-private fun AccountRow(
-    item: AccountWithBalance,
-    overview: CardOverview?,
-    today: LocalDate,
-    onClick: () -> Unit,
-) {
-    val spacing = MaterialTheme.walletSpacing
-    val account = item.account
-    val cardOverview = overview?.takeIf { account.type == AccountType.CREDIT_CARD }
-    val needsAttention =
-        when {
-            cardOverview != null ->
-                showPaymentReminder(cardOverview.paymentStatus, cardOverview.pendingStatementDueDate, today)
-            account.type == AccountType.TRANSIT_CARD -> transitNeedsAttention(item.balance, account.fare)
-            else -> false
-        }
-    val status =
-        when {
-            cardOverview != null -> cardStatus(cardOverview, today)
-            account.type == AccountType.TRANSIT_CARD -> transitStatus(item.balance, account.fare)
-            else -> null
-        }
-    val stacked = LocalDensity.current.fontScale > STACKED_ROW_FONT_SCALE
-
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .heightIn(min = 64.dp)
-                .clickable(onClick = onClick)
-                .padding(horizontal = spacing.l, vertical = spacing.s),
-        // With the balance under the name the text is taller than the avatar: line them up at the top.
-        verticalAlignment = if (stacked) Alignment.Top else Alignment.CenterVertically,
-    ) {
-        PebbleAvatar(
-            icon = IconCatalog.get(account.icon),
-            color = Color(account.color),
-            size = AccountAvatarSize,
-            showRing = true,
-            needsAttention = needsAttention,
-        )
-        Spacer(modifier = Modifier.width(spacing.m))
-        if (stacked) {
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(spacing.xxs)) {
-                AccountNameAndStatus(name = account.name, status = status)
-                AccountBalance(item = item, overview = cardOverview, alignment = Alignment.Start)
-            }
-        } else {
-            Column(modifier = Modifier.weight(1f)) {
-                AccountNameAndStatus(name = account.name, status = status)
-            }
-            Spacer(modifier = Modifier.width(spacing.m))
-            AccountBalance(item = item, overview = cardOverview, alignment = Alignment.End)
-        }
-    }
-}
-
-@Composable
-private fun AccountNameAndStatus(
-    name: String,
-    status: AccountStatus?,
-) {
-    Text(
-        text = name,
-        style = MaterialTheme.typography.bodyLarge,
-        fontWeight = FontWeight.Bold,
-        color = MaterialTheme.colorScheme.onSurface,
-        maxLines = 2,
-        overflow = TextOverflow.Ellipsis,
-    )
-    if (status != null) {
-        Text(
-            text = status.text,
-            style = MaterialTheme.typography.bodySmall,
-            color = status.color,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
-
-/** Balance of an account row. A credit card shows its debt (or the credit in its favor) with a label. */
-@Composable
-private fun AccountBalance(
-    item: AccountWithBalance,
-    overview: CardOverview?,
-    alignment: Alignment.Horizontal,
-) {
-    Column(horizontalAlignment = alignment) {
-        if (overview != null) {
-            val inFavor = overview.debt < Money.ZERO
-            Text(
-                text = stringResource(if (inFavor) R.string.card_credit_in_favor else R.string.card_debt),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            MoneyText(
-                amount = if (inFavor) -overview.debt else overview.debt,
-                type = if (inFavor) TransactionType.INCOME else TransactionType.EXPENSE,
-                style = MaterialTheme.walletTypography.rowAmount,
-            )
-        } else {
-            MoneyText(
-                amount = item.balance,
-                style = MaterialTheme.walletTypography.rowAmount,
-                color = MaterialTheme.colorScheme.onSurface,
+                today = today,
+                cardOverview = cardOverviews[item.account.id],
             )
         }
     }

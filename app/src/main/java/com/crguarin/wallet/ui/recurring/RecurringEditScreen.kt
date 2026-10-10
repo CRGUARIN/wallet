@@ -414,7 +414,6 @@ fun RecurringEditScreen(
             accounts = uiState.accounts,
             selectedAccountId = uiState.accountId,
             onAccountSelected = { onAccountSelected(it.account.id) },
-            today = uiState.today,
             onDismissRequest = onDismissAccountSheet,
         )
     }

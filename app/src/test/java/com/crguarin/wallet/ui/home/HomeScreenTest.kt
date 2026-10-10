@@ -4,6 +4,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
@@ -233,7 +234,7 @@ class HomeScreenTest {
     }
 
     @Test
-    fun `home account row shows card debt available and reminder chip`() {
+    fun `home account row shows the payment reminder in its status line without the debt label`() {
         val today = LocalDate.of(2026, 9, 28)
         val card =
             Account(
@@ -272,8 +273,8 @@ class HomeScreenTest {
         }
 
         composeRule.onNodeWithText("RappiCard").assertIsDisplayed()
-        composeRule.onNodeWithText("Deuda").assertIsDisplayed()
-        composeRule.onNodeWithText("Pagar antes del", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Pagar en 7 días").assertIsDisplayed()
+        composeRule.onNodeWithText("Deuda").assertDoesNotExist()
         // The status line says the reminder when there is one; the available credit takes its place otherwise.
         composeRule.onNodeWithText("Disponible", substring = true).assertDoesNotExist()
     }
@@ -318,9 +319,9 @@ class HomeScreenTest {
             }
         }
 
-        composeRule.onNodeWithText("Deuda").assertIsDisplayed()
+        composeRule.onNodeWithText("Deuda").assertDoesNotExist()
         composeRule.onNodeWithText("Disponible", substring = true).assertIsDisplayed()
-        composeRule.onNodeWithText("Pagar antes del", substring = true).assertDoesNotExist()
+        composeRule.onNodeWithText("Pagar en", substring = true).assertDoesNotExist()
     }
 
     private val upcomingToday = LocalDate.of(2026, 9, 28)
@@ -431,7 +432,9 @@ class HomeScreenTest {
         composeRule.onNodeWithText("Por confirmar").assertIsDisplayed()
         composeRule.onNodeWithText("Pago de RappiCard").assertIsDisplayed()
         composeRule.onNodeWithText("Concilia el extracto").assertIsDisplayed()
-        composeRule.onNodeWithText("En 2 días · Efectivo").assertIsDisplayed()
+        // The card payment title already names the card: the timing alone goes under it.
+        composeRule.onNodeWithText("En 2 días").assertIsDisplayed()
+        composeRule.onNodeWithText("En 2 días · Efectivo").assertDoesNotExist()
     }
 
     @Test
@@ -710,6 +713,7 @@ class HomeScreenTest {
         composeRule.onNodeWithText("$ 10.650").assertIsDisplayed()
         composeRule.onNodeWithText("Tullave").assertIsDisplayed()
         composeRule.onNodeWithText("Recarga para viajar").assertIsDisplayed()
+        composeRule.onAllNodesWithText("Fuera del saldo total").assertCountEquals(0)
     }
 
     @Test

@@ -1,15 +1,14 @@
 package com.crguarin.wallet.ui.accounts
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -44,11 +43,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -60,21 +58,15 @@ import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.AccountWithBalance
-import com.crguarin.wallet.domain.model.card.CardOverview
 import com.crguarin.wallet.ui.components.EmptyState
 import com.crguarin.wallet.ui.components.HeroAmountText
 import com.crguarin.wallet.ui.components.HeroCard
-import com.crguarin.wallet.ui.components.IconCatalog
 import com.crguarin.wallet.ui.components.LoadingState
-import com.crguarin.wallet.ui.components.MoneyText
-import com.crguarin.wallet.ui.components.PebbleAvatar
 import com.crguarin.wallet.ui.components.groupedItemBackground
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.theme.walletSpacing
-import com.crguarin.wallet.ui.theme.walletTypography
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 import java.time.Instant
-import java.time.LocalDate
 
 @Composable
 fun AccountsRoute(
@@ -269,16 +261,26 @@ fun AccountsScreen(
                     items = uiState.activeAccounts,
                     key = { _, item -> item.account.id },
                 ) { index, item ->
-                    AccountItemRow(
+                    AccountListRow(
                         item = item,
-                        isReordering = uiState.isReordering,
-                        canMoveUp = index > 0,
-                        canMoveDown = index < uiState.activeAccounts.size - 1,
-                        onMoveUp = { onMoveAccountUp(item.account.id) },
-                        onMoveDown = { onMoveAccountDown(item.account.id) },
                         onClick = { onAccountClick(item.account.id) },
-                        cardOverview = uiState.cardOverviews[item.account.id],
                         today = uiState.today,
+                        cardOverview = uiState.cardOverviews[item.account.id],
+                        showTypeLabel = true,
+                        enabled = !uiState.isReordering,
+                        trailing =
+                            if (uiState.isReordering) {
+                                {
+                                    ReorderArrows(
+                                        canMoveUp = index > 0,
+                                        canMoveDown = index < uiState.activeAccounts.size - 1,
+                                        onMoveUp = { onMoveAccountUp(item.account.id) },
+                                        onMoveDown = { onMoveAccountDown(item.account.id) },
+                                    )
+                                }
+                            } else {
+                                null
+                            },
                         modifier =
                             Modifier
                                 .padding(top = if (index == 0 && uiState.archivedAccounts.isEmpty()) spacing.l else 0.dp)
@@ -340,17 +342,13 @@ fun AccountsScreen(
                             items = uiState.archivedAccounts,
                             key = { _, item -> "archived_${item.account.id}" },
                         ) { index, item ->
-                            AccountItemRow(
+                            AccountListRow(
                                 item = item,
-                                isReordering = false,
-                                canMoveUp = false,
-                                canMoveDown = false,
-                                onMoveUp = {},
-                                onMoveDown = {},
                                 onClick = { onAccountClick(item.account.id) },
-                                isArchived = true,
-                                cardOverview = uiState.cardOverviews[item.account.id],
                                 today = uiState.today,
+                                cardOverview = uiState.cardOverviews[item.account.id],
+                                showTypeLabel = true,
+                                isArchived = true,
                                 modifier =
                                     Modifier
                                         .padding(top = if (index == 0) spacing.s else 0.dp)
@@ -364,8 +362,22 @@ fun AccountsScreen(
     }
 }
 
-/** Debts, recurring payments and categories: one touch from the accounts, besides Settings. */
-@OptIn(ExperimentalLayoutApi::class)
+/** Above this font scale the shortcuts stack as full-width rows instead of three tiles. */
+private const val STACKED_SHORTCUT_FONT_SCALE = 1.3f
+private val SHORTCUT_TILE_MIN_HEIGHT = 72.dp
+private val SHORTCUT_ROW_MIN_HEIGHT = 56.dp
+
+/** One shortcut of the Accounts tab: its icon, its label and what it opens. */
+private data class AccountShortcut(
+    val icon: ImageVector,
+    val label: String,
+    val onClick: () -> Unit,
+)
+
+/**
+ * Debts, recurring payments and categories in one row of equal tonal tiles, one touch from the
+ * accounts. With large fonts the tiles become full-width rows, so no label is cut.
+ */
 @Composable
 private fun AccountsShortcuts(
     onOpenDebts: () -> Unit,
@@ -374,192 +386,132 @@ private fun AccountsShortcuts(
     modifier: Modifier = Modifier,
 ) {
     val spacing = MaterialTheme.walletSpacing
-    FlowRow(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(spacing.s),
-        verticalArrangement = Arrangement.spacedBy(spacing.s),
-    ) {
-        TonalPill(
-            icon = Icons.Default.Payments,
-            label = stringResource(R.string.debts_title),
-            onClick = onOpenDebts,
+    val shortcuts =
+        listOf(
+            AccountShortcut(Icons.Default.Payments, stringResource(R.string.debts_title), onOpenDebts),
+            AccountShortcut(Icons.Default.Repeat, stringResource(R.string.recurring_title), onOpenRecurring),
+            AccountShortcut(Icons.Default.Category, stringResource(R.string.categories_title), onOpenCategories),
         )
-        TonalPill(
-            icon = Icons.Default.Repeat,
-            label = stringResource(R.string.recurring_title),
-            onClick = onOpenRecurring,
-        )
-        TonalPill(
-            icon = Icons.Default.Category,
-            label = stringResource(R.string.categories_title),
-            onClick = onOpenCategories,
-        )
+    if (LocalDensity.current.fontScale > STACKED_SHORTCUT_FONT_SCALE) {
+        Column(
+            modifier = modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(spacing.s),
+        ) {
+            shortcuts.forEach { shortcut -> ShortcutRow(shortcut = shortcut) }
+        }
+    } else {
+        // Same height for the three tiles, even when one label takes two lines.
+        Row(
+            modifier = modifier.fillMaxWidth().height(IntrinsicSize.Min),
+            horizontalArrangement = Arrangement.spacedBy(spacing.s),
+        ) {
+            shortcuts.forEach { shortcut ->
+                ShortcutTile(shortcut = shortcut, modifier = Modifier.weight(1f).fillMaxHeight())
+            }
+        }
     }
 }
 
-/** From this font scale up the balance of a row moves under the name, so neither is squeezed. */
-private const val STACKED_FONT_SCALE = 1.3f
-
-/**
- * One account of the list, the same language as the accounts of Home: a pebble with the account
- * ring (or the warm attention ring), the name, a status line and the balance at the end. With big
- * fonts the balance drops under the name.
- */
+/** Shortcut as a tonal tile: the icon above the label, centered. */
 @Composable
-internal fun AccountItemRow(
-    item: AccountWithBalance,
-    isReordering: Boolean,
+private fun ShortcutTile(
+    shortcut: AccountShortcut,
+    modifier: Modifier = Modifier,
+) {
+    val spacing = MaterialTheme.walletSpacing
+    Surface(
+        onClick = shortcut.onClick,
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = modifier.heightIn(min = SHORTCUT_TILE_MIN_HEIGHT),
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.s, vertical = spacing.m),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(spacing.xs, Alignment.CenterVertically),
+        ) {
+            Icon(
+                imageVector = shortcut.icon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+            )
+            Text(
+                text = shortcut.label,
+                style = MaterialTheme.typography.labelLarge,
+                textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/** Shortcut as a full-width tonal row, for large fonts: the icon and the label side by side. */
+@Composable
+private fun ShortcutRow(shortcut: AccountShortcut) {
+    val spacing = MaterialTheme.walletSpacing
+    Surface(
+        onClick = shortcut.onClick,
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth().heightIn(min = SHORTCUT_ROW_MIN_HEIGHT),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.l, vertical = spacing.s),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                imageVector = shortcut.icon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+            )
+            Spacer(modifier = Modifier.width(spacing.m))
+            Text(
+                text = shortcut.label,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/** Reorder arrows of the Accounts tab, shown in place of the balance while reordering. */
+@Composable
+private fun ReorderArrows(
     canMoveUp: Boolean,
     canMoveDown: Boolean,
     onMoveUp: () -> Unit,
     onMoveDown: () -> Unit,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    isArchived: Boolean = false,
-    cardOverview: CardOverview? = null,
-    today: LocalDate = LocalDate.now(),
 ) {
-    val spacing = MaterialTheme.walletSpacing
-    val account = item.account
-    val stacked = LocalDensity.current.fontScale >= STACKED_FONT_SCALE
-    val isCard = account.type == AccountType.CREDIT_CARD && cardOverview != null
-    val isTransit = account.type == AccountType.TRANSIT_CARD
-    val showReminder =
-        isCard && showPaymentReminder(cardOverview.paymentStatus, cardOverview.pendingStatementDueDate, today)
-    val transitStatus = if (isTransit) transitStatus(item.balance, account.fare) else null
-    val needsAttention = !isArchived && (showReminder || (transitStatus?.isWarning == true))
-    val nameColor = if (isArchived) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
-
-    Row(
-        modifier =
-            modifier
-                .fillMaxWidth()
-                .clickable(enabled = !isReordering, role = Role.Button, onClick = onClick)
-                .padding(horizontal = spacing.l, vertical = spacing.m),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        PebbleAvatar(
-            icon = IconCatalog.get(account.icon),
-            color = Color(account.color),
-            size = ROW_AVATAR_SIZE,
-            showRing = !isArchived,
-            needsAttention = needsAttention,
-        )
-
-        Spacer(modifier = Modifier.width(spacing.m))
-
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = account.name,
-                style = MaterialTheme.typography.titleSmall,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                color = nameColor,
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        IconButton(
+            onClick = onMoveUp,
+            enabled = canMoveUp,
+        ) {
+            Icon(
+                imageVector = Icons.Default.ArrowUpward,
+                contentDescription = stringResource(R.string.accounts_move_up),
             )
-            val typeString = accountTypeLabel(account.type)
-            Text(
-                text =
-                    if (!account.includeInTotal) {
-                        "$typeString • " + stringResource(R.string.accounts_not_included_in_total)
-                    } else {
-                        typeString
-                    },
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            if (isCard) {
-                Text(
-                    text = cardAvailableText(cardOverview),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                if (showReminder) {
-                    Spacer(modifier = Modifier.height(spacing.xs))
-                    PaymentReminderChip(
-                        status = cardOverview.paymentStatus!!,
-                        dueDate = cardOverview.pendingStatementDueDate!!,
-                        today = today,
-                    )
-                }
-            }
-            if (transitStatus != null) {
-                Text(
-                    text = transitStatus.text,
-                    style = MaterialTheme.typography.bodySmall,
-                    color =
-                        if (transitStatus.isWarning) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        },
-                )
-            }
-            if (stacked && !isReordering) {
-                Spacer(modifier = Modifier.height(spacing.xs))
-                AccountRowBalance(
-                    item = item,
-                    isArchived = isArchived,
-                    cardOverview = cardOverview,
-                    horizontalAlignment = Alignment.Start,
-                )
-            }
         }
-
-        if (isReordering) {
-            Spacer(modifier = Modifier.width(spacing.s))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                    onClick = onMoveUp,
-                    enabled = canMoveUp,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowUpward,
-                        contentDescription = stringResource(R.string.accounts_move_up),
-                    )
-                }
-                IconButton(
-                    onClick = onMoveDown,
-                    enabled = canMoveDown,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowDownward,
-                        contentDescription = stringResource(R.string.accounts_move_down),
-                    )
-                }
-            }
-        } else if (!stacked) {
-            Spacer(modifier = Modifier.width(spacing.m))
-            AccountRowBalance(
-                item = item,
-                isArchived = isArchived,
-                cardOverview = cardOverview,
-                horizontalAlignment = Alignment.End,
+        IconButton(
+            onClick = onMoveDown,
+            enabled = canMoveDown,
+        ) {
+            Icon(
+                imageVector = Icons.Default.ArrowDownward,
+                contentDescription = stringResource(R.string.accounts_move_down),
             )
         }
     }
 }
 
-/** The figure at the end of an account row: the debt of a card, or the balance of any other account. */
-@Composable
-private fun AccountRowBalance(
-    item: AccountWithBalance,
-    isArchived: Boolean,
-    cardOverview: CardOverview?,
-    horizontalAlignment: Alignment.Horizontal,
-) {
-    val color = if (isArchived) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface
-    if (item.account.type == AccountType.CREDIT_CARD && cardOverview != null) {
-        CardDebtBlock(overview = cardOverview, horizontalAlignment = horizontalAlignment)
-    } else {
-        MoneyText(
-            amount = item.balance,
-            style = MaterialTheme.walletTypography.rowAmount,
-            color = color,
-        )
-    }
-}
-
-private val ROW_AVATAR_SIZE = 44.dp
 private val ARCHIVED_HEADER_MIN_HEIGHT = 56.dp
 
 /** Room under the list so the last row is not covered by the add button. */
