@@ -14,9 +14,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.v2.createComposeRule
-import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -217,6 +215,14 @@ class ReportsScreenTest {
         }
     }
 
+    /** Accessibility label of the row's click action, or null when the row only selects. */
+    private fun clickLabelOf(text: String): String? =
+        composeRule
+            .onNodeWithText(text)
+            .fetchSemanticsNode()
+            .config[SemanticsActions.OnClick]
+            .label
+
     private fun clickDonutTop() {
         val node = composeRule.onNodeWithContentDescription("Gráfico de dona", substring = true)
         val size = node.fetchSemanticsNode().size
@@ -252,30 +258,32 @@ class ReportsScreenTest {
     }
 
     @Test
-    fun `legend shows name amount and percentage and selecting a row calls selectSlice`() {
-        var selected: SliceKey? = null
-        setScreen(state(), onSelectSlice = { selected = it })
+    fun `legend shows name amount and percentage`() {
+        setScreen(state())
 
         composeRule.onNodeWithText("Alimentación").assertIsDisplayed()
         composeRule.onNodeWithText("$ 1.125.000").assertIsDisplayed()
         composeRule.onNodeWithText("45,0 %").assertIsDisplayed()
+    }
+
+    @Test
+    fun `tapping a row with subcategories drills into them`() {
+        var drilledParent: Long? = null
+        var viewed = false
+        setScreen(
+            state(),
+            onDrillInto = { drilledParent = it },
+            onViewTransactions = { _, _, _, _ -> viewed = true },
+        )
 
         composeRule.onNodeWithText("Alimentación").performClick()
-        assertThat(selected).isEqualTo(SliceKey.Category(10L))
-    }
-
-    @Test
-    fun `view subcategories calls drillInto with the category id`() {
-        var drilledParent: Long? = null
-        setScreen(state(), onDrillInto = { drilledParent = it })
-
-        composeRule.onNodeWithContentDescription("Ver subcategorías").performClick()
 
         assertThat(drilledParent).isEqualTo(10L)
+        assertThat(viewed).isFalse()
     }
 
     @Test
-    fun `view transactions passes the report filters`() {
+    fun `tapping a category without subcategories passes the report filters to movements`() {
         var categoryId: Long? = null
         var accountId: Long? = null
         var type: TransactionType? = null
@@ -290,12 +298,40 @@ class ReportsScreenTest {
             },
         )
 
-        composeRule.onAllNodesWithContentDescription("Ver movimientos").onFirst().performClick()
+        composeRule.onNodeWithText("Transporte").performClick()
 
-        assertThat(categoryId).isEqualTo(10L)
+        assertThat(categoryId).isEqualTo(20L)
         assertThat(accountId).isEqualTo(7L)
         assertThat(type).isEqualTo(TransactionType.EXPENSE)
         assertThat(yearMonth).isEqualTo(month)
+    }
+
+    @Test
+    fun `others row only selects its slice`() {
+        var selected: SliceKey? = null
+        var drilled = false
+        var viewed = false
+        setScreen(
+            state(),
+            onSelectSlice = { selected = it },
+            onDrillInto = { drilled = true },
+            onViewTransactions = { _, _, _, _ -> viewed = true },
+        )
+
+        composeRule.onNodeWithText("Otras").performClick()
+
+        assertThat(selected).isEqualTo(SliceKey.Others)
+        assertThat(drilled).isFalse()
+        assertThat(viewed).isFalse()
+    }
+
+    @Test
+    fun `legend rows name their action for screen readers`() {
+        setScreen(state())
+
+        assertThat(clickLabelOf("Alimentación")).isEqualTo("Ver subcategorías")
+        assertThat(clickLabelOf("Transporte")).isEqualTo("Ver movimientos")
+        assertThat(clickLabelOf("Otras")).isNull()
     }
 
     @Test
@@ -494,7 +530,7 @@ class ReportsScreenTest {
     }
 
     @Test
-    fun `drill-down general row has no view-transactions action`() {
+    fun `drill-down general row selects and category rows open movements`() {
         val parent = slice(SliceKey.Category(10L), "Alimentación", "food", 200_000_000L, 800, hasChildren = true)
         val breakdown =
             CategoryBreakdown(
@@ -524,11 +560,22 @@ class ReportsScreenTest {
                     ),
                 parentId = 10L,
             )
-        setScreen(state(breakdown = breakdown, drillDownParent = parent))
+        var selected: SliceKey? = null
+        var viewedCategory: Long? = null
+        setScreen(
+            state(breakdown = breakdown, drillDownParent = parent),
+            onSelectSlice = { selected = it },
+            onViewTransactions = { category, _, _, _ -> viewedCategory = category },
+        )
 
         composeRule.onNodeWithText("Alimentación (general)").assertIsDisplayed()
-        composeRule.onNodeWithText("Mercado").assertIsDisplayed()
-        composeRule.onAllNodesWithContentDescription("Ver movimientos", substring = true).assertCountEquals(1)
+        assertThat(clickLabelOf("Alimentación (general)")).isNull()
+        composeRule.onNodeWithText("Alimentación (general)").performClick()
+        assertThat(selected).isEqualTo(SliceKey.ParentDirect(10L))
+        assertThat(viewedCategory).isNull()
+
+        composeRule.onNodeWithText("Mercado").performClick()
+        assertThat(viewedCategory).isEqualTo(11L)
     }
 
     @Test
@@ -544,21 +591,26 @@ class ReportsScreenTest {
     @Test
     fun `refreshing disables card actions but keeps controls and content`() {
         var selected: SliceKey? = null
+        var drilled = false
         var viewed = false
         var modeChanged: ReportMode? = null
         setScreen(
             state().copy(isRefreshing = true),
             onSelectSlice = { selected = it },
+            onDrillInto = { drilled = true },
             onViewTransactions = { _, _, _, _ -> viewed = true },
             onModeChange = { modeChanged = it },
         )
 
         composeRule.onNodeWithText("Por categoría").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Cargando").assertDoesNotExist()
-        composeRule.onAllNodesWithContentDescription("Ver movimientos", substring = true).onFirst().assertIsNotEnabled()
-        composeRule.onNodeWithContentDescription("Ver subcategorías", substring = true).assertIsNotEnabled()
+        composeRule.onNodeWithText("Transporte").assertIsNotEnabled()
+        composeRule.onNodeWithText("Alimentación").assertIsNotEnabled()
+        composeRule.onNodeWithText("Transporte").performClick()
+        composeRule.onNodeWithText("Alimentación").performClick()
         clickDonutTop()
         assertThat(selected).isNull()
+        assertThat(drilled).isFalse()
         assertThat(viewed).isFalse()
 
         composeRule.onNodeWithText("Año").performClick()
@@ -737,8 +789,9 @@ class ReportsScreenTest {
         val layout = layouts.single()
         assertThat(layout.hasVisualOverflow).isFalse()
         assertThat(layout.lineCount).isAtMost(2)
-        // Still reachable next to its shortcuts: the name does not hide the buttons.
-        composeRule.onNodeWithContentDescription("Ver subcategorías").assertIsDisplayed()
+        // The whole row stays the touch target and keeps its action label.
+        composeRule.onNodeWithText(longName).assertIsDisplayed()
+        assertThat(clickLabelOf(longName)).isEqualTo("Ver subcategorías")
     }
 
     @Test

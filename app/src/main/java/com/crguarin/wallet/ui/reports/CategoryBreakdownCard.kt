@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.PieChart
@@ -66,8 +65,8 @@ import java.time.LocalDate
 import java.time.YearMonth
 
 /**
- * Category donut with its legend. Tapping a slice or a legend row selects it; slices with children
- * can be drilled down and monthly rows have a shortcut to Movements with the report filters.
+ * Category donut with its legend. Tapping a slice selects it. Tapping a legend row drills into the
+ * subcategories when it has children, or opens its movements with the report filters in month mode.
  */
 @Composable
 internal fun CategoryBreakdownCard(
@@ -136,29 +135,34 @@ internal fun CategoryBreakdownCard(
 
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     slices.forEach { slice ->
-                        // "(general)" navigates to the parent id, which would also match every
-                        // subcategory in Movements, so it has no shortcut, like "Others".
-                        val showTransactions =
-                            uiState.mode == ReportMode.MONTH && slice.key is SliceKey.Category
+                        // "(general)" and "Others" have no category to navigate to, so they only select.
+                        // "(general)" must not open Movements by parent id: that would match every subcategory.
+                        val category = slice.key as? SliceKey.Category
+                        val drills = category != null && slice.hasChildren
+                        val showsTransactions = category != null && uiState.mode == ReportMode.MONTH
                         LegendRow(
                             slice = slice,
                             selected = slice.key == uiState.selectedSliceKey,
-                            showViewTransactions = showTransactions,
                             actionsEnabled = !refreshing,
-                            onSelect = { if (!refreshing) onSelectSlice(slice.key) },
-                            onDrillInto =
-                                if (slice.hasChildren) {
-                                    { parentId -> onDrillInto(parentId) }
-                                } else {
-                                    null
+                            navigates = drills || showsTransactions,
+                            clickLabel =
+                                when {
+                                    drills -> stringResource(R.string.reports_view_subcategories)
+                                    showsTransactions -> stringResource(R.string.reports_view_transactions)
+                                    else -> null
                                 },
-                            onViewTransactions = {
-                                onViewTransactions(
-                                    slice.categoryIdForNavigation(),
-                                    uiState.accountId,
-                                    uiState.type,
-                                    uiState.yearMonth,
-                                )
+                            onClick = {
+                                when {
+                                    category != null && drills -> onDrillInto(category.categoryId)
+                                    category != null && showsTransactions ->
+                                        onViewTransactions(
+                                            category.categoryId,
+                                            uiState.accountId,
+                                            uiState.type,
+                                            uiState.yearMonth,
+                                        )
+                                    else -> onSelectSlice(slice.key)
+                                }
                             },
                         )
                     }
@@ -230,18 +234,17 @@ private fun CenterAmountText(
 
 /**
  * One category of the legend. The name goes on the first line with the amount and may take two
- * lines, so it is never cut ("Vivi…"); the bar and the two shortcuts go on the second line, where
- * the 48 dp buttons do not steal width from the name.
+ * lines, so it is never cut ("Vivi…"); the bar goes on the second line, with a chevron when the row
+ * navigates. The whole row is the touch target and [clickLabel] names its action for screen readers.
  */
 @Composable
 private fun LegendRow(
     slice: CategorySlice,
     selected: Boolean,
-    showViewTransactions: Boolean,
     actionsEnabled: Boolean,
-    onSelect: () -> Unit,
-    onDrillInto: ((Long) -> Unit)?,
-    onViewTransactions: () -> Unit,
+    navigates: Boolean,
+    clickLabel: String?,
+    onClick: () -> Unit,
 ) {
     val spacing = MaterialTheme.walletSpacing
     val color =
@@ -257,7 +260,7 @@ private fun LegendRow(
                 .defaultMinSize(minHeight = 48.dp)
                 .clip(MaterialTheme.shapes.medium)
                 .background(if (selected) MaterialTheme.colorScheme.surfaceContainerHigh else Color.Transparent)
-                .clickable(enabled = actionsEnabled, role = Role.Button, onClick = onSelect)
+                .clickable(enabled = actionsEnabled, onClickLabel = clickLabel, role = Role.Button, onClick = onClick)
                 .semantics(mergeDescendants = true) {}
                 .padding(horizontal = spacing.s, vertical = spacing.xs),
     ) {
@@ -293,7 +296,7 @@ private fun LegendRow(
             }
         }
         Row(
-            modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = spacing.l),
+            modifier = Modifier.fillMaxWidth().defaultMinSize(minHeight = LEGEND_ACTION_SIZE),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Spacer(modifier = Modifier.width(LEGEND_AVATAR_SIZE + spacing.m))
@@ -302,30 +305,21 @@ private fun LegendRow(
                 color = color,
                 modifier = Modifier.weight(1f),
             )
-            if (slice.hasChildren && slice.key is SliceKey.Category) {
-                IconButton(
-                    onClick = { onDrillInto?.invoke(slice.key.categoryId) },
-                    enabled = actionsEnabled,
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = stringResource(R.string.reports_view_subcategories),
-                    )
-                }
-            }
-            if (showViewTransactions) {
-                IconButton(onClick = onViewTransactions, enabled = actionsEnabled) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ReceiptLong,
-                        contentDescription = stringResource(R.string.reports_view_transactions),
-                    )
-                }
+            if (navigates) {
+                Spacer(modifier = Modifier.width(spacing.xs))
+                Icon(
+                    imageVector = Icons.Default.ChevronRight,
+                    contentDescription = null,
+                    modifier = Modifier.size(LEGEND_ACTION_SIZE),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
 }
 
 private val LEGEND_AVATAR_SIZE = 36.dp
+private val LEGEND_ACTION_SIZE = 20.dp
 
 @Composable
 private fun ProgressBar(
@@ -363,14 +357,6 @@ internal fun sliceLabel(slice: CategorySlice): String =
                 R.string.reports_parent_direct,
                 categoryDisplayName(slice.name, slice.systemKey),
             )
-    }
-
-/** Category id used by "View transactions" for a slice, or null when it does not apply. */
-private fun CategorySlice.categoryIdForNavigation(): Long? =
-    when (val key = key) {
-        is SliceKey.Category -> key.categoryId
-        is SliceKey.ParentDirect -> null
-        SliceKey.Others, SliceKey.Uncategorized -> null
     }
 
 /** "45,3 %": per-mille formatted with one decimal and the percent sign of the locale. */
