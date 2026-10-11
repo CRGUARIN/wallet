@@ -752,4 +752,8 @@
     <string name="action_search">Buscar</string>
     <string name="cd_close_search">Cerrar búsqueda</string>
     <string name="transaction_edit_frequent_categories">Frecuentes</string>
+
+    <!-- Teclado numérico del formulario -->
+    <string name="keypad_triple_zero">Tres ceros</string>
+    <string name="keypad_delete">Borrar</string>
 </resources>

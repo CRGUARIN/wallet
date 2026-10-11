@@ -748,4 +748,8 @@
     <string name="action_search">Search</string>
     <string name="cd_close_search">Close search</string>
     <string name="transaction_edit_frequent_categories">Frequent</string>
+
+    <!-- Teclado numérico del formulario -->
+    <string name="keypad_triple_zero">Triple zero</string>
+    <string name="keypad_delete">Delete</string>
 </resources>
