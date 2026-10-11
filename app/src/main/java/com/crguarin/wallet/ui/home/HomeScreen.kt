@@ -11,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
 import androidx.compose.material.icons.outlined.Settings
@@ -34,6 +36,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -52,8 +55,13 @@ import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.ui.components.EmptyState
 import com.crguarin.wallet.ui.components.LoadingState
 import com.crguarin.wallet.ui.components.TransactionListItem
-import com.crguarin.wallet.ui.components.groupedItemBackground
+import com.crguarin.wallet.ui.motion.depthOn
+import com.crguarin.wallet.ui.motion.navEnterExit
+import com.crguarin.wallet.ui.motion.raisedSurface
+import com.crguarin.wallet.ui.motion.rememberStaggerClock
+import com.crguarin.wallet.ui.motion.staggeredEnter
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletDepth
 import com.crguarin.wallet.ui.theme.walletSpacing
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 import java.time.Instant
@@ -194,7 +202,13 @@ fun HomeScreen(
             LoadingState(modifier = Modifier.padding(innerPadding))
             return@Scaffold
         }
+        // In 3D mode the accounts and the total become the deck; otherwise this is the Home of today.
+        val deckMode = depthOn() && uiState.accounts.isNotEmpty()
+        val clock = rememberStaggerClock("home")
+        val listState = rememberLazyListState()
+        val depth = MaterialTheme.walletDepth
         LazyColumn(
+            state = listState,
             modifier =
                 Modifier
                     .fillMaxSize()
@@ -209,8 +223,30 @@ fun HomeScreen(
                 ),
             verticalArrangement = Arrangement.spacedBy(spacing.l),
         ) {
-            item(key = "total_balance") {
-                TotalBalanceCard(totalBalance = uiState.totalBalance)
+            if (deckMode) {
+                item(key = "accounts_deck") {
+                    Column(verticalArrangement = Arrangement.spacedBy(spacing.s)) {
+                        SectionHeader(
+                            title = stringResource(R.string.accounts_title),
+                            modifier = Modifier.padding(horizontal = spacing.xs),
+                        )
+                        AccountDeck(
+                            accounts = uiState.accounts,
+                            totalBalance = uiState.totalBalance,
+                            onAccountClick = onAccountClick,
+                            cardOverviews = uiState.cardOverviews,
+                            today = uiState.today,
+                            scrolling = listState.isScrollInProgress,
+                        )
+                    }
+                }
+            } else {
+                item(key = "total_balance") {
+                    TotalBalanceCard(
+                        totalBalance = uiState.totalBalance,
+                        modifier = Modifier.navEnterExit(depth.contentShiftY, CONTENT_EXIT_MILLIS),
+                    )
+                }
             }
 
             item(key = "quick_actions") {
@@ -219,10 +255,14 @@ fun HomeScreen(
                     canRegisterTrip = uiState.canRegisterTrip,
                     onQuickAction = onQuickAction,
                     onTripClick = onTripClick,
+                    modifier =
+                        Modifier
+                            .staggeredEnter(clock, 0)
+                            .navEnterExit(depth.contentShiftY, CONTENT_EXIT_MILLIS),
                 )
             }
 
-            if (uiState.accounts.isNotEmpty()) {
+            if (!deckMode && uiState.accounts.isNotEmpty()) {
                 item(key = "accounts") {
                     Column(verticalArrangement = Arrangement.spacedBy(spacing.s)) {
                         SectionHeader(
@@ -234,6 +274,7 @@ fun HomeScreen(
                             onAccountClick = onAccountClick,
                             cardOverviews = uiState.cardOverviews,
                             today = uiState.today,
+                            modifier = Modifier.navEnterExit(depth.contentShiftY, CONTENT_EXIT_MILLIS),
                         )
                     }
                 }
@@ -248,7 +289,11 @@ fun HomeScreen(
                         onUpcomingPendingClick = onUpcomingPendingClick,
                         onUpcomingCardClick = onUpcomingCardClick,
                         onViewAllRecurring = onViewAllRecurring,
-                        modifier = Modifier.animateItem(),
+                        modifier =
+                            Modifier
+                                .animateItem()
+                                .staggeredEnter(clock, 1)
+                                .navEnterExit(depth.contentShiftY, CONTENT_EXIT_MILLIS),
                     )
                 }
             }
@@ -257,6 +302,10 @@ fun HomeScreen(
                 MonthSummaryCard(
                     monthSummary = uiState.monthSummary,
                     onViewReports = onViewReports,
+                    modifier =
+                        Modifier
+                            .staggeredEnter(clock, 2)
+                            .navEnterExit(depth.contentShiftY, CONTENT_EXIT_MILLIS),
                 )
             }
 
@@ -266,7 +315,11 @@ fun HomeScreen(
                     HomeDebtsCard(
                         debts = debts,
                         onViewDebts = onViewDebts,
-                        modifier = Modifier.animateItem(),
+                        modifier =
+                            Modifier
+                                .animateItem()
+                                .staggeredEnter(clock, 3)
+                                .navEnterExit(depth.contentShiftY, CONTENT_EXIT_MILLIS),
                     )
                 }
             }
@@ -274,7 +327,11 @@ fun HomeScreen(
             item(key = "recent_header") {
                 // FlowRow: with large fonts "Ver todos" moves under the title instead of splitting its words.
                 FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .staggeredEnter(clock, 4)
+                            .navEnterExit(depth.contentShiftY, CONTENT_EXIT_MILLIS),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     itemVerticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -294,7 +351,11 @@ fun HomeScreen(
                         icon = Icons.AutoMirrored.Filled.ReceiptLong,
                         title = stringResource(R.string.home_empty_title),
                         message = stringResource(R.string.home_empty_message),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .staggeredEnter(clock, 4)
+                                .navEnterExit(depth.contentShiftY, CONTENT_EXIT_MILLIS),
                     )
                 }
             } else {
@@ -302,6 +363,10 @@ fun HomeScreen(
                     RecentTransactions(
                         transactions = uiState.recentTransactions,
                         onTransactionClick = onTransactionClick,
+                        modifier =
+                            Modifier
+                                .staggeredEnter(clock, 4)
+                                .navEnterExit(depth.contentShiftY, CONTENT_EXIT_MILLIS),
                     )
                 }
             }
@@ -317,24 +382,38 @@ fun HomeScreen(
     }
 }
 
-/** Latest movements on one tonal layer, one row after another with no divider lines. */
+/**
+ * Latest movements on one raised surface, one row after another with no divider lines and no
+ * background per row.
+ */
 @Composable
 private fun RecentTransactions(
     transactions: List<TransactionDetails>,
     onTransactionClick: (Long) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        transactions.forEachIndexed { index, details ->
+    val shape = RoundedCornerShape(24.dp)
+    Column(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .raisedSurface(shape)
+                .clip(shape)
+                .padding(vertical = MaterialTheme.walletSpacing.s),
+    ) {
+        transactions.forEach { details ->
             key(details.transaction.id) {
                 TransactionListItem(
                     details = details,
                     onClick = { onTransactionClick(details.transaction.id) },
-                    modifier = Modifier.groupedItemBackground(index, transactions.size),
                 )
             }
         }
     }
 }
+
+/** Exit of the Home blocks towards the account detail. */
+private const val CONTENT_EXIT_MILLIS = 250
 
 /** Space the floating action button takes at the bottom end, kept free of snackbars and content. */
 private val FabClearance = 72.dp
