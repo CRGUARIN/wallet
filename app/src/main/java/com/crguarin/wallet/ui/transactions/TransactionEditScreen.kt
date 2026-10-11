@@ -267,9 +267,15 @@ fun TransactionEditScreen(
     // away to keep the field in view (ContentInViewNode only reacts to shrinks while focused).
     // Clearing it on the first focus gain changes nothing visually: focused keeps it visible.
     var amountFocused by remember { mutableStateOf(false) }
-    var keypadFromStart by remember { mutableStateOf(!uiState.isEditMode) }
+    // Armed once, when loading finishes: the first composition still carries the loading state,
+    // where isEditMode is always false, so capturing it with remember would show the keypad on
+    // edits opened through the route. Same pattern as revealOnce above.
+    var keypadFromStart by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    if (!uiState.isLoading && keypadFromStart == null) {
+        keypadFromStart = !uiState.isEditMode
+    }
     val imeVisible = WindowInsets.isImeVisible
-    val showKeypad = showForm && (amountFocused || keypadFromStart) && !imeVisible
+    val showKeypad = showForm && (amountFocused || keypadFromStart == true) && !imeVisible
 
     Scaffold(
         modifier = modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),

@@ -389,7 +389,7 @@ private fun DeckTotalCard(
             .replace(' ', ' ')
             .replace(' ', ' ')
     // While dealing, the total rolls from zero; on later entries only when it changed.
-    val rollFrom = rememberRollFrom(formatted, "home-total", fromZeroOnFirstShow = dealing)
+    val rollFrom = rememberRollFrom(formatted, "home-total-deck", fromZeroOnFirstShow = dealing)
     val idleLoop = rememberIdleLoop("home-total", scrolling)
     HeroCard(
         animateContours = true,

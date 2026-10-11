@@ -137,9 +137,9 @@ fun rememberSharedFlightTilt(
 
 /**
  * Tilt of the landing hero: flat while the card is still flying, then settling to [heroTilt]
- * once it lands (`slow` of delay, [HERO_SETTLE_MILLIS] of motion). Without scopes, without
- * animations, or in flat mode, it is [heroTilt] from the start. On entries without a flight it
- * reads as a delayed entrance accent.
+ * once it lands (`slow` of delay, [HERO_SETTLE_MILLIS] of motion), once per back-stack entry.
+ * Without scopes, without animations, or in flat mode, it is [heroTilt] from the start. On
+ * entries without a flight it reads as a delayed entrance accent.
  */
 @Composable
 fun rememberHeroLandingTilt(heroTilt: Float): State<Float> {
@@ -149,21 +149,25 @@ fun rememberHeroLandingTilt(heroTilt: Float): State<Float> {
     val deep = depthOn()
     val motion = MaterialTheme.walletMotion
     if (shared == null || nav == null || !animate || !deep) return rememberUpdatedState(heroTilt)
-    val tilt = remember(heroTilt) { Animatable(0f) }
+    val played = rememberPlayedOnce("hero-landing")
+    val tilt = remember(heroTilt) { Animatable(if (played.value) heroTilt else 0f) }
     LaunchedEffect(heroTilt) {
-        delay(motion.slow.toLong())
-        tilt.animateTo(
-            targetValue = heroTilt,
-            animationSpec = tween(durationMillis = HERO_SETTLE_MILLIS),
-        )
+        if (!played.value) {
+            played.value = true
+            delay(motion.slow.toLong())
+            tilt.animateTo(
+                targetValue = heroTilt,
+                animationSpec = tween(durationMillis = HERO_SETTLE_MILLIS),
+            )
+        }
     }
     return tilt.asState()
 }
 
 /**
  * Mid-flight lift of the landing hero: 1 to [peak] and back over the flight (`slow`), so the
- * card rises a little halfway. Without scopes, without animations, or in flat mode, it is 1.
- * Read it inside `graphicsLayer`, never in the body of a composable.
+ * card rises a little halfway, once per back-stack entry. Without scopes, without animations, or
+ * in flat mode, it is 1. Read it inside `graphicsLayer`, never in the body of a composable.
  */
 @Composable
 fun rememberFlightLift(peak: Float = 1.04f): State<Float> {
@@ -173,12 +177,16 @@ fun rememberFlightLift(peak: Float = 1.04f): State<Float> {
     val deep = depthOn()
     val motion = MaterialTheme.walletMotion
     if (shared == null || nav == null || !animate || !deep) return rememberUpdatedState(1f)
-    val progress = remember { Animatable(0f) }
+    val played = rememberPlayedOnce("flight-lift")
+    val progress = remember { Animatable(if (played.value) 1f else 0f) }
     LaunchedEffect(Unit) {
-        progress.animateTo(
-            targetValue = 1f,
-            animationSpec = tween(durationMillis = motion.slow, easing = LinearEasing),
-        )
+        if (!played.value) {
+            played.value = true
+            progress.animateTo(
+                targetValue = 1f,
+                animationSpec = tween(durationMillis = motion.slow, easing = LinearEasing),
+            )
+        }
     }
     return remember(progress) {
         derivedStateOf { 1f + (peak - 1f) * sin(progress.value * PI).toFloat() }

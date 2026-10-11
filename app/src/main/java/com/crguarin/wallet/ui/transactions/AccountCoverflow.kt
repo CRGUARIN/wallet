@@ -35,7 +35,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
@@ -72,10 +77,37 @@ private val PagerHeight = 112.dp
 private val CardWidth = 150.dp
 private val CardHeight = 94.dp
 private val FaceRadius = 14.dp
-private val RingMidRadius = 16.dp
-private val RingOuterRadius = 18.dp
 private val RingSurfaceWidth = 3.dp
 private val RingPrimaryWidth = 2.dp
+
+/**
+ * Selection ring of the centered card: 3 dp of [surface] plus 2 dp of [primary], drawn over the
+ * face edge without taking layout space, so the content keeps the full card minus padding.
+ */
+private fun Modifier.selectionRing(
+    surface: Color,
+    primary: Color,
+): Modifier =
+    drawBehind {
+        val surfacePx = RingSurfaceWidth.toPx()
+        val primaryPx = RingPrimaryWidth.toPx()
+        val facePx = FaceRadius.toPx()
+        drawRoundRect(
+            color = surface,
+            topLeft = Offset(surfacePx / 2f, surfacePx / 2f),
+            size = Size(size.width - surfacePx, size.height - surfacePx),
+            cornerRadius = CornerRadius(facePx - surfacePx / 2f),
+            style = Stroke(width = surfacePx),
+        )
+        drawRoundRect(
+            color = primary,
+            topLeft = Offset(surfacePx + primaryPx / 2f, surfacePx + primaryPx / 2f),
+            size = Size(size.width - 2f * surfacePx - primaryPx, size.height - 2f * surfacePx - primaryPx),
+            cornerRadius = CornerRadius(facePx - surfacePx - primaryPx / 2f),
+            style = Stroke(width = primaryPx),
+        )
+    }
+
 private val PageSpacing = 8.dp
 private val ChipSize = 24.dp
 private val ChipIconSize = 15.dp
@@ -228,13 +260,12 @@ private fun CoverflowCard(
         Box(
             modifier =
                 faceModifier
-                    .cardShadow(RoundedCornerShape(RingOuterRadius))
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(RingOuterRadius))
-                    .padding(RingSurfaceWidth)
-                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(RingMidRadius))
-                    .padding(RingPrimaryWidth)
+                    .cardShadow(cardShape)
                     .background(brush = face.brush(), shape = cardShape)
-                    .clip(cardShape)
+                    .selectionRing(
+                        surface = MaterialTheme.colorScheme.surface,
+                        primary = MaterialTheme.colorScheme.primary,
+                    ).clip(cardShape)
                     .padding(horizontal = 10.dp, vertical = 12.dp),
         ) {
             CoverflowCardContent(item = item, overview = overview)

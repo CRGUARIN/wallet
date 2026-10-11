@@ -231,9 +231,10 @@ internal fun AccountHeaderBlock(
 
 /**
  * Oval floor shadow under the hero card: 18 dp tall, inset 36 dp on each side, a radial
- * black gradient (32 % in light, 55 % in dark) fading to transparent. It shrinks and dims in
- * sync with the floating face. Decorative: no text, no actions; its only semantics is the test
- * tag that tells 3D from flat mode.
+ * black gradient (32 % in light, 55 % in dark) fading to transparent. The circle is stretched
+ * into an ellipse so the fade completes at the oval boundary in every direction. It shrinks
+ * and dims in sync with the floating face. Decorative: no text, no actions; its only semantics
+ * is the test tag that tells 3D from flat mode.
  */
 @Composable
 private fun HeroFloorShadow(phase: State<Float>) {
@@ -253,14 +254,16 @@ private fun HeroFloorShadow(phase: State<Float>) {
                             1f to Color.Transparent,
                             radius = size.height / 2f,
                         )
+                    // Circle to ellipse: width over height, times the floating sync below.
+                    val stretchX = size.width / size.height
                     onDrawBehind {
                         val up = sin(phase.value * PI).toFloat().coerceIn(0f, 1f)
                         scale(
-                            scaleX = 1f - SHADOW_SYNC_SCALE * up,
+                            scaleX = stretchX * (1f - SHADOW_SYNC_SCALE * up),
                             scaleY = 1f,
                             pivot = center,
                         ) {
-                            drawOval(
+                            drawCircle(
                                 brush = brush,
                                 alpha = SHADOW_REST_ALPHA - (SHADOW_REST_ALPHA - SHADOW_TOP_ALPHA) * up,
                             )

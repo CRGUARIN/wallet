@@ -40,6 +40,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -229,7 +230,7 @@ internal fun TotalBalanceCard(
             .format(totalBalance, locale)
             .replace(' ', ' ')
             .replace(' ', ' ')
-    val rollFrom = rememberRollFrom(formatted, "home-total", fromZeroOnFirstShow = false)
+    val rollFrom = rememberRollFrom(formatted, "home-total-flat", fromZeroOnFirstShow = false)
     HeroCard(animateContours = true, modifier = modifier) {
         Text(
             text = stringResource(R.string.accounts_total_balance),
@@ -551,8 +552,9 @@ private fun quickActionContainer(color: Color): Color {
 
 /**
  * Quick action: a 56 dp tinted pebble with relief and the icon in the semantic color, with the
- * label below it. The whole column is one button: taps on the pebble are caught by the keycap,
- * taps on the label by the column, and each fires [onClick] once.
+ * label below it. The whole column is a single button: one shared press source sinks the pebble
+ * wherever the tap lands, and the keycap clears its own semantics so the merged node exposes a
+ * single click action.
  */
 @Composable
 internal fun QuickActionItem(
@@ -562,6 +564,7 @@ internal fun QuickActionItem(
     onClick: () -> Unit,
 ) {
     val spacing = MaterialTheme.walletSpacing
+    val pressSource = remember { MutableInteractionSource() }
     Column(
         modifier =
             Modifier
@@ -569,7 +572,7 @@ internal fun QuickActionItem(
                 .clip(MaterialTheme.shapes.medium)
                 .semantics(mergeDescendants = true) {}
                 .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
+                    interactionSource = pressSource,
                     indication = null,
                     role = Role.Button,
                     onClick = onClick,
@@ -580,7 +583,8 @@ internal fun QuickActionItem(
             onClick = onClick,
             face = quickActionContainer(color),
             shape = WalletShapeTokens.pebble,
-            modifier = Modifier.size(QuickActionPebbleSize),
+            modifier = Modifier.size(QuickActionPebbleSize).clearAndSetSemantics {},
+            interactionSource = pressSource,
         ) {
             Icon(
                 imageVector = icon,
