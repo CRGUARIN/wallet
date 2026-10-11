@@ -3,10 +3,15 @@ package com.crguarin.wallet.ui.components
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import com.crguarin.wallet.ui.motion.LocalIntroFinished
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.theme.walletColors
 import com.google.common.truth.Truth.assertThat
@@ -112,6 +117,28 @@ class HeroCardTest {
         composeRule.waitForIdle()
 
         composeRule.onNodeWithText("Animado").assertIsDisplayed()
+        assertThat(HeroContourTrace.claim()).isFalse()
+    }
+
+    @Test
+    fun `the trace waits for the brand intro to finish`() {
+        var introDone by mutableStateOf(false)
+        composeRule.setContent {
+            CompositionLocalProvider(LocalIntroFinished provides introDone) {
+                WalletTheme {
+                    HeroCard(animateContours = true) { Text(text = "Espera") }
+                }
+            }
+        }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Espera").assertIsDisplayed()
+        assertThat(HeroContourTrace.claim()).isTrue()
+
+        composeRule.runOnIdle { introDone = true }
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithText("Espera").assertIsDisplayed()
         assertThat(HeroContourTrace.claim()).isFalse()
     }
 }
