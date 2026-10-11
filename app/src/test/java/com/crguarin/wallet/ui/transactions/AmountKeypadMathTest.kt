@@ -256,6 +256,28 @@ class AmountKeypadMathTest {
     }
 
     @Test
+    fun `leading zeros collapse when a non-zero digit arrives`() {
+        for (locale in locales) {
+            assertThat(AmountKeypadMath.press("00", KeypadKey.Digit(5), locale)).isEqualTo("5")
+            assertThat(AmountKeypadMath.press("007", KeypadKey.Digit(0), locale)).isEqualTo("70")
+        }
+    }
+
+    @Test
+    fun `a decimal part starting at zero still accepts digits`() {
+        for (locale in locales) {
+            val s = sep(locale)
+            assertThat(AmountKeypadMath.press("0${s}5", KeypadKey.Digit(7), locale))
+                .isEqualTo("0${s}57")
+        }
+    }
+
+    @Test
+    fun `backspace on a lone zero clears the field`() {
+        assertThat(AmountKeypadMath.backspace("0")).isEmpty()
+    }
+
+    @Test
     fun `digit outside 0 to 9 is rejected`() {
         try {
             KeypadKey.Digit(10)
