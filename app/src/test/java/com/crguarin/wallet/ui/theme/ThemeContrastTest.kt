@@ -180,6 +180,17 @@ class ThemeContrastTest {
     }
 
     @Test
+    fun `card face content has at least 4_5 over start and end for the 30 palette colors`() {
+        paletteColors.forEachIndexed { i, color ->
+            val face = cardFace(color)
+            assertThat(face.content).isEqualTo(Color.White)
+            check("card face", "content over start #$i (${hex(color)})", face.content, face.start)
+            check("card face", "content over end #$i (${hex(color)})", face.content, face.end)
+        }
+        assertNoFailures()
+    }
+
+    @Test
     fun `contentColorOver has at least 4_5 over the 30 palette colors`() {
         paletteColors.forEachIndexed { i, color ->
             val content = contentColorOver(color)
