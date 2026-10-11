@@ -17,11 +17,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.relocation.BringIntoViewModifierNode
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
@@ -52,6 +57,11 @@ private val AmountVerticalPadding = 14.dp
  * tabular figures, a small dimmed "$" in front and the digits grouped as they are typed, on a
  * tonal layer. The keyboard action is "Done": it hides the keyboard and calls [onDone] (the form
  * uses it to open the category list when one is missing).
+ *
+ * Focusing never opens the system keyboard (`showKeyboardOnFocus = false`): while focused the
+ * form shows its own [AmountKeypad] instead. Tapping the already-focused field opens the system
+ * keyboard for cents and pasting, and a long press still shows the native paste bar, because the
+ * field stays a plain editable text field.
  */
 @Composable
 internal fun TransactionAmountField(
@@ -62,6 +72,8 @@ internal fun TransactionAmountField(
     modifier: Modifier = Modifier,
     errorMessage: String? = null,
     locale: Locale = LocalConfiguration.current.locales[0],
+    onFocusChanged: (Boolean) -> Unit = {},
+    suppressBringIntoView: Boolean = false,
 ) {
     val colors = MaterialTheme.colorScheme
     val spacing = MaterialTheme.walletSpacing
@@ -83,7 +95,8 @@ internal fun TransactionAmountField(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(AmountLayerRadius))
                 .background(colors.surfaceContainerLow)
-                .padding(horizontal = spacing.xl, vertical = AmountVerticalPadding),
+                .padding(horizontal = spacing.xl, vertical = AmountVerticalPadding)
+                .then(if (suppressBringIntoView) Modifier.suppressBringIntoView() else Modifier),
     ) {
         Text(
             text = stringResource(R.string.amount_text_field_label),
@@ -98,11 +111,20 @@ internal fun TransactionAmountField(
                     onValueChange(normalized)
                 }
             },
-            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .focusRequester(focusRequester)
+                    .onFocusChanged { onFocusChanged(it.isFocused) },
             textStyle = amountStyle.copy(color = if (isError) colors.error else colors.onSurface),
             singleLine = true,
             cursorBrush = SolidColor(colors.primary),
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+            keyboardOptions =
+                KeyboardOptions(
+                    keyboardType = KeyboardType.Decimal,
+                    imeAction = ImeAction.Done,
+                    showKeyboardOnFocus = false,
+                ),
             keyboardActions =
                 KeyboardActions(
                     onDone = {
@@ -136,6 +158,34 @@ internal fun TransactionAmountField(
 }
 
 private const val PLACEHOLDER_ALPHA = 0.6f
+
+/**
+ * Swallows `bringIntoView` requests from the amount field while the form settles on its initial
+ * programmatic focus (§9.1): the focusable itself asks to be brought into view on every focus
+ * gain, and with the in-app keypad shrinking the viewport that first request would scroll the
+ * type segments off the top on small screens. On a phone the amount is already visible, so
+ * dropping that one request changes nothing there; later taps scroll normally because the form
+ * removes this modifier on the first focus loss.
+ */
+@Suppress("ModifierInspectorInfo")
+private fun Modifier.suppressBringIntoView(): Modifier = this.then(SuppressBringIntoViewElement)
+
+private data object SuppressBringIntoViewElement : ModifierNodeElement<SuppressBringIntoViewNode>() {
+    override fun create(): SuppressBringIntoViewNode = SuppressBringIntoViewNode()
+
+    override fun update(node: SuppressBringIntoViewNode) = Unit
+}
+
+private class SuppressBringIntoViewNode :
+    Modifier.Node(),
+    BringIntoViewModifierNode {
+    override suspend fun bringIntoView(
+        childCoordinates: LayoutCoordinates,
+        boundsProvider: () -> Rect?,
+    ) {
+        // Drop the request on purpose; see [suppressBringIntoView].
+    }
+}
 
 /**
  * Puts a small "$ " before the digits that [inner] formats, keeping the cursor and selection

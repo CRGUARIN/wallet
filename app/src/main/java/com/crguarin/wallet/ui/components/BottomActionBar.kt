@@ -8,7 +8,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Button
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -16,9 +16,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.crguarin.wallet.ui.motion.Keycap
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletDepth
 import com.crguarin.wallet.ui.theme.walletSpacing
 
 /**
@@ -44,7 +47,11 @@ fun BottomActionBar(
     }
 }
 
-/** Main action of a form: a 56 dp pill in primary that shows a spinner instead of its text while [isLoading]. */
+/**
+ * Main action of a form (§9.5): a relieved key in primary (face of 56 dp, keycapDepth edge)
+ * that shows a spinner instead of its text while [isLoading]. Same signature and behavior as
+ * before: a button with [text] that reports `isEnabled`/`isNotEnabled`.
+ */
 @Composable
 fun PrimaryActionButton(
     text: String,
@@ -53,10 +60,14 @@ fun PrimaryActionButton(
     enabled: Boolean = true,
     isLoading: Boolean = false,
 ) {
-    Button(
+    val depth = MaterialTheme.walletDepth.keycapDepth
+    Keycap(
         onClick = onClick,
+        face = MaterialTheme.colorScheme.primary,
+        shape = RoundedCornerShape(20.dp),
+        depth = depth,
         enabled = enabled,
-        modifier = modifier.height(PRIMARY_ACTION_HEIGHT),
+        modifier = modifier.height(PRIMARY_FACE_HEIGHT + depth),
     ) {
         if (isLoading) {
             CircularProgressIndicator(
@@ -65,12 +76,16 @@ fun PrimaryActionButton(
                 strokeWidth = 2.dp,
             )
         } else {
-            Text(text = text, style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = text,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.ExtraBold),
+                color = MaterialTheme.colorScheme.onPrimary,
+            )
         }
     }
 }
 
-private val PRIMARY_ACTION_HEIGHT = 56.dp
+private val PRIMARY_FACE_HEIGHT = 56.dp
 
 @Preview(name = "Light Mode", showBackground = true)
 @Composable
