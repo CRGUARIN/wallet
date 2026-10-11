@@ -112,7 +112,7 @@ internal fun AccountListRow(
                 Text(
                     text = status.text,
                     style = MaterialTheme.typography.bodySmall,
-                    color = status.color,
+                    color = status.color(),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -140,45 +140,63 @@ internal fun AccountListRow(
     }
 }
 
-/** What the status line says, the color it is drawn in, and whether it asks for attention. */
-private data class AccountStatus(
+/** Which color family the status line uses; the Home deck face always draws it in white. */
+internal enum class AccountStatusTone { Neutral, Reminder, Error }
+
+/**
+ * What the status line says and whether it asks for attention. The tone maps to the row color;
+ * the Home deck strips reuse the same text and [needsAttention] on the card face.
+ */
+internal data class AccountStatus(
     val text: String,
-    val color: Color,
-    val needsAttention: Boolean,
-)
+    val tone: AccountStatusTone,
+) {
+    val needsAttention: Boolean get() = tone != AccountStatusTone.Neutral
+}
 
 /** The status line of a row, or null when the row has nothing to say under its name. */
 @Composable
-private fun accountStatus(
+internal fun accountStatus(
     item: AccountWithBalance,
     cardOverview: CardOverview?,
     today: LocalDate,
     showTypeLabel: Boolean,
 ): AccountStatus? {
     val account = item.account
-    val neutral = MaterialTheme.colorScheme.onSurfaceVariant
     val card = cardOverview?.takeIf { account.type == AccountType.CREDIT_CARD }
     if (card != null) {
         val dueDate = card.pendingStatementDueDate
         return when {
             card.paymentStatus == StatementPaymentStatus.OVERDUE ->
-                AccountStatus(stringResource(R.string.card_overdue), MaterialTheme.colorScheme.error, true)
+                AccountStatus(stringResource(R.string.card_overdue), AccountStatusTone.Error)
             dueDate != null && showPaymentReminder(card.paymentStatus, dueDate, today) ->
                 AccountStatus(
                     text = payInText(ChronoUnit.DAYS.between(today, dueDate).toInt()),
-                    color = MaterialTheme.colorScheme.tertiary,
-                    needsAttention = true,
+                    tone = AccountStatusTone.Reminder,
                 )
-            else -> AccountStatus(cardAvailableText(card), neutral, false)
+            else -> AccountStatus(cardAvailableText(card), AccountStatusTone.Neutral)
         }
     }
     if (account.type == AccountType.TRANSIT_CARD) {
         val transit = transitStatus(item.balance, account.fare) ?: return null
-        val color = if (transit.isWarning) MaterialTheme.colorScheme.error else neutral
-        return AccountStatus(transit.text, color, transit.isWarning)
+        val tone = if (transit.isWarning) AccountStatusTone.Error else AccountStatusTone.Neutral
+        return AccountStatus(transit.text, tone)
     }
-    return if (showTypeLabel) AccountStatus(accountTypeLabel(account.type), neutral, false) else null
+    return if (showTypeLabel) {
+        AccountStatus(accountTypeLabel(account.type), AccountStatusTone.Neutral)
+    } else {
+        null
+    }
 }
+
+/** The color of a status line in a row, from its tone. */
+@Composable
+private fun AccountStatus.color(): Color =
+    when (tone) {
+        AccountStatusTone.Error -> MaterialTheme.colorScheme.error
+        AccountStatusTone.Reminder -> MaterialTheme.colorScheme.tertiary
+        AccountStatusTone.Neutral -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
 
 /** "Pagar hoy" / "Pagar mañana" / "Pagar en 6 días": as short as the status line of a row needs. */
 @Composable
