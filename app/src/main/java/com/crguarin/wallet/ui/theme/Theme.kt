@@ -122,7 +122,7 @@ val WalletLightColorScheme =
  * the wallpaper; typography, shapes, money colors and the other Wallet tokens stay fixed.
  *
  * Besides Material 3 it provides `walletSemanticColors`, `walletColors`, `walletSpacing`,
- * `walletMotion` and `walletTypography` on [MaterialTheme].
+ * `walletMotion`, `walletDepth` and `walletTypography` on [MaterialTheme].
  */
 @Composable
 fun WalletTheme(
@@ -159,6 +159,7 @@ fun WalletTheme(
         LocalWalletExtendedColors provides extendedColors,
         LocalWalletSpacing provides DefaultWalletSpacing,
         LocalWalletMotion provides DefaultWalletMotion,
+        LocalWalletDepth provides DefaultWalletDepth,
         LocalWalletTypography provides DefaultWalletTypography,
     ) {
         MaterialTheme(
