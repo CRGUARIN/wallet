@@ -28,6 +28,9 @@ import com.crguarin.wallet.domain.model.card.CardOverview
 import com.crguarin.wallet.domain.model.card.StatementPaymentStatus
 import com.crguarin.wallet.ui.components.MoneyText
 import com.crguarin.wallet.ui.components.SectionCard
+import com.crguarin.wallet.ui.motion.PulseDot
+import com.crguarin.wallet.ui.motion.StaggerClock
+import com.crguarin.wallet.ui.motion.rememberEnterProgress
 import com.crguarin.wallet.ui.theme.walletSpacing
 import com.crguarin.wallet.ui.theme.walletTypography
 import com.crguarin.wallet.ui.util.formatMedium
@@ -66,6 +69,8 @@ fun CardSummaryCard(
     modifier: Modifier = Modifier,
     account: Account? = null,
     actions: (@Composable ColumnScope.() -> Unit)? = null,
+    staggerClock: StaggerClock? = null,
+    idleInterrupted: Boolean = false,
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val inFavor = overview.debt < Money.ZERO
@@ -73,10 +78,16 @@ fun CardSummaryCard(
     // Without an account (previews, tests) the block uses the theme primary as its accent.
     val accentColor = account?.let { Color(it.color) } ?: MaterialTheme.colorScheme.primary
     val spacing = MaterialTheme.walletSpacing
+    // The quota bar fills on entrance (§8.3); the value is read inside the progress lambda.
+    val usedProgress = rememberEnterProgress(overview.usedPerMille / 1000f, "card-used-${overview.accountId}")
     Column(modifier = modifier.fillMaxWidth()) {
-        AccountHeaderBlock(accentColor = accentColor) { swatch ->
+        AccountHeaderBlock(
+            accentColor = accentColor,
+            accountId = account?.id,
+            idleInterrupted = idleInterrupted,
+        ) { face ->
             if (account != null) {
-                AccountIdentityRow(account = account, headerSwatch = swatch)
+                AccountIdentityRow(account = account, face = face)
                 Spacer(modifier = Modifier.height(spacing.m))
             }
             Text(
@@ -87,25 +98,26 @@ fun CardSummaryCard(
                         stringResource(R.string.card_debt)
                     },
                 style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = face.content,
             )
             Spacer(modifier = Modifier.height(spacing.xs))
             HeaderAmount(
                 amount = displayDebt,
+                rollKey = "account-hero-${account?.id ?: "card"}",
                 type = if (inFavor) TransactionType.INCOME else TransactionType.EXPENSE,
             )
         }
 
         if (actions != null) {
             Spacer(modifier = Modifier.height(spacing.m))
-            actions()
+            StaggerSlot(clock = staggerClock, index = 0, content = actions)
         }
 
         Spacer(modifier = Modifier.height(spacing.m))
 
-        SectionCard {
+        SectionCard(modifier = staggerModifier(clock = staggerClock, index = 1)) {
             LinearProgressIndicator(
-                progress = { overview.usedPerMille / 1000f },
+                progress = { usedProgress.value },
                 color = MaterialTheme.colorScheme.primary,
                 trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                 modifier = Modifier.fillMaxWidth(),
@@ -142,7 +154,7 @@ fun CardSummaryCard(
 
             if (overview.paymentStatus != null) {
                 Spacer(modifier = Modifier.height(8.dp))
-                CardStatementStatusRow(overview = overview)
+                CardStatementStatusRow(overview = overview, today = today)
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -171,9 +183,19 @@ fun CardSummaryCard(
     }
 }
 
+/**
+ * Status of the current statement. When the statement needs attention (overdue, or pending and
+ * due within 7 days) an 8 dp [PulseDot] in the state's text color pulses before the status
+ * line. Decorative, without semantics: the text already says it.
+ */
 @Composable
-private fun CardStatementStatusRow(overview: CardOverview) {
+private fun CardStatementStatusRow(
+    overview: CardOverview,
+    today: LocalDate,
+) {
     val status = overview.paymentStatus ?: return
+    val due = overview.pendingStatementDueDate
+    val needsAttention = showPaymentReminder(status, due, today)
     Column {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -203,21 +225,51 @@ private fun CardStatementStatusRow(overview: CardOverview) {
                 )
             }
             StatementPaymentStatus.PENDING -> {
-                val due = overview.pendingStatementDueDate
                 if (due != null) {
-                    Text(
-                        text = stringResource(R.string.card_pay_before, due.formatMedium()),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    StatusLine(
+                        color = MaterialTheme.colorScheme.tertiary,
+                        pulse = needsAttention,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.card_pay_before, due.formatMedium()),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.tertiary,
+                        )
+                    }
                 }
             }
             StatementPaymentStatus.OVERDUE -> {
-                Text(
-                    text = stringResource(R.string.card_overdue),
-                    style = MaterialTheme.typography.titleSmall,
+                StatusLine(
                     color = MaterialTheme.colorScheme.error,
-                )
+                    pulse = needsAttention,
+                ) {
+                    Text(
+                        text = stringResource(R.string.card_overdue),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         }
+    }
+}
+
+/** A status line, preceded by a pulsing dot when it needs attention. */
+@Composable
+private fun StatusLine(
+    color: Color,
+    pulse: Boolean,
+    text: @Composable () -> Unit,
+) {
+    if (pulse) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PulseDot(color = color, size = 8.dp, pulse = true)
+            Spacer(modifier = Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                text()
+            }
+        }
+    } else {
+        text()
     }
 }

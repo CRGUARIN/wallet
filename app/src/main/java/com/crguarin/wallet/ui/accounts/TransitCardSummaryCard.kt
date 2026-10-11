@@ -23,6 +23,7 @@ import com.crguarin.wallet.domain.model.transit.TransitMath
 import com.crguarin.wallet.ui.components.MoneySign
 import com.crguarin.wallet.ui.components.MoneyText
 import com.crguarin.wallet.ui.components.SectionCard
+import com.crguarin.wallet.ui.motion.StaggerClock
 import com.crguarin.wallet.ui.theme.walletSpacing
 import com.crguarin.wallet.ui.theme.walletTypography
 
@@ -37,30 +38,40 @@ fun TransitCardSummaryCard(
     monthSummary: MonthSummary,
     modifier: Modifier = Modifier,
     actions: (@Composable ColumnScope.() -> Unit)? = null,
+    staggerClock: StaggerClock? = null,
+    idleInterrupted: Boolean = false,
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val fare = account.fare
     val spacing = MaterialTheme.walletSpacing
     Column(modifier = modifier.fillMaxWidth()) {
-        AccountHeaderBlock(accentColor = Color(account.color)) { swatch ->
-            AccountIdentityRow(account = account, headerSwatch = swatch)
+        AccountHeaderBlock(
+            accentColor = Color(account.color),
+            accountId = account.id,
+            idleInterrupted = idleInterrupted,
+        ) { face ->
+            AccountIdentityRow(account = account, face = face)
 
             Spacer(modifier = Modifier.height(spacing.m))
 
             Text(
                 text = stringResource(R.string.transit_current_balance_label),
                 style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = face.content,
             )
             Spacer(modifier = Modifier.height(spacing.xs))
-            HeaderAmount(amount = balance, sign = MoneySign.NONE)
+            HeaderAmount(
+                amount = balance,
+                rollKey = "account-hero-${account.id}",
+                sign = MoneySign.NONE,
+            )
 
             if (fare != null) {
                 Spacer(modifier = Modifier.height(spacing.s))
                 Text(
                     text = stringResource(R.string.transit_fare_value, MoneyFormatter.format(fare, locale)),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = face.content,
                 )
                 Spacer(modifier = Modifier.height(spacing.xs))
                 val headerText =
@@ -75,19 +86,19 @@ fun TransitCardSummaryCard(
                 Text(
                     text = headerText,
                     style = MaterialTheme.typography.titleSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = face.content,
                 )
             }
         }
 
         if (actions != null) {
             Spacer(modifier = Modifier.height(spacing.m))
-            actions()
+            StaggerSlot(clock = staggerClock, index = 0, content = actions)
         }
 
         Spacer(modifier = Modifier.height(spacing.m))
 
-        SectionCard {
+        SectionCard(modifier = staggerModifier(clock = staggerClock, index = 1)) {
             MonthSummarySection(monthSummary = monthSummary)
         }
     }
