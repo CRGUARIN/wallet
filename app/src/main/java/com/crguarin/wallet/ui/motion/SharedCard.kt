@@ -4,6 +4,7 @@ import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.SharedTransitionScope
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -13,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -21,6 +23,9 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import com.crguarin.wallet.ui.theme.walletMotion
+import kotlinx.coroutines.delay
+import kotlin.math.PI
+import kotlin.math.sin
 
 /**
  * The shared-transition scope of the navigation host, provided around the `NavHost` (plumbed by
@@ -99,18 +104,27 @@ fun Modifier.navEnterExit(
         }
     }
 
+/** Settle of the hero tilt once the shared flight lands (§7.2.4: about 275 ms). */
+private const val HERO_SETTLE_MILLIS = 275
+
 /**
- * Tilt of a shared card during its flight: from [restTilt] to 0 over the flight (`slow` with
- * `emphasized`). Without scopes, without animations, or in flat mode, it stays at [restTilt].
+ * Tilt of the flying card, from [restTilt] to 0 over the flight (`slow` with `emphasized`).
+ * [flying] is true only for the tapped card while Home exits: at rest, without scopes, without
+ * animations, or in flat mode, it stays at [restTilt].
  */
 @Composable
-fun rememberSharedFlightTilt(restTilt: Float): State<Float> {
+fun rememberSharedFlightTilt(
+    restTilt: Float,
+    flying: Boolean = false,
+): State<Float> {
     val shared = LocalSharedTransitionScope.current
     val nav = LocalNavAnimatedVisibilityScope.current
     val animate = animationsOn()
     val deep = depthOn()
     val motion = MaterialTheme.walletMotion
-    if (shared == null || nav == null || !animate || !deep) return rememberUpdatedState(restTilt)
+    if (shared == null || nav == null || !animate || !deep || !flying) {
+        return rememberUpdatedState(restTilt)
+    }
     val tilt = remember(restTilt) { Animatable(restTilt) }
     LaunchedEffect(restTilt) {
         tilt.animateTo(
@@ -119,4 +133,54 @@ fun rememberSharedFlightTilt(restTilt: Float): State<Float> {
         )
     }
     return tilt.asState()
+}
+
+/**
+ * Tilt of the landing hero: flat while the card is still flying, then settling to [heroTilt]
+ * once it lands (`slow` of delay, [HERO_SETTLE_MILLIS] of motion). Without scopes, without
+ * animations, or in flat mode, it is [heroTilt] from the start. On entries without a flight it
+ * reads as a delayed entrance accent.
+ */
+@Composable
+fun rememberHeroLandingTilt(heroTilt: Float): State<Float> {
+    val shared = LocalSharedTransitionScope.current
+    val nav = LocalNavAnimatedVisibilityScope.current
+    val animate = animationsOn()
+    val deep = depthOn()
+    val motion = MaterialTheme.walletMotion
+    if (shared == null || nav == null || !animate || !deep) return rememberUpdatedState(heroTilt)
+    val tilt = remember(heroTilt) { Animatable(0f) }
+    LaunchedEffect(heroTilt) {
+        delay(motion.slow.toLong())
+        tilt.animateTo(
+            targetValue = heroTilt,
+            animationSpec = tween(durationMillis = HERO_SETTLE_MILLIS),
+        )
+    }
+    return tilt.asState()
+}
+
+/**
+ * Mid-flight lift of the landing hero: 1 to [peak] and back over the flight (`slow`), so the
+ * card rises a little halfway. Without scopes, without animations, or in flat mode, it is 1.
+ * Read it inside `graphicsLayer`, never in the body of a composable.
+ */
+@Composable
+fun rememberFlightLift(peak: Float = 1.04f): State<Float> {
+    val shared = LocalSharedTransitionScope.current
+    val nav = LocalNavAnimatedVisibilityScope.current
+    val animate = animationsOn()
+    val deep = depthOn()
+    val motion = MaterialTheme.walletMotion
+    if (shared == null || nav == null || !animate || !deep) return rememberUpdatedState(1f)
+    val progress = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        progress.animateTo(
+            targetValue = 1f,
+            animationSpec = tween(durationMillis = motion.slow, easing = LinearEasing),
+        )
+    }
+    return remember(progress) {
+        derivedStateOf { 1f + (peak - 1f) * sin(progress.value * PI).toFloat() }
+    }
 }

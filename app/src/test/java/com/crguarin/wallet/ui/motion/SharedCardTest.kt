@@ -1,9 +1,14 @@
 package com.crguarin.wallet.ui.motion
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertHeightIsEqualTo
@@ -84,6 +89,86 @@ class SharedCardTest {
         composeRule.waitForIdle()
 
         assertThat(tilt).isEqualTo(24f)
+    }
+
+    /** Both shared scopes plus an animating policy, like Home and the detail in production. */
+    private fun setFlightHarness(probe: @Composable () -> Unit) {
+        composeRule.setContent {
+            WalletTheme(darkTheme = false, dynamicColor = false) {
+                CompositionLocalProvider(
+                    LocalMotionPolicy provides MotionPolicy(animate = true, screenReader = false),
+                ) {
+                    SharedTransitionLayout {
+                        CompositionLocalProvider(LocalSharedTransitionScope provides this) {
+                            AnimatedVisibility(visible = true) {
+                                CompositionLocalProvider(LocalNavAnimatedVisibilityScope provides this) {
+                                    probe()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    @Test
+    fun `the flight tilt at rest stays tilted with scopes and animations on`() {
+        var tiltState: State<Float>? = null
+        setFlightHarness {
+            tiltState = rememberSharedFlightTilt(24f)
+        }
+        composeRule.waitForIdle()
+
+        assertThat(tiltState?.value).isEqualTo(24f)
+    }
+
+    @Test
+    fun `the flying card straightens to zero`() {
+        var tiltState: State<Float>? = null
+        setFlightHarness {
+            tiltState = rememberSharedFlightTilt(24f, flying = true)
+        }
+        composeRule.waitForIdle()
+
+        assertThat(tiltState?.value).isEqualTo(0f)
+    }
+
+    @Test
+    fun `the landing hero starts flat and settles to the hero tilt`() {
+        var tiltState: State<Float>? = null
+        // Manual clock: the landing delay schedules no frames, so waitForIdle would not pump it.
+        composeRule.mainClock.autoAdvance = false
+        setFlightHarness {
+            tiltState = rememberHeroLandingTilt(8f)
+        }
+
+        assertThat(tiltState?.value).isEqualTo(0f)
+
+        // Flight delay (slow) plus the settle, with room to spare.
+        composeRule.mainClock.advanceTimeBy(1_000L)
+
+        assertThat(tiltState?.value).isEqualTo(8f)
+    }
+
+    @Test
+    fun `the landing hero lifts mid flight and comes back`() {
+        var liftState: State<Float>? = null
+        composeRule.mainClock.autoAdvance = false
+        setFlightHarness {
+            liftState = rememberFlightLift()
+        }
+
+        assertThat(liftState?.value).isEqualTo(1f)
+
+        composeRule.mainClock.advanceTimeBy(225)
+
+        assertThat(liftState?.value).isWithin(0.01f).of(1.04f)
+
+        composeRule.mainClock.autoAdvance = true
+        composeRule.waitForIdle()
+
+        assertThat(liftState?.value).isWithin(0.0001f).of(1f)
     }
 
     @Test

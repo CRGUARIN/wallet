@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -85,7 +86,7 @@ import java.time.LocalDate
 /** Gate of the deck deal: it plays once per process, after the brand intro. */
 private const val HOME_DEAL_KEY = "home-deal"
 
-/** Height of the front "Saldo total" card: its content fits up to 130 % font scale. */
+/** Minimum height of the front "Saldo total" card: its content fits up to 130 % font scale. */
 private val FrontCardHeight = 150.dp
 
 /** Room under the deck for the card shadow and the floating. */
@@ -174,7 +175,8 @@ private fun DeckContent(
 
     val dealPx = with(density) { depth.dealOffsetY.toPx() }
     val camera = depth.deckCameraDistance * density.density
-    val flightTilt = rememberSharedFlightTilt(depth.deckTilt)
+    // The tapped card straightens while it flies to the detail; the rest keep their tilt.
+    var flyingId by remember { mutableStateOf<Long?>(null) }
 
     Box(
         modifier =
@@ -187,11 +189,14 @@ private fun DeckContent(
             DeckCard(
                 item = item,
                 index = index,
-                onClick = { onAccountClick(item.account.id) },
+                onClick = {
+                    flyingId = item.account.id
+                    onAccountClick(item.account.id)
+                },
                 cardOverview = cardOverviews[item.account.id],
                 today = today,
                 dealFraction = { dealFraction(master.value, index) },
-                restTilt = { flightTilt.value },
+                flying = flyingId == item.account.id,
                 dealPx = dealPx,
                 camera = camera,
                 animate = animate,
@@ -202,9 +207,9 @@ private fun DeckContent(
             index = accounts.size,
             dealing = dealing,
             dealFraction = { dealFraction(master.value, accounts.size) },
-            restTilt = { flightTilt.value },
             dealPx = dealPx,
             camera = camera,
+            scrolling = scrolling,
         )
     }
 }
@@ -221,13 +226,14 @@ private fun DeckCard(
     cardOverview: CardOverview?,
     today: LocalDate,
     dealFraction: () -> Float,
-    restTilt: () -> Float,
+    flying: Boolean,
     dealPx: Float,
     camera: Float,
     animate: Boolean,
 ) {
     val depth = MaterialTheme.walletDepth
     val motion = MaterialTheme.walletMotion
+    val flightTilt = rememberSharedFlightTilt(depth.deckTilt, flying)
     val face = remember(item.account.color) { cardFace(Color(item.account.color)) }
     val brush = remember(face) { face.brush() }
     val shape = remember(depth) { RoundedCornerShape(depth.deckCardRadius) }
@@ -250,7 +256,7 @@ private fun DeckCard(
                     val rest = 1f - dealFraction()
                     alpha = dealFraction()
                     translationY = -rest * dealPx
-                    rotationX = restTilt() - rest * depth.dealExtraTilt
+                    rotationX = flightTilt.value - rest * depth.dealExtraTilt
                     val scale = (1f + rest * (depth.dealStartScale - 1f)) * pressScale
                     scaleX = scale
                     scaleY = scale
@@ -368,9 +374,9 @@ private fun DeckTotalCard(
     index: Int,
     dealing: Boolean,
     dealFraction: () -> Float,
-    restTilt: () -> Float,
     dealPx: Float,
     camera: Float,
+    scrolling: Boolean = false,
 ) {
     val depth = MaterialTheme.walletDepth
     val colors = MaterialTheme.walletColors
@@ -384,12 +390,12 @@ private fun DeckTotalCard(
             .replace(' ', ' ')
     // While dealing, the total rolls from zero; on later entries only when it changed.
     val rollFrom = rememberRollFrom(formatted, "home-total", fromZeroOnFirstShow = dealing)
-    val idleLoop = rememberIdleLoop("home-total", interrupted = false)
+    val idleLoop = rememberIdleLoop("home-total", scrolling)
     HeroCard(
         animateContours = true,
         modifier =
             Modifier
-                .height(FrontCardHeight)
+                .heightIn(min = FrontCardHeight)
                 .fillMaxWidth()
                 .offset(y = depth.deckStrip * index)
                 .navEnterExit(depth.contentShiftY, CONTENT_EXIT_MILLIS)
@@ -397,7 +403,7 @@ private fun DeckTotalCard(
                     val rest = 1f - dealFraction()
                     alpha = dealFraction()
                     translationY = -rest * dealPx
-                    rotationX = restTilt() - rest * depth.dealExtraTilt
+                    rotationX = depth.deckTilt - rest * depth.dealExtraTilt
                     val scale = 1f + rest * (depth.dealStartScale - 1f)
                     scaleX = scale
                     scaleY = scale

@@ -60,6 +60,8 @@ import com.crguarin.wallet.ui.motion.StaggerClock
 import com.crguarin.wallet.ui.motion.accountCardSharedBounds
 import com.crguarin.wallet.ui.motion.cardShadow
 import com.crguarin.wallet.ui.motion.depthOn
+import com.crguarin.wallet.ui.motion.rememberFlightLift
+import com.crguarin.wallet.ui.motion.rememberHeroLandingTilt
 import com.crguarin.wallet.ui.motion.rememberIdleLoop
 import com.crguarin.wallet.ui.motion.rememberRollFrom
 import com.crguarin.wallet.ui.motion.sheen
@@ -179,6 +181,9 @@ internal fun AccountHeaderBlock(
     val density = LocalDensity.current
     val amplitudePx = with(density) { depth.floatAmplitude.toPx() }
     val cameraDistancePx = HERO_CAMERA_DP * density.density
+    // Landing choreography: flat while flying, mid-flight lift, then settling to the hero tilt.
+    val landingTilt = rememberHeroLandingTilt(depth.heroTilt)
+    val flightLift = rememberFlightLift()
 
     // The shared flight goes on the face itself, never on the shadow container (§8.1).
     val sharedFlight =
@@ -202,10 +207,13 @@ internal fun AccountHeaderBlock(
                     .testTag(HERO_FACE_TAG)
                     .then(sharedFlight)
                     .graphicsLayer {
-                        rotationX = if (deep && isHero) depth.heroTilt else 0f
+                        rotationX = if (deep && isHero) landingTilt.value else 0f
                         transformOrigin = TransformOrigin(0.5f, 1f)
                         cameraDistance = cameraDistancePx
                         translationY = -sin(floatPhase.value * PI).toFloat() * amplitudePx
+                        val lift = if (deep && isHero) flightLift.value else 1f
+                        scaleX = lift
+                        scaleY = lift
                     }.cardShadow(shape)
                     .clip(shape)
                     .background(face.brush())
