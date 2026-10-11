@@ -16,6 +16,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -27,6 +28,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.crguarin.wallet.R
+import com.crguarin.wallet.ui.motion.LocalMotionPolicy
+import com.crguarin.wallet.ui.motion.rememberSystemMotionPolicy
 import com.crguarin.wallet.ui.navigation.Home
 import com.crguarin.wallet.ui.navigation.Onboarding
 import com.crguarin.wallet.ui.navigation.TransactionEdit
@@ -64,46 +67,51 @@ fun WalletAppContent(
             it.hasRoute(Home::class) || it.hasRoute(Transactions::class)
         } == true
 
-    Scaffold(
-        modifier = modifier.fillMaxSize(),
-        // Each screen's TopAppBar pads for the status bar; here only the navigation bar is reserved.
-        contentWindowInsets = WindowInsets.navigationBars,
-        bottomBar = {
-            // Animated so the bar does not pop in or out while the screens cross-fade.
-            AnimatedVisibility(
-                visible = isTopLevelDestination,
-                enter = expandVertically(expandFrom = Alignment.Top),
-                exit = shrinkVertically(shrinkTowards = Alignment.Top),
-            ) {
-                WalletBottomBar(
-                    navController = navController,
-                )
-            }
-        },
-        floatingActionButton = {
-            if (isFabDestination) {
-                // A pebble (rounded square) in primary with the default FAB shadow, the only shadow of the style.
-                FloatingActionButton(
-                    onClick = {
-                        navController.navigate(TransactionEdit())
-                    },
-                    shape = MaterialTheme.shapes.medium,
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
+    // The real motion policy of the device: animations follow the system "remove animations"
+    // setting and depth falls back to flat with a screen reader or a large font.
+    val motionPolicy = rememberSystemMotionPolicy()
+    CompositionLocalProvider(LocalMotionPolicy provides motionPolicy) {
+        Scaffold(
+            modifier = modifier.fillMaxSize(),
+            // Each screen's TopAppBar pads for the status bar; here only the navigation bar is reserved.
+            contentWindowInsets = WindowInsets.navigationBars,
+            bottomBar = {
+                // Animated so the bar does not pop in or out while the screens cross-fade.
+                AnimatedVisibility(
+                    visible = isTopLevelDestination,
+                    enter = expandVertically(expandFrom = Alignment.Top),
+                    exit = shrinkVertically(shrinkTowards = Alignment.Top),
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = stringResource(R.string.action_new_transaction),
+                    WalletBottomBar(
+                        navController = navController,
                     )
                 }
-            }
-        },
-    ) { innerPadding ->
-        WalletNavHost(
-            navController = navController,
-            startDestination = startDestination,
-            // Consumed so screens can pad for the keyboard (imePadding) without counting the bars twice.
-            modifier = Modifier.padding(innerPadding).consumeWindowInsets(innerPadding),
-        )
+            },
+            floatingActionButton = {
+                if (isFabDestination) {
+                    // A pebble (rounded square) in primary with the default FAB shadow, the only shadow of the style.
+                    FloatingActionButton(
+                        onClick = {
+                            navController.navigate(TransactionEdit())
+                        },
+                        shape = MaterialTheme.shapes.medium,
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = stringResource(R.string.action_new_transaction),
+                        )
+                    }
+                }
+            },
+        ) { innerPadding ->
+            WalletNavHost(
+                navController = navController,
+                startDestination = startDestination,
+                // Consumed so screens can pad for the keyboard (imePadding) without counting the bars twice.
+                modifier = Modifier.padding(innerPadding).consumeWindowInsets(innerPadding),
+            )
+        }
     }
 }
