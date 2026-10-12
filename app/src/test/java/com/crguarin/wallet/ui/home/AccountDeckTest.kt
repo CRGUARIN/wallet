@@ -16,9 +16,11 @@ import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.AccountWithBalance
 import com.crguarin.wallet.ui.components.HeroContourTrace
+import com.crguarin.wallet.ui.motion.FLAT_FONT_SCALE
 import com.crguarin.wallet.ui.motion.FirstShowGate
 import com.crguarin.wallet.ui.motion.LocalMotionPolicy
 import com.crguarin.wallet.ui.motion.MotionPolicy
+import com.crguarin.wallet.ui.theme.DefaultWalletDepth
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.google.common.truth.Truth.assertThat
 import org.junit.After
@@ -207,6 +209,15 @@ class AccountDeckTest {
         composeRule.onNodeWithText("Cívica").assertIsDisplayed()
         composeRule.onNodeWithText("$ 12.500").assertIsDisplayed()
         composeRule.waitForIdle()
+    }
+
+    @Test
+    fun `the name and the status line fit the strip at the largest 3d font scale`() {
+        // Top padding, then the name and the status line in sp: at 1.3 each sp is 1.3 dp.
+        val used =
+            DeckStripTopPadding.value +
+                (DeckStripNameLineHeight.value + DeckStripStatusLineHeight.value) * FLAT_FONT_SCALE
+        assertThat(used).isAtMost(DefaultWalletDepth.deckStrip.value)
     }
 
     @Test

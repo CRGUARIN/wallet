@@ -14,6 +14,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -38,6 +39,14 @@ val LocalSharedTransitionScope = staticCompositionLocalOf<SharedTransitionScope?
  * (plumbed by the leader). Null in previews and in bare screen tests.
  */
 val LocalNavAnimatedVisibilityScope = staticCompositionLocalOf<AnimatedVisibilityScope?> { null }
+
+/**
+ * True while the current navigation is Home to an account detail, or back: the only navigation
+ * where an account card flies. Provided by the navigation host; false in previews and bare tests.
+ * The shared helpers animate only when it is true, so Home and the detail do not animate on
+ * every other visit (Settings, the Accounts tab, a notification).
+ */
+val LocalCardFlightRoute = compositionLocalOf { false }
 
 /** Shared key of the card of an account between the Home deck and the detail header. */
 fun accountCardKey(accountId: Long): String = "account-card-$accountId"
@@ -80,8 +89,8 @@ fun Modifier.accountCardSharedBounds(accountId: Long): Modifier =
 /**
  * Exit/enter of the content around the flying card: it slides [slideY] down and fades in
  * [millis] ms. Only inside an `AnimatedVisibility` (which provides the scope through
- * [LocalNavAnimatedVisibilityScope]); otherwise, without animations, or in flat mode, it does
- * nothing.
+ * [LocalNavAnimatedVisibilityScope]) and only on a card flight ([LocalCardFlightRoute]); otherwise,
+ * without animations, or in flat mode, it does nothing.
  */
 fun Modifier.navEnterExit(
     slideY: Dp,
@@ -89,10 +98,11 @@ fun Modifier.navEnterExit(
 ): Modifier =
     composed {
         val nav = LocalNavAnimatedVisibilityScope.current
+        val flight = LocalCardFlightRoute.current
         val animate = animationsOn()
         val deep = depthOn()
         val slidePx = with(LocalDensity.current) { slideY.roundToPx() }
-        if (nav == null || !animate || !deep) {
+        if (nav == null || !flight || !animate || !deep) {
             this
         } else {
             with(nav) {
@@ -138,17 +148,18 @@ fun rememberSharedFlightTilt(
 /**
  * Tilt of the landing hero: flat while the card is still flying, then settling to [heroTilt]
  * once it lands (`slow` of delay, [HERO_SETTLE_MILLIS] of motion), once per back-stack entry.
- * Without scopes, without animations, or in flat mode, it is [heroTilt] from the start. On
- * entries without a flight it reads as a delayed entrance accent.
+ * Without scopes, outside a card flight ([LocalCardFlightRoute]), without animations, or in flat
+ * mode, it is [heroTilt] from the start.
  */
 @Composable
 fun rememberHeroLandingTilt(heroTilt: Float): State<Float> {
     val shared = LocalSharedTransitionScope.current
     val nav = LocalNavAnimatedVisibilityScope.current
+    val flight = LocalCardFlightRoute.current
     val animate = animationsOn()
     val deep = depthOn()
     val motion = MaterialTheme.walletMotion
-    if (shared == null || nav == null || !animate || !deep) return rememberUpdatedState(heroTilt)
+    if (shared == null || nav == null || !flight || !animate || !deep) return rememberUpdatedState(heroTilt)
     val played = rememberPlayedOnce("hero-landing")
     val tilt = remember(heroTilt) { Animatable(if (played.value) heroTilt else 0f) }
     LaunchedEffect(heroTilt) {
@@ -166,17 +177,19 @@ fun rememberHeroLandingTilt(heroTilt: Float): State<Float> {
 
 /**
  * Mid-flight lift of the landing hero: 1 to [peak] and back over the flight (`slow`), so the
- * card rises a little halfway, once per back-stack entry. Without scopes, without animations, or
- * in flat mode, it is 1. Read it inside `graphicsLayer`, never in the body of a composable.
+ * card rises a little halfway, once per back-stack entry. Without scopes, outside a card flight
+ * ([LocalCardFlightRoute]), without animations, or in flat mode, it is 1. Read it inside
+ * `graphicsLayer`, never in the body of a composable.
  */
 @Composable
 fun rememberFlightLift(peak: Float = 1.04f): State<Float> {
     val shared = LocalSharedTransitionScope.current
     val nav = LocalNavAnimatedVisibilityScope.current
+    val flight = LocalCardFlightRoute.current
     val animate = animationsOn()
     val deep = depthOn()
     val motion = MaterialTheme.walletMotion
-    if (shared == null || nav == null || !animate || !deep) return rememberUpdatedState(1f)
+    if (shared == null || nav == null || !flight || !animate || !deep) return rememberUpdatedState(1f)
     val played = rememberPlayedOnce("flight-lift")
     val progress = remember { Animatable(if (played.value) 1f else 0f) }
     LaunchedEffect(Unit) {

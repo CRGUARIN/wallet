@@ -90,6 +90,7 @@ import com.crguarin.wallet.ui.components.TransactionDayHeader
 import com.crguarin.wallet.ui.components.TransactionListItem
 import com.crguarin.wallet.ui.components.groupedItemBackground
 import com.crguarin.wallet.ui.motion.Keycap
+import com.crguarin.wallet.ui.motion.LocalCardFlightRoute
 import com.crguarin.wallet.ui.motion.LocalNavAnimatedVisibilityScope
 import com.crguarin.wallet.ui.motion.LocalSharedTransitionScope
 import com.crguarin.wallet.ui.motion.StaggerClock
@@ -605,14 +606,18 @@ private fun DetailSectionTitle(
 }
 
 /**
- * Stagger clock of the detail (§8.3): with a card flight the blocks start landing at 350 ms;
- * without one (bare tests, flat arrivals) there is no delay. The scopes only say a flight is
- * possible, not where this entry came from, so a non-flight 3D entry also waits 350 ms.
+ * Stagger clock of the detail (§8.3): on a card flight from Home the blocks start landing at
+ * 350 ms; any other entry (the Accounts tab, a notification, bare tests) has no delay. The delay
+ * is captured on the first composition of the entry, so it does not move while the entry leaves.
  */
 @Composable
 private fun rememberAccountDetailStagger(accountId: Long): StaggerClock {
-    val flown = LocalSharedTransitionScope.current != null && LocalNavAnimatedVisibilityScope.current != null
-    val startDelay = if (flown && depthOn()) 350 else 0
+    val flown =
+        LocalSharedTransitionScope.current != null &&
+            LocalNavAnimatedVisibilityScope.current != null &&
+            LocalCardFlightRoute.current
+    val deep = depthOn()
+    val startDelay = remember { if (flown && deep) 350 else 0 }
     return rememberStaggerClock("account-detail-$accountId", startDelayMillis = startDelay)
 }
 

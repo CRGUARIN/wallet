@@ -3,7 +3,15 @@ package com.crguarin.wallet.ui.navigation
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.navigation.NavController
+import androidx.navigation.NavDestination
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -18,6 +26,7 @@ import com.crguarin.wallet.ui.debts.DebtDetailRoute
 import com.crguarin.wallet.ui.debts.DebtEditRoute
 import com.crguarin.wallet.ui.debts.DebtListRoute
 import com.crguarin.wallet.ui.home.HomeRoute
+import com.crguarin.wallet.ui.motion.LocalCardFlightRoute
 import com.crguarin.wallet.ui.motion.LocalNavAnimatedVisibilityScope
 import com.crguarin.wallet.ui.motion.LocalSharedTransitionScope
 import com.crguarin.wallet.ui.onboarding.OnboardingRoute
@@ -38,10 +47,28 @@ fun WalletNavHost(
     // handles the hosting Activity's intent automatically when the graph is created
     // (checkDeepLinkHandled), so registering them during onboarding would skip it.
     val deepLinksEnabled = startDestination != Onboarding
+    // Whether the current navigation is a card flight (Home to an account detail, or back). Updated
+    // on every destination change, so the shared motion only runs on that one navigation.
+    var cardFlightRoute by remember { mutableStateOf(false) }
+    DisposableEffect(navController) {
+        var previous: NavDestination? = null
+        val listener =
+            NavController.OnDestinationChangedListener { _, destination, _ ->
+                val from = previous
+                cardFlightRoute = from != null && isCardFlightBetween(from, destination)
+                previous = destination
+            }
+        // The listener is called at once with the current destination, which has no previous one.
+        navController.addOnDestinationChangedListener(listener)
+        onDispose { navController.removeOnDestinationChangedListener(listener) }
+    }
     // The shared layout lets an account card fly from the Home deck to the detail header.
     // Only those two destinations publish their AnimatedVisibilityScope; the rest is untouched.
     SharedTransitionLayout {
-        CompositionLocalProvider(LocalSharedTransitionScope provides this) {
+        CompositionLocalProvider(
+            LocalSharedTransitionScope provides this,
+            LocalCardFlightRoute provides cardFlightRoute,
+        ) {
             NavHost(
                 navController = navController,
                 startDestination = startDestination,
@@ -319,3 +346,11 @@ fun WalletNavHost(
         }
     }
 }
+
+/** True when moving from [from] to [to] is a card flight: Home to an account detail, or back. */
+private fun isCardFlightBetween(
+    from: NavDestination,
+    to: NavDestination,
+): Boolean =
+    (from.hasRoute(Home::class) && to.hasRoute(AccountDetail::class)) ||
+        (from.hasRoute(AccountDetail::class) && to.hasRoute(Home::class))
