@@ -1,12 +1,16 @@
 package com.crguarin.wallet.ui.accounts
 
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -132,8 +136,8 @@ class AccountDetailScreenTest {
             TestScreen(uiState = cardState())
         }
 
-        composeRule.onNodeWithText("RappiCard").assertIsDisplayed()
-        composeRule.onNodeWithText("Tarjeta de crédito").assertIsDisplayed()
+        composeRule.onAllNodesWithText("RappiCard").onFirst().assertIsDisplayed()
+        composeRule.onNodeWithText("Tarjeta de crédito").assertDoesNotExist()
         composeRule.onNodeWithText("Deuda").assertIsDisplayed()
         composeRule.onNodeWithText("Pagar tarjeta").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Conciliar extracto").performScrollTo().assertIsDisplayed()
@@ -581,5 +585,76 @@ class AccountDetailScreenTest {
 
         assertThat(tripClicked).isTrue()
         assertThat(rechargeClicked).isTrue()
+    }
+
+    @Test
+    fun `the title is the account name, not the generic title`() {
+        composeRule.setContent { TestScreen(uiState = cardState()) }
+
+        composeRule.onNodeWithTag(ACCOUNT_DETAIL_TITLE_TAG).assertTextEquals("RappiCard")
+        composeRule.onNodeWithText("Detalle de cuenta").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the account type is not repeated under the name`() {
+        composeRule.setContent { TestScreen() }
+
+        // Title and hero only: the cash type label ("Efectivo") is no longer under the name.
+        composeRule.onAllNodesWithText("Efectivo").assertCountEquals(2)
+        composeRule.onNodeWithText("Tarjeta de crédito").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the first action key is primary and the others are secondary`() {
+        composeRule.setContent { TestScreen(uiState = cardState()) }
+
+        // Pay first, then expense and reconciliation.
+        val keys = composeRule.onAllNodesWithTag(ACTION_KEY_TAG).fetchSemanticsNodes()
+        assertThat(keys).hasSize(3)
+        assertThat(keys[0].config[ActionRoleKey]).isEqualTo(ActionRole.Primary)
+        assertThat(keys[1].config[ActionRoleKey]).isEqualTo(ActionRole.Secondary)
+        assertThat(keys[2].config[ActionRoleKey]).isEqualTo(ActionRole.Secondary)
+    }
+
+    @Test
+    fun `cash account gives expense the primary key`() {
+        composeRule.setContent { TestScreen() }
+
+        val keys = composeRule.onAllNodesWithTag(ACTION_KEY_TAG).fetchSemanticsNodes()
+        assertThat(keys).hasSize(2)
+        assertThat(keys[0].config[ActionRoleKey]).isEqualTo(ActionRole.Primary)
+        composeRule.onNodeWithText("Gasto").assertIsDisplayed()
+    }
+
+    @Test
+    @Config(qualifiers = "es-w1000dp-h3000dp")
+    fun `movements of one day are rows of one card`() {
+        val entries =
+            listOf(1L, 2L).map { id ->
+                TransactionListEntry.Item(
+                    TransactionDetails(
+                        transaction =
+                            Transaction(
+                                id = id,
+                                type = TransactionType.EXPENSE,
+                                amount = Money(100_000L),
+                                accountId = 42L,
+                                date = LocalDate.of(2026, 9, 20),
+                                note = "Movimiento $id",
+                                createdAt = Instant.EPOCH,
+                                updatedAt = Instant.EPOCH,
+                            ),
+                        accountName = "Efectivo",
+                        accountColor = 0,
+                        accountIcon = "wallet",
+                    ),
+                )
+            }
+        composeRule.setContent { TestScreen(entries = entries) }
+
+        // Both rows of the day carry the card tag.
+        composeRule.onAllNodesWithTag(MOVEMENT_ROW_TAG).assertCountEquals(2)
+        composeRule.onNodeWithText("Movimiento 1").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Movimiento 2").performScrollTo().assertIsDisplayed()
     }
 }
