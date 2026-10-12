@@ -1,15 +1,21 @@
 package com.crguarin.wallet.ui.motion
 
+import android.accessibilityservice.AccessibilityServiceInfo
+import android.view.accessibility.AccessibilityManager
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.test.core.app.ApplicationProvider
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.google.common.truth.Truth.assertThat
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
@@ -100,5 +106,31 @@ class MotionPolicyTest {
     @Test
     fun `the flat threshold is 130 percent`() {
         assertThat(FLAT_FONT_SCALE).isEqualTo(1.3f)
+    }
+
+    @Test
+    fun `spoken feedback service without touch exploration is not a screen reader`() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val shadow = Shadows.shadowOf(context.getSystemService(AccessibilityManager::class.java))
+        shadow.setTouchExplorationEnabled(false)
+        shadow.setEnabledAccessibilityServiceList(
+            listOf(
+                AccessibilityServiceInfo().apply {
+                    feedbackType = AccessibilityServiceInfo.FEEDBACK_SPOKEN
+                },
+            ),
+        )
+
+        assertFalse(isScreenReaderOn(context))
+    }
+
+    @Test
+    fun `touch exploration enabled means screen reader`() {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        Shadows
+            .shadowOf(context.getSystemService(AccessibilityManager::class.java))
+            .setTouchExplorationEnabled(true)
+
+        assertTrue(isScreenReaderOn(context))
     }
 }

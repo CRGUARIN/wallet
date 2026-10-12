@@ -1,6 +1,5 @@
 package com.crguarin.wallet.ui.motion
 
-import android.accessibilityservice.AccessibilityServiceInfo
 import android.provider.Settings
 import android.view.accessibility.AccessibilityManager
 import androidx.compose.runtime.Composable
@@ -96,10 +95,11 @@ private fun readAnimatorScale(context: android.content.Context): Float =
         1f,
     )
 
-private fun isScreenReaderOn(context: android.content.Context): Boolean {
+/**
+ * Only touch exploration counts as a screen reader: some OEM system services declare spoken
+ * feedback without being screen readers, so checking the enabled service list gives false positives.
+ */
+internal fun isScreenReaderOn(context: android.content.Context): Boolean {
     val manager = context.getSystemService(AccessibilityManager::class.java) ?: return false
-    if (manager.isTouchExplorationEnabled) return true
-    return manager
-        .getEnabledAccessibilityServiceList(AccessibilityServiceInfo.FEEDBACK_SPOKEN)
-        .isNotEmpty()
+    return manager.isTouchExplorationEnabled
 }
