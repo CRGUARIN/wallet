@@ -146,7 +146,7 @@ class NavigationTest {
         composeRule.onNodeWithContentDescription("Nuevo movimiento").performClick()
 
         // Destination is now the new transaction editor
-        composeRule.onNodeWithText("Nuevo movimiento").assertIsDisplayed()
+        composeRule.onNodeWithText("Nuevo gasto").assertIsDisplayed()
         composeRule.onNodeWithText("Gasto").assertIsDisplayed()
         composeRule.onNodeWithText("Ingreso").assertIsDisplayed()
         composeRule.onNodeWithText("Transferencia").assertIsDisplayed()
@@ -403,7 +403,7 @@ class NavigationTest {
         assertThat(route?.accountId).isEqualTo(1L)
         assertThat(route?.toAccountId).isEqualTo(7L)
         assertThat(route?.initialAmountMinor).isEqualTo(150_050L)
-        composeRule.onNodeWithText("Nuevo movimiento").assertIsDisplayed()
+        composeRule.onNodeWithText("Nueva transferencia").assertIsDisplayed()
     }
 
     @Test

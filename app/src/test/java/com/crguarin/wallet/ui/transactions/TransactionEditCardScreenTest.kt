@@ -111,8 +111,6 @@ class TransactionEditCardScreenTest {
                     onOpenDatePicker = {},
                     onDismissDatePicker = {},
                     onDateSelected = {},
-                    onTodayClick = {},
-                    onYesterdayClick = {},
                     onNoteChanged = {},
                     onInstallmentsChanged = onInstallmentsChanged,
                     onSaveClick = {},

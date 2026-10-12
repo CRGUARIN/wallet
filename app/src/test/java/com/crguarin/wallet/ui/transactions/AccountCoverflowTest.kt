@@ -126,8 +126,6 @@ class AccountCoverflowTest {
                         onOpenDatePicker = {},
                         onDismissDatePicker = {},
                         onDateSelected = {},
-                        onTodayClick = {},
-                        onYesterdayClick = {},
                         onNoteChanged = {},
                         onSaveClick = {},
                         onDeleteClick = {},
