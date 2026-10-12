@@ -5,20 +5,20 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.dp
+import com.crguarin.wallet.ui.motion.raisedSurface
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.theme.walletSpacing
 
 /**
- * Flat section on a tonal layer (`surfaceContainerLow`) with large rounded corners, no border and
- * no shadow. The padding is `walletSpacing.cardPadding` unless [contentPadding] says otherwise.
+ * Elevated section with large rounded corners and a soft shadow ([raisedSurface]), no border.
+ * The content is clipped to the same shape, so ripples of full-width rows stay inside the corners.
+ * The padding is `walletSpacing.cardPadding` unless [contentPadding] says otherwise.
  */
 @Composable
 fun SectionCard(
@@ -26,14 +26,15 @@ fun SectionCard(
     contentPadding: PaddingValues = PaddingValues(MaterialTheme.walletSpacing.cardPadding),
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Card(
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
-        modifier = modifier.fillMaxWidth(),
-    ) {
-        Column(modifier = Modifier.padding(contentPadding), content = content)
-    }
+    Column(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .raisedSurface(MaterialTheme.shapes.large)
+                .clip(MaterialTheme.shapes.large)
+                .padding(contentPadding),
+        content = content,
+    )
 }
 
 @Preview(name = "Light Mode", showBackground = true)

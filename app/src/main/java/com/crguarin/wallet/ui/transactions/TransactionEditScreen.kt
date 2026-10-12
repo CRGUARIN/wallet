@@ -1,12 +1,21 @@
 package com.crguarin.wallet.ui.transactions
 
+import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -31,11 +40,15 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -58,6 +71,7 @@ import com.crguarin.wallet.ui.components.ErrorState
 import com.crguarin.wallet.ui.components.LoadingState
 import com.crguarin.wallet.ui.components.PrimaryActionButton
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletMotion
 import com.crguarin.wallet.ui.theme.walletSpacing
 import com.crguarin.wallet.ui.util.safeHiltViewModel
 import java.time.Instant
@@ -112,6 +126,14 @@ fun TransactionEditRoute(
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
+    // Progressive reveal (§9.3) is armed once, when loading finishes: creation with an empty
+    // amount starts with only type, amount, keypad and Save. Never evaluated on the loading
+    // state itself, where amountText is always empty.
+    var revealOnce by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    if (!uiState.isLoading && revealOnce == null) {
+        revealOnce = !uiState.isEditMode && uiState.amountText.isEmpty()
+    }
+
     LaunchedEffect(viewModel) {
         viewModel.events.collect { event ->
             when (event) {
@@ -154,6 +176,7 @@ fun TransactionEditRoute(
         onDismissNegativeBalance = viewModel::dismissNegativeBalanceDialog,
         snackbarHostState = snackbarHostState,
         modifier = modifier,
+        revealProgressively = revealOnce ?: false,
     )
 }
 
@@ -197,7 +220,7 @@ private fun inspectionUiState(): TransactionEditUiState =
             ),
     )
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun TransactionEditScreen(
     uiState: TransactionEditUiState,
@@ -231,6 +254,7 @@ fun TransactionEditScreen(
     modifier: Modifier = Modifier,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() },
     onInstallmentsChanged: (Int) -> Unit = {},
+    revealProgressively: Boolean = false,
 ) {
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     // The form (and with it the save button) only exists once there is something to fill in.
@@ -239,6 +263,25 @@ fun TransactionEditScreen(
             !uiState.notFound &&
             !uiState.showTransferNeedsAccounts &&
             !uiState.showNoAccounts
+    // The in-app keypad shows while the amount has the focus and the system keyboard is closed.
+    // In creation it also shows from the very first frame, before the initial focus lands: that
+    // way focusing never shrinks the viewport, and the scrollable never scrolls the type segments
+    // away to keep the field in view (ContentInViewNode only reacts to shrinks while focused).
+    // Clearing it on the first focus gain changes nothing visually: focused keeps it visible.
+    var amountFocused by remember { mutableStateOf(false) }
+    // Armed once, when loading finishes: the first composition still carries the loading state,
+    // where isEditMode is always false, so capturing it with remember would show the keypad on
+    // edits opened through the route. Same pattern as revealOnce above.
+    var keypadFromStart by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    if (!uiState.isLoading && keypadFromStart == null) {
+        keypadFromStart = !uiState.isEditMode
+    }
+    val imeVisible = WindowInsets.isImeVisible
+    val showKeypad = showForm && (amountFocused || keypadFromStart == true) && !imeVisible
+    val focusManager = LocalFocusManager.current
+    // Back closes the in-app keypad first, as it used to close the system keyboard; the next Back
+    // leaves the form as usual.
+    BackHandler(enabled = showKeypad && amountFocused) { focusManager.clearFocus() }
 
     Scaffold(
         modifier = modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -280,7 +323,10 @@ fun TransactionEditScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             if (showForm) {
-                SaveBar(
+                KeypadSaveBar(
+                    showKeypad = showKeypad,
+                    amountText = uiState.amountText,
+                    onAmountChanged = onAmountChanged,
                     isEnabled = uiState.isSaveEnabled,
                     isSaving = uiState.isSaving,
                     errorRes = uiState.generalErrorRes,
@@ -346,6 +392,12 @@ fun TransactionEditScreen(
                         onYesterdayClick = onYesterdayClick,
                         onNoteChanged = onNoteChanged,
                         onInstallmentsChanged = onInstallmentsChanged,
+                        onAccountSelected = onAccountSelected,
+                        onAmountFocusChanged = {
+                            amountFocused = it
+                            if (it) keypadFromStart = false
+                        },
+                        revealProgressively = revealProgressively,
                     )
                 }
             }
@@ -423,6 +475,46 @@ fun TransactionEditScreen(
             isDestructive = true,
             onConfirm = onConfirmDelete,
             onDismiss = onDismissDeleteDialog,
+        )
+    }
+}
+
+/**
+ * The bottom slot of the movement form: the in-app keypad over the save button. The keypad shows
+ * while the amount has the focus and the system keyboard is closed, appearing and going with an
+ * expand + fade of `medium`.
+ */
+@Composable
+private fun KeypadSaveBar(
+    showKeypad: Boolean,
+    amountText: String,
+    onAmountChanged: (String) -> Unit,
+    isEnabled: Boolean,
+    isSaving: Boolean,
+    @StringRes errorRes: Int?,
+    onSaveClick: () -> Unit,
+) {
+    val medium = MaterialTheme.walletMotion.medium
+    Column {
+        AnimatedVisibility(
+            visible = showKeypad,
+            enter = fadeIn(tween(durationMillis = medium)) + expandVertically(tween(durationMillis = medium)),
+            exit = fadeOut(tween(durationMillis = medium)) + shrinkVertically(tween(durationMillis = medium)),
+        ) {
+            AmountKeypad(
+                current = amountText,
+                onAmountChanged = onAmountChanged,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = MaterialTheme.walletSpacing.screenGutter),
+            )
+        }
+        SaveBar(
+            isEnabled = isEnabled,
+            isSaving = isSaving,
+            errorRes = errorRes,
+            onSaveClick = onSaveClick,
         )
     }
 }
@@ -597,3 +689,80 @@ private fun previewCategory(
     id: Long,
     name: String,
 ): Category = Category(id = id, name = name, type = CategoryType.EXPENSE, color = 0xFF66BB6A.toInt(), icon = "restaurant")
+
+@Preview(name = "New expense progressive", showBackground = true)
+@Composable
+private fun TransactionEditScreenPreviewProgressive() {
+    WalletTheme(darkTheme = false) {
+        TransactionEditScreen(
+            uiState = inspectionUiState(),
+            onNavigateBack = {},
+            onTypeSelected = {},
+            onAmountChanged = {},
+            onOpenAccountSheet = {},
+            onDismissAccountSheet = {},
+            onAccountSelected = {},
+            onOpenToAccountSheet = {},
+            onDismissToAccountSheet = {},
+            onToAccountSelected = {},
+            onSwapAccounts = {},
+            onOpenCategorySheet = {},
+            onDismissCategorySheet = {},
+            onCategorySelected = {},
+            onNewCategoryClick = {},
+            onNewAccountClick = {},
+            onOpenDatePicker = {},
+            onDismissDatePicker = {},
+            onDateSelected = {},
+            onTodayClick = {},
+            onYesterdayClick = {},
+            onNoteChanged = {},
+            onInstallmentsChanged = {},
+            onSaveClick = {},
+            onDeleteClick = {},
+            onDismissDeleteDialog = {},
+            onConfirmDelete = {},
+            onConfirmNegativeBalance = {},
+            onDismissNegativeBalance = {},
+            revealProgressively = true,
+        )
+    }
+}
+
+@Preview(name = "New expense Large font", showBackground = true, fontScale = 2f)
+@Composable
+private fun TransactionEditScreenPreviewLargeFont() {
+    WalletTheme(darkTheme = false) {
+        TransactionEditScreen(
+            uiState = inspectionUiState().copy(amountText = "28000"),
+            onNavigateBack = {},
+            onTypeSelected = {},
+            onAmountChanged = {},
+            onOpenAccountSheet = {},
+            onDismissAccountSheet = {},
+            onAccountSelected = {},
+            onOpenToAccountSheet = {},
+            onDismissToAccountSheet = {},
+            onToAccountSelected = {},
+            onSwapAccounts = {},
+            onOpenCategorySheet = {},
+            onDismissCategorySheet = {},
+            onCategorySelected = {},
+            onNewCategoryClick = {},
+            onNewAccountClick = {},
+            onOpenDatePicker = {},
+            onDismissDatePicker = {},
+            onDateSelected = {},
+            onTodayClick = {},
+            onYesterdayClick = {},
+            onNoteChanged = {},
+            onInstallmentsChanged = {},
+            onSaveClick = {},
+            onDeleteClick = {},
+            onDismissDeleteDialog = {},
+            onConfirmDelete = {},
+            onConfirmNegativeBalance = {},
+            onDismissNegativeBalance = {},
+        )
+    }
+}

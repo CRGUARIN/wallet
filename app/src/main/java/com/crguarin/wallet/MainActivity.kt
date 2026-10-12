@@ -10,6 +10,7 @@ import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -24,6 +25,7 @@ import com.crguarin.wallet.ui.MainUiState
 import com.crguarin.wallet.ui.MainViewModel
 import com.crguarin.wallet.ui.WalletAppContent
 import com.crguarin.wallet.ui.components.BrandIntro
+import com.crguarin.wallet.ui.motion.LocalIntroFinished
 import com.crguarin.wallet.ui.navigation.Home
 import com.crguarin.wallet.ui.navigation.Onboarding
 import com.crguarin.wallet.ui.theme.WalletTheme
@@ -73,10 +75,13 @@ class MainActivity : AppCompatActivity() {
                             remember {
                                 if (state.onboardingCompleted) Home else Onboarding
                             }
+                        // Cold start only: saved state keeps it from replaying after recreation.
+                        var showIntro by rememberSaveable { mutableStateOf(true) }
                         Box {
-                            WalletAppContent(startDestination = startDestination)
-                            // Cold start only: saved state keeps it from replaying after recreation.
-                            var showIntro by rememberSaveable { mutableStateOf(true) }
+                            // One-shot entrances (contour trace, deck deal) wait for the intro.
+                            CompositionLocalProvider(LocalIntroFinished provides !showIntro) {
+                                WalletAppContent(startDestination = startDestination)
+                            }
                             if (showIntro) {
                                 BrandIntro(onFinished = { showIntro = false }, dynamicColor = dynamicColor)
                             }

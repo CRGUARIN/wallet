@@ -31,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.crguarin.wallet.R
+import com.crguarin.wallet.ui.motion.LocalIntroFinished
 import com.crguarin.wallet.ui.theme.WalletBrushes
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.theme.walletColors
@@ -64,11 +65,13 @@ fun HeroCard(
 ) {
     val contourColor = MaterialTheme.walletColors.heroContour
     val traceMillis = MaterialTheme.walletMotion.contour
+    // The trace waits for the brand intro: it used to draw under BrandIntro and was never seen.
+    val introFinished = LocalIntroFinished.current
     // Decided once per card: whether this composition is the one that traces the lines.
-    val traces = remember { animateContours && HeroContourTrace.claim() }
-    val progress = remember { Animatable(if (traces) 0f else 1f) }
+    val traces = remember(introFinished) { introFinished && animateContours && HeroContourTrace.claim() }
+    val progress = remember(traces) { Animatable(if (traces) 0f else 1f) }
     if (traces) {
-        LaunchedEffect(Unit) {
+        LaunchedEffect(traces) {
             progress.animateTo(1f, tween(durationMillis = traceMillis, easing = LinearOutSlowInEasing))
         }
     }

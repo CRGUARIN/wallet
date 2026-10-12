@@ -367,6 +367,8 @@ class TransactionEditFormTest {
         show(expenseState(amountText = ""), onAmountChanged = { typed = it })
 
         amountField().performTextInput("12500")
+        // The field reports its text from a snapshot flow, one frame after the edit.
+        composeRule.waitForIdle()
 
         assertThat(typed).isEqualTo("12500")
     }

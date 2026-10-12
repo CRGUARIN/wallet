@@ -22,6 +22,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
@@ -29,11 +31,9 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -60,8 +60,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
@@ -87,7 +89,16 @@ import com.crguarin.wallet.ui.components.LoadingState
 import com.crguarin.wallet.ui.components.TransactionDayHeader
 import com.crguarin.wallet.ui.components.TransactionListItem
 import com.crguarin.wallet.ui.components.groupedItemBackground
+import com.crguarin.wallet.ui.motion.Keycap
+import com.crguarin.wallet.ui.motion.LocalCardFlightRoute
+import com.crguarin.wallet.ui.motion.LocalNavAnimatedVisibilityScope
+import com.crguarin.wallet.ui.motion.LocalSharedTransitionScope
+import com.crguarin.wallet.ui.motion.StaggerClock
+import com.crguarin.wallet.ui.motion.depthOn
+import com.crguarin.wallet.ui.motion.rememberStaggerClock
+import com.crguarin.wallet.ui.motion.staggeredEnter
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletDepth
 import com.crguarin.wallet.ui.theme.walletSpacing
 import com.crguarin.wallet.ui.theme.walletTypography
 import com.crguarin.wallet.ui.transactions.rememberEntriesPagingItems
@@ -310,7 +321,12 @@ fun AccountDetailScreen(
             }
             return@Scaffold
         }
+        // One stagger clock for the whole detail (§8.3): actions (0), card section (1),
+        // installments/statements headings (2), movements heading (3) and first block (4).
+        val stagger = rememberAccountDetailStagger(account.id)
+        val listState = rememberLazyListState()
         LazyColumn(
+            state = listState,
             modifier =
                 Modifier
                     .fillMaxSize()
@@ -321,6 +337,8 @@ fun AccountDetailScreen(
             val gutter = Modifier.padding(horizontal = spacing.screenGutter)
             val balance = uiState.accountWithBalance.balance
             val cardOverview = uiState.cardOverview
+            // The idle loops (hero float, sheen) stop while the user scrolls (§4.7).
+            val idleInterrupted = listState.isScrollInProgress
             if (account.type == AccountType.CREDIT_CARD && cardOverview != null) {
                 item(key = "header") {
                     CardSummaryCard(
@@ -336,11 +354,16 @@ fun AccountDetailScreen(
                                 onNewTransactionClick = onNewTransactionClick,
                             )
                         },
+                        staggerClock = stagger,
+                        idleInterrupted = idleInterrupted,
                     )
                 }
                 if (cardOverview.activeInstallments.isNotEmpty()) {
                     item(key = "installments_header") {
-                        DetailSectionTitle(text = stringResource(R.string.card_installments_title), modifier = gutter)
+                        DetailSectionTitle(
+                            text = stringResource(R.string.card_installments_title),
+                            modifier = gutter.staggeredEnter(stagger, 2),
+                        )
                     }
                     itemsIndexed(
                         items = cardOverview.activeInstallments,
@@ -356,7 +379,10 @@ fun AccountDetailScreen(
                 }
                 if (uiState.statements.isNotEmpty()) {
                     item(key = "statements_header") {
-                        DetailSectionTitle(text = stringResource(R.string.card_statements_history), modifier = gutter)
+                        DetailSectionTitle(
+                            text = stringResource(R.string.card_statements_history),
+                            modifier = gutter.staggeredEnter(stagger, 2),
+                        )
                     }
                     itemsIndexed(
                         items = uiState.statements,
@@ -389,6 +415,8 @@ fun AccountDetailScreen(
                                     )
                                 }
                             },
+                        staggerClock = stagger,
+                        idleInterrupted = idleInterrupted,
                     )
                 }
             } else {
@@ -409,6 +437,8 @@ fun AccountDetailScreen(
                                     )
                                 }
                             },
+                        staggerClock = stagger,
+                        idleInterrupted = idleInterrupted,
                     )
                 }
             }
@@ -418,7 +448,8 @@ fun AccountDetailScreen(
                     modifier =
                         gutter
                             .fillMaxWidth()
-                            .padding(top = spacing.l),
+                            .padding(top = spacing.l)
+                            .staggeredEnter(stagger, 3),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
@@ -489,12 +520,21 @@ fun AccountDetailScreen(
                                 }
                             },
                     ) { index ->
+                        // Only the first block of rows enters staggered (index 4); the rest
+                        // is already in place. The entrance only redraws, never detaches.
+                        val firstBlock =
+                            if (index == 0) {
+                                Modifier.staggeredEnter(stagger, 4)
+                            } else {
+                                Modifier
+                            }
                         when (val entry = pagingItems[index]) {
                             is TransactionListEntry.DayHeader -> {
                                 TransactionDayHeader(
                                     date = entry.date,
                                     net = uiState.dailyTotals[entry.date] ?: Money.ZERO,
                                     today = uiState.today,
+                                    modifier = firstBlock,
                                 )
                             }
                             is TransactionListEntry.Item -> {
@@ -510,10 +550,10 @@ fun AccountDetailScreen(
                                     onClick = { onTransactionClick(entry.details.transaction.id) },
                                     modifier =
                                         when {
-                                            first && last -> gutter.groupedItemBackground(0, 1)
-                                            first -> gutter.groupedItemBackground(0, 2)
-                                            last -> gutter.groupedItemBackground(1, 2)
-                                            else -> gutter.groupedItemBackground(1, 3)
+                                            first && last -> gutter.then(firstBlock).groupedItemBackground(0, 1)
+                                            first -> gutter.then(firstBlock).groupedItemBackground(0, 2)
+                                            last -> gutter.then(firstBlock).groupedItemBackground(1, 2)
+                                            else -> gutter.then(firstBlock).groupedItemBackground(1, 3)
                                         },
                                 )
                             }
@@ -565,13 +605,35 @@ private fun DetailSectionTitle(
     )
 }
 
-/** Height of the main action of a screen, as in the form bars. */
-private val PRIMARY_ACTION_HEIGHT = 56.dp
+/**
+ * Stagger clock of the detail (§8.3): on a card flight from Home the blocks start landing at
+ * 350 ms; any other entry (the Accounts tab, a notification, bare tests) has no delay. The delay
+ * is captured on the first composition of the entry, so it does not move while the entry leaves.
+ */
+@Composable
+private fun rememberAccountDetailStagger(accountId: Long): StaggerClock {
+    val flown =
+        LocalSharedTransitionScope.current != null &&
+            LocalNavAnimatedVisibilityScope.current != null &&
+            LocalCardFlightRoute.current
+    val deep = depthOn()
+    val startDelay = remember { if (flown && deep) 350 else 0 }
+    return rememberStaggerClock("account-detail-$accountId", startDelayMillis = startDelay)
+}
+
+/** Height of the main action face; the key edge hangs below it. */
+private val PRIMARY_ACTION_HEIGHT = 52.dp
 
 /** Height of the secondary actions: the 48 dp touch target. */
 private val SECONDARY_ACTION_HEIGHT = 48.dp
 
-/** Main action: a 56 dp pill in `primary` with an optional leading icon. */
+/** Corner radius of the action keys. */
+private val ACTION_CORNER = 18.dp
+
+/** Text of the main action key: 15 sp, weight 800, over `primary`. */
+private val PRIMARY_ACTION_TEXT_SIZE = 15.sp
+
+/** Main action: a 52 dp key face in `primary` over its edge, with an optional leading icon. */
 @Composable
 private fun PrimaryAction(
     text: String,
@@ -580,20 +642,40 @@ private fun PrimaryAction(
     enabled: Boolean = true,
     icon: ImageVector? = null,
 ) {
-    Button(
+    val colors = MaterialTheme.colorScheme
+    val depth = MaterialTheme.walletDepth.keycapDepth
+    Keycap(
         onClick = onClick,
+        face = colors.primary,
+        shape = RoundedCornerShape(ACTION_CORNER),
+        depth = depth,
         enabled = enabled,
-        modifier = modifier.fillMaxWidth().height(PRIMARY_ACTION_HEIGHT),
+        modifier = modifier.fillMaxWidth().height(PRIMARY_ACTION_HEIGHT + depth),
     ) {
-        if (icon != null) {
-            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(20.dp))
-            Spacer(modifier = Modifier.width(MaterialTheme.walletSpacing.s))
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = colors.onPrimary,
+                    modifier = Modifier.size(20.dp),
+                )
+                Spacer(modifier = Modifier.width(MaterialTheme.walletSpacing.s))
+            }
+            Text(
+                text = text,
+                style =
+                    MaterialTheme.typography.titleMedium.copy(
+                        fontSize = PRIMARY_ACTION_TEXT_SIZE,
+                        fontWeight = FontWeight.ExtraBold,
+                    ),
+                color = colors.onPrimary,
+            )
         }
-        Text(text = text, style = MaterialTheme.typography.titleMedium)
     }
 }
 
-/** Secondary action: a tonal pill (`secondaryContainer`) at least 48 dp tall. */
+/** Secondary action: a key face in `secondaryContainer`, at least 48 dp tall. */
 @Composable
 private fun SecondaryAction(
     text: String,
@@ -602,17 +684,33 @@ private fun SecondaryAction(
     enabled: Boolean = true,
     icon: ImageVector? = null,
 ) {
-    FilledTonalButton(
+    val colors = MaterialTheme.colorScheme
+    Keycap(
         onClick = onClick,
+        face = colors.secondaryContainer,
+        shape = RoundedCornerShape(ACTION_CORNER),
         enabled = enabled,
-        contentPadding = PaddingValues(horizontal = MaterialTheme.walletSpacing.l),
         modifier = modifier.heightIn(min = SECONDARY_ACTION_HEIGHT),
     ) {
-        if (icon != null) {
-            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(MaterialTheme.walletSpacing.s))
+        Row(
+            modifier = Modifier.padding(horizontal = MaterialTheme.walletSpacing.l),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = colors.onSecondaryContainer,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(modifier = Modifier.width(MaterialTheme.walletSpacing.s))
+            }
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelLarge,
+                color = colors.onSecondaryContainer,
+            )
         }
-        Text(text = text, style = MaterialTheme.typography.labelLarge)
     }
 }
 

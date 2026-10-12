@@ -2,6 +2,7 @@ package com.crguarin.wallet.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -28,6 +29,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,6 +39,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -55,11 +59,14 @@ import com.crguarin.wallet.domain.model.recurring.UpcomingKind
 import com.crguarin.wallet.domain.model.recurring.UpcomingPayment
 import com.crguarin.wallet.domain.model.transit.TransitMath
 import com.crguarin.wallet.ui.accounts.AccountListRow
-import com.crguarin.wallet.ui.components.HeroAmountText
 import com.crguarin.wallet.ui.components.HeroCard
 import com.crguarin.wallet.ui.components.MoneyText
 import com.crguarin.wallet.ui.components.SectionCard
 import com.crguarin.wallet.ui.components.bounceClick
+import com.crguarin.wallet.ui.motion.Keycap
+import com.crguarin.wallet.ui.motion.RollingAmountText
+import com.crguarin.wallet.ui.motion.raisedSurface
+import com.crguarin.wallet.ui.motion.rememberRollFrom
 import com.crguarin.wallet.ui.theme.WalletShapeTokens
 import com.crguarin.wallet.ui.theme.tintOver
 import com.crguarin.wallet.ui.theme.walletColors
@@ -211,7 +218,10 @@ private fun UpcomingPaymentAmount(payment: UpcomingPayment) {
 
 /** Headline card with the signature gradient: the total balance of every active account. */
 @Composable
-internal fun TotalBalanceCard(totalBalance: Money) {
+internal fun TotalBalanceCard(
+    totalBalance: Money,
+    modifier: Modifier = Modifier,
+) {
     val colors = MaterialTheme.walletColors
     val locale = LocalConfiguration.current.locales[0]
     // Same text MoneyText would draw: the formatter's no-break spaces become plain ones.
@@ -220,17 +230,20 @@ internal fun TotalBalanceCard(totalBalance: Money) {
             .format(totalBalance, locale)
             .replace(' ', ' ')
             .replace(' ', ' ')
-    HeroCard(animateContours = true) {
+    val rollFrom = rememberRollFrom(formatted, "home-total-flat", fromZeroOnFirstShow = false)
+    HeroCard(animateContours = true, modifier = modifier) {
         Text(
             text = stringResource(R.string.accounts_total_balance),
             style = MaterialTheme.typography.labelLarge,
             color = colors.onHero,
         )
         Spacer(modifier = Modifier.height(MaterialTheme.walletSpacing.xs))
-        HeroAmountText(
+        RollingAmountText(
             text = formatted,
             color = colors.onHero,
-            modifier = Modifier.fillMaxWidth().semantics { contentDescription = formatted },
+            rollFrom = rollFrom,
+            contentDescription = formatted,
+            modifier = Modifier.fillMaxWidth(),
         )
     }
 }
@@ -244,9 +257,10 @@ internal fun TotalBalanceCard(totalBalance: Money) {
 internal fun MonthSummaryCard(
     monthSummary: MonthSummary,
     onViewReports: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val spacing = MaterialTheme.walletSpacing
-    SectionCard {
+    SectionCard(modifier = modifier) {
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -405,8 +419,8 @@ internal fun transitNeedsAttention(
 ): Boolean = TransitMath.isCreditTrip(balance, fare) || TransitMath.isCreditUsed(balance)
 
 /**
- * All active accounts as a vertical list on one tonal layer, one [AccountListRow] after another with
- * no divider lines.
+ * All active accounts as a vertical list on one raised surface, one [AccountListRow] after another
+ * with no divider lines.
  */
 @Composable
 internal fun AccountsList(
@@ -420,8 +434,8 @@ internal fun AccountsList(
         modifier =
             modifier
                 .fillMaxWidth()
+                .raisedSurface(MaterialTheme.shapes.large)
                 .clip(MaterialTheme.shapes.large)
-                .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .padding(vertical = MaterialTheme.walletSpacing.s),
     ) {
         accounts.forEach { item ->
@@ -454,6 +468,7 @@ internal fun QuickActions(
     canRegisterTrip: Boolean,
     onQuickAction: (TransactionType) -> Unit,
     onTripClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val semanticColors = MaterialTheme.walletSemanticColors
     val actions =
@@ -491,7 +506,7 @@ internal fun QuickActions(
     // Large font scales do not fit the buttons side by side: stack them instead.
     val stacked = LocalDensity.current.fontScale > STACKED_FONT_SCALE
     val groupModifier =
-        Modifier
+        modifier
             .fillMaxWidth()
             .semantics {
                 heading()
@@ -535,7 +550,12 @@ private fun quickActionContainer(color: Color): Color {
     return tintOver(color, MaterialTheme.colorScheme.surface, fraction)
 }
 
-/** Quick action: a 56 dp tinted pebble with the icon in the semantic color and the label below it. */
+/**
+ * Quick action: a 56 dp tinted pebble with relief and the icon in the semantic color, with the
+ * label below it. The whole column is a single button: one shared press source sinks the pebble
+ * wherever the tap lands, and the keycap clears its own semantics so the merged node exposes a
+ * single click action.
+ */
 @Composable
 internal fun QuickActionItem(
     label: String,
@@ -544,22 +564,27 @@ internal fun QuickActionItem(
     onClick: () -> Unit,
 ) {
     val spacing = MaterialTheme.walletSpacing
+    val pressSource = remember { MutableInteractionSource() }
     Column(
         modifier =
             Modifier
                 .widthIn(min = 72.dp)
                 .clip(MaterialTheme.shapes.medium)
-                .bounceClick(onClick = onClick)
-                .padding(horizontal = spacing.xs, vertical = spacing.xs),
+                .semantics(mergeDescendants = true) {}
+                .clickable(
+                    interactionSource = pressSource,
+                    indication = null,
+                    role = Role.Button,
+                    onClick = onClick,
+                ).padding(horizontal = spacing.xs, vertical = spacing.xs),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(
-            modifier =
-                Modifier
-                    .size(QuickActionPebbleSize)
-                    .clip(WalletShapeTokens.pebble)
-                    .background(quickActionContainer(color)),
-            contentAlignment = Alignment.Center,
+        Keycap(
+            onClick = onClick,
+            face = quickActionContainer(color),
+            shape = WalletShapeTokens.pebble,
+            modifier = Modifier.size(QuickActionPebbleSize).clearAndSetSemantics {},
+            interactionSource = pressSource,
         ) {
             Icon(
                 imageVector = icon,

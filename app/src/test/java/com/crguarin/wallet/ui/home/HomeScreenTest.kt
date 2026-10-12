@@ -745,6 +745,39 @@ class HomeScreenTest {
                 .fetchSemanticsNode()
                 .boundsInRoot.top
 
+        val order = listOf("Cuentas", "Saldo total", "Gasto", "Resumen del mes", "Últimos movimientos").map(::top)
+        assertThat(order).isInOrder()
+    }
+
+    @Test
+    fun `in flat mode the blocks keep todays order`() {
+        composeRule.setContent {
+            val base = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(base.density, fontScale = 2f)) {
+                WalletTheme {
+                    HomeScreen(
+                        uiState =
+                            state(
+                                accounts = listOf(AccountWithBalance(account, Money(450_000L))),
+                                transactions = listOf(details(1L, TransactionType.EXPENSE, "food")),
+                            ),
+                        onAccountClick = {},
+                        onTransactionClick = {},
+                        onViewAllTransactions = {},
+                        onQuickAction = {},
+                        onViewReports = {},
+                    )
+                }
+            }
+        }
+
+        fun top(text: String) =
+            composeRule
+                .onAllNodesWithText(text)
+                .onFirst()
+                .fetchSemanticsNode()
+                .boundsInRoot.top
+
         val order = listOf("Saldo total", "Gasto", "Cuentas", "Resumen del mes", "Últimos movimientos").map(::top)
         assertThat(order).isInOrder()
     }

@@ -679,6 +679,12 @@ Deep links de notificaciones (Tarea 16, explícitos a `MainActivity`, sin intent
 **Inicio: tarjeta "Próximos pagos"**
 - Lo de los próximos 7 días por fecha (máx. 5 filas): ocurrencias AUTO, por confirmar (con etiqueta) y el pago pendiente de cada tarjeta. Solo visible si hay algo; "Ver todos" abre la lista de recurrentes.
 
+### 8.4 Profundidad y movimiento ("3D inmersivo + movimiento")
+Dirección visual: Inicio con un mazo de tarjetas en perspectiva, transición compartida tarjeta → detalle, detalle con la tarjeta-cabecera inclinada, y formulario de movimiento progresivo con teclado numérico propio y carrusel 3D de cuentas. Kit reutilizable en `ui/motion/` + tokens en `ui/theme/` (`WalletMotion`, `WalletDepth`, `WalletCardFace`).
+- Principios: cada animación explica algo; nunca bloquea la interacción; con "Quitar animaciones" todo salta a su estado final y los bucles/sensores se apagan; las entradas se reproducen una vez por entrada de back stack (el reparto del mazo, una vez por proceso tras `BrandIntro`); duraciones solo con tokens de `WalletMotion`; los valores animados se leen en lambdas (`graphicsLayer`, dibujo, offset), sin recomponer por cuadro; los bucles corren como máximo 10 s y se detienen al desplazar.
+- Respaldo accesible: con fuente > 130 % o TalkBack activo, lo 3D vuelve a la versión plana actual (lista, selector y cabeceras sin inclinación); el movimiento 2D (rodar, escalonar) sigue si las animaciones están activas. TalkBack lee cada monto final una sola vez; nada decorativo tiene semántica.
+- Contraste WCAG AA (texto blanco sobre la cara de tarjeta ≥ 4,5:1 en los 30 colores de la paleta), áreas táctiles ≥ 48 dp, legible a 360 dp con fuente al 200 % y montos de 17 caracteres.
+
 ---
 
 ## 9. Backup (exportar / importar)

@@ -36,6 +36,17 @@ fun NavDestination?.isTopLevel(): Boolean =
 
 private fun NavTransitionScope.isTabSwitch(): Boolean = initialState.destination.isTopLevel() && targetState.destination.isTopLevel()
 
+/**
+ * Home to an account detail (or back): the account card flies between them, so the screens
+ * themselves only cross-fade instead of sliding.
+ */
+private fun NavTransitionScope.isCardFlight(): Boolean {
+    val from = initialState.destination
+    val to = targetState.destination
+    return (from.hasRoute(Home::class) && to.hasRoute(AccountDetail::class)) ||
+        (from.hasRoute(AccountDetail::class) && to.hasRoute(Home::class))
+}
+
 private fun fadeThroughIn(): EnterTransition = fadeIn(tween(FADE_IN_MILLIS, delayMillis = FADE_OUT_MILLIS))
 
 private fun fadeThroughOut(): ExitTransition = fadeOut(tween(FADE_OUT_MILLIS))
@@ -45,28 +56,36 @@ private fun fadeThroughOut(): ExitTransition = fadeOut(tween(FADE_OUT_MILLIS))
 // take `walletMotion.medium` in total.
 
 fun NavTransitionScope.walletEnterTransition(): EnterTransition =
-    if (isTabSwitch()) {
+    if (isCardFlight()) {
+        fadeIn(tween(TRANSITION_MILLIS))
+    } else if (isTabSwitch()) {
         fadeThroughIn()
     } else {
         slideInHorizontally(tween(TRANSITION_MILLIS)) { it / SLIDE_OFFSET_DIVISOR } + fadeThroughIn()
     }
 
 fun NavTransitionScope.walletExitTransition(): ExitTransition =
-    if (isTabSwitch()) {
+    if (isCardFlight()) {
+        fadeOut(tween(TRANSITION_MILLIS))
+    } else if (isTabSwitch()) {
         fadeThroughOut()
     } else {
         slideOutHorizontally(tween(TRANSITION_MILLIS)) { -it / SLIDE_OFFSET_DIVISOR } + fadeThroughOut()
     }
 
 fun NavTransitionScope.walletPopEnterTransition(): EnterTransition =
-    if (isTabSwitch()) {
+    if (isCardFlight()) {
+        fadeIn(tween(TRANSITION_MILLIS))
+    } else if (isTabSwitch()) {
         fadeThroughIn()
     } else {
         slideInHorizontally(tween(TRANSITION_MILLIS)) { -it / SLIDE_OFFSET_DIVISOR } + fadeThroughIn()
     }
 
 fun NavTransitionScope.walletPopExitTransition(): ExitTransition =
-    if (isTabSwitch()) {
+    if (isCardFlight()) {
+        fadeOut(tween(TRANSITION_MILLIS))
+    } else if (isTabSwitch()) {
         fadeThroughOut()
     } else {
         slideOutHorizontally(tween(TRANSITION_MILLIS)) { it / SLIDE_OFFSET_DIVISOR } + fadeThroughOut()

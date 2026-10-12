@@ -1,5 +1,7 @@
 package com.crguarin.wallet.ui.transactions
 
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -266,5 +268,69 @@ class TransactionEditScreenTest {
         composeRule
             .onNodeWithText("Registrado automáticamente por", substring = true)
             .assertDoesNotExist()
+    }
+
+    /**
+     * The screen through the route sequence: it composes first with the loading state, where
+     * isEditMode is always false. Anything captured with plain remember on that first frame
+     * would mistake an edit for a creation.
+     */
+    private fun setLoadingScreen(state: MutableState<TransactionEditUiState>) {
+        composeRule.setContent {
+            WalletTheme {
+                TransactionEditScreen(
+                    uiState = state.value,
+                    onNavigateBack = {},
+                    onTypeSelected = {},
+                    onAmountChanged = {},
+                    onOpenAccountSheet = {},
+                    onDismissAccountSheet = {},
+                    onAccountSelected = {},
+                    onOpenToAccountSheet = {},
+                    onDismissToAccountSheet = {},
+                    onToAccountSelected = {},
+                    onSwapAccounts = {},
+                    onOpenCategorySheet = {},
+                    onDismissCategorySheet = {},
+                    onCategorySelected = {},
+                    onNewCategoryClick = {},
+                    onNewAccountClick = {},
+                    onOpenDatePicker = {},
+                    onDismissDatePicker = {},
+                    onDateSelected = {},
+                    onTodayClick = {},
+                    onYesterdayClick = {},
+                    onNoteChanged = {},
+                    onSaveClick = {},
+                    onDeleteClick = {},
+                    onDismissDeleteDialog = {},
+                    onConfirmDelete = {},
+                    onConfirmNegativeBalance = {},
+                    onDismissNegativeBalance = {},
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `edit opened through loading shows no keypad until the amount is tapped`() {
+        val state = mutableStateOf(TransactionEditUiState())
+        setLoadingScreen(state)
+
+        state.value = validExpenseState().copy(isEditMode = true)
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithContentDescription("Borrar").assertDoesNotExist()
+    }
+
+    @Test
+    fun `creation opened through loading shows the keypad from the start`() {
+        val state = mutableStateOf(TransactionEditUiState())
+        setLoadingScreen(state)
+
+        state.value = validExpenseState()
+        composeRule.waitForIdle()
+
+        composeRule.onNodeWithContentDescription("Borrar").assertIsDisplayed()
     }
 }
