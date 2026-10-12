@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.unit.Density
@@ -187,6 +188,19 @@ class AccountDeckTest {
         // The 54 dp strip tilted 24 degrees about its bottom edge; density is 1 here.
         val expected = 54f * cos(Math.toRadians(24.0)).toFloat()
         assertThat(node.boundsInRoot.height).isWithin(1f).of(expected)
+    }
+
+    @Test
+    fun `clicking the center of each visible strip opens its account`() {
+        val opened = mutableListOf<Long>()
+        showDeck(onAccountClick = { opened += it })
+
+        listOf("Efectivo", "Ahorros", "Cívica").forEach { name ->
+            val bounds = composeRule.onNodeWithText(name).fetchSemanticsNode().boundsInRoot
+            composeRule.onRoot().performTouchInput { click(Offset(bounds.center.x, bounds.center.y)) }
+        }
+
+        assertThat(opened).containsExactly(1L, 2L, 3L).inOrder()
     }
 
     @Test

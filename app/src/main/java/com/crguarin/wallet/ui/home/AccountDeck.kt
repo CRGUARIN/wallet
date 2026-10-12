@@ -42,6 +42,9 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -190,6 +193,19 @@ private fun DeckContent(
     val camera = depth.deckCameraDistance * density.density
     // The tapped card straightens while it flies to the detail; the rest keep their tilt.
     var flyingId by remember { mutableStateOf<Long?>(null) }
+    // One press source and one open action per account, shared by the card (its press sink) and
+    // by its hit target below, so the two cannot diverge.
+    val pressSources =
+        remember(accounts.map { it.account.id }) {
+            accounts.associate { it.account.id to MutableInteractionSource() }
+        }
+    val openers: List<() -> Unit> =
+        accounts.map { item ->
+            {
+                flyingId = item.account.id
+                onAccountClick(item.account.id)
+            }
+        }
 
     Box(
         modifier =
@@ -204,10 +220,8 @@ private fun DeckContent(
                 DeckCard(
                     item = item,
                     index = index,
-                    onClick = {
-                        flyingId = item.account.id
-                        onAccountClick(item.account.id)
-                    },
+                    onClick = openers[index],
+                    pressSource = pressSources.getValue(item.account.id),
                     cardOverview = cardOverviews[item.account.id],
                     today = today,
                     dealFraction = { dealFraction(master.value, index) },
@@ -227,18 +241,39 @@ private fun DeckContent(
             camera = camera,
             scrolling = scrolling,
         )
+        // Hit targets of the strips: untransformed and on top of the deck, because the perspective
+        // tilt of the card layers displaces pointer input on devices.
+        accounts.forEachIndexed { index, item ->
+            key(item.account.id) {
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .offset(y = depth.deckStrip * index)
+                            .height(depth.deckStrip)
+                            .clearAndSetSemantics {}
+                            .clickable(
+                                interactionSource = pressSources.getValue(item.account.id),
+                                indication = null,
+                                onClick = openers[index],
+                            ),
+                )
+            }
+        }
     }
 }
 
 /**
- * One tilted account card. Only its 54 dp top strip is touchable and semantic; the rest is
- * covered by the next card and stays decorative. Pressing the strip sinks the whole card.
+ * One tilted account card. Only its 54 dp top strip is semantic (the touch target is the hit
+ * target in [DeckContent]); the rest is covered by the next card and stays decorative. Pressing
+ * the strip sinks the whole card.
  */
 @Composable
 private fun DeckCard(
     item: AccountWithBalance,
     index: Int,
     onClick: () -> Unit,
+    pressSource: MutableInteractionSource,
     cardOverview: CardOverview?,
     today: LocalDate,
     dealFraction: () -> Float,
@@ -256,7 +291,6 @@ private fun DeckCard(
     val face = remember(item.account.color) { cardFace(Color(item.account.color)) }
     val brush = remember(face) { face.brush() }
     val shape = remember(depth) { RoundedCornerShape(depth.deckCardRadius) }
-    val pressSource = remember { MutableInteractionSource() }
     val pressed by pressSource.collectIsPressedAsState()
     val pressScale by animateFloatAsState(
         targetValue = if (pressed) motion.pressScale else 1f,
@@ -291,8 +325,7 @@ private fun DeckCard(
             item = item,
             status = status,
             faceContent = face.content,
-            onClick = onClick,
-            pressSource = pressSource,
+            onOpen = onClick,
         )
     }
 }
@@ -303,22 +336,22 @@ private fun DeckStrip(
     item: AccountWithBalance,
     status: AccountStatus?,
     faceContent: Color,
-    onClick: () -> Unit,
-    pressSource: MutableInteractionSource,
+    onOpen: () -> Unit,
 ) {
     val depth = MaterialTheme.walletDepth
+    // Semantics only: the pointer input lives in the untransformed hit target of DeckContent.
     Box(
         modifier =
             Modifier
                 .fillMaxWidth()
                 .height(depth.deckStrip)
-                .semantics(mergeDescendants = true) {}
-                .clickable(
-                    interactionSource = pressSource,
-                    indication = null,
-                    role = Role.Button,
-                    onClick = onClick,
-                ),
+                .semantics(mergeDescendants = true) {
+                    role = Role.Button
+                    onClick {
+                        onOpen()
+                        true
+                    }
+                },
     ) {
         Row(
             modifier =

@@ -74,9 +74,9 @@ import kotlinx.coroutines.launch
 import java.time.Instant
 import kotlin.math.abs
 
-private val PagerHeight = 112.dp
+private val PagerHeight = 118.dp
 private val CardWidth = 150.dp
-private val CardHeight = 94.dp
+private val CardHeight = 100.dp
 private val FaceRadius = 14.dp
 private val RingSurfaceWidth = 3.dp
 private val RingPrimaryWidth = 2.dp
@@ -115,7 +115,9 @@ private val ChipIconSize = 15.dp
 private val ChipRadius = 8.dp
 private const val CHIP_ALPHA = 0.18f
 private val NameSize = 13.sp
+private val NameLineHeight = 16.sp
 private val BalanceSize = 14.sp
+private val BalanceLineHeight = 18.sp
 private const val LIFT_DP = -6f
 private const val LIFT_MILLIS = 300
 
@@ -277,7 +279,7 @@ private fun CoverflowCard(
                         surface = MaterialTheme.colorScheme.surface,
                         primary = MaterialTheme.colorScheme.primary,
                     ).clip(cardShape)
-                    .padding(horizontal = 10.dp, vertical = 12.dp),
+                    .padding(horizontal = 10.dp, vertical = 10.dp),
         ) {
             CoverflowCardContent(item = item, overview = overview)
         }
@@ -287,7 +289,7 @@ private fun CoverflowCard(
                 faceModifier
                     .background(brush = face.brush(), shape = cardShape)
                     .clip(cardShape)
-                    .padding(horizontal = 10.dp, vertical = 12.dp),
+                    .padding(horizontal = 10.dp, vertical = 10.dp),
         ) {
             CoverflowCardContent(item = item, overview = overview)
         }
@@ -318,6 +320,7 @@ private fun CoverflowCardContent(
         Text(
             text = item.account.name,
             fontSize = NameSize,
+            lineHeight = NameLineHeight,
             fontWeight = FontWeight.Bold,
             color = face.content,
             maxLines = 1,
@@ -330,6 +333,7 @@ private fun CoverflowCardContent(
                 style =
                     TextStyle(
                         fontSize = BalanceSize,
+                        lineHeight = BalanceLineHeight,
                         fontWeight = FontWeight.ExtraBold,
                         fontFeatureSettings = TABULAR_FIGURES,
                     ),
@@ -343,6 +347,7 @@ private fun CoverflowCardContent(
                 style =
                     MaterialTheme.typography.bodyLarge.copy(
                         fontSize = BalanceSize,
+                        lineHeight = BalanceLineHeight,
                         fontWeight = FontWeight.ExtraBold,
                         fontFeatureSettings = TABULAR_FIGURES,
                     ),

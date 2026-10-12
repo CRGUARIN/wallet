@@ -265,6 +265,28 @@ class AccountCoverflowTest {
     }
 
     @Test
+    fun `the balance stays inside the card at the largest 3d font scale`() {
+        composeRule.setContent {
+            CompositionLocalProvider(
+                LocalDensity provides Density(LocalDensity.current.density, fontScale = 1.3f),
+            ) {
+                WalletTheme {
+                    AccountCoverflow(
+                        accounts = listOf(cash, savings),
+                        selectedAccountId = 1L,
+                        onAccountSelected = {},
+                        onOpenAccountSheet = {},
+                    )
+                }
+            }
+        }
+
+        val card = composeRule.onNodeWithText("Efectivo").fetchSemanticsNode().boundsInRoot
+        val balance = composeRule.onNodeWithText("1.000", substring = true, useUnmergedTree = true)
+        assertThat(balance.fetchSemanticsNode().boundsInRoot.bottom).isAtMost(card.bottom)
+    }
+
+    @Test
     fun `tapping a side card reports the interaction once`() {
         var interactions = 0
         composeRule.setContent {
