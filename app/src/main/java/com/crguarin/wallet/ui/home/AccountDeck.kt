@@ -1,5 +1,6 @@
 package com.crguarin.wallet.ui.home
 
+import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -26,6 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -59,7 +61,9 @@ import com.crguarin.wallet.ui.components.HeroCard
 import com.crguarin.wallet.ui.components.IconCatalog
 import com.crguarin.wallet.ui.components.MoneyText
 import com.crguarin.wallet.ui.motion.FirstShowGate
+import com.crguarin.wallet.ui.motion.LocalCardFlightRoute
 import com.crguarin.wallet.ui.motion.LocalIntroFinished
+import com.crguarin.wallet.ui.motion.LocalNavAnimatedVisibilityScope
 import com.crguarin.wallet.ui.motion.PulseDot
 import com.crguarin.wallet.ui.motion.RollingAmountText
 import com.crguarin.wallet.ui.motion.accountCardSharedBounds
@@ -97,6 +101,15 @@ private const val DECK_EXIT_MILLIS = 300
 
 /** Exit of the front total card with the rest of Home. */
 private const val CONTENT_EXIT_MILLIS = 250
+
+/**
+ * Line budget of a deck strip: the top padding, then the name and the status line. At the largest
+ * 3D font scale (1.3) they must fit the 54 dp strip, or the status line is clamped and the next
+ * card covers it.
+ */
+internal val DeckStripTopPadding = 8.dp
+internal val DeckStripNameLineHeight = 18.sp
+internal val DeckStripStatusLineHeight = 14.sp
 
 /**
  * The Home account deck: every active account as a tilted card showing a 54 dp strip, with the
@@ -186,21 +199,24 @@ private fun DeckContent(
                 .floating({ idleLoop.value }, depth.floatAmplitude),
     ) {
         accounts.forEachIndexed { index, item ->
-            DeckCard(
-                item = item,
-                index = index,
-                onClick = {
-                    flyingId = item.account.id
-                    onAccountClick(item.account.id)
-                },
-                cardOverview = cardOverviews[item.account.id],
-                today = today,
-                dealFraction = { dealFraction(master.value, index) },
-                flying = flyingId == item.account.id,
-                dealPx = dealPx,
-                camera = camera,
-                animate = animate,
-            )
+            // Keyed by account, so the per-card state follows the account when the list changes.
+            key(item.account.id) {
+                DeckCard(
+                    item = item,
+                    index = index,
+                    onClick = {
+                        flyingId = item.account.id
+                        onAccountClick(item.account.id)
+                    },
+                    cardOverview = cardOverviews[item.account.id],
+                    today = today,
+                    dealFraction = { dealFraction(master.value, index) },
+                    flying = flyingId == item.account.id,
+                    dealPx = dealPx,
+                    camera = camera,
+                    animate = animate,
+                )
+            }
         }
         DeckTotalCard(
             totalBalance = totalBalance,
@@ -233,7 +249,10 @@ private fun DeckCard(
 ) {
     val depth = MaterialTheme.walletDepth
     val motion = MaterialTheme.walletMotion
-    val flightTilt = rememberSharedFlightTilt(depth.deckTilt, flying)
+    // The card flies only while Home itself exits on a card flight: a Back press mid-flight
+    // re-enters Home with the card at rest, and leaving Home for another screen never straightens it.
+    val exiting = LocalNavAnimatedVisibilityScope.current?.transition?.targetState == EnterExitState.PostExit
+    val flightTilt = rememberSharedFlightTilt(depth.deckTilt, flying && exiting && LocalCardFlightRoute.current)
     val face = remember(item.account.color) { cardFace(Color(item.account.color)) }
     val brush = remember(face) { face.brush() }
     val shape = remember(depth) { RoundedCornerShape(depth.deckCardRadius) }
@@ -305,7 +324,7 @@ private fun DeckStrip(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(top = 12.dp, start = 18.dp, end = 18.dp),
+                    .padding(top = DeckStripTopPadding, start = 18.dp, end = 18.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
@@ -331,6 +350,7 @@ private fun DeckStrip(
                     style =
                         MaterialTheme.typography.bodyLarge.copy(
                             fontSize = 15.sp,
+                            lineHeight = DeckStripNameLineHeight,
                             fontWeight = FontWeight.Bold,
                         ),
                     color = faceContent,
@@ -345,7 +365,11 @@ private fun DeckStrip(
                         }
                         Text(
                             text = status.text,
-                            style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Bold),
+                            style =
+                                MaterialTheme.typography.bodySmall.copy(
+                                    lineHeight = DeckStripStatusLineHeight,
+                                    fontWeight = FontWeight.Bold,
+                                ),
                             color = faceContent,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,

@@ -91,12 +91,19 @@ class SharedCardTest {
         assertThat(tilt).isEqualTo(24f)
     }
 
-    /** Both shared scopes plus an animating policy, like Home and the detail in production. */
-    private fun setFlightHarness(probe: @Composable () -> Unit) {
+    /**
+     * Both shared scopes plus an animating policy, like Home and the detail in production. The
+     * navigation is a card flight unless [cardFlight] says otherwise, as the nav host reports it.
+     */
+    private fun setFlightHarness(
+        cardFlight: Boolean = true,
+        probe: @Composable () -> Unit,
+    ) {
         composeRule.setContent {
             WalletTheme(darkTheme = false, dynamicColor = false) {
                 CompositionLocalProvider(
                     LocalMotionPolicy provides MotionPolicy(animate = true, screenReader = false),
+                    LocalCardFlightRoute provides cardFlight,
                 ) {
                     SharedTransitionLayout {
                         CompositionLocalProvider(LocalSharedTransitionScope provides this) {
@@ -169,6 +176,26 @@ class SharedCardTest {
         composeRule.waitForIdle()
 
         assertThat(liftState?.value).isWithin(0.0001f).of(1f)
+    }
+
+    @Test
+    fun `outside a card flight the landing hero and the lift stay at rest`() {
+        var tiltState: State<Float>? = null
+        var liftState: State<Float>? = null
+        composeRule.mainClock.autoAdvance = false
+        // Scopes and animations are on, as on any navigation to Home or the detail (Settings, a tab).
+        setFlightHarness(cardFlight = false) {
+            tiltState = rememberHeroLandingTilt(8f)
+            liftState = rememberFlightLift()
+        }
+
+        assertThat(tiltState?.value).isEqualTo(8f)
+        assertThat(liftState?.value).isEqualTo(1f)
+
+        composeRule.mainClock.advanceTimeBy(1_000L)
+
+        assertThat(tiltState?.value).isEqualTo(8f)
+        assertThat(liftState?.value).isEqualTo(1f)
     }
 
     @Test
