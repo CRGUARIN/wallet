@@ -54,14 +54,19 @@ private const val FADE_OUT_MILLIS = 300
  * [dynamicColor] must match the splash that was shown (wallpaper colors or the app pine green:
  * `splash_background`, #1E5A4A light and #0F2420 dark), so the hand-off has no color jump. The
  * name is set in Manrope 800 (the theme's displaySmall).
+ *
+ * [onReveal] is called when the fade-out starts, so the app can begin its entrances underneath;
+ * [onFinished] is called when the fade-out ends.
  */
 @Composable
 fun BrandIntro(
     onFinished: () -> Unit,
+    onReveal: () -> Unit = {},
     modifier: Modifier = Modifier,
     dynamicColor: Boolean = false,
 ) {
     val currentOnFinished by rememberUpdatedState(onFinished)
+    val currentOnReveal by rememberUpdatedState(onReveal)
     val rise = remember { Animatable(0f) }
     val nameAlpha = remember { Animatable(0f) }
     val screenAlpha = remember { Animatable(1f) }
@@ -74,6 +79,7 @@ fun BrandIntro(
             }
         }
         delay(HOLD_MILLIS)
+        currentOnReveal()
         screenAlpha.animateTo(0f, tween(FADE_OUT_MILLIS))
         currentOnFinished()
     }

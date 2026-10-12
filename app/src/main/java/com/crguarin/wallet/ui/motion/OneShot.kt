@@ -27,6 +27,9 @@ internal object FirstShowGate {
         return true
     }
 
+    /** True once [key] was claimed in this process. */
+    fun isClaimed(key: String): Boolean = claimed.contains(key)
+
     /** Lets the effects play again. Only for tests. */
     fun reset() {
         claimed.clear()

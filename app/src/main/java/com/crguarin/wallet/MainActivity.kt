@@ -77,13 +77,20 @@ class MainActivity : AppCompatActivity() {
                             }
                         // Cold start only: saved state keeps it from replaying after recreation.
                         var showIntro by rememberSaveable { mutableStateOf(true) }
+                        // Set when the intro starts to fade out, so the app can reveal underneath it.
+                        var introRevealing by rememberSaveable { mutableStateOf(false) }
                         Box {
-                            // One-shot entrances (contour trace, deck deal) wait for the intro.
-                            CompositionLocalProvider(LocalIntroFinished provides !showIntro) {
+                            // One-shot entrances (contour trace, deck deal) start when the intro begins to
+                            // fade, so they overlap the fade instead of waiting for it to end.
+                            CompositionLocalProvider(LocalIntroFinished provides (!showIntro || introRevealing)) {
                                 WalletAppContent(startDestination = startDestination)
                             }
                             if (showIntro) {
-                                BrandIntro(onFinished = { showIntro = false }, dynamicColor = dynamicColor)
+                                BrandIntro(
+                                    onFinished = { showIntro = false },
+                                    onReveal = { introRevealing = true },
+                                    dynamicColor = dynamicColor,
+                                )
                             }
                         }
                     }
