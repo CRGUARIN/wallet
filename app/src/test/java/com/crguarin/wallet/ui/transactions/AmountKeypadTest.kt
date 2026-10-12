@@ -1,10 +1,14 @@
 package com.crguarin.wallet.ui.transactions
 
+import androidx.activity.OnBackPressedDispatcherOwner
+import androidx.activity.compose.LocalOnBackPressedDispatcherOwner
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasImeAction
 import androidx.compose.ui.test.hasSetTextAction
@@ -15,6 +19,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.Account
@@ -86,12 +91,20 @@ class AmountKeypadTest {
         return { text }
     }
 
+    /** The activity's back dispatcher, so a test can press Back the way the system does. */
+    private var backOwner: OnBackPressedDispatcherOwner? = null
+
+    private fun amountField() = composeRule.onNode(hasSetTextAction() and hasImeAction(ImeAction.Done))
+
     private fun expenseScreen(
         amountText: String = "",
         isEditMode: Boolean = false,
         onAmountChanged: (String) -> Unit = {},
     ) {
+        // The amount lives here, so the keypad's presses flow back into the field as in the app.
+        var amount by mutableStateOf(amountText)
         composeRule.setContent {
+            backOwner = LocalOnBackPressedDispatcherOwner.current
             WalletTheme {
                 TransactionEditScreen(
                     uiState =
@@ -99,14 +112,17 @@ class AmountKeypadTest {
                             isLoading = false,
                             isEditMode = isEditMode,
                             selectedType = TransactionType.EXPENSE,
-                            amountText = amountText,
+                            amountText = amount,
                             accountId = 1L,
                             accounts = listOf(cash, savings),
                             date = LocalDate.of(2026, 9, 28),
                         ),
                     onNavigateBack = {},
                     onTypeSelected = {},
-                    onAmountChanged = onAmountChanged,
+                    onAmountChanged = {
+                        amount = it
+                        onAmountChanged(it)
+                    },
                     onOpenAccountSheet = {},
                     onDismissAccountSheet = {},
                     onAccountSelected = {},
@@ -305,5 +321,42 @@ class AmountKeypadTest {
 
         assertThat(sheets).isEqualTo(1)
         composeRule.onNodeWithContentDescription("Tres ceros").assertDoesNotExist()
+    }
+
+    @Test
+    fun `keypad digits keep the caret at the end of the amount`() {
+        expenseScreen()
+
+        composeRule.onNodeWithContentDescription("2").performClick()
+        composeRule.onNodeWithContentDescription("8").performClick()
+
+        val node = amountField().fetchSemanticsNode()
+        val shown = node.config[SemanticsProperties.EditableText].text
+        val selection = node.config[SemanticsProperties.TextSelectionRange]
+        // The "$ " is an output transformation, so the semantics report the caret on the shown text.
+        assertThat(shown).isEqualTo("$ 28")
+        assertThat(selection).isEqualTo(TextRange(shown.length))
+    }
+
+    @Test
+    fun `tapping the unfocused amount focuses it and shows the keypad`() {
+        expenseScreen(amountText = "50000", isEditMode = true)
+        composeRule.onNodeWithContentDescription("Tres ceros").assertDoesNotExist()
+
+        amountField().performClick()
+
+        amountField().assertIsFocused()
+        composeRule.onNodeWithContentDescription("Tres ceros").assertIsDisplayed()
+    }
+
+    @Test
+    fun `back closes the keypad and keeps the form open`() {
+        expenseScreen()
+        composeRule.onNodeWithContentDescription("Tres ceros").assertIsDisplayed()
+
+        composeRule.runOnIdle { backOwner?.onBackPressedDispatcher?.onBackPressed() }
+
+        composeRule.onNodeWithContentDescription("Tres ceros").assertDoesNotExist()
+        composeRule.onNodeWithText("Monto").assertIsDisplayed()
     }
 }
