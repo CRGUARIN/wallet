@@ -9,6 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.tooling.preview.Preview
 import com.crguarin.wallet.ui.motion.raisedSurface
 import com.crguarin.wallet.ui.theme.WalletTheme
@@ -16,6 +17,7 @@ import com.crguarin.wallet.ui.theme.walletSpacing
 
 /**
  * Elevated section with large rounded corners and a soft shadow ([raisedSurface]), no border.
+ * The content is clipped to the same shape, so ripples of full-width rows stay inside the corners.
  * The padding is `walletSpacing.cardPadding` unless [contentPadding] says otherwise.
  */
 @Composable
@@ -29,6 +31,7 @@ fun SectionCard(
             modifier
                 .fillMaxWidth()
                 .raisedSurface(MaterialTheme.shapes.large)
+                .clip(MaterialTheme.shapes.large)
                 .padding(contentPadding),
         content = content,
     )

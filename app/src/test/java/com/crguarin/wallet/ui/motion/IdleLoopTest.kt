@@ -90,6 +90,55 @@ class IdleLoopTest {
     }
 
     @Test
+    fun `an interruption already at the start means the loop never runs`() {
+        composeRule.mainClock.autoAdvance = false
+        composeRule.setContent {
+            CompositionLocalProvider(LocalMotionPolicy provides MotionPolicy(animate = true, screenReader = false)) {
+                WalletTheme(darkTheme = false, dynamicColor = false) {
+                    val running = rememberIdleLoop(playKey = "early", interrupted = true)
+                    Text(if (running.value) "Corre" else "Quieto")
+                }
+            }
+        }
+        composeRule.mainClock.advanceTimeBy(50L)
+        composeRule.onNodeWithText("Quieto").assertIsDisplayed()
+
+        composeRule.mainClock.advanceTimeBy(10_001L)
+
+        composeRule.onNodeWithText("Quieto").assertIsDisplayed()
+    }
+
+    @Test
+    fun `releasing an interruption does not restart the loop`() {
+        composeRule.mainClock.autoAdvance = false
+        composeRule.setContent {
+            CompositionLocalProvider(LocalMotionPolicy provides MotionPolicy(animate = true, screenReader = false)) {
+                WalletTheme(darkTheme = false, dynamicColor = false) {
+                    var interrupted by remember { mutableStateOf(false) }
+                    val running = rememberIdleLoop(playKey = "release", interrupted = interrupted)
+                    Column {
+                        Text(if (running.value) "Corre" else "Quieto")
+                        Box(modifier = Modifier.clickable { interrupted = !interrupted }) {
+                            Text("Alterna")
+                        }
+                    }
+                }
+            }
+        }
+        composeRule.mainClock.advanceTimeBy(50L)
+        composeRule.onNodeWithText("Corre").assertIsDisplayed()
+
+        composeRule.onNodeWithText("Alterna").performClick()
+        composeRule.mainClock.advanceTimeBy(50L)
+        composeRule.onNodeWithText("Quieto").assertIsDisplayed()
+
+        composeRule.onNodeWithText("Alterna").performClick()
+        composeRule.mainClock.advanceTimeBy(50L)
+
+        composeRule.onNodeWithText("Quieto").assertIsDisplayed()
+    }
+
+    @Test
     fun `without animations the loop never runs`() {
         composeRule.mainClock.autoAdvance = false
         var running: State<Boolean>? = null

@@ -28,7 +28,8 @@ import kotlin.math.sin
 /**
  * True only while the bounded idle loops (floating, sheen) may run: animations are on, the intro
  * is finished, and less than `idleLoopWindow` (10 s) has passed since this screen showed. It
- * turns false forever in this entry when [interrupted] (for example the list scrolled).
+ * turns false forever in this entry when [interrupted] (for example the list scrolled), also when
+ * that is already true at the start, and it never starts again once its window has closed.
  */
 @Composable
 fun rememberIdleLoop(
@@ -39,14 +40,23 @@ fun rememberIdleLoop(
     val introFinished = LocalIntroFinished.current
     val window = MaterialTheme.walletMotion.idleLoopWindow
     val running = remember(playKey) { mutableStateOf(false) }
-    LaunchedEffect(playKey, animate, introFinished) {
-        running.value = animate && introFinished
-        if (running.value) {
-            delay(window.toLong())
+    // Set for good once the loop is interrupted or its window closes: this entry never restarts it.
+    val spent = remember(playKey) { mutableStateOf(false) }
+    LaunchedEffect(interrupted) {
+        if (interrupted) {
+            spent.value = true
             running.value = false
         }
     }
-    if (interrupted && running.value) running.value = false
+    LaunchedEffect(playKey, animate, introFinished, interrupted) {
+        val mayRun = animate && introFinished && !interrupted && !spent.value
+        running.value = mayRun
+        if (mayRun) {
+            delay(window.toLong())
+            running.value = false
+            spent.value = true
+        }
+    }
     return running
 }
 

@@ -24,14 +24,14 @@ data class CardFace(
 
 /**
  * The face for an account [color]: `content` is always white, `start` is the account color
- * darkened in 4 % steps towards black until white reaches at least 4.5:1 over it (light colors
- * such as yellows end up much darker, on purpose), and `end` is `start` darkened 45 % more.
+ * darkened in 4 % steps towards black until white reaches [SAFE_TEXT_CONTRAST] over it (light
+ * colors such as yellows end up much darker, on purpose), and `end` is `start` darkened 45 % more.
  */
 fun cardFace(color: Color): CardFace {
     var start = color
     for (step in 0..25) {
         val candidate = lerp(color, Color.Black, step * FACE_DARKEN_STEP)
-        if (contrastRatio(Color.White, candidate) >= MIN_TEXT_CONTRAST) {
+        if (contrastRatio(Color.White, candidate) >= SAFE_TEXT_CONTRAST) {
             start = candidate
             break
         }
