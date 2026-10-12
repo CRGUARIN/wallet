@@ -52,28 +52,21 @@ fun TransitCardSummaryCard(
         ) { face ->
             AccountIdentityRow(account = account, face = face)
 
-            Spacer(modifier = Modifier.height(spacing.m))
-
-            Text(
-                text = stringResource(R.string.transit_current_balance_label),
-                style = MaterialTheme.typography.titleSmall,
-                color = face.content,
-            )
-            Spacer(modifier = Modifier.height(spacing.xs))
-            HeaderAmount(
-                amount = balance,
-                rollKey = "account-hero-${account.id}",
-                sign = MoneySign.NONE,
-            )
-
-            if (fare != null) {
-                Spacer(modifier = Modifier.height(spacing.s))
+            Column {
                 Text(
-                    text = stringResource(R.string.transit_fare_value, MoneyFormatter.format(fare, locale)),
-                    style = MaterialTheme.typography.bodyMedium,
+                    text = stringResource(R.string.transit_current_balance_label),
+                    style = heroLabelStyle(),
                     color = face.content,
                 )
                 Spacer(modifier = Modifier.height(spacing.xs))
+                HeaderAmount(
+                    amount = balance,
+                    rollKey = "account-hero-${account.id}",
+                    sign = MoneySign.NONE,
+                )
+            }
+
+            if (fare != null) {
                 val headerText =
                     when {
                         TransitMath.isCreditUsed(balance) -> stringResource(R.string.transit_credit_used)
@@ -83,20 +76,28 @@ fun TransitCardSummaryCard(
                             pluralStringResource(R.plurals.transit_trips_left, trips, trips)
                         }
                     }
-                Text(
-                    text = headerText,
-                    style = MaterialTheme.typography.titleSmall,
-                    color = face.content,
-                )
+                Column {
+                    Text(
+                        text = stringResource(R.string.transit_fare_value, MoneyFormatter.format(fare, locale)),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = face.content,
+                    )
+                    Spacer(modifier = Modifier.height(spacing.xs))
+                    Text(
+                        text = headerText,
+                        style = heroStatusTextStyle(),
+                        color = face.content,
+                    )
+                }
             }
         }
 
         if (actions != null) {
-            Spacer(modifier = Modifier.height(spacing.m))
+            Spacer(modifier = Modifier.height(DETAIL_SECTION_GAP))
             StaggerSlot(clock = staggerClock, index = 0, content = actions)
         }
 
-        Spacer(modifier = Modifier.height(spacing.m))
+        Spacer(modifier = Modifier.height(DETAIL_SECTION_GAP))
 
         SectionCard(modifier = staggerModifier(clock = staggerClock, index = 1)) {
             MonthSummarySection(monthSummary = monthSummary)
