@@ -412,8 +412,15 @@ private fun DeckTotalCard(
             .format(totalBalance, locale)
             .replace(' ', ' ')
             .replace(' ', ' ')
-    // While dealing, the total rolls from zero; on later entries only when it changed.
-    val rollFrom = rememberRollFrom(formatted, "home-total-deck", fromZeroOnFirstShow = dealing)
+    // While dealing, the total rolls from zero; on later entries only when it changed. Its first
+    // show waits for the brand intro, which is when the deal starts.
+    val rollFrom =
+        rememberRollFrom(
+            text = formatted,
+            saveKey = "home-total-deck",
+            fromZeroOnFirstShow = dealing,
+            ready = LocalIntroFinished.current,
+        )
     val idleLoop = rememberIdleLoop("home-total", scrolling)
     HeroCard(
         animateContours = true,
