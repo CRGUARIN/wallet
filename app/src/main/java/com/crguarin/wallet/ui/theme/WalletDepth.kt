@@ -16,12 +16,26 @@ import androidx.compose.ui.unit.dp
 data class WalletDepth(
     /** Backward tilt of each deck card, in degrees. */
     val deckTilt: Float = 24f,
-    /** Visible strip of each card behind the front one. */
-    val deckStrip: Dp = 54.dp,
+    /**
+     * Layout strip of each card behind the front one. With the deck tilt, every projected strip
+     * stays at least 48 dp tall on screen (one account at 64 dp gave 47.8 dp). Tapping a strip is
+     * tapping the area drawn for it.
+     */
+    val deckStrip: Dp = 66.dp,
     /** Height of a deck card. */
     val deckCardHeight: Dp = 190.dp,
     /** Corner radius of a deck card. */
     val deckCardRadius: Dp = 22.dp,
+    /** Height of the front "Saldo total" card of the deck. */
+    val deckTotalHeight: Dp = 196.dp,
+    /** Corner radius of the front "Saldo total" card of the deck. */
+    val deckTotalRadius: Dp = 24.dp,
+    /** Depth between two consecutive deck cards (towards the viewer). */
+    val deckDepthStep: Dp = 18.dp,
+    /** How far the total card floats in front of the last account card. */
+    val deckTotalLift: Dp = 28.dp,
+    /** Distance of the viewer from the deck, for the perspective of the deck projection. */
+    val deckPerspective: Dp = 1100.dp,
     /** Density multiplier for `graphicsLayer.cameraDistance` on the deck. */
     val deckCameraDistance: Float = 12f,
     /** Resting tilt of the detail hero card, in degrees. */
@@ -36,6 +50,8 @@ data class WalletDepth(
     val dealOffsetY: Dp = 90.dp,
     /** Extra backward tilt of the dealt cards at the start, in degrees. */
     val dealExtraTilt: Float = 30f,
+    /** How far in front of its place each dealt card starts. */
+    val dealDepth: Dp = 160.dp,
     /** Starting scale of the dealt cards. */
     val dealStartScale: Float = 1.08f,
     /** How far the other cards go down when one flies to the detail. */

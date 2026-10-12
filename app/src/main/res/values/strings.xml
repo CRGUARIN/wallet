@@ -226,6 +226,11 @@
     <!-- Home -->
     <string name="home_recent_transactions">Últimos movimientos</string>
     <string name="home_view_all">Ver todos</string>
+    <string name="home_accounts_view_all">Ver todas</string>
+    <plurals name="home_deck_caption">
+        <item quantity="one">%1$d cuenta · tócala para abrirla</item>
+        <item quantity="other">%1$d cuentas · toca una para abrirla</item>
+    </plurals>
     <string name="home_view_reports">Ver reportes</string>
     <string name="home_quick_actions">Acciones rápidas</string>
     <string name="home_empty_title">Aún no hay movimientos</string>
