@@ -1,17 +1,14 @@
 package com.crguarin.wallet.ui.transactions
 
-import androidx.compose.ui.test.assertAny
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
-import androidx.compose.ui.test.assertIsNotSelected
-import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasImeAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.isSelected
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performImeAction
@@ -126,8 +123,8 @@ class TransactionEditFormTest {
         onAmountChanged: (String) -> Unit = {},
         onOpenCategorySheet: () -> Unit = {},
         onCategorySelected: (Long) -> Unit = {},
-        onTodayClick: () -> Unit = {},
-        onYesterdayClick: () -> Unit = {},
+        onOpenDatePicker: () -> Unit = {},
+        onNoteChanged: (String) -> Unit = {},
         onSaveClick: () -> Unit = {},
     ) {
         composeRule.setContent {
@@ -149,12 +146,10 @@ class TransactionEditFormTest {
                     onCategorySelected = onCategorySelected,
                     onNewCategoryClick = {},
                     onNewAccountClick = {},
-                    onOpenDatePicker = {},
+                    onOpenDatePicker = onOpenDatePicker,
                     onDismissDatePicker = {},
                     onDateSelected = {},
-                    onTodayClick = onTodayClick,
-                    onYesterdayClick = onYesterdayClick,
-                    onNoteChanged = {},
+                    onNoteChanged = onNoteChanged,
                     onSaveClick = onSaveClick,
                     onDeleteClick = {},
                     onDismissDeleteDialog = {},
@@ -168,6 +163,8 @@ class TransactionEditFormTest {
 
     private fun chip(label: String) = composeRule.onNode(hasText(label) and hasClickAction())
 
+    private fun noteField() = composeRule.onNodeWithTag(NOTE_FIELD_TAG)
+
     private fun amountField() = composeRule.onNode(hasSetTextAction() and hasImeAction(ImeAction.Done))
 
     // ---- Order and layout
@@ -178,11 +175,12 @@ class TransactionEditFormTest {
 
         fun top(text: String) =
             composeRule
-                .onNodeWithText(text)
+                .onNodeWithText(text, substring = text == "Desde ")
                 .fetchSemanticsNode()
                 .boundsInRoot.top
 
-        val order = listOf("Gasto", "Monto", "Categoría", "Cuenta", "Fecha", "Nota (opcional)").map(::top)
+        // Two accounts: the carousel and its caption sit right under the amount, the category row after.
+        val order = listOf("Gasto", "¿Cuánto fue?", "Desde ", "Categoría", "Fecha", "Nota (opcional)").map(::top)
         assertThat(order).isInStrictOrder()
     }
 
@@ -196,13 +194,112 @@ class TransactionEditFormTest {
     }
 
     @Test
-    fun `the date chips and the date field share a row`() {
+    fun `the title names the movement type`() {
+        show(expenseState())
+        composeRule.onNodeWithText("Nuevo gasto").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the title says new income for an income`() {
+        show(expenseState().copy(selectedType = TransactionType.INCOME))
+        composeRule.onNodeWithText("Nuevo ingreso").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the title says new transfer for a transfer`() {
+        show(transferState())
+        composeRule.onNodeWithText("Nueva transferencia").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the amount label of an expense asks how much it was`() {
+        show(expenseState())
+        composeRule.onNodeWithText("¿Cuánto fue?").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the amount label of an income asks how much came in`() {
+        show(expenseState().copy(selectedType = TransactionType.INCOME))
+        composeRule.onNodeWithText("¿Cuánto entró?").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the amount label of a transfer asks how much is moved`() {
+        show(transferState())
+        composeRule.onNodeWithText("¿Cuánto vas a mover?").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the date row shows Hoy for today`() {
+        show(expenseState())
+        composeRule.onNodeWithText("Hoy").assertIsDisplayed()
+        composeRule.onNodeWithText("Fecha").assertIsDisplayed()
+    }
+
+    @Test
+    fun `the date row shows Ayer for yesterday`() {
+        show(expenseState().copy(date = today.minusDays(1)))
+        composeRule.onNodeWithText("Ayer").assertIsDisplayed()
+        composeRule.onNodeWithText("Hoy").assertDoesNotExist()
+    }
+
+    @Test
+    fun `the date row shows the date for another day`() {
+        show(expenseState().copy(date = today.minusDays(5)))
+
+        composeRule.onNodeWithText("Hoy").assertDoesNotExist()
+        composeRule.onNodeWithText("Ayer").assertDoesNotExist()
+    }
+
+    @Test
+    fun `tapping the date row opens the date picker`() {
+        var opened = 0
+        show(expenseState(), onOpenDatePicker = { opened++ })
+
+        composeRule.onNodeWithText("Fecha").performClick()
+
+        assertThat(opened).isEqualTo(1)
+    }
+
+    @Test
+    fun `tapping the category row opens the category list`() {
+        var opened = 0
+        show(expenseState(), onOpenCategorySheet = { opened++ })
+
+        composeRule.onNodeWithText("Categoría").performClick()
+
+        assertThat(opened).isEqualTo(1)
+    }
+
+    @Test
+    fun `the carousel caption names the source account of an expense`() {
         show(expenseState())
 
-        val todayChip = chip("Hoy").fetchSemanticsNode().boundsInRoot
-        val dateField = composeRule.onNodeWithText("Fecha").fetchSemanticsNode().boundsInRoot
-        assertThat(todayChip.top).isLessThan(dateField.bottom)
-        assertThat(todayChip.bottom).isGreaterThan(dateField.top)
+        composeRule.onNodeWithText("Desde Efectivo ·", substring = true).assertIsDisplayed()
+    }
+
+    @Test
+    fun `the note row accepts text`() {
+        var note = ""
+        show(expenseState(), onNoteChanged = { note = it })
+
+        noteField().performTextInput("Almuerzo")
+        composeRule.waitForIdle()
+
+        assertThat(note).isEqualTo("Almuerzo")
+    }
+
+    @Test
+    fun `the note row comes after the date row`() {
+        show(expenseState())
+
+        val dateTop =
+            composeRule
+                .onNodeWithText("Fecha")
+                .fetchSemanticsNode()
+                .boundsInRoot.top
+        val noteTop = noteField().fetchSemanticsNode().boundsInRoot.top
+        assertThat(dateTop).isLessThan(noteTop)
     }
 
     // ---- Save bar
@@ -213,7 +310,7 @@ class TransactionEditFormTest {
         show(expenseState(), onSaveClick = { saves++ })
 
         composeRule
-            .onNodeWithText("Guardar")
+            .onNodeWithText("Guardar gasto")
             .assertIsDisplayed()
             .assertIsEnabled()
             .performClick()
@@ -222,10 +319,22 @@ class TransactionEditFormTest {
     }
 
     @Test
+    fun `save button names the income`() {
+        show(expenseState().copy(selectedType = TransactionType.INCOME))
+        composeRule.onNodeWithText("Guardar ingreso").assertIsDisplayed()
+    }
+
+    @Test
+    fun `save button names the transfer`() {
+        show(transferState())
+        composeRule.onNodeWithText("Guardar transferencia").assertIsDisplayed()
+    }
+
+    @Test
     fun `save button is shown but disabled while the form is incomplete`() {
         show(expenseState(categoryId = null))
 
-        composeRule.onNodeWithText("Guardar").assertIsDisplayed().assertIsNotEnabled()
+        composeRule.onNodeWithText("Guardar gasto").assertIsDisplayed().assertIsNotEnabled()
     }
 
     @Test
@@ -233,14 +342,14 @@ class TransactionEditFormTest {
         show(expenseState().copy(generalErrorRes = R.string.error_invalid_transaction))
 
         val error = composeRule.onNodeWithText("Movimiento no válido").fetchSemanticsNode()
-        val save = composeRule.onNodeWithText("Guardar").fetchSemanticsNode()
+        val save = composeRule.onNodeWithText("Guardar gasto").fetchSemanticsNode()
         assertThat(error.boundsInRoot.bottom).isAtMost(save.boundsInRoot.top)
     }
 
     // ---- Frequent categories
 
     @Test
-    fun `frequent categories show under the category selector in the given order`() {
+    fun `frequent categories show under the card in the given order`() {
         show(withFrequent(expenseState()))
 
         composeRule.onNodeWithText("Frecuentes").assertIsDisplayed()
@@ -251,18 +360,8 @@ class TransactionEditFormTest {
         // Same row or following rows: reading order is left to right, then top to bottom.
         val readingOrder = lefts.sortedWith(compareBy({ it.top }, { it.left }))
         assertThat(readingOrder).isEqualTo(lefts)
-        val selectorTop =
-            composeRule
-                .onNodeWithText("Categoría")
-                .fetchSemanticsNode()
-                .boundsInRoot.top
-        val accountTop =
-            composeRule
-                .onNodeWithText("Cuenta")
-                .fetchSemanticsNode()
-                .boundsInRoot.top
-        assertThat(lefts.first().top).isGreaterThan(selectorTop)
-        assertThat(lefts.last().bottom).isAtMost(accountTop)
+        val noteBottom = noteField().fetchSemanticsNode().boundsInRoot.bottom
+        assertThat(lefts.first().top).isGreaterThan(noteBottom)
     }
 
     @Test
@@ -286,12 +385,12 @@ class TransactionEditFormTest {
     }
 
     @Test
-    fun `the chip of the chosen category is selected and the others are not`() {
+    fun `frequent chips disappear once a category is chosen`() {
         show(withFrequent(expenseState(), selected = 10L))
 
-        chip("Transporte").assertIsNotSelected()
-        // The selector shows the chosen category too; among the nodes with that text the chip is selected.
-        composeRule.onAllNodes(hasText("Alimentación") and hasClickAction()).assertAny(isSelected())
+        composeRule.onNodeWithText("Frecuentes").assertDoesNotExist()
+        chip("Transporte").assertDoesNotExist()
+        chip("Alimentación › Café").assertDoesNotExist()
     }
 
     @Test
@@ -307,49 +406,6 @@ class TransactionEditFormTest {
 
         composeRule.onNodeWithText("Frecuentes").assertDoesNotExist()
         composeRule.onNodeWithText("Transporte").assertDoesNotExist()
-    }
-
-    // ---- Date chips
-
-    @Test
-    fun `today chip is selected when the date is today`() {
-        show(expenseState())
-
-        chip("Hoy").assertIsSelected()
-        chip("Ayer").assertIsNotSelected()
-    }
-
-    @Test
-    fun `yesterday chip is selected when the date is yesterday`() {
-        show(expenseState().copy(date = today.minusDays(1)))
-
-        chip("Ayer").assertIsSelected()
-        chip("Hoy").assertIsNotSelected()
-    }
-
-    @Test
-    fun `neither chip is selected for another day`() {
-        show(expenseState().copy(date = today.minusDays(5)))
-
-        chip("Hoy").assertIsNotSelected()
-        chip("Ayer").assertIsNotSelected()
-    }
-
-    @Test
-    fun `today and yesterday chips call their callbacks`() {
-        var todays = 0
-        var yesterdays = 0
-        show(
-            expenseState().copy(date = today.minusDays(5)),
-            onTodayClick = { todays++ },
-            onYesterdayClick = { yesterdays++ },
-        )
-
-        chip("Hoy").performClick()
-        chip("Ayer").performClick()
-
-        assertThat(todays).isEqualTo(1)
-        assertThat(yesterdays).isEqualTo(1)
     }
 
     // ---- Amount and keyboard action

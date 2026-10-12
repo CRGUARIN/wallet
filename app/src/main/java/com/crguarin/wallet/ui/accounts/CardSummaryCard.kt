@@ -1,24 +1,39 @@
 package com.crguarin.wallet.ui.accounts
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.core.money.MoneyFormatter
@@ -27,10 +42,10 @@ import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.model.card.CardOverview
 import com.crguarin.wallet.domain.model.card.StatementPaymentStatus
 import com.crguarin.wallet.ui.components.MoneyText
-import com.crguarin.wallet.ui.components.SectionCard
 import com.crguarin.wallet.ui.motion.PulseDot
 import com.crguarin.wallet.ui.motion.StaggerClock
-import com.crguarin.wallet.ui.motion.rememberEnterProgress
+import com.crguarin.wallet.ui.motion.animationsOn
+import com.crguarin.wallet.ui.motion.raisedSurface
 import com.crguarin.wallet.ui.theme.walletSpacing
 import com.crguarin.wallet.ui.theme.walletTypography
 import com.crguarin.wallet.ui.util.formatMedium
@@ -58,16 +73,25 @@ internal fun cardAvailableText(overview: CardOverview): String {
     return stringResource(R.string.card_available) + " " + MoneyFormatter.format(overview.available, locale)
 }
 
+/** Corner radius of the "Disponible" card: the surface of the detail's summary blocks. */
+private val AVAILABLE_CARD_CORNER = 24.dp
+
+/** The usage bar fills from zero on enter, in 450 ms with this easing (mock `cupo`). */
+private const val USAGE_FILL_MILLIS = 450
+private val USAGE_FILL_EASING = CubicBezierEasing(0.2f, 0.8f, 0.2f, 1f)
+
 /**
- * Header of a credit card: the tinted block with the debt, then [actions] (the main buttons of the
- * screen) and the section with the limit, the closing and the statement.
+ * Header of a credit card: the hero with the debt and, when there is one, the status line
+ * (overdue, payment in N days), then [actions] (the main keys of the screen) and the "Disponible"
+ * card with the limit used and the statement details.
  */
 @Composable
-fun CardSummaryCard(
+internal fun CardSummaryCard(
     overview: CardOverview,
     today: LocalDate,
     modifier: Modifier = Modifier,
     account: Account? = null,
+    status: AccountStatus? = null,
     actions: (@Composable ColumnScope.() -> Unit)? = null,
     staggerClock: StaggerClock? = null,
     idleInterrupted: Boolean = false,
@@ -77,9 +101,6 @@ fun CardSummaryCard(
     val displayDebt = if (inFavor) -overview.debt else overview.debt
     // Without an account (previews, tests) the block uses the theme primary as its accent.
     val accentColor = account?.let { Color(it.color) } ?: MaterialTheme.colorScheme.primary
-    val spacing = MaterialTheme.walletSpacing
-    // The quota bar fills on entrance (§8.3); the value is read inside the progress lambda.
-    val usedProgress = rememberEnterProgress(overview.usedPerMille / 1000f, "card-used-${overview.accountId}")
     Column(modifier = modifier.fillMaxWidth()) {
         AccountHeaderBlock(
             accentColor = accentColor,
@@ -88,41 +109,64 @@ fun CardSummaryCard(
         ) { face ->
             if (account != null) {
                 AccountIdentityRow(account = account, face = face)
-                Spacer(modifier = Modifier.height(spacing.m))
             }
-            Text(
-                text =
-                    if (inFavor) {
-                        stringResource(R.string.card_credit_in_favor)
-                    } else {
-                        stringResource(R.string.card_debt)
-                    },
-                style = MaterialTheme.typography.titleSmall,
-                color = face.content,
-            )
-            Spacer(modifier = Modifier.height(spacing.xs))
-            HeaderAmount(
-                amount = displayDebt,
-                rollKey = "account-hero-${account?.id ?: "card"}",
-                type = if (inFavor) TransactionType.INCOME else TransactionType.EXPENSE,
-            )
+            Column {
+                Text(
+                    text =
+                        if (inFavor) {
+                            stringResource(R.string.card_credit_in_favor)
+                        } else {
+                            stringResource(R.string.card_debt)
+                        },
+                    style = heroLabelStyle(),
+                    color = face.content,
+                )
+                Spacer(modifier = Modifier.height(MaterialTheme.walletSpacing.xs))
+                HeaderAmount(
+                    amount = displayDebt,
+                    rollKey = "account-hero-${account?.id ?: "card"}",
+                    type = if (inFavor) TransactionType.INCOME else TransactionType.EXPENSE,
+                )
+            }
+            if (status != null) {
+                HeroStatusLine(text = status.text, pulse = status.needsAttention, color = face.content)
+            }
         }
 
         if (actions != null) {
-            Spacer(modifier = Modifier.height(spacing.m))
+            Spacer(modifier = Modifier.height(DETAIL_SECTION_GAP))
             StaggerSlot(clock = staggerClock, index = 0, content = actions)
         }
 
-        Spacer(modifier = Modifier.height(spacing.m))
+        Spacer(modifier = Modifier.height(DETAIL_SECTION_GAP))
 
-        SectionCard(modifier = staggerModifier(clock = staggerClock, index = 1)) {
-            LinearProgressIndicator(
-                progress = { usedProgress.value },
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+        val shape = RoundedCornerShape(AVAILABLE_CARD_CORNER)
+        Column(
+            modifier =
+                staggerModifier(clock = staggerClock, index = 1)
+                    .fillMaxWidth()
+                    .raisedSurface(shape)
+                    .clip(shape)
+                    .padding(start = 20.dp, top = 16.dp, end = 20.dp, bottom = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = stringResource(R.string.card_available),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 15.sp, fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.alignByBaseline(),
+                )
+                Text(
+                    text = MoneyFormatter.format(overview.available, locale),
+                    style = MaterialTheme.typography.titleLarge.copy(fontSize = 20.sp, fontWeight = FontWeight.ExtraBold),
+                    modifier = Modifier.alignByBaseline(),
+                )
+            }
+            UsageBar(fraction = overview.usedPerMille / 1000f)
             Text(
                 text =
                     stringResource(
@@ -130,16 +174,11 @@ fun CardSummaryCard(
                         MoneyFormatter.format(displayDebt, locale),
                         MoneyFormatter.format(overview.creditLimit, locale),
                     ),
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                text =
-                    stringResource(R.string.card_available) +
-                        " " + MoneyFormatter.format(overview.available, locale),
-                style = MaterialTheme.typography.titleSmall,
+                style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
-            Spacer(modifier = Modifier.height(12.dp))
+            // The closing and the statement details stay in the same card, under the limit.
             val daysUntilClosing = ChronoUnit.DAYS.between(today, overview.nextClosingDate).toInt()
             Text(
                 text =
@@ -153,11 +192,9 @@ fun CardSummaryCard(
             )
 
             if (overview.paymentStatus != null) {
-                Spacer(modifier = Modifier.height(8.dp))
                 CardStatementStatusRow(overview = overview, today = today)
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -180,6 +217,45 @@ fun CardSummaryCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+    }
+}
+
+/**
+ * Usage of the credit limit: an 8 dp rounded bar, track `surfaceVariant`, fill `primary`. The fill
+ * grows from zero on enter; without animations it is drawn at its value at once.
+ */
+@Composable
+private fun UsageBar(
+    fraction: Float,
+    modifier: Modifier = Modifier,
+) {
+    val animate = animationsOn()
+    val target = fraction.coerceIn(0f, 1f)
+    val fill = remember { Animatable(if (animate) 0f else target) }
+    LaunchedEffect(target, animate) {
+        if (animate) {
+            fill.animateTo(target, tween(durationMillis = USAGE_FILL_MILLIS, easing = USAGE_FILL_EASING))
+        } else {
+            fill.snapTo(target)
+        }
+    }
+    val shape = RoundedCornerShape(4.dp)
+    Box(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .clip(shape)
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .semantics { progressBarRangeInfo = ProgressBarRangeInfo(current = target, range = 0f..1f) },
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth(fill.value)
+                    .fillMaxHeight()
+                    .background(MaterialTheme.colorScheme.primary),
+        )
     }
 }
 

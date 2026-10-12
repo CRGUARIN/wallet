@@ -1,5 +1,6 @@
 package com.crguarin.wallet.ui.home
 
+import android.graphics.Matrix
 import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -13,9 +14,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -35,11 +36,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -93,11 +97,8 @@ import java.time.LocalDate
 /** Gate of the deck deal: it plays once per process, after the brand intro. */
 private const val HOME_DEAL_KEY = "home-deal"
 
-/** Minimum height of the front "Saldo total" card: its content fits up to 130 % font scale. */
-private val FrontCardHeight = 150.dp
-
-/** Room under the deck for the card shadow and the floating. */
-private val DeckBottomRoom = 16.dp
+/** Room under the deck for the card shadow: the lowest card edge sits just above the container bottom. */
+private val DeckBottomRoom = 8.dp
 
 /** Exit of the deck cards towards the detail. */
 private const val DECK_EXIT_MILLIS = 300
@@ -107,15 +108,34 @@ private const val CONTENT_EXIT_MILLIS = 250
 
 /**
  * Line budget of a deck strip: the top padding, then the name and the status line. At the largest
- * 3D font scale (1.3) they must fit the 54 dp strip, or the status line is clamped and the next
+ * 3D font scale (1.3) they must fit the deck strip, or the status line is clamped and the next
  * card covers it.
  */
 internal val DeckStripTopPadding = 8.dp
 internal val DeckStripNameLineHeight = 18.sp
 internal val DeckStripStatusLineHeight = 14.sp
 
+/** Test tag of the touch target of the strip of [accountId]. */
+internal fun deckHitTag(accountId: Long): String = "deck-hit-$accountId"
+
 /**
- * The Home account deck: every active account as a tilted card showing a 54 dp strip, with the
+ * Pixel geometry of the deck: the projection, the strip and the depth step of the cards, and the
+ * lift of the total card. Card [index] sits at [top] and [depth]; the total card is index [count].
+ */
+private class DeckPlan(
+    val projection: DeckProjection,
+    val stripPx: Float,
+    val depthStepPx: Float,
+    val liftPx: Float,
+    val count: Int,
+) {
+    fun top(index: Int): Float = stripPx * index
+
+    fun depth(index: Int): Float = if (index < count) depthStepPx * index else depthStepPx * (count - 1) + liftPx
+}
+
+/**
+ * The Home account deck: every active account as a card of the deck, leaning back in 3D, with the
  * "Saldo total" hero as the front card. In flat mode (large font or screen reader) it falls back
  * to the plain account list of today.
  */
@@ -190,7 +210,23 @@ private fun DeckContent(
     }
 
     val dealPx = with(density) { depth.dealOffsetY.toPx() }
-    val camera = depth.deckCameraDistance * density.density
+    val dealDepthPx = with(density) { depth.dealDepth.toPx() }
+    val deckHeight = depth.deckStrip * accounts.size + depth.deckTotalHeight + DeckBottomRoom
+    val deckHeightPx = with(density) { deckHeight.toPx() }
+    val stripPx = with(density) { depth.deckStrip.toPx() }
+    val stepPx = with(density) { depth.deckDepthStep.toPx() }
+    val liftPx = with(density) { depth.deckTotalLift.toPx() }
+    val perspectivePx = with(density) { depth.deckPerspective.toPx() }
+    val plan =
+        remember(accounts.size, deckHeightPx, stripPx, stepPx, liftPx, perspectivePx, depth.deckTilt) {
+            DeckPlan(
+                projection = DeckProjection(deckHeightPx, perspectivePx, depth.deckTilt),
+                stripPx = stripPx,
+                depthStepPx = stepPx,
+                liftPx = liftPx,
+                count = accounts.size,
+            )
+        }
     // The tapped card straightens while it flies to the detail; the rest keep their tilt.
     var flyingId by remember { mutableStateOf<Long?>(null) }
     // One press source and one open action per account, shared by the card (its press sink) and
@@ -211,7 +247,7 @@ private fun DeckContent(
         modifier =
             modifier
                 .fillMaxWidth()
-                .height(depth.deckStrip * accounts.size + FrontCardHeight + DeckBottomRoom)
+                .height(deckHeight)
                 .floating({ idleLoop.value }, depth.floatAmplitude),
     ) {
         accounts.forEachIndexed { index, item ->
@@ -224,10 +260,11 @@ private fun DeckContent(
                     pressSource = pressSources.getValue(item.account.id),
                     cardOverview = cardOverviews[item.account.id],
                     today = today,
+                    plan = plan,
                     dealFraction = { dealFraction(master.value, index) },
                     flying = flyingId == item.account.id,
                     dealPx = dealPx,
-                    camera = camera,
+                    dealDepthPx = dealDepthPx,
                     animate = animate,
                 )
             }
@@ -235,22 +272,33 @@ private fun DeckContent(
         DeckTotalCard(
             totalBalance = totalBalance,
             index = accounts.size,
+            count = accounts.size,
+            plan = plan,
             dealing = dealing,
             dealFraction = { dealFraction(master.value, accounts.size) },
             dealPx = dealPx,
-            camera = camera,
+            dealDepthPx = dealDepthPx,
             scrolling = scrolling,
         )
-        // Hit targets of the strips: untransformed and on top of the deck, because the perspective
-        // tilt of the card layers displaces pointer input on devices.
+        // Hit targets of the strips: untransformed, on top of the deck, and sized to the strip as it
+        // is drawn (between the projected top edge of the card and the one in front of it), so the
+        // touch area is the area the user sees.
         accounts.forEachIndexed { index, item ->
             key(item.account.id) {
+                val span =
+                    plan.projection.stripSpan(
+                        top = plan.top(index),
+                        topDepth = plan.depth(index),
+                        bottom = plan.top(index + 1),
+                        bottomDepth = plan.depth(index + 1),
+                    )
                 Box(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .offset(y = depth.deckStrip * index)
-                            .height(depth.deckStrip)
+                            .offset(y = with(density) { span[0].toDp() })
+                            .height(with(density) { (span[1] - span[0]).toDp() })
+                            .testTag(deckHitTag(item.account.id))
                             .clearAndSetSemantics {}
                             .clickable(
                                 interactionSource = pressSources.getValue(item.account.id),
@@ -264,9 +312,56 @@ private fun DeckContent(
 }
 
 /**
- * One tilted account card. Only its 54 dp top strip is semantic (the touch target is the hit
- * target in [DeckContent]); the rest is covered by the next card and stays decorative. Pressing
- * the strip sinks the whole card.
+ * Warps a card onto its projected quad: the whole card (background, shadow, text) is drawn through
+ * one matrix, so it tilts as one piece. [index] of the card in the plan gives its place and depth.
+ * The animated values are read only inside the lambdas, in the draw phase: [dealFraction] goes from
+ * 0 (before the deal) to 1 (at rest), [keep] scales the tilt and the depth (1 resting, 0 flat), and
+ * [press] is the press scale.
+ */
+private fun Modifier.projectOnDeck(
+    projection: DeckProjection,
+    top: Float,
+    cardDepth: Float,
+    dealExtraTilt: Float,
+    dealPx: Float,
+    dealDepthPx: Float,
+    dealFraction: () -> Float,
+    keep: () -> Float,
+    press: () -> Float,
+): Modifier =
+    drawWithContent {
+        val rest = 1f - dealFraction()
+        val kept = keep()
+        val width = size.width
+        val height = size.height
+        val pose =
+            CardPose(
+                top = top,
+                height = height,
+                depth = cardDepth * kept,
+                rotateXDeg = -dealExtraTilt * rest,
+                dy = -dealPx * rest,
+                dz = dealDepthPx * rest,
+                // The deal depth already enlarges the card on its way in: no extra start scale.
+                scale = press(),
+            )
+        val corners = projection.cardCorners(width, pose, tilt = projection.tiltDeg * kept)
+        val src = floatArrayOf(0f, 0f, width, 0f, width, height, 0f, height)
+        // Card-local destination: the layout top of the card is the origin of its drawing space.
+        val dst = FloatArray(8) { i -> if (i % 2 == 0) corners[i] else corners[i] - top }
+        val matrix = Matrix()
+        matrix.setPolyToPoly(src, 0, dst, 0, 4)
+        val canvas = drawContext.canvas
+        canvas.save()
+        canvas.nativeCanvas.concat(matrix)
+        drawContent()
+        canvas.restore()
+    }
+
+/**
+ * One account card. Only its strip is semantic (the touch target is the hit target in
+ * [DeckContent], sized to the projected strip); the rest is covered by the next card and stays
+ * decorative. Pressing the strip sinks the whole card.
  */
 @Composable
 private fun DeckCard(
@@ -276,10 +371,11 @@ private fun DeckCard(
     pressSource: MutableInteractionSource,
     cardOverview: CardOverview?,
     today: LocalDate,
+    plan: DeckPlan,
     dealFraction: () -> Float,
     flying: Boolean,
     dealPx: Float,
-    camera: Float,
+    dealDepthPx: Float,
     animate: Boolean,
 ) {
     val depth = MaterialTheme.walletDepth
@@ -305,17 +401,18 @@ private fun DeckCard(
                 .offset(y = depth.deckStrip * index)
                 .accountCardSharedBounds(item.account.id)
                 .navEnterExit(depth.exitOffsetY, DECK_EXIT_MILLIS)
-                .graphicsLayer {
-                    val rest = 1f - dealFraction()
-                    alpha = dealFraction()
-                    translationY = -rest * dealPx
-                    rotationX = flightTilt.value - rest * depth.dealExtraTilt
-                    val scale = (1f + rest * (depth.dealStartScale - 1f)) * pressScale
-                    scaleX = scale
-                    scaleY = scale
-                    transformOrigin = TransformOrigin(0.5f, 1f)
-                    cameraDistance = camera
-                }.cardShadow(shape)
+                .graphicsLayer { alpha = dealFraction() }
+                .projectOnDeck(
+                    projection = plan.projection,
+                    top = plan.top(index),
+                    cardDepth = plan.depth(index),
+                    dealExtraTilt = depth.dealExtraTilt,
+                    dealPx = dealPx,
+                    dealDepthPx = dealDepthPx,
+                    dealFraction = dealFraction,
+                    keep = { if (depth.deckTilt == 0f) 1f else flightTilt.value / depth.deckTilt },
+                    press = { pressScale },
+                ).cardShadow(shape)
                 .clip(shape)
                 .background(brush),
     ) {
@@ -422,29 +519,31 @@ private fun DeckStrip(
 }
 
 /**
- * The front card of the deck: the current hero with the rolling total, tilted like the rest and
- * with the idle shine. Not clickable, like today.
+ * The front card of the deck: the current hero with the rolling total and, at the bottom, how many
+ * accounts the deck holds. Tilted like the rest, with the idle shine. Not clickable, like today.
  */
 @Composable
 private fun DeckTotalCard(
     totalBalance: Money,
     index: Int,
+    count: Int,
+    plan: DeckPlan,
     dealing: Boolean,
     dealFraction: () -> Float,
     dealPx: Float,
-    camera: Float,
+    dealDepthPx: Float,
     scrolling: Boolean = false,
 ) {
     val depth = MaterialTheme.walletDepth
     val colors = MaterialTheme.walletColors
-    val frontShape = MaterialTheme.shapes.large
+    val frontShape = remember(depth) { RoundedCornerShape(depth.deckTotalRadius) }
     val locale = LocalConfiguration.current.locales[0]
     // Same text MoneyText would draw: no-break spaces become plain ones.
     val formatted =
         MoneyFormatter
             .format(totalBalance, locale)
-            .replace(' ', ' ')
-            .replace(' ', ' ')
+            .replace('\u00A0', ' ')
+            .replace('\u202F', ' ')
     // While dealing, the total rolls from zero; on later entries only when it changed. Its first
     // show waits for the brand intro, which is when the deal starts.
     val rollFrom =
@@ -457,39 +556,49 @@ private fun DeckTotalCard(
     val idleLoop = rememberIdleLoop("home-total", scrolling)
     HeroCard(
         animateContours = true,
+        shape = frontShape,
         modifier =
             Modifier
-                .heightIn(min = FrontCardHeight)
                 .fillMaxWidth()
+                .height(depth.deckTotalHeight)
                 .offset(y = depth.deckStrip * index)
                 .navEnterExit(depth.contentShiftY, CONTENT_EXIT_MILLIS)
-                .graphicsLayer {
-                    val rest = 1f - dealFraction()
-                    alpha = dealFraction()
-                    translationY = -rest * dealPx
-                    rotationX = depth.deckTilt - rest * depth.dealExtraTilt
-                    val scale = 1f + rest * (depth.dealStartScale - 1f)
-                    scaleX = scale
-                    scaleY = scale
-                    transformOrigin = TransformOrigin(0.5f, 1f)
-                    cameraDistance = camera
-                }.cardShadow(frontShape)
+                .graphicsLayer { alpha = dealFraction() }
+                .projectOnDeck(
+                    projection = plan.projection,
+                    top = plan.top(index),
+                    cardDepth = plan.depth(index),
+                    dealExtraTilt = depth.dealExtraTilt,
+                    dealPx = dealPx,
+                    dealDepthPx = dealDepthPx,
+                    dealFraction = dealFraction,
+                    keep = { 1f },
+                    press = { 1f },
+                ).cardShadow(frontShape)
                 .clip(frontShape)
                 .sheen(running = { idleLoop.value }),
     ) {
-        Text(
-            text = stringResource(R.string.accounts_total_balance),
-            style = MaterialTheme.typography.labelLarge,
-            color = colors.onHero,
-        )
-        Spacer(modifier = Modifier.height(MaterialTheme.walletSpacing.xs))
-        RollingAmountText(
-            text = formatted,
-            color = colors.onHero,
-            rollFrom = rollFrom,
-            contentDescription = formatted,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        Column(modifier = Modifier.fillMaxHeight()) {
+            Text(
+                text = stringResource(R.string.accounts_total_balance),
+                style = MaterialTheme.typography.labelLarge,
+                color = colors.onHero,
+            )
+            Spacer(modifier = Modifier.height(MaterialTheme.walletSpacing.xs))
+            RollingAmountText(
+                text = formatted,
+                color = colors.onHero,
+                rollFrom = rollFrom,
+                contentDescription = formatted,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = pluralStringResource(R.plurals.home_deck_caption, count, count),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.onHero,
+            )
+        }
     }
 }
 

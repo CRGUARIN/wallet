@@ -6,9 +6,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -82,6 +84,7 @@ fun HomeRoute(
     onViewAllRecurring: () -> Unit = {},
     onViewDebts: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onViewAllAccounts: () -> Unit = {},
     viewModel: HomeViewModel? = safeHiltViewModel(),
 ) {
     if (viewModel == null) {
@@ -98,6 +101,7 @@ fun HomeRoute(
             onViewAllRecurring = onViewAllRecurring,
             onViewDebts = onViewDebts,
             onOpenSettings = onOpenSettings,
+            onViewAllAccounts = onViewAllAccounts,
             modifier = modifier,
         )
         return
@@ -141,6 +145,7 @@ fun HomeRoute(
         onViewAllRecurring = onViewAllRecurring,
         onViewDebts = onViewDebts,
         onOpenSettings = onOpenSettings,
+        onViewAllAccounts = onViewAllAccounts,
         onTripClick = viewModel::onTripClick,
         onTripCardSelected = viewModel::onTripCardSelected,
         onDismissTripChooser = viewModel::dismissTripChooser,
@@ -169,6 +174,7 @@ fun HomeScreen(
     onViewAllRecurring: () -> Unit = {},
     onViewDebts: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
+    onViewAllAccounts: () -> Unit = {},
     onTripClick: () -> Unit = {},
     onTripCardSelected: (Long) -> Unit = {},
     onDismissTripChooser: () -> Unit = {},
@@ -226,10 +232,19 @@ fun HomeScreen(
             if (deckMode) {
                 item(key = "accounts_deck") {
                     Column(verticalArrangement = Arrangement.spacedBy(spacing.s)) {
-                        SectionHeader(
-                            title = stringResource(R.string.accounts_title),
-                            modifier = Modifier.padding(horizontal = spacing.xs),
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.xs),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            SectionHeader(title = stringResource(R.string.accounts_title))
+                            TextButton(
+                                onClick = onViewAllAccounts,
+                                modifier = Modifier.heightIn(min = 48.dp),
+                            ) {
+                                Text(text = stringResource(R.string.home_accounts_view_all))
+                            }
+                        }
                         AccountDeck(
                             accounts = uiState.accounts,
                             totalBalance = uiState.totalBalance,

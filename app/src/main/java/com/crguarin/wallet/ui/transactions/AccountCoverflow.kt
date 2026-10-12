@@ -143,6 +143,7 @@ fun AccountCoverflow(
     modifier: Modifier = Modifier,
     cardOverviews: Map<Long, CardOverview> = emptyMap(),
     onInteraction: () -> Unit = {},
+    showHeader: Boolean = true,
 ) {
     val selectedIndex = accounts.indexOfFirst { it.account.id == selectedAccountId }.coerceAtLeast(0)
     val pagerState = rememberPagerState(initialPage = selectedIndex) { accounts.size }
@@ -163,7 +164,8 @@ fun AccountCoverflow(
     }
 
     Column(modifier = modifier.selectableGroup()) {
-        CoverflowHeader(onOpenAccountSheet = onOpenAccountSheet)
+        // The form opens the sheet from its own caption under the cards instead.
+        if (showHeader) CoverflowHeader(onOpenAccountSheet = onOpenAccountSheet)
         BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
             val sidePadding = ((maxWidth - CardWidth) / 2).coerceAtLeast(0.dp)
             HorizontalPager(

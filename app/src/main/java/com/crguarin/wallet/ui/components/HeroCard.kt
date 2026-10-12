@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathMeasure
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -50,6 +51,7 @@ private val CONTOUR_STROKE_WIDTH = 1.2.dp
  * Headline card with the signature gradient and the topographic contour lines, for the main figure
  * of a screen. The content is drawn in `walletColors.onHero`.
  *
+ * @param shape corner shape of the card; the large shape of the theme by default.
  * @param animateContours when true, the contour lines are traced in `walletMotion.contour`
  *   milliseconds the first time a card asks for it in the process (Home, when it opens); later
  *   cards, and any card with this flag false, show them already drawn. With the system "remove
@@ -61,6 +63,7 @@ fun HeroCard(
     brush: Brush = WalletBrushes.hero(),
     contentColor: Color = MaterialTheme.walletColors.onHero,
     animateContours: Boolean = false,
+    shape: Shape = MaterialTheme.shapes.large,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val contourColor = MaterialTheme.walletColors.heroContour
@@ -81,7 +84,7 @@ fun HeroCard(
             modifier =
                 modifier
                     .fillMaxWidth()
-                    .clip(MaterialTheme.shapes.large)
+                    .clip(shape)
                     .background(brush)
                     .contourLines(color = contourColor, progress = { progress.value }),
         ) {

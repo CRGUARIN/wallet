@@ -138,8 +138,6 @@ class AmountKeypadTest {
                     onOpenDatePicker = {},
                     onDismissDatePicker = {},
                     onDateSelected = {},
-                    onTodayClick = {},
-                    onYesterdayClick = {},
                     onNoteChanged = {},
                     onSaveClick = {},
                     onDeleteClick = {},
@@ -225,8 +223,6 @@ class AmountKeypadTest {
                     onOpenDatePicker = {},
                     onDismissDatePicker = {},
                     onDateSelected = {},
-                    onTodayClick = {},
-                    onYesterdayClick = {},
                     onNoteChanged = {},
                     onSaveClick = {},
                     onDeleteClick = {},
@@ -301,8 +297,6 @@ class AmountKeypadTest {
                     onOpenDatePicker = {},
                     onDismissDatePicker = {},
                     onDateSelected = {},
-                    onTodayClick = {},
-                    onYesterdayClick = {},
                     onNoteChanged = {},
                     onSaveClick = {},
                     onDeleteClick = {},
@@ -357,6 +351,6 @@ class AmountKeypadTest {
         composeRule.runOnIdle { backOwner?.onBackPressedDispatcher?.onBackPressed() }
 
         composeRule.onNodeWithContentDescription("Tres ceros").assertDoesNotExist()
-        composeRule.onNodeWithText("Monto").assertIsDisplayed()
+        composeRule.onNodeWithText("¿Cuánto fue?").assertIsDisplayed()
     }
 }

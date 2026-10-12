@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,17 +21,21 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -52,20 +57,26 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.crguarin.wallet.R
+import com.crguarin.wallet.core.money.MoneyFormatter
 import com.crguarin.wallet.domain.model.DomainLimits
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.usecase.SaveTransactionUseCase
+import com.crguarin.wallet.ui.components.IconCatalog
 import com.crguarin.wallet.ui.components.categoryFullDisplayName
 import com.crguarin.wallet.ui.motion.depthOn
 import com.crguarin.wallet.ui.theme.walletMotion
@@ -73,7 +84,7 @@ import com.crguarin.wallet.ui.theme.walletSpacing
 import com.crguarin.wallet.ui.util.formatMedium
 import java.time.LocalDate
 
-/** Above this font scale the type segments and the date row stack instead of sitting side by side. */
+/** Above this font scale the type segments stack instead of sitting side by side. */
 private const val STACKED_FONT_SCALE = 1.15f
 
 /** "Transferencia" is the longest segment label: it gets more of the track than the other two. */
@@ -83,9 +94,25 @@ private val SegmentTrackRadius = 22.dp
 private val SegmentRadius = 18.dp
 private val MinTouchHeight = 48.dp
 
+/** The movement card: one raised surface with its rows. */
+private val CardRadius = 24.dp
+private val CardVerticalPadding = 8.dp
+
+/** One row of the card: 64 dp minimum, a 42 dp tile, the text and a chevron. */
+private val RowMinHeight = 64.dp
+private val RowHorizontalPadding = 16.dp
+private val RowVerticalPadding = 9.dp
+private val RowGap = 14.dp
+private val TileSize = 42.dp
+private val TileIconSize = 20.dp
+
+/** Test tag of the note field in the card. */
+internal const val NOTE_FIELD_TAG = "transaction-note-field"
+
 /**
- * Scrollable body of the movement form. The order follows the thumb: type, amount, category (with
- * the frequent ones), account, date, installments and note. The save button is not here: it lives
+ * Scrollable body of the movement form. The order follows the thumb: type, amount, the account
+ * carousel (expenses and income), one card with the rows (category or the two accounts, account,
+ * date and note), the frequent categories and installments. The save button is not here: it lives
  * in the screen's bottom bar so it stays above the keyboard.
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -100,8 +127,6 @@ internal fun TransactionEditForm(
     onOpenCategorySheet: () -> Unit,
     onCategorySelected: (Long) -> Unit,
     onOpenDatePicker: () -> Unit,
-    onTodayClick: () -> Unit,
-    onYesterdayClick: () -> Unit,
     onNoteChanged: (String) -> Unit,
     modifier: Modifier = Modifier,
     onInstallmentsChanged: (Int) -> Unit = {},
@@ -138,7 +163,7 @@ internal fun TransactionEditForm(
     // (onFocusChanged also fires with false on attach, before any focus: only a true -> false
     // transition counts as losing it.)
 
-    // Touching Category, Account or Date moves the focus out of the amount, hiding the keypad.
+    // Touching a row or a card moves the focus out of the amount, hiding the keypad.
     // (The note is a text field: tapping it moves the focus on its own.)
     val openCategorySheet: () -> Unit = {
         focusManager.clearFocus()
@@ -156,14 +181,6 @@ internal fun TransactionEditForm(
         focusManager.clearFocus()
         onOpenDatePicker()
     }
-    val todayClick: () -> Unit = {
-        focusManager.clearFocus()
-        onTodayClick()
-    }
-    val yesterdayClick: () -> Unit = {
-        focusManager.clearFocus()
-        onYesterdayClick()
-    }
     val selectCategory: (Long) -> Unit = {
         focusManager.clearFocus()
         onCategorySelected(it)
@@ -178,6 +195,7 @@ internal fun TransactionEditForm(
     val selectedAccount =
         uiState.accounts.firstOrNull { it.account.id == uiState.accountId }?.account
             ?: uiState.archivedAccount
+    val selectedAccountBalance = uiState.accounts.firstOrNull { it.account.id == uiState.accountId }?.balance
     val selectedToAccount =
         uiState.accounts.firstOrNull { it.account.id == uiState.toAccountId }?.account
             ?: uiState.archivedToAccount
@@ -187,6 +205,8 @@ internal fun TransactionEditForm(
             category = uiState.selectedCategory,
         )
     val isTransfer = uiState.selectedType == TransactionType.TRANSFER
+    val isIncome = uiState.selectedType == TransactionType.INCOME
+    val carousel = !isTransfer && useCoverflow(isTransfer = isTransfer, uiState = uiState)
 
     Column(
         modifier =
@@ -201,6 +221,7 @@ internal fun TransactionEditForm(
         TransactionAmountField(
             value = uiState.amountText,
             onValueChange = onAmountChanged,
+            label = stringResource(amountLabelRes(uiState.selectedType)),
             focusRequester = focusRequester,
             // "Done" on the keyboard moves on to the next thing the movement lacks: its category.
             onDone = {
@@ -221,87 +242,15 @@ internal fun TransactionEditForm(
                     text = stringResource(R.string.recurring_generated_by, uiState.recurringSourceName),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         }
 
-        if (isTransfer) {
-            Revealed(visible = showRest, index = 0) {
-                // Same rhythm as before wrapping (the outer column's spacing).
-                Column(verticalArrangement = Arrangement.spacedBy(spacing.l)) {
-                    SelectorField(
-                        label = stringResource(R.string.transaction_edit_from_label),
-                        value = selectedAccount?.name ?: stringResource(R.string.transaction_edit_account_placeholder),
-                        icon = Icons.Default.AccountBalanceWallet,
-                        onClick = openAccountSheet,
-                    )
-
-                    Box(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        IconButton(
-                            onClick = onSwapAccounts,
-                            enabled = uiState.accountId != null && uiState.toAccountId != null,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.SwapVert,
-                                contentDescription = stringResource(R.string.transaction_edit_swap_accounts),
-                            )
-                        }
-                    }
-
-                    SelectorField(
-                        label = stringResource(R.string.transaction_edit_to_label),
-                        value = selectedToAccount?.name ?: stringResource(R.string.transaction_edit_to_placeholder),
-                        icon = Icons.Default.AccountBalanceWallet,
-                        onClick = openToAccountSheet,
-                    )
-                }
-            }
-        } else {
-            Revealed(visible = showRest, index = 0) {
-                Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
-                    SelectorField(
-                        label = stringResource(R.string.transaction_edit_category_label),
-                        value =
-                            selectedCategoryText.ifBlank {
-                                stringResource(R.string.transaction_edit_category_placeholder)
-                            },
-                        icon = Icons.Default.Category,
-                        isError = uiState.categoryErrorRes != null,
-                        onClick = openCategorySheet,
-                    )
-                    if (uiState.categoryErrorRes != null) {
-                        Text(
-                            text = stringResource(uiState.categoryErrorRes),
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(start = spacing.l),
-                        )
-                    }
-                    if (uiState.frequentCategories.isNotEmpty()) {
-                        Text(
-                            text = stringResource(R.string.transaction_edit_frequent_categories),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(start = spacing.xs, top = spacing.xs),
-                        )
-                        FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s)) {
-                            uiState.frequentCategories.forEach { frequent ->
-                                TonalChip(
-                                    label = categoryFullDisplayName(parent = frequent.parent, category = frequent.category),
-                                    selected = uiState.categoryId == frequent.category.id,
-                                    onClick = { selectCategory(frequent.category.id) },
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
+        if (carousel) {
             Revealed(visible = showRest, index = 1) {
-                if (useCoverflow(isTransfer = isTransfer, uiState = uiState)) {
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
                     AccountCoverflow(
                         accounts = uiState.accounts,
                         selectedAccountId = uiState.accountId,
@@ -310,35 +259,166 @@ internal fun TransactionEditForm(
                         cardOverviews = uiState.cardOverviews,
                         // Like the other selectors, touching a card moves the focus out of the amount.
                         onInteraction = { focusManager.clearFocus() },
+                        showHeader = false,
                     )
-                } else {
-                    SelectorField(
-                        label = stringResource(R.string.transaction_edit_account_label),
-                        value = selectedAccount?.name ?: stringResource(R.string.transaction_edit_account_placeholder),
-                        icon = Icons.Default.AccountBalanceWallet,
-                        onClick = openAccountSheet,
-                    )
+                    if (selectedAccount != null && selectedAccountBalance != null) {
+                        // The caption names the chosen account and opens the full list, as the
+                        // design has no "Cuenta" row over the cards.
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 48.dp)
+                                    .clickable(role = Role.Button, onClick = openAccountSheet),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text =
+                                    stringResource(
+                                        if (isIncome) R.string.transaction_caption_to else R.string.transaction_caption_from,
+                                        selectedAccount.name,
+                                        MoneyFormatter.format(selectedAccountBalance),
+                                    ),
+                                style =
+                                    MaterialTheme.typography.labelLarge.copy(
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                    ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    }
                 }
             }
         }
 
         Revealed(visible = showRest, index = 2) {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
-                DateRow(
-                    date = uiState.date,
-                    today = uiState.today,
-                    isError = uiState.dateErrorRes != null,
-                    onTodayClick = todayClick,
-                    onYesterdayClick = yesterdayClick,
-                    onOpenDatePicker = openDatePicker,
-                )
-                if (uiState.dateErrorRes != null) {
-                    Text(
-                        text = stringResource(uiState.dateErrorRes),
-                        color = MaterialTheme.colorScheme.error,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(start = spacing.l),
+                MovementCard {
+                    if (isTransfer) {
+                        FormRow(
+                            label = stringResource(R.string.transaction_edit_from_label),
+                            value = selectedAccount?.name ?: stringResource(R.string.transaction_edit_account_placeholder),
+                            icon = Icons.Default.AccountBalanceWallet,
+                            tileContainer = MaterialTheme.colorScheme.primaryContainer,
+                            tileContent = MaterialTheme.colorScheme.onPrimaryContainer,
+                            onClick = openAccountSheet,
+                        )
+                        SwapRow(
+                            enabled = uiState.accountId != null && uiState.toAccountId != null,
+                            onSwap = onSwapAccounts,
+                        )
+                        FormRow(
+                            label = stringResource(R.string.transaction_edit_to_label),
+                            value = selectedToAccount?.name ?: stringResource(R.string.transaction_edit_to_placeholder),
+                            icon = Icons.Default.AccountBalanceWallet,
+                            tileContainer = MaterialTheme.colorScheme.primaryContainer,
+                            tileContent = MaterialTheme.colorScheme.onPrimaryContainer,
+                            onClick = openToAccountSheet,
+                        )
+                    } else {
+                        val category = uiState.selectedCategory
+                        FormRow(
+                            label = stringResource(R.string.transaction_edit_category_label),
+                            value =
+                                selectedCategoryText.ifBlank {
+                                    stringResource(R.string.transaction_edit_category_placeholder)
+                                },
+                            icon = if (category != null) IconCatalog.get(category.icon) else Icons.Default.Category,
+                            tileContainer =
+                                if (category != null) {
+                                    Color(category.color).copy(alpha = CATEGORY_TILE_ALPHA)
+                                } else {
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                },
+                            tileContent =
+                                if (category != null) {
+                                    Color(category.color)
+                                } else {
+                                    MaterialTheme.colorScheme.onSecondaryContainer
+                                },
+                            onClick = openCategorySheet,
+                            isError = uiState.categoryErrorRes != null,
+                        )
+                        if (!carousel) {
+                            FormRow(
+                                label = stringResource(R.string.transaction_edit_account_label),
+                                value = selectedAccount?.name ?: stringResource(R.string.transaction_edit_account_placeholder),
+                                icon = Icons.Default.AccountBalanceWallet,
+                                tileContainer = MaterialTheme.colorScheme.primaryContainer,
+                                tileContent = MaterialTheme.colorScheme.onPrimaryContainer,
+                                onClick = openAccountSheet,
+                            )
+                        }
+                    }
+
+                    FormRow(
+                        label = stringResource(R.string.transaction_edit_date_label),
+                        value = dateText(uiState.date, uiState.today),
+                        icon = Icons.Default.CalendarMonth,
+                        tileContainer = MaterialTheme.colorScheme.tertiaryContainer,
+                        tileContent = MaterialTheme.colorScheme.onTertiaryContainer,
+                        onClick = openDatePicker,
+                        isError = uiState.dateErrorRes != null,
                     )
+
+                    NoteRow(note = uiState.note, onNoteChanged = onNoteChanged)
+                }
+
+                if (!isTransfer && uiState.categoryErrorRes != null) {
+                    FieldError(stringResource(uiState.categoryErrorRes))
+                }
+                if (uiState.dateErrorRes != null) {
+                    FieldError(stringResource(uiState.dateErrorRes))
+                }
+                if (uiState.note.isNotEmpty() || uiState.noteErrorRes != null) {
+                    Text(
+                        text =
+                            stringResource(
+                                R.string.transaction_edit_note_counter,
+                                uiState.note.length,
+                                DomainLimits.NOTE_MAX_LENGTH,
+                            ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color =
+                            if (uiState.noteErrorRes != null) {
+                                MaterialTheme.colorScheme.error
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = spacing.l),
+                    )
+                }
+                if (uiState.noteErrorRes != null) {
+                    FieldError(stringResource(uiState.noteErrorRes))
+                }
+
+                // Frequent categories only help while none is chosen: once one is, the row shows it.
+                if (!isTransfer && uiState.categoryId == null && uiState.frequentCategories.isNotEmpty()) {
+                    Text(
+                        text = stringResource(R.string.transaction_edit_frequent_categories),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = spacing.xs, top = spacing.xs),
+                    )
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s)) {
+                        uiState.frequentCategories.forEach { frequent ->
+                            TonalChip(
+                                label = categoryFullDisplayName(parent = frequent.parent, category = frequent.category),
+                                selected = false,
+                                onClick = { selectCategory(frequent.category.id) },
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -368,44 +448,38 @@ internal fun TransactionEditForm(
             }
         }
 
-        Revealed(visible = showRest, index = 4) {
-            TextField(
-                value = uiState.note,
-                onValueChange = onNoteChanged,
-                label = { Text(text = stringResource(R.string.transaction_edit_note_label)) },
-                isError = uiState.noteErrorRes != null,
-                minLines = 2,
-                maxLines = 4,
-                shape = MaterialTheme.shapes.medium,
-                colors = tonalFieldColors(),
-                supportingText = {
-                    Text(
-                        text =
-                            stringResource(
-                                R.string.transaction_edit_note_counter,
-                                uiState.note.length,
-                                DomainLimits.NOTE_MAX_LENGTH,
-                            ),
-                        color =
-                            if (uiState.noteErrorRes != null) {
-                                MaterialTheme.colorScheme.error
-                            } else {
-                                MaterialTheme.colorScheme.onSurfaceVariant
-                            },
-                    )
-                },
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-
         Spacer(modifier = Modifier.height(spacing.s))
     }
 }
 
+/** Alpha of the category color behind its tile: the tile reads as tinted, not as a solid block. */
+private const val CATEGORY_TILE_ALPHA = 0.25f
+
+/** Label of the amount, by type. */
+private fun amountLabelRes(type: TransactionType): Int =
+    when (type) {
+        TransactionType.INCOME -> R.string.transaction_amount_label_income
+        TransactionType.EXPENSE -> R.string.transaction_amount_label_expense
+        TransactionType.TRANSFER -> R.string.transaction_amount_label_transfer
+    }
+
+/** "Hoy" and "Ayer" for those days, otherwise the date in its medium form. */
+@Composable
+private fun dateText(
+    date: LocalDate?,
+    today: LocalDate,
+): String =
+    when (date) {
+        null -> ""
+        today -> stringResource(R.string.transaction_edit_today)
+        today.minusDays(1) -> stringResource(R.string.transaction_edit_yesterday)
+        else -> date.formatMedium()
+    }
+
 /**
- * The 3D account coverflow replaces the "Cuenta" selector only for expenses and income with depth
- * on and more than one active account. Transfers keep their From/To selectors, a single account
- * needs no carousel, and an archived movement account keeps today's selector.
+ * The 3D account coverflow replaces the account row only for expenses and income with depth on and
+ * more than one active account. Transfers keep their From/To rows, a single account needs no
+ * carousel, and an archived movement account keeps today's row.
  */
 @Composable
 private fun useCoverflow(
@@ -532,115 +606,173 @@ private fun TypeSegment(
     }
 }
 
-/**
- * Date in one row: "Hoy" and "Ayer" chips (the one that matches the date is selected) and the date
- * field that opens the calendar. With very large fonts the field goes under the chips.
- */
+/** The rows' card: one raised surface, rows stacked without dividers. */
 @Composable
-private fun DateRow(
-    date: LocalDate?,
-    today: LocalDate,
-    isError: Boolean,
-    onTodayClick: () -> Unit,
-    onYesterdayClick: () -> Unit,
-    onOpenDatePicker: () -> Unit,
-) {
-    val spacing = MaterialTheme.walletSpacing
-    val stacked = LocalDensity.current.fontScale > STACKED_FONT_SCALE
-
-    @Composable
-    fun Chips() {
-        TonalChip(
-            label = stringResource(R.string.transaction_edit_today),
-            selected = date == today,
-            onClick = onTodayClick,
-        )
-        TonalChip(
-            label = stringResource(R.string.transaction_edit_yesterday),
-            selected = date == today.minusDays(1),
-            onClick = onYesterdayClick,
-        )
-    }
-
-    @Composable
-    fun DateField(modifier: Modifier = Modifier) {
-        SelectorField(
-            label = stringResource(R.string.transaction_edit_date_label),
-            value = date?.formatMedium().orEmpty(),
-            icon = Icons.Default.CalendarMonth,
-            isError = isError,
-            onClick = onOpenDatePicker,
-            modifier = modifier,
-        )
-    }
-
-    if (stacked) {
-        Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.s)) { Chips() }
-            DateField()
-        }
-    } else {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(spacing.s),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Chips()
-            DateField(modifier = Modifier.weight(1f))
+private fun MovementCard(content: @Composable () -> Unit) {
+    Surface(
+        shape = RoundedCornerShape(CardRadius),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(modifier = Modifier.fillMaxWidth().padding(vertical = CardVerticalPadding)) {
+            content()
         }
     }
 }
 
-/** Tappable field that opens a list or a calendar: a tonal layer with the icon in `primary`. */
+/**
+ * A tappable row of the card: a tinted tile with the icon, the value in bold above its label and a
+ * chevron. Tapping opens the matching picker.
+ */
 @Composable
-internal fun SelectorField(
+private fun FormRow(
     label: String,
     value: String,
     icon: ImageVector,
+    tileContainer: Color,
+    tileContent: Color,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
     isError: Boolean = false,
 ) {
-    val spacing = MaterialTheme.walletSpacing
-    Surface(
-        onClick = onClick,
-        shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = modifier.fillMaxWidth(),
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .clickable(role = Role.Button, onClick = onClick)
+                .heightIn(min = RowMinHeight)
+                .padding(horizontal = RowHorizontalPadding, vertical = RowVerticalPadding),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(RowGap),
     ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = MinTouchHeight)
-                    .padding(horizontal = spacing.l, vertical = spacing.m),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+        RowTile(icon = icon, container = tileContainer, content = tileContent)
+        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = value,
+                style = rowValueStyle(),
+                color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
-            Spacer(modifier = Modifier.width(spacing.m))
-            Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = label,
+                style = rowLabelStyle(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** The note: the last row, with an inline single-line field where the value goes. */
+@Composable
+private fun NoteRow(
+    note: String,
+    onNoteChanged: (String) -> Unit,
+) {
+    Row(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = RowMinHeight)
+                .padding(horizontal = RowHorizontalPadding, vertical = RowVerticalPadding),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(RowGap),
+    ) {
+        RowTile(
+            icon = Icons.Default.Notes,
+            container = MaterialTheme.colorScheme.secondaryContainer,
+            content = MaterialTheme.colorScheme.onSecondaryContainer,
+        )
+        Box(modifier = Modifier.weight(1f)) {
+            if (note.isEmpty()) {
                 Text(
-                    text = label,
-                    style = MaterialTheme.typography.labelMedium,
+                    text = stringResource(R.string.transaction_edit_note_label),
+                    style = rowValueStyle(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    text = value,
-                    style = MaterialTheme.typography.bodyLarge,
-                    fontWeight = FontWeight.Bold,
-                    color =
-                        if (isError) {
-                            MaterialTheme.colorScheme.error
-                        } else {
-                            MaterialTheme.colorScheme.onSurface
-                        },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
+            BasicTextField(
+                value = note,
+                onValueChange = onNoteChanged,
+                singleLine = true,
+                textStyle = rowValueStyle().copy(color = MaterialTheme.colorScheme.onSurface),
+                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                modifier = Modifier.fillMaxWidth().testTag(NOTE_FIELD_TAG),
+            )
         }
     }
+}
+
+/** Swap between the two accounts of a transfer: a centered button between their rows. */
+@Composable
+private fun SwapRow(
+    enabled: Boolean,
+    onSwap: () -> Unit,
+) {
+    Box(
+        modifier = Modifier.fillMaxWidth().height(RowVerticalPadding * 2 + TileSize / 2),
+        contentAlignment = Alignment.Center,
+    ) {
+        IconButton(onClick = onSwap, enabled = enabled) {
+            Icon(
+                imageVector = Icons.Default.SwapVert,
+                contentDescription = stringResource(R.string.transaction_edit_swap_accounts),
+            )
+        }
+    }
+}
+
+/** The 42 dp tile of a row: the icon on a tinted rounded square (36 % radius). */
+@Composable
+private fun RowTile(
+    icon: ImageVector,
+    container: Color,
+    content: Color,
+) {
+    Box(
+        modifier =
+            Modifier
+                .size(TileSize)
+                .background(container, RoundedCornerShape(percent = 36)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = content,
+            modifier = Modifier.size(TileIconSize),
+        )
+    }
+}
+
+@Composable
+private fun rowValueStyle(): TextStyle =
+    MaterialTheme.typography.bodyLarge.copy(
+        fontSize = 16.sp,
+        fontWeight = FontWeight.SemiBold,
+    )
+
+@Composable
+private fun rowLabelStyle(): TextStyle =
+    MaterialTheme.typography.bodySmall.copy(
+        fontSize = 13.sp,
+        fontWeight = FontWeight.Medium,
+    )
+
+@Composable
+private fun FieldError(text: String) {
+    Text(
+        text = text,
+        color = MaterialTheme.colorScheme.error,
+        style = MaterialTheme.typography.bodySmall,
+        modifier = Modifier.padding(start = MaterialTheme.walletSpacing.l),
+    )
 }
 
 private fun TransactionType.labelRes(): Int =

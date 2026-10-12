@@ -1,13 +1,12 @@
 package com.crguarin.wallet.ui.accounts
 
 import android.annotation.SuppressLint
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,7 +14,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,8 +25,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ReceiptLong
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.DirectionsBus
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.DropdownMenu
@@ -53,14 +49,18 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsPropertyKey
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -98,6 +98,7 @@ import com.crguarin.wallet.ui.motion.depthOn
 import com.crguarin.wallet.ui.motion.rememberStaggerClock
 import com.crguarin.wallet.ui.motion.staggeredEnter
 import com.crguarin.wallet.ui.theme.WalletTheme
+import com.crguarin.wallet.ui.theme.walletColors
 import com.crguarin.wallet.ui.theme.walletDepth
 import com.crguarin.wallet.ui.theme.walletSpacing
 import com.crguarin.wallet.ui.theme.walletTypography
@@ -226,7 +227,14 @@ fun AccountDetailScreen(
         contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
-                title = { Text(text = stringResource(R.string.account_detail_title)) },
+                title = {
+                    Text(
+                        // The title is the account name, as in the mock; the generic one while loading.
+                        text = account?.name ?: stringResource(R.string.account_detail_title),
+                        style = MaterialTheme.typography.titleLarge.copy(fontSize = 22.sp, fontWeight = FontWeight.ExtraBold),
+                        modifier = Modifier.testTag(ACCOUNT_DETAIL_TITLE_TAG),
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
@@ -325,6 +333,7 @@ fun AccountDetailScreen(
         // installments/statements headings (2), movements heading (3) and first block (4).
         val stagger = rememberAccountDetailStagger(account.id)
         val listState = rememberLazyListState()
+        val rowSurface = raisedColor()
         LazyColumn(
             state = listState,
             modifier =
@@ -332,7 +341,7 @@ fun AccountDetailScreen(
                     .fillMaxSize()
                     .padding(innerPadding),
             // The side gutter is applied by each item: the day headers bring their own.
-            contentPadding = PaddingValues(top = spacing.s, bottom = spacing.xxxl),
+            contentPadding = PaddingValues(top = spacing.l, bottom = spacing.xxxl),
         ) {
             val gutter = Modifier.padding(horizontal = spacing.screenGutter)
             val balance = uiState.accountWithBalance.balance
@@ -345,6 +354,7 @@ fun AccountDetailScreen(
                         overview = cardOverview,
                         today = uiState.today,
                         account = account,
+                        status = accountStatus(uiState.accountWithBalance, cardOverview, uiState.today, showTypeLabel = false),
                         modifier = gutter,
                         actions = {
                             CardActions(
@@ -448,14 +458,14 @@ fun AccountDetailScreen(
                     modifier =
                         gutter
                             .fillMaxWidth()
-                            .padding(top = spacing.l)
+                            .padding(top = DETAIL_SECTION_GAP, bottom = spacing.s)
                             .staggeredEnter(stagger, 3),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
                         text = stringResource(R.string.account_detail_transactions_title),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.titleMedium.copy(fontSize = 18.sp, fontWeight = FontWeight.Bold),
                         modifier =
                             Modifier
                                 .weight(1f)
@@ -520,8 +530,8 @@ fun AccountDetailScreen(
                                 }
                             },
                     ) { index ->
-                        // Only the first block of rows enters staggered (index 4); the rest
-                        // is already in place. The entrance only redraws, never detaches.
+                        // Only the first block enters staggered (index 4); the rest is already in
+                        // place. The entrance only redraws, never detaches.
                         val firstBlock =
                             if (index == 0) {
                                 Modifier.staggeredEnter(stagger, 4)
@@ -538,23 +548,22 @@ fun AccountDetailScreen(
                                 )
                             }
                             is TransactionListEntry.Item -> {
-                                // The rows of one day share a tonal layer: the first has the top
-                                // corners rounded and the last the bottom ones.
+                                // The rows of one day form one card: the first carries its top
+                                // corners and the last its bottom ones.
                                 val previous = if (index > 0) pagingItems.peek(index - 1) else null
                                 val next = if (index < pagingItems.itemCount - 1) pagingItems.peek(index + 1) else null
-                                val first = previous == null || previous is TransactionListEntry.DayHeader
-                                val last = next == null || next is TransactionListEntry.DayHeader
                                 TransactionListItem(
                                     details = entry.details,
                                     perspectiveAccountId = account.id,
                                     onClick = { onTransactionClick(entry.details.transaction.id) },
                                     modifier =
-                                        when {
-                                            first && last -> gutter.then(firstBlock).groupedItemBackground(0, 1)
-                                            first -> gutter.then(firstBlock).groupedItemBackground(0, 2)
-                                            last -> gutter.then(firstBlock).groupedItemBackground(1, 2)
-                                            else -> gutter.then(firstBlock).groupedItemBackground(1, 3)
-                                        },
+                                        gutter
+                                            .then(firstBlock)
+                                            .movementRow(
+                                                top = previous == null || previous is TransactionListEntry.DayHeader,
+                                                bottom = next == null || next is TransactionListEntry.DayHeader,
+                                                color = rowSurface,
+                                            ).testTag(MOVEMENT_ROW_TAG),
                                 )
                             }
                             null -> Unit
@@ -621,131 +630,106 @@ private fun rememberAccountDetailStagger(accountId: Long): StaggerClock {
     return rememberStaggerClock("account-detail-$accountId", startDelayMillis = startDelay)
 }
 
-/** Height of the main action face; the key edge hangs below it. */
-private val PRIMARY_ACTION_HEIGHT = 52.dp
-
-/** Height of the secondary actions: the 48 dp touch target. */
-private val SECONDARY_ACTION_HEIGHT = 48.dp
+/** Height of an action key's face; its edge hangs below, [keycapDepth] deep. */
+private val ACTION_FACE_HEIGHT = 52.dp
 
 /** Corner radius of the action keys. */
 private val ACTION_CORNER = 18.dp
 
-/** Text of the main action key: 15 sp, weight 800, over `primary`. */
-private val PRIMARY_ACTION_TEXT_SIZE = 15.sp
+/** Space between the action keys, across and down. */
+private val ACTION_GAP = 12.dp
 
-/** Main action: a 52 dp key face in `primary` over its edge, with an optional leading icon. */
+/** Test tag of every action key of the detail. */
+internal const val ACTION_KEY_TAG = "account-action-key"
+
+/** Test tag of the title of the detail (the account name). */
+internal const val ACCOUNT_DETAIL_TITLE_TAG = "account-detail-title"
+
+/** Test tag of every row of the movements card. */
+internal const val MOVEMENT_ROW_TAG = "account-movement-row"
+
+/** Role of an action key: the first one is the main action, the rest are secondary. */
+internal enum class ActionRole { Primary, Secondary }
+
+/** Semantics key with the [ActionRole] of a key, for tests. Screen readers do not read it. */
+internal val ActionRoleKey = SemanticsPropertyKey<ActionRole>("ActionRole")
+
+/** One key of the action grid: its text and what it does. */
+private class ActionSpec(
+    val text: String,
+    val onClick: () -> Unit,
+)
+
+/**
+ * The actions of the detail as relief keys, two per row. The first one is the main action (filled
+ * with `primary`); the others use `secondaryContainer`. An odd last key spans the full row.
+ */
 @Composable
-private fun PrimaryAction(
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    icon: ImageVector? = null,
-) {
-    val colors = MaterialTheme.colorScheme
-    val depth = MaterialTheme.walletDepth.keycapDepth
-    Keycap(
-        onClick = onClick,
-        face = colors.primary,
-        shape = RoundedCornerShape(ACTION_CORNER),
-        depth = depth,
-        enabled = enabled,
-        modifier = modifier.fillMaxWidth().height(PRIMARY_ACTION_HEIGHT + depth),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = colors.onPrimary,
-                    modifier = Modifier.size(20.dp),
-                )
-                Spacer(modifier = Modifier.width(MaterialTheme.walletSpacing.s))
+private fun ActionKeyGrid(actions: List<ActionSpec>) {
+    Column(verticalArrangement = Arrangement.spacedBy(ACTION_GAP)) {
+        actions.chunked(2).forEachIndexed { rowIndex, row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(ACTION_GAP)) {
+                row.forEachIndexed { column, action ->
+                    ActionKey(
+                        text = action.text,
+                        role = if (rowIndex == 0 && column == 0) ActionRole.Primary else ActionRole.Secondary,
+                        onClick = action.onClick,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
-            Text(
-                text = text,
-                style =
-                    MaterialTheme.typography.titleMedium.copy(
-                        fontSize = PRIMARY_ACTION_TEXT_SIZE,
-                        fontWeight = FontWeight.ExtraBold,
-                    ),
-                color = colors.onPrimary,
-            )
         }
     }
 }
 
-/** Secondary action: a key face in `secondaryContainer`, at least 48 dp tall. */
+/** A relief key of 52 dp with its label centered; it sinks when pressed (see [Keycap]). */
 @Composable
-private fun SecondaryAction(
+private fun ActionKey(
     text: String,
+    role: ActionRole,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    icon: ImageVector? = null,
 ) {
     val colors = MaterialTheme.colorScheme
+    val primary = role == ActionRole.Primary
     Keycap(
         onClick = onClick,
-        face = colors.secondaryContainer,
+        face = if (primary) colors.primary else colors.secondaryContainer,
         shape = RoundedCornerShape(ACTION_CORNER),
-        enabled = enabled,
-        modifier = modifier.heightIn(min = SECONDARY_ACTION_HEIGHT),
+        modifier =
+            modifier
+                .height(ACTION_FACE_HEIGHT + MaterialTheme.walletDepth.keycapDepth)
+                .testTag(ACTION_KEY_TAG)
+                .semantics { this[ActionRoleKey] = role },
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = MaterialTheme.walletSpacing.l),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (icon != null) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = colors.onSecondaryContainer,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(modifier = Modifier.width(MaterialTheme.walletSpacing.s))
-            }
-            Text(
-                text = text,
-                style = MaterialTheme.typography.labelLarge,
-                color = colors.onSecondaryContainer,
-            )
-        }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleMedium.copy(fontSize = 15.sp, fontWeight = FontWeight.ExtraBold),
+            color = if (primary) colors.onPrimary else colors.onSecondaryContainer,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.padding(horizontal = MaterialTheme.walletSpacing.s),
+        )
     }
 }
 
 /** Expense, income and transfer from this account: the three things done most with cash and savings. */
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ColumnScope.CashActions(
     canTransfer: Boolean,
     onNewTransactionClick: (TransactionType) -> Unit,
 ) {
-    val spacing = MaterialTheme.walletSpacing
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(spacing.s),
-        verticalArrangement = Arrangement.spacedBy(spacing.s),
-    ) {
-        SecondaryAction(
-            text = stringResource(R.string.type_expense),
-            onClick = { onNewTransactionClick(TransactionType.EXPENSE) },
-        )
-        SecondaryAction(
-            text = stringResource(R.string.type_income),
-            onClick = { onNewTransactionClick(TransactionType.INCOME) },
-        )
-        if (canTransfer) {
-            SecondaryAction(
-                text = stringResource(R.string.type_transfer),
-                onClick = { onNewTransactionClick(TransactionType.TRANSFER) },
-            )
+    val actions =
+        buildList {
+            add(ActionSpec(stringResource(R.string.type_expense)) { onNewTransactionClick(TransactionType.EXPENSE) })
+            add(ActionSpec(stringResource(R.string.type_income)) { onNewTransactionClick(TransactionType.INCOME) })
+            if (canTransfer) {
+                add(ActionSpec(stringResource(R.string.type_transfer)) { onNewTransactionClick(TransactionType.TRANSFER) })
+            }
         }
-    }
+    ActionKeyGrid(actions)
 }
 
-/** Pay is the main action of a card; an expense and the statement reconciliation sit beside it. */
-@OptIn(ExperimentalLayoutApi::class)
+/** Pay is the main action of a card; an expense and the statement reconciliation follow it. */
 @Composable
 private fun ColumnScope.CardActions(
     canAddExpense: Boolean,
@@ -753,22 +737,15 @@ private fun ColumnScope.CardActions(
     onReconcileClick: () -> Unit,
     onNewTransactionClick: (TransactionType) -> Unit,
 ) {
-    val spacing = MaterialTheme.walletSpacing
-    PrimaryAction(text = stringResource(R.string.card_action_pay), onClick = onPayCardClick)
-    Spacer(modifier = Modifier.height(spacing.s))
-    FlowRow(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(spacing.s),
-        verticalArrangement = Arrangement.spacedBy(spacing.s),
-    ) {
-        if (canAddExpense) {
-            SecondaryAction(
-                text = stringResource(R.string.type_expense),
-                onClick = { onNewTransactionClick(TransactionType.EXPENSE) },
-            )
+    val actions =
+        buildList {
+            add(ActionSpec(stringResource(R.string.card_action_pay), onPayCardClick))
+            if (canAddExpense) {
+                add(ActionSpec(stringResource(R.string.type_expense)) { onNewTransactionClick(TransactionType.EXPENSE) })
+            }
+            add(ActionSpec(stringResource(R.string.card_action_reconcile), onReconcileClick))
         }
-        SecondaryAction(text = stringResource(R.string.card_action_reconcile), onClick = onReconcileClick)
-    }
+    ActionKeyGrid(actions)
 }
 
 /**
@@ -782,27 +759,55 @@ private fun ColumnScope.TransitActions(
     onRegisterTripClick: () -> Unit,
     onRechargeClick: () -> Unit,
 ) {
-    if (canRegisterTrip) {
-        PrimaryAction(
-            text = stringResource(R.string.transit_action_trip),
-            onClick = onRegisterTripClick,
-            icon = Icons.Default.DirectionsBus,
-        )
-        if (canRecharge) {
-            Spacer(modifier = Modifier.height(MaterialTheme.walletSpacing.s))
-            SecondaryAction(
-                text = stringResource(R.string.transit_action_recharge),
-                onClick = onRechargeClick,
-                icon = Icons.Default.Add,
-            )
+    val actions =
+        buildList {
+            if (canRegisterTrip) {
+                add(ActionSpec(stringResource(R.string.transit_action_trip), onRegisterTripClick))
+            }
+            if (canRecharge) {
+                add(ActionSpec(stringResource(R.string.transit_action_recharge), onRechargeClick))
+            }
         }
-    } else if (canRecharge) {
-        PrimaryAction(
-            text = stringResource(R.string.transit_action_recharge),
-            onClick = onRechargeClick,
-            icon = Icons.Default.Add,
+    ActionKeyGrid(actions)
+}
+
+/** Surface of the raised blocks (the movements card rows), as in `raisedSurface`. */
+@Composable
+private fun raisedColor(): Color {
+    val scheme = MaterialTheme.colorScheme
+    return if (MaterialTheme.walletColors.isDark) scheme.surfaceContainer else scheme.surfaceContainerLowest
+}
+
+/** Corner radius of the movements card, on its first and last rows. */
+private val MOVEMENTS_CORNER = 24.dp
+
+/** Padding of the movements card above its first row and below its last one. */
+private val MOVEMENTS_EDGE_PADDING = 8.dp
+
+/**
+ * A row of the movements card: the surface color, with the card's rounded corners and edge
+ * padding on the first ([top]) and last ([bottom]) rows, so the rows read as one container.
+ */
+private fun Modifier.movementRow(
+    top: Boolean,
+    bottom: Boolean,
+    color: Color,
+): Modifier {
+    val topCorner = if (top) MOVEMENTS_CORNER else 0.dp
+    val bottomCorner = if (bottom) MOVEMENTS_CORNER else 0.dp
+    val shape =
+        RoundedCornerShape(
+            topStart = topCorner,
+            topEnd = topCorner,
+            bottomEnd = bottomCorner,
+            bottomStart = bottomCorner,
         )
-    }
+    return clip(shape)
+        .background(color)
+        .padding(
+            top = if (top) MOVEMENTS_EDGE_PADDING else 0.dp,
+            bottom = if (bottom) MOVEMENTS_EDGE_PADDING else 0.dp,
+        )
 }
 
 @Composable

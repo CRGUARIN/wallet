@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -32,7 +33,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import java.time.Instant
-import kotlin.math.cos
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "es-rCO-w1000dp-h3000dp")
@@ -123,25 +123,19 @@ class AccountDeckTest {
         composeRule.onNodeWithText("$ 10.650").assertIsDisplayed()
     }
 
-    /**
-     * Taps the name of a deck card. The tap goes to the top-left of the strip, where the name
-     * sits: with the tilted cards, tapping the vertical center of the strip in Robolectric lands
-     * one card lower (its hit testing applies the layer tilt to the point instead of inverting
-     * it; on a real phone the tap lands where it is shown). Tapping the name area is correct on
-     * both.
-     */
-    private fun tapName(name: String) {
-        composeRule.onNodeWithText(name).performTouchInput { click(Offset(100f, 8f)) }
+    /** Taps the center of the touch target of the strip of [accountId]: the area the user sees. */
+    private fun tapStrip(accountId: Long) {
+        composeRule.onNodeWithTag(deckHitTag(accountId)).performTouchInput { click() }
     }
 
     @Test
-    fun `tapping the name of the first middle and last card opens its detail`() {
+    fun `tapping the strip of the first middle and last card opens its detail`() {
         val opened = mutableListOf<Long>()
         showDeck(onAccountClick = { opened += it })
 
-        tapName("Efectivo")
-        tapName("Cívica")
-        tapName("Ahorros")
+        tapStrip(1L)
+        tapStrip(3L)
+        tapStrip(2L)
 
         assertThat(opened).containsExactly(1L, 3L, 2L).inOrder()
     }
@@ -181,22 +175,27 @@ class AccountDeckTest {
     }
 
     @Test
-    fun `the touch target of a card is only its visible strip`() {
+    fun `every touch target of a strip is at least 48 dp tall`() {
         showDeck()
 
-        val node = composeRule.onNodeWithText("Efectivo").fetchSemanticsNode()
-        // The 54 dp strip tilted 24 degrees about its bottom edge; density is 1 here.
-        val expected = 54f * cos(Math.toRadians(24.0)).toFloat()
-        assertThat(node.boundsInRoot.height).isWithin(1f).of(expected)
+        // Robolectric runs at density 1, so dp and px are the same here.
+        accounts.forEach { item ->
+            val height =
+                composeRule
+                    .onNodeWithTag(deckHitTag(item.account.id))
+                    .fetchSemanticsNode()
+                    .boundsInRoot.height
+            assertThat(height).isAtLeast(48f)
+        }
     }
 
     @Test
-    fun `clicking the center of each visible strip opens its account`() {
+    fun `clicking the center of each hit target opens its account`() {
         val opened = mutableListOf<Long>()
         showDeck(onAccountClick = { opened += it })
 
-        listOf("Efectivo", "Ahorros", "Cívica").forEach { name ->
-            val bounds = composeRule.onNodeWithText(name).fetchSemanticsNode().boundsInRoot
+        listOf(1L, 2L, 3L).forEach { id ->
+            val bounds = composeRule.onNodeWithTag(deckHitTag(id)).fetchSemanticsNode().boundsInRoot
             composeRule.onRoot().performTouchInput { click(Offset(bounds.center.x, bounds.center.y)) }
         }
 

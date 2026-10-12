@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -41,6 +41,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -55,6 +57,7 @@ import com.crguarin.wallet.ui.components.IconCatalog
 import com.crguarin.wallet.ui.components.MoneySign
 import com.crguarin.wallet.ui.components.MoneyText
 import com.crguarin.wallet.ui.components.SectionCard
+import com.crguarin.wallet.ui.motion.PulseDot
 import com.crguarin.wallet.ui.motion.RollingAmountText
 import com.crguarin.wallet.ui.motion.StaggerClock
 import com.crguarin.wallet.ui.motion.accountCardSharedBounds
@@ -193,9 +196,9 @@ internal fun AccountHeaderBlock(
             Modifier
         }
     // Only a real hero reserves the flight target height; the id-less stub wraps its content.
-    val heroMinHeight =
+    val heroHeight =
         if (isHero) {
-            Modifier.heightIn(min = depth.heroCardHeight)
+            Modifier.height(depth.heroCardHeight)
         } else {
             Modifier
         }
@@ -218,8 +221,10 @@ internal fun AccountHeaderBlock(
                     .clip(shape)
                     .background(face.brush())
                     .sheen(running = { loopsOn }, angle = HERO_SHEEN_ANGLE, peakAlpha = HERO_SHEEN_PEAK)
-                    .then(heroMinHeight)
-                    .padding(horizontal = 16.dp, vertical = 20.dp),
+                    .then(heroHeight)
+                    .padding(horizontal = 20.dp, vertical = 16.dp),
+            // Identity on top, balance in the middle, status at the bottom (the mock's three bands).
+            verticalArrangement = Arrangement.SpaceBetween,
         ) {
             content(face)
         }
@@ -334,6 +339,38 @@ internal fun HeaderAmount(
     )
 }
 
+/** Vertical gap between the blocks of an account detail (hero, actions, summary, movements). */
+internal val DETAIL_SECTION_GAP = 20.dp
+
+/** Label over the hero amount: 13 sp, weight 600. */
+@Composable
+@ReadOnlyComposable
+internal fun heroLabelStyle(): TextStyle = MaterialTheme.typography.titleSmall.copy(fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+
+/** Status text at the bottom of a hero: 14 sp, weight 700. */
+@Composable
+@ReadOnlyComposable
+internal fun heroStatusTextStyle(): TextStyle = MaterialTheme.typography.titleSmall.copy(fontSize = 14.sp, fontWeight = FontWeight.Bold)
+
+/**
+ * Status line at the bottom of a hero, in the face content, with the pulse dot in front when the
+ * status asks for attention.
+ */
+@Composable
+internal fun HeroStatusLine(
+    text: String,
+    pulse: Boolean,
+    color: Color,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        if (pulse) {
+            PulseDot(color = color, size = 8.dp, pulse = true)
+            Spacer(modifier = Modifier.width(MaterialTheme.walletSpacing.s))
+        }
+        Text(text = text, style = heroStatusTextStyle(), color = color)
+    }
+}
+
 /**
  * Header of a cash or savings account: the card face with the balance and, below it, [actions]
  * (the main buttons of the screen) and the month summary.
@@ -348,7 +385,6 @@ internal fun AccountHeaderCard(
     staggerClock: StaggerClock? = null,
     idleInterrupted: Boolean = false,
 ) {
-    val spacing = MaterialTheme.walletSpacing
     Column(modifier = modifier.fillMaxWidth()) {
         AccountHeaderBlock(
             accentColor = Color(account.color),
@@ -357,27 +393,27 @@ internal fun AccountHeaderCard(
         ) { face ->
             AccountIdentityRow(account = account, face = face)
 
-            Spacer(modifier = Modifier.height(spacing.m))
-
-            Text(
-                text = stringResource(R.string.account_detail_current_balance),
-                style = MaterialTheme.typography.titleSmall,
-                color = face.content,
-            )
-            Spacer(modifier = Modifier.height(spacing.xs))
-            HeaderAmount(
-                amount = balance,
-                rollKey = "account-hero-${account.id}",
-                sign = MoneySign.NONE,
-            )
+            Column {
+                Text(
+                    text = stringResource(R.string.account_detail_current_balance),
+                    style = heroLabelStyle(),
+                    color = face.content,
+                )
+                Spacer(modifier = Modifier.height(MaterialTheme.walletSpacing.xs))
+                HeaderAmount(
+                    amount = balance,
+                    rollKey = "account-hero-${account.id}",
+                    sign = MoneySign.NONE,
+                )
+            }
         }
 
         if (actions != null) {
-            Spacer(modifier = Modifier.height(spacing.m))
+            Spacer(modifier = Modifier.height(DETAIL_SECTION_GAP))
             StaggerSlot(clock = staggerClock, index = 0, content = actions)
         }
 
-        Spacer(modifier = Modifier.height(spacing.m))
+        Spacer(modifier = Modifier.height(DETAIL_SECTION_GAP))
 
         SectionCard(modifier = staggerModifier(clock = staggerClock, index = 1)) {
             MonthSummarySection(monthSummary = monthSummary)
@@ -471,8 +507,8 @@ private fun SummaryAmount(
 }
 
 /**
- * Icon chip, name, type and archived badge of [account] over the card [face]. Shared by the
- * account, card and transit headers.
+ * Icon chip, name and archived badge of [account] over the card [face]. Shared by the account,
+ * card and transit headers. The account type is not repeated here: the name is the title.
  */
 @Composable
 internal fun AccountIdentityRow(
@@ -503,21 +539,17 @@ internal fun AccountIdentityRow(
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = account.name,
-                style = MaterialTheme.typography.headlineSmall,
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
                 color = face.content,
             )
-            Spacer(modifier = Modifier.height(2.dp))
-            val typeLabel = accountTypeLabel(account.type)
-            Text(
-                text =
-                    if (account.includeInTotal) {
-                        typeLabel
-                    } else {
-                        typeLabel + " · " + stringResource(R.string.accounts_not_included_in_total)
-                    },
-                style = MaterialTheme.typography.bodyMedium,
-                color = face.content,
-            )
+            // The type is not repeated (the mock), but leaving the total out is worth saying.
+            if (!account.includeInTotal) {
+                Text(
+                    text = stringResource(R.string.accounts_not_included_in_total),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = face.content,
+                )
+            }
         }
         if (account.isArchived) {
             Text(

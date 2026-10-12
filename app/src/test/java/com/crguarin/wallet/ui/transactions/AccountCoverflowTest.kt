@@ -29,7 +29,7 @@ import java.time.LocalDate
 
 /**
  * The 3D account coverflow (§9.4 and §9.6): tapping a side card selects it, the chosen card is
- * selected, the flat fallback shows today's selector, and "Cuenta" opens the sheet.
+ * selected, the flat fallback shows today's selector, and the caption opens the sheet.
  */
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], qualifiers = "es")
@@ -126,8 +126,6 @@ class AccountCoverflowTest {
                         onOpenDatePicker = {},
                         onDismissDatePicker = {},
                         onDateSelected = {},
-                        onTodayClick = {},
-                        onYesterdayClick = {},
                         onNoteChanged = {},
                         onSaveClick = {},
                         onDeleteClick = {},
@@ -253,13 +251,15 @@ class AccountCoverflowTest {
 
     @Test
     @Config(qualifiers = "es-w360dp-h2400dp")
-    fun `cuenta opens the account sheet from the coverflow header`() {
+    fun `the caption under the cards opens the account sheet`() {
         var sheets = 0
         showScreen(onOpenAccountSheet = { sheets++ })
 
         // Both names prove the coverflow (not the flat selector) is showing.
         composeRule.onNodeWithText("Ahorros").assertIsDisplayed()
-        composeRule.onNodeWithText("Cuenta").performClick()
+        // The form hides the coverflow's "Cuenta" row; its caption opens the sheet instead.
+        composeRule.onNodeWithText("Cuenta").assertDoesNotExist()
+        composeRule.onNodeWithText("Desde ", substring = true).performClick()
 
         assertThat(sheets).isEqualTo(1)
     }

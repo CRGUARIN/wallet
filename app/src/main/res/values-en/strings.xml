@@ -10,7 +10,18 @@
     <string name="home_title">Home</string>
     <string name="transactions_title">Transactions</string>
     <string name="transaction_edit_title">Transaction</string>
-    <string name="transaction_edit_new_title">New transaction</string>
+    <string name="transaction_new_expense_title">New expense</string>
+    <string name="transaction_new_income_title">New income</string>
+    <string name="transaction_new_transfer_title">New transfer</string>
+    <string name="transaction_amount_label_expense">How much was it?</string>
+    <string name="transaction_amount_label_income">How much came in?</string>
+    <string name="transaction_amount_label_transfer">How much are you moving?</string>
+    <string name="transaction_caption_from">From %1$s · %2$s</string>
+    <string name="transaction_caption_to">To %1$s · %2$s</string>
+    <string name="transaction_save_expense">Save expense</string>
+    <string name="transaction_save_income">Save income</string>
+    <string name="transaction_save_transfer">Save transfer</string>
+    <string name="cd_close">Close</string>
     <string name="transaction_edit_account_label">Account</string>
     <string name="transaction_edit_category_label">Category</string>
     <string name="transaction_edit_account_placeholder">Select account</string>
@@ -224,6 +235,11 @@
     <!-- Home -->
     <string name="home_recent_transactions">Recent transactions</string>
     <string name="home_view_all">View all</string>
+    <string name="home_accounts_view_all">See all</string>
+    <plurals name="home_deck_caption">
+        <item quantity="one">%1$d account · tap it to open it</item>
+        <item quantity="other">%1$d accounts · tap one to open it</item>
+    </plurals>
     <string name="home_view_reports">View reports</string>
     <string name="home_quick_actions">Quick actions</string>
     <string name="home_empty_title">No transactions yet</string>

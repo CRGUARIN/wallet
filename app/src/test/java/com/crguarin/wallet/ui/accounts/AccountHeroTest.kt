@@ -131,7 +131,8 @@ class AccountHeroTest {
         }
 
         composeRule.onNodeWithText("RappiCard").assertIsDisplayed()
-        composeRule.onNodeWithText("Tarjeta de crédito").assertIsDisplayed()
+        // The type is not repeated under the name any more: the name is the title of the screen.
+        composeRule.onNodeWithText("Tarjeta de crédito").assertDoesNotExist()
         composeRule.onNodeWithText("Deuda").assertIsDisplayed()
 
         val amountNodes =
