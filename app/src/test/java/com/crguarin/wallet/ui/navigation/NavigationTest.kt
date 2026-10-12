@@ -403,7 +403,10 @@ class NavigationTest {
         assertThat(route?.accountId).isEqualTo(1L)
         assertThat(route?.toAccountId).isEqualTo(7L)
         assertThat(route?.initialAmountMinor).isEqualTo(150_050L)
-        composeRule.onNodeWithText("Nueva transferencia").assertIsDisplayed()
+        // Without ViewModels (inspection mode) the editor draws its default state, so the type and
+        // the prefill are checked on the route above; here only that the editor is showing.
+        composeRule.waitForIdle()
+        composeRule.onNodeWithContentDescription("Cerrar").assertIsDisplayed()
     }
 
     @Test
