@@ -36,8 +36,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalConfiguration
@@ -191,8 +192,11 @@ private fun DeckContent(
     val eligible = animate && introFinished && !dealShown
     val gateWon = remember(eligible) { if (eligible) FirstShowGate.claim(HOME_DEAL_KEY) else false }
     val dealing = eligible && gateWon
+    // The deal has not started because the intro still covers the screen: the cards wait hidden, so
+    // they do not show at rest and then jump back to the start of the deal.
+    val pending = animate && !introFinished && !dealShown && !FirstShowGate.isClaimed(HOME_DEAL_KEY)
     val totalMillis = accounts.size * motion.dealStagger + motion.slow
-    val master = remember(accounts.size, dealing) { Animatable(if (dealing) 0f else 1f) }
+    val master = remember(accounts.size, dealing) { Animatable(if (dealing || pending) 0f else 1f) }
     LaunchedEffect(dealing, accounts.size) {
         if (dealing) {
             master.animateTo(targetValue = 1f, tween(durationMillis = totalMillis, easing = LinearEasing))
@@ -329,33 +333,39 @@ private fun Modifier.projectOnDeck(
     keep: () -> Float,
     press: () -> Float,
 ): Modifier =
-    drawWithContent {
-        val rest = 1f - dealFraction()
-        val kept = keep()
-        val width = size.width
-        val height = size.height
-        val pose =
-            CardPose(
-                top = top,
-                height = height,
-                depth = cardDepth * kept,
-                rotateXDeg = -dealExtraTilt * rest,
-                dy = -dealPx * rest,
-                dz = dealDepthPx * rest,
-                // The deal depth already enlarges the card on its way in: no extra start scale.
-                scale = press(),
-            )
-        val corners = projection.cardCorners(width, pose, tilt = projection.tiltDeg * kept)
-        val src = floatArrayOf(0f, 0f, width, 0f, width, height, 0f, height)
-        // Card-local destination: the layout top of the card is the origin of its drawing space.
-        val dst = FloatArray(8) { i -> if (i % 2 == 0) corners[i] else corners[i] - top }
+    drawWithCache {
+        // Allocated once per size and reused every frame: the matrix and the points are filled in place.
         val matrix = Matrix()
-        matrix.setPolyToPoly(src, 0, dst, 0, 4)
-        val canvas = drawContext.canvas
-        canvas.save()
-        canvas.nativeCanvas.concat(matrix)
-        drawContent()
-        canvas.restore()
+        val src = floatArrayOf(0f, 0f, size.width, 0f, size.width, size.height, 0f, size.height)
+        val dst = FloatArray(8)
+        onDrawWithContent {
+            val rest = 1f - dealFraction()
+            val kept = keep()
+            val width = size.width
+            val height = size.height
+            val pose =
+                CardPose(
+                    top = top,
+                    height = height,
+                    depth = cardDepth * kept,
+                    rotateXDeg = -dealExtraTilt * rest,
+                    dy = -dealPx * rest,
+                    dz = dealDepthPx * rest,
+                    // The deal depth already enlarges the card on its way in: no extra start scale.
+                    scale = press(),
+                )
+            val corners = projection.cardCorners(width, pose, tilt = projection.tiltDeg * kept)
+            // Card-local destination: the layout top of the card is the origin of its drawing space.
+            for (i in 0 until 8) {
+                dst[i] = if (i % 2 == 0) corners[i] else corners[i] - top
+            }
+            matrix.setPolyToPoly(src, 0, dst, 0, 4)
+            val canvas = drawContext.canvas
+            canvas.save()
+            canvas.nativeCanvas.concat(matrix)
+            drawContent()
+            canvas.restore()
+        }
     }
 
 /**
@@ -401,8 +411,11 @@ private fun DeckCard(
                 .offset(y = depth.deckStrip * index)
                 .accountCardSharedBounds(item.account.id)
                 .navEnterExit(depth.exitOffsetY, DECK_EXIT_MILLIS)
-                .graphicsLayer { alpha = dealFraction() }
-                .projectOnDeck(
+                // The fade multiplies each draw instead of allocating an extra offscreen buffer per card and frame.
+                .graphicsLayer {
+                    alpha = dealFraction()
+                    compositingStrategy = CompositingStrategy.ModulateAlpha
+                }.projectOnDeck(
                     projection = plan.projection,
                     top = plan.top(index),
                     cardDepth = plan.depth(index),
@@ -413,6 +426,10 @@ private fun DeckCard(
                     keep = { if (depth.deckTilt == 0f) 1f else flightTilt.value / depth.deckTilt },
                     press = { pressScale },
                 ).cardShadow(shape)
+                // The flat card (face, text, contour lines) renders once into a GPU layer and the warp above
+                // only transforms that texture, so text and paths are not re-rasterized under perspective on
+                // every frame of the deal. The shadow stays outside, since a layer clips to its bounds.
+                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
                 .clip(shape)
                 .background(brush),
     ) {
@@ -563,8 +580,10 @@ private fun DeckTotalCard(
                 .height(depth.deckTotalHeight)
                 .offset(y = depth.deckStrip * index)
                 .navEnterExit(depth.contentShiftY, CONTENT_EXIT_MILLIS)
-                .graphicsLayer { alpha = dealFraction() }
-                .projectOnDeck(
+                .graphicsLayer {
+                    alpha = dealFraction()
+                    compositingStrategy = CompositingStrategy.ModulateAlpha
+                }.projectOnDeck(
                     projection = plan.projection,
                     top = plan.top(index),
                     cardDepth = plan.depth(index),
@@ -575,6 +594,7 @@ private fun DeckTotalCard(
                     keep = { 1f },
                     press = { 1f },
                 ).cardShadow(frontShape)
+                .graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
                 .clip(frontShape)
                 .sheen(running = { idleLoop.value }),
     ) {

@@ -72,7 +72,10 @@ fun HeroCard(
     val introFinished = LocalIntroFinished.current
     // Decided once per card: whether this composition is the one that traces the lines.
     val traces = remember(introFinished) { introFinished && animateContours && HeroContourTrace.claim() }
-    val progress = remember(traces) { Animatable(if (traces) 0f else 1f) }
+    // The trace has not started yet because the intro still covers the screen: the lines stay hidden
+    // instead of showing drawn and then restarting.
+    val pendingTrace = animateContours && !introFinished && !HeroContourTrace.isClaimed()
+    val progress = remember(traces, pendingTrace) { Animatable(if (traces || pendingTrace) 0f else 1f) }
     if (traces) {
         LaunchedEffect(traces) {
             progress.animateTo(1f, tween(durationMillis = traceMillis, easing = LinearOutSlowInEasing))
@@ -106,6 +109,9 @@ internal object HeroContourTrace {
         claimed = true
         return true
     }
+
+    /** True once the trace was claimed in this process. */
+    fun isClaimed(): Boolean = claimed
 
     /** Lets the animation play again. Only for tests. */
     fun reset() {
