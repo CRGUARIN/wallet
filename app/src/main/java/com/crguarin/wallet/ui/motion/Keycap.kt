@@ -9,7 +9,6 @@ import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.material3.MaterialTheme
@@ -31,6 +30,7 @@ import androidx.compose.ui.graphics.shadow.Shadow
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
@@ -46,6 +46,9 @@ import com.crguarin.wallet.ui.theme.walletMotion
 /** Content of a disabled keycap, as a fraction of full opacity. */
 private const val DISABLED_ALPHA = 0.38f
 
+/** Test tag of the face of a [Keycap] (the part above the edge). */
+internal const val KEYCAP_FACE_TAG = "keycap-face"
+
 /**
  * The edge ("canto") under a [face]: the face darkened towards black. Light faces (luminance >
  * 0.4) move 20 % towards black, dark faces 45 %. Pure: the same face always gives the same edge.
@@ -59,8 +62,9 @@ fun keycapEdge(face: Color): Color =
 
 /**
  * A key with relief: the face ([face] in [shape]) sits on top, below it the edge (the same shape
- * in [edge], shifted [depth] down) and behind a soft shadow. The total height is face + [depth]
- * and the touch area covers everything, at least 48 dp.
+ * in [edge], showing [depth] under the face) and behind a soft shadow. The key wraps its content,
+ * at least 48 dp tall and wide with the touch area; it fills only when the caller asks for it, with
+ * `fillMaxWidth()` or a fixed size.
  *
  * On press the face goes down [depth] and covers the edge, in `pressMillis` (100 ms); on release
  * it comes back. It uses the click [interactionSource] and adds no extra scale; the press value
@@ -126,12 +130,15 @@ fun Keycap(
                         onClick()
                     },
                 ),
+        // The face gets the minimum size too, so a key in an unbounded parent keeps its 48 dp.
+        propagateMinConstraints = true,
     ) {
         if (enabled) {
+            // Matches the parent's size without driving it: the edge never sets the key's size.
             Box(
                 modifier =
                     Modifier
-                        .fillMaxSize()
+                        .matchParentSize()
                         .padding(top = depth)
                         .background(edge, shape),
             )
@@ -139,10 +146,10 @@ fun Keycap(
         Box(
             modifier =
                 Modifier
-                    .fillMaxSize()
                     .graphicsLayer { translationY = press.value * depthPx }
                     .padding(bottom = if (enabled) depth else 0.dp)
-                    .background(face, shape),
+                    .background(face, shape)
+                    .testTag(KEYCAP_FACE_TAG),
             contentAlignment = Alignment.Center,
         ) {
             Box(modifier = Modifier.alpha(if (enabled) 1f else DISABLED_ALPHA)) {

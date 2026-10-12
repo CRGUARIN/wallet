@@ -687,7 +687,10 @@ private fun SecondaryAction(
         enabled = enabled,
         modifier = modifier.heightIn(min = SECONDARY_ACTION_HEIGHT),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier.padding(horizontal = MaterialTheme.walletSpacing.l),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             if (icon != null) {
                 Icon(
                     imageVector = icon,
