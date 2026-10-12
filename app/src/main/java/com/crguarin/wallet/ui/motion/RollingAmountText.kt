@@ -54,17 +54,26 @@ import com.crguarin.wallet.ui.theme.walletTypography
  *   makes the Home balance roll when coming back after saving a movement);
  * - when [text] did not change, or without animations: null (no roll).
  *
- * Survives rotation and navigation (`rememberSaveable`, keyed by [saveKey]).
+ * [ready] holds the first show back: while it is false this returns null and records nothing, so
+ * the first real show happens when it becomes true (e.g. Home passes whether the brand intro
+ * finished, so the deal's total rolls from zero when the intro ends).
+ *
+ * The last shown text survives rotation and navigation (`rememberSaveable`, keyed by [saveKey]),
+ * but the roll does not: a new composition (re-entry, rotation) starts with no roll, so an
+ * unchanged amount does not roll again. Recompositions of the same composition keep the roll that
+ * a change started, so it is not cut short.
  */
 @Composable
 fun rememberRollFrom(
     text: String,
     saveKey: String,
     fromZeroOnFirstShow: Boolean,
+    ready: Boolean = true,
 ): String? {
     val animate = animationsOn()
     var lastText by rememberSaveable(key = "roll-last:$saveKey") { mutableStateOf<String?>(null) }
-    var currentFrom by rememberSaveable(key = "roll-from:$saveKey") { mutableStateOf<String?>(null) }
+    var currentFrom by remember { mutableStateOf<String?>(null) }
+    if (!ready) return null
     if (lastText != text) {
         currentFrom =
             when {
@@ -277,7 +286,7 @@ private fun planDrawing(
         val cell = annotated.subSequence(index, index + 1)
         val cellLayout = measurer.measure(cell, style = sized, maxLines = 1)
         val width = cellLayout.size.width.toFloat()
-        if (annotated[index].isDigit() && slots.isNotEmpty()) {
+        if (OdometerMath.isOdometerDigit(annotated[index]) && slots.isNotEmpty()) {
             digitX += x to width
         } else {
             staticCells += StaticCell(cellLayout, x)

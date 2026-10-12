@@ -3,6 +3,7 @@ package com.crguarin.wallet.ui.motion
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
+import com.crguarin.wallet.ui.theme.SAFE_TEXT_CONTRAST
 import com.crguarin.wallet.ui.theme.WalletPalette
 import com.crguarin.wallet.ui.theme.brush
 import com.crguarin.wallet.ui.theme.cardFace
@@ -21,11 +22,11 @@ class CardFaceTest {
     }
 
     @Test
-    fun `white reaches 4_5 over start and end on the 30 palette colors`() {
-        palette.forEachIndexed { index, color ->
+    fun `white reaches 4_6 over the start color on the 30 palette colors`() {
+        palette.forEach { color ->
             val face = cardFace(color)
-            assertThat(contrastRatio(face.content, face.start)).isAtLeast(4.5f)
-            assertThat(contrastRatio(face.content, face.end)).isAtLeast(4.5f)
+            assertThat(contrastRatio(face.content, face.start)).isAtLeast(SAFE_TEXT_CONTRAST)
+            assertThat(contrastRatio(face.content, face.end)).isAtLeast(SAFE_TEXT_CONTRAST)
         }
     }
 

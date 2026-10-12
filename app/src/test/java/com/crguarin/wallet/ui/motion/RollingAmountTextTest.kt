@@ -8,6 +8,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -138,5 +139,50 @@ class RollingAmountTextTest {
         composeRule.waitForIdle()
 
         assertThat(from).isNull()
+    }
+
+    @Test
+    fun `rememberRollFrom does not roll again when the screen comes back unchanged`() {
+        val restoration = StateRestorationTester(composeRule)
+        var from: String? = "unset"
+        restoration.setContent {
+            CompositionLocalProvider(LocalMotionPolicy provides MotionPolicy(animate = true, screenReader = false)) {
+                from = rememberRollFrom(text = "$ 28.000", saveKey = "back", fromZeroOnFirstShow = true)
+                Text("probe")
+            }
+        }
+        composeRule.waitForIdle()
+        assertThat(from).isEqualTo("$ 00.000")
+
+        // Leaving and re-entering the screen (or rotating) with the same amount: no roll.
+        restoration.emulateSavedInstanceStateRestore()
+        composeRule.waitForIdle()
+
+        assertThat(from).isNull()
+    }
+
+    @Test
+    fun `rememberRollFrom waits for ready and then rolls from zero on the first show`() {
+        var ready by mutableStateOf(false)
+        var from: String? = "unset"
+        composeRule.setContent {
+            CompositionLocalProvider(LocalMotionPolicy provides MotionPolicy(animate = true, screenReader = false)) {
+                from =
+                    rememberRollFrom(
+                        text = "$ 28.000",
+                        saveKey = "gated",
+                        fromZeroOnFirstShow = true,
+                        ready = ready,
+                    )
+                Text("probe")
+            }
+        }
+        composeRule.waitForIdle()
+        assertThat(from).isNull()
+
+        composeRule.runOnIdle { ready = true }
+        composeRule.waitForIdle()
+
+        assertThat(from).isEqualTo("$ 00.000")
     }
 }

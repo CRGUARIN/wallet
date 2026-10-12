@@ -24,8 +24,8 @@ object OdometerMath {
         from: String,
         to: String,
     ): List<OdometerSlot> {
-        val fromDigits = from.filter { it.isDigit() }
-        val toDigits = to.filter { it.isDigit() }
+        val fromDigits = from.filter { isOdometerDigit(it) }
+        val toDigits = to.filter { isOdometerDigit(it) }
         val extra = toDigits.length - fromDigits.length
         return toDigits.mapIndexed { index, digit ->
             val counterpart = fromDigits.getOrNull(index - extra) ?: '0'
@@ -34,5 +34,11 @@ object OdometerMath {
     }
 
     /** [text] with every digit replaced by '0', same length: rolling "from zero" on entrance. */
-    fun zeroed(text: String): String = text.map { if (it.isDigit()) '0' else it }.joinToString("")
+    fun zeroed(text: String): String = text.map { if (isOdometerDigit(it)) '0' else it }.joinToString("")
+
+    /**
+     * The only digits the odometer draws: ASCII '0'..'9'. `Char.isDigit()` also accepts other
+     * scripts (Arabic-Indic '٣' for one), which have no column here, so they stay static.
+     */
+    fun isOdometerDigit(c: Char): Boolean = c in '0'..'9'
 }

@@ -51,4 +51,15 @@ class OdometerMathTest {
         assertThat(OdometerMath.zeroed("-$ 999.999.999.999")).isEqualTo("-$ 000.000.000.000")
         assertThat(OdometerMath.zeroed("$ 1.280.000")).hasLength("$ 1.280.000".length)
     }
+
+    @Test
+    fun `a non-ASCII digit is a static character, not a column`() {
+        // Arabic-Indic '٣' is Char.isDigit() but has no odometer column: it pairs with nothing.
+        val slots = OdometerMath.plan("$ ٣.500", "$ 28.000")
+
+        assertThat(OdometerMath.isOdometerDigit('٣')).isFalse()
+        assertThat(slots.map { it.to }).containsExactly('2', '8', '0', '0', '0').inOrder()
+        assertThat(slots.map { it.from }).containsExactly('0', '0', '5', '0', '0').inOrder()
+        assertThat(OdometerMath.zeroed("$ ٣.500")).isEqualTo("$ ٣.000")
+    }
 }
