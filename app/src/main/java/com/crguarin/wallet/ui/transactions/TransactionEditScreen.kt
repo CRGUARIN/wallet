@@ -3,11 +3,16 @@ package com.crguarin.wallet.ui.transactions
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,14 +20,18 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountBalanceWallet
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -46,12 +55,21 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.Money
@@ -69,7 +87,7 @@ import com.crguarin.wallet.ui.components.ConfirmDialog
 import com.crguarin.wallet.ui.components.EmptyState
 import com.crguarin.wallet.ui.components.ErrorState
 import com.crguarin.wallet.ui.components.LoadingState
-import com.crguarin.wallet.ui.components.PrimaryActionButton
+import com.crguarin.wallet.ui.motion.keycapEdge
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.theme.walletMotion
 import com.crguarin.wallet.ui.theme.walletSpacing
@@ -107,8 +125,6 @@ fun TransactionEditRoute(
             onOpenDatePicker = {},
             onDismissDatePicker = {},
             onDateSelected = {},
-            onTodayClick = {},
-            onYesterdayClick = {},
             onNoteChanged = {},
             onInstallmentsChanged = {},
             onSaveClick = {},
@@ -164,8 +180,6 @@ fun TransactionEditRoute(
         onOpenDatePicker = viewModel::openDatePicker,
         onDismissDatePicker = viewModel::dismissDatePicker,
         onDateSelected = viewModel::setDate,
-        onTodayClick = viewModel::setToday,
-        onYesterdayClick = viewModel::setYesterday,
         onNoteChanged = viewModel::setNote,
         onInstallmentsChanged = viewModel::setInstallments,
         onSaveClick = viewModel::onSaveClick,
@@ -242,8 +256,6 @@ fun TransactionEditScreen(
     onOpenDatePicker: () -> Unit,
     onDismissDatePicker: () -> Unit,
     onDateSelected: (LocalDate) -> Unit,
-    onTodayClick: () -> Unit,
-    onYesterdayClick: () -> Unit,
     onNoteChanged: (String) -> Unit,
     onSaveClick: () -> Unit,
     onDeleteClick: () -> Unit,
@@ -291,19 +303,20 @@ fun TransactionEditScreen(
                 scrollBehavior = scrollBehavior,
                 title = {
                     Text(
-                        text =
-                            if (uiState.isEditMode) {
-                                stringResource(R.string.transaction_edit_title)
-                            } else {
-                                stringResource(R.string.transaction_edit_new_title)
-                            },
+                        text = stringResource(titleRes(uiState)),
+                        style =
+                            MaterialTheme.typography.titleLarge.copy(
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                letterSpacing = (-0.01).em,
+                            ),
                     )
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.action_back),
+                            imageVector = Icons.Default.Close,
+                            contentDescription = stringResource(R.string.cd_close),
                         )
                     }
                 },
@@ -330,6 +343,7 @@ fun TransactionEditScreen(
                     isEnabled = uiState.isSaveEnabled,
                     isSaving = uiState.isSaving,
                     errorRes = uiState.generalErrorRes,
+                    saveTextRes = saveTextRes(uiState),
                     onSaveClick = onSaveClick,
                 )
             }
@@ -388,8 +402,6 @@ fun TransactionEditScreen(
                         onOpenCategorySheet = onOpenCategorySheet,
                         onCategorySelected = onCategorySelected,
                         onOpenDatePicker = onOpenDatePicker,
-                        onTodayClick = onTodayClick,
-                        onYesterdayClick = onYesterdayClick,
                         onNoteChanged = onNoteChanged,
                         onInstallmentsChanged = onInstallmentsChanged,
                         onAccountSelected = onAccountSelected,
@@ -492,6 +504,7 @@ private fun KeypadSaveBar(
     isEnabled: Boolean,
     isSaving: Boolean,
     @StringRes errorRes: Int?,
+    @StringRes saveTextRes: Int,
     onSaveClick: () -> Unit,
 ) {
     val medium = MaterialTheme.walletMotion.medium
@@ -514,6 +527,7 @@ private fun KeypadSaveBar(
             isEnabled = isEnabled,
             isSaving = isSaving,
             errorRes = errorRes,
+            saveTextRes = saveTextRes,
             onSaveClick = onSaveClick,
         )
     }
@@ -528,6 +542,7 @@ private fun SaveBar(
     isEnabled: Boolean,
     isSaving: Boolean,
     @StringRes errorRes: Int?,
+    @StringRes saveTextRes: Int,
     onSaveClick: () -> Unit,
 ) {
     BottomActionBar(modifier = Modifier.navigationBarsPadding()) {
@@ -544,16 +559,107 @@ private fun SaveBar(
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            PrimaryActionButton(
-                text = stringResource(R.string.action_save),
-                onClick = onSaveClick,
-                enabled = isEnabled,
+            SaveKey(
+                text = stringResource(saveTextRes),
+                enabled = isEnabled && !isSaving,
                 isLoading = isSaving,
-                modifier = Modifier.fillMaxWidth(),
+                onClick = onSaveClick,
             )
         }
     }
 }
+
+private val SaveKeyHeight = 56.dp
+private val SaveKeyDepth = 5.dp
+private val SaveKeyShape = RoundedCornerShape(20.dp)
+
+/** The mock's disabled save key: the whole key at 40 %, not grey. */
+private const val DISABLED_SAVE_ALPHA = 0.4f
+
+/**
+ * The save button as a relieved key: 56 dp face in `primary` over a darker ledge of [SaveKeyDepth].
+ * On press it sinks onto its ledge in `pressMillis`, like the keypad keys.
+ */
+@Composable
+private fun SaveKey(
+    text: String,
+    enabled: Boolean,
+    isLoading: Boolean,
+    onClick: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    val source = remember { MutableInteractionSource() }
+    val pressed by source.collectIsPressedAsState()
+    val sink by animateFloatAsState(
+        targetValue = if (pressed && enabled) 1f else 0f,
+        animationSpec = tween(durationMillis = MaterialTheme.walletMotion.pressMillis),
+        label = "saveSink",
+    )
+    val depthPx = with(LocalDensity.current) { SaveKeyDepth.toPx() }
+    Box(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .height(SaveKeyHeight + SaveKeyDepth)
+                .alpha(if (enabled) 1f else DISABLED_SAVE_ALPHA),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .matchParentSize()
+                    .padding(top = SaveKeyDepth)
+                    .background(keycapEdge(colors.primary), SaveKeyShape),
+        )
+        Box(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .height(SaveKeyHeight)
+                    .graphicsLayer { translationY = sink * depthPx }
+                    .background(colors.primary, SaveKeyShape)
+                    .clickable(
+                        interactionSource = source,
+                        indication = null,
+                        enabled = enabled,
+                        role = Role.Button,
+                        onClick = onClick,
+                    ),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(22.dp),
+                    color = colors.onPrimary,
+                    strokeWidth = 2.dp,
+                )
+            } else {
+                Text(
+                    text = text,
+                    style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.ExtraBold),
+                    color = colors.onPrimary,
+                )
+            }
+        }
+    }
+}
+
+/** Title of the form: by type when it creates a movement, today's edit title when it edits one. */
+private fun titleRes(uiState: TransactionEditUiState): Int =
+    when {
+        uiState.isEditMode -> R.string.transaction_edit_title
+        uiState.selectedType == TransactionType.INCOME -> R.string.transaction_new_income_title
+        uiState.selectedType == TransactionType.TRANSFER -> R.string.transaction_new_transfer_title
+        else -> R.string.transaction_new_expense_title
+    }
+
+/** Save text by type; editing keeps the plain "Save". */
+private fun saveTextRes(uiState: TransactionEditUiState): Int =
+    when {
+        uiState.isEditMode -> R.string.action_save
+        uiState.selectedType == TransactionType.INCOME -> R.string.transaction_save_income
+        uiState.selectedType == TransactionType.TRANSFER -> R.string.transaction_save_transfer
+        else -> R.string.transaction_save_expense
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -627,8 +733,6 @@ private fun TransactionEditScreenPreviewLight() {
             onOpenDatePicker = {},
             onDismissDatePicker = {},
             onDateSelected = {},
-            onTodayClick = {},
-            onYesterdayClick = {},
             onNoteChanged = {},
             onInstallmentsChanged = {},
             onSaveClick = {},
@@ -671,8 +775,6 @@ private fun TransactionEditScreenPreviewDark() {
             onOpenDatePicker = {},
             onDismissDatePicker = {},
             onDateSelected = {},
-            onTodayClick = {},
-            onYesterdayClick = {},
             onNoteChanged = {},
             onInstallmentsChanged = {},
             onSaveClick = {},
@@ -714,8 +816,6 @@ private fun TransactionEditScreenPreviewProgressive() {
             onOpenDatePicker = {},
             onDismissDatePicker = {},
             onDateSelected = {},
-            onTodayClick = {},
-            onYesterdayClick = {},
             onNoteChanged = {},
             onInstallmentsChanged = {},
             onSaveClick = {},
@@ -753,8 +853,6 @@ private fun TransactionEditScreenPreviewLargeFont() {
             onOpenDatePicker = {},
             onDismissDatePicker = {},
             onDateSelected = {},
-            onTodayClick = {},
-            onYesterdayClick = {},
             onNoteChanged = {},
             onInstallmentsChanged = {},
             onSaveClick = {},

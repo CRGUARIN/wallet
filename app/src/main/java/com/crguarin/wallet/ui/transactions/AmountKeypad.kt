@@ -36,7 +36,6 @@ import com.crguarin.wallet.R
 import com.crguarin.wallet.ui.motion.Keycap
 import com.crguarin.wallet.ui.theme.TABULAR_FIGURES
 import com.crguarin.wallet.ui.theme.WalletTheme
-import com.crguarin.wallet.ui.theme.walletColors
 import com.crguarin.wallet.ui.theme.walletDepth
 import com.crguarin.wallet.ui.transactions.AmountKeypadMath.KeypadKey
 import java.util.Locale
@@ -77,7 +76,7 @@ fun AmountKeypad(
 ) {
     val depth = MaterialTheme.walletDepth.keyDepth
     val scheme = MaterialTheme.colorScheme
-    val face = if (MaterialTheme.walletColors.isDark) scheme.surfaceContainer else scheme.surfaceContainerLowest
+    val face = scheme.surfaceContainerHigh
     val content = scheme.onSurface
     val haptics = LocalHapticFeedback.current
     val tripleZeroDescription = stringResource(R.string.keypad_triple_zero)

@@ -129,8 +129,6 @@ class TransactionEditScreenTest {
                     onOpenDatePicker = {},
                     onDismissDatePicker = {},
                     onDateSelected = {},
-                    onTodayClick = {},
-                    onYesterdayClick = {},
                     onNoteChanged = {},
                     onSaveClick = onSaveClick,
                     onDeleteClick = {},
@@ -147,14 +145,14 @@ class TransactionEditScreenTest {
     fun `save button is disabled without amount`() {
         setScreen(validExpenseState(amountText = ""))
 
-        composeRule.onNodeWithText("Guardar").assertIsNotEnabled()
+        composeRule.onNodeWithText("Guardar gasto").assertIsNotEnabled()
     }
 
     @Test
     fun `save button is disabled without category`() {
         setScreen(validExpenseState(categoryId = null))
 
-        composeRule.onNodeWithText("Guardar").assertIsNotEnabled()
+        composeRule.onNodeWithText("Guardar gasto").assertIsNotEnabled()
     }
 
     @Test
@@ -162,8 +160,8 @@ class TransactionEditScreenTest {
         var saveClicked = false
         setScreen(validExpenseState(), onSaveClick = { saveClicked = true })
 
-        composeRule.onNodeWithText("Guardar").assertIsEnabled()
-        composeRule.onNodeWithText("Guardar").performClick()
+        composeRule.onNodeWithText("Guardar gasto").assertIsEnabled()
+        composeRule.onNodeWithText("Guardar gasto").performClick()
 
         assertThat(saveClicked).isTrue()
     }
@@ -195,7 +193,7 @@ class TransactionEditScreenTest {
     fun `transfer save is disabled without destination`() {
         setScreen(validTransferState(toAccountId = null))
 
-        composeRule.onNodeWithText("Guardar").assertIsNotEnabled()
+        composeRule.onNodeWithText("Guardar transferencia").assertIsNotEnabled()
     }
 
     @Test
@@ -203,8 +201,8 @@ class TransactionEditScreenTest {
         var saveClicked = false
         setScreen(validTransferState(), onSaveClick = { saveClicked = true })
 
-        composeRule.onNodeWithText("Guardar").assertIsEnabled()
-        composeRule.onNodeWithText("Guardar").performClick()
+        composeRule.onNodeWithText("Guardar transferencia").assertIsEnabled()
+        composeRule.onNodeWithText("Guardar transferencia").performClick()
 
         assertThat(saveClicked).isTrue()
     }
@@ -298,8 +296,6 @@ class TransactionEditScreenTest {
                     onOpenDatePicker = {},
                     onDismissDatePicker = {},
                     onDateSelected = {},
-                    onTodayClick = {},
-                    onYesterdayClick = {},
                     onNoteChanged = {},
                     onSaveClick = {},
                     onDeleteClick = {},

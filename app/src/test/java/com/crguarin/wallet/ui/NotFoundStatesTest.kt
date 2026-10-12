@@ -56,8 +56,6 @@ class NotFoundStatesTest {
                     onOpenDatePicker = {},
                     onDismissDatePicker = {},
                     onDateSelected = {},
-                    onTodayClick = {},
-                    onYesterdayClick = {},
                     onNoteChanged = {},
                     onSaveClick = {},
                     onDeleteClick = {},
@@ -70,7 +68,7 @@ class NotFoundStatesTest {
         }
 
         composeRule.onNodeWithText("Este movimiento ya no existe").assertIsDisplayed()
-        composeRule.onNodeWithText("Guardar").assertDoesNotExist()
+        composeRule.onNodeWithText("Guardar gasto").assertDoesNotExist()
         composeRule.onNodeWithText("Atrás").performClick()
 
         assertThat(backs).isEqualTo(1)
@@ -100,8 +98,6 @@ class NotFoundStatesTest {
                     onOpenDatePicker = {},
                     onDismissDatePicker = {},
                     onDateSelected = {},
-                    onTodayClick = {},
-                    onYesterdayClick = {},
                     onNoteChanged = {},
                     onSaveClick = {},
                     onDeleteClick = {},
@@ -136,7 +132,7 @@ class NotFoundStatesTest {
         }
 
         composeRule.onNodeWithText("Elemento no encontrado").assertIsDisplayed()
-        composeRule.onNodeWithText("Guardar").assertDoesNotExist()
+        composeRule.onNodeWithText("Guardar gasto").assertDoesNotExist()
         composeRule.onNodeWithText("Atrás").performClick()
 
         assertThat(backs).isEqualTo(1)
@@ -189,7 +185,7 @@ class NotFoundStatesTest {
         }
 
         composeRule.onNodeWithText("Elemento no encontrado").assertIsDisplayed()
-        composeRule.onNodeWithText("Guardar").assertDoesNotExist()
+        composeRule.onNodeWithText("Guardar gasto").assertDoesNotExist()
         composeRule.onNodeWithText("Atrás").performClick()
 
         assertThat(backs).isEqualTo(1)

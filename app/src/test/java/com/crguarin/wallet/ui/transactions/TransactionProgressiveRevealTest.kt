@@ -98,8 +98,6 @@ class TransactionProgressiveRevealTest {
                     onOpenDatePicker = {},
                     onDismissDatePicker = {},
                     onDateSelected = {},
-                    onTodayClick = {},
-                    onYesterdayClick = {},
                     onNoteChanged = {},
                     onSaveClick = {},
                     onDeleteClick = {},
@@ -119,8 +117,8 @@ class TransactionProgressiveRevealTest {
     fun `with an empty amount only the top the keypad and save show`() {
         show(amountText = "")
 
-        composeRule.onNodeWithText("Monto").assertIsDisplayed()
-        composeRule.onNodeWithText("Guardar").assertIsDisplayed()
+        composeRule.onNodeWithText("¿Cuánto fue?").assertIsDisplayed()
+        composeRule.onNodeWithText("Guardar gasto").assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Tres ceros").assertIsDisplayed()
         composeRule.onNodeWithText("Categoría").assertDoesNotExist()
         composeRule.onNodeWithText("Cuenta").assertDoesNotExist()
@@ -165,8 +163,6 @@ class TransactionProgressiveRevealTest {
                     onOpenDatePicker = {},
                     onDismissDatePicker = {},
                     onDateSelected = {},
-                    onTodayClick = {},
-                    onYesterdayClick = {},
                     onNoteChanged = {},
                     onSaveClick = {},
                     onDeleteClick = {},
@@ -187,7 +183,7 @@ class TransactionProgressiveRevealTest {
                 .fetchSemanticsNode()
                 .boundsInRoot.top
 
-        val order = listOf("Gasto", "Monto", "Categoría", "Cuenta", "Fecha", "Nota (opcional)").map(::top)
+        val order = listOf("Gasto", "¿Cuánto fue?", "Categoría", "Cuenta", "Fecha", "Nota (opcional)").map(::top)
         assertThat(order).isInStrictOrder()
     }
 
@@ -227,8 +223,6 @@ class TransactionProgressiveRevealTest {
                     onOpenDatePicker = {},
                     onDismissDatePicker = {},
                     onDateSelected = {},
-                    onTodayClick = {},
-                    onYesterdayClick = {},
                     onNoteChanged = {},
                     onSaveClick = {},
                     onDeleteClick = {},
