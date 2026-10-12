@@ -536,12 +536,21 @@ internal fun AccountIdentityRow(
             )
         }
         Spacer(modifier = Modifier.width(spacing.l))
-        Text(
-            text = account.name,
-            style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
-            color = face.content,
-            modifier = Modifier.weight(1f),
-        )
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = account.name,
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = 16.sp, fontWeight = FontWeight.Bold),
+                color = face.content,
+            )
+            // The type is not repeated (the mock), but leaving the total out is worth saying.
+            if (!account.includeInTotal) {
+                Text(
+                    text = stringResource(R.string.accounts_not_included_in_total),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = face.content,
+                )
+            }
+        }
         if (account.isArchived) {
             Text(
                 text = stringResource(R.string.account_detail_archived_badge),
