@@ -59,6 +59,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
@@ -73,9 +74,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.crguarin.wallet.R
 import com.crguarin.wallet.core.money.MoneyFormatter
+import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.DomainLimits
 import com.crguarin.wallet.domain.model.TransactionType
 import com.crguarin.wallet.domain.usecase.SaveTransactionUseCase
+import com.crguarin.wallet.ui.accounts.cardAvailableText
 import com.crguarin.wallet.ui.components.IconCatalog
 import com.crguarin.wallet.ui.components.categoryFullDisplayName
 import com.crguarin.wallet.ui.motion.depthOn
@@ -256,12 +259,19 @@ internal fun TransactionEditForm(
                         selectedAccountId = uiState.accountId,
                         onAccountSelected = onAccountSelected,
                         onOpenAccountSheet = openAccountSheet,
-                        cardOverviews = uiState.cardOverviews,
                         // Like the other selectors, touching a card moves the focus out of the amount.
                         onInteraction = { focusManager.clearFocus() },
                         showHeader = false,
                     )
                     if (selectedAccount != null && selectedAccountBalance != null) {
+                        // Cards show the available credit instead of the debt, as in the account list.
+                        val cardOverview = uiState.cardOverviews[selectedAccount.id]
+                        val amountText =
+                            if (selectedAccount.type == AccountType.CREDIT_CARD && cardOverview != null) {
+                                cardAvailableText(cardOverview)
+                            } else {
+                                MoneyFormatter.format(selectedAccountBalance, LocalConfiguration.current.locales[0])
+                            }
                         // The caption names the chosen account and opens the full list, as the
                         // design has no "Cuenta" row over the cards.
                         Row(
@@ -278,7 +288,7 @@ internal fun TransactionEditForm(
                                     stringResource(
                                         if (isIncome) R.string.transaction_caption_to else R.string.transaction_caption_from,
                                         selectedAccount.name,
-                                        MoneyFormatter.format(selectedAccountBalance),
+                                        amountText,
                                     ),
                                 style =
                                     MaterialTheme.typography.labelLarge.copy(
@@ -287,6 +297,7 @@ internal fun TransactionEditForm(
                                     ),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center,
+                                modifier = Modifier.weight(1f, fill = false),
                             )
                             Icon(
                                 imageVector = Icons.Default.ChevronRight,
@@ -410,7 +421,10 @@ internal fun TransactionEditForm(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = spacing.xs, top = spacing.xs),
                     )
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(spacing.s)) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(spacing.s),
+                        verticalArrangement = Arrangement.spacedBy(spacing.s),
+                    ) {
                         uiState.frequentCategories.forEach { frequent ->
                             TonalChip(
                                 label = categoryFullDisplayName(parent = frequent.parent, category = frequent.category),

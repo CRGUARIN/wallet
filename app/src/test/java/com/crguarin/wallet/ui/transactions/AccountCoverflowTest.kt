@@ -68,6 +68,37 @@ class AccountCoverflowTest {
             balance = Money(500_000L),
         )
 
+    private val creditCard =
+        AccountWithBalance(
+            account =
+                Account(
+                    id = 3L,
+                    name = "RappiCard",
+                    type = AccountType.CREDIT_CARD,
+                    initialBalance = Money.ZERO,
+                    color = 0xFFEF6C00.toInt(),
+                    icon = "credit_card",
+                    createdAt = Instant.EPOCH,
+                ),
+            balance = Money.ZERO,
+        )
+
+    private val creditCardOverview =
+        CardOverview(
+            accountId = 3L,
+            debt = Money(1_280_000L),
+            creditLimit = Money(5_000_000L),
+            available = Money(3_720_000L),
+            usedPerMille = 256,
+            nextClosingDate = LocalDate.of(2026, 10, 15),
+            lastStatement = null,
+            pendingStatementAmount = null,
+            pendingStatementDueDate = null,
+            paymentStatus = null,
+            nextStatementCapitalEstimate = Money.ZERO,
+            activeInstallments = emptyList(),
+        )
+
     private fun showCoverflow(
         selectedAccountId: Long? = 1L,
         onAccountSelected: (Long) -> Unit = {},
@@ -86,6 +117,8 @@ class AccountCoverflowTest {
 
     private fun showScreen(
         accounts: List<AccountWithBalance> = listOf(cash, savings),
+        selectedAccountId: Long = 1L,
+        cardOverviews: Map<Long, CardOverview> = emptyMap(),
         archivedAccount: Account? = null,
         onOpenAccountSheet: () -> Unit = {},
         fontScale: Float = 1f,
@@ -103,8 +136,9 @@ class AccountCoverflowTest {
                                 isLoading = false,
                                 selectedType = TransactionType.EXPENSE,
                                 amountText = "50000",
-                                accountId = 1L,
+                                accountId = selectedAccountId,
                                 accounts = accounts,
+                                cardOverviews = cardOverviews,
                                 archivedAccount = archivedAccount,
                                 date = LocalDate.of(2026, 9, 28),
                             ),
@@ -158,7 +192,7 @@ class AccountCoverflowTest {
     }
 
     @Test
-    fun `the coverflow shows every account with its balance`() {
+    fun `the coverflow shows every account`() {
         showCoverflow()
 
         composeRule.onNodeWithText("Efectivo").assertIsDisplayed()
@@ -166,48 +200,15 @@ class AccountCoverflowTest {
     }
 
     @Test
-    fun `a card shows the available credit`() {
-        val card =
-            AccountWithBalance(
-                account =
-                    Account(
-                        id = 3L,
-                        name = "RappiCard",
-                        type = AccountType.CREDIT_CARD,
-                        initialBalance = Money.ZERO,
-                        color = 0xFFEF6C00.toInt(),
-                        icon = "credit_card",
-                        createdAt = Instant.EPOCH,
-                    ),
-                balance = Money.ZERO,
-            )
-        val overview =
-            CardOverview(
-                accountId = 3L,
-                debt = Money(1_280_000L),
-                creditLimit = Money(5_000_000L),
-                available = Money(3_720_000L),
-                usedPerMille = 256,
-                nextClosingDate = LocalDate.of(2026, 10, 15),
-                lastStatement = null,
-                pendingStatementAmount = null,
-                pendingStatementDueDate = null,
-                paymentStatus = null,
-                nextStatementCapitalEstimate = Money.ZERO,
-                activeInstallments = emptyList(),
-            )
-        composeRule.setContent {
-            WalletTheme {
-                AccountCoverflow(
-                    accounts = listOf(cash, card),
-                    selectedAccountId = 3L,
-                    onAccountSelected = {},
-                    onOpenAccountSheet = {},
-                    cardOverviews = mapOf(3L to overview),
-                )
-            }
-        }
+    @Config(qualifiers = "es-w360dp-h2400dp")
+    fun `the caption under the cards shows the available credit of a card`() {
+        showScreen(
+            accounts = listOf(cash, creditCard),
+            selectedAccountId = 3L,
+            cardOverviews = mapOf(3L to creditCardOverview),
+        )
 
+        composeRule.onNodeWithText("Desde RappiCard ·", substring = true).assertIsDisplayed()
         composeRule.onNodeWithText("Disponible", substring = true).assertIsDisplayed()
     }
 
@@ -262,28 +263,6 @@ class AccountCoverflowTest {
         composeRule.onNodeWithText("Desde ", substring = true).performClick()
 
         assertThat(sheets).isEqualTo(1)
-    }
-
-    @Test
-    fun `the balance stays inside the card at the largest 3d font scale`() {
-        composeRule.setContent {
-            CompositionLocalProvider(
-                LocalDensity provides Density(LocalDensity.current.density, fontScale = 1.3f),
-            ) {
-                WalletTheme {
-                    AccountCoverflow(
-                        accounts = listOf(cash, savings),
-                        selectedAccountId = 1L,
-                        onAccountSelected = {},
-                        onOpenAccountSheet = {},
-                    )
-                }
-            }
-        }
-
-        val card = composeRule.onNodeWithText("Efectivo").fetchSemanticsNode().boundsInRoot
-        val balance = composeRule.onNodeWithText("1.000", substring = true, useUnmergedTree = true)
-        assertThat(balance.fetchSemanticsNode().boundsInRoot.bottom).isAtMost(card.bottom)
     }
 
     @Test

@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -47,7 +48,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -58,13 +58,9 @@ import com.crguarin.wallet.core.money.Money
 import com.crguarin.wallet.domain.model.Account
 import com.crguarin.wallet.domain.model.AccountType
 import com.crguarin.wallet.domain.model.AccountWithBalance
-import com.crguarin.wallet.domain.model.card.CardOverview
-import com.crguarin.wallet.ui.accounts.cardAvailableText
 import com.crguarin.wallet.ui.components.IconCatalog
-import com.crguarin.wallet.ui.components.MoneyText
 import com.crguarin.wallet.ui.motion.animationsOn
 import com.crguarin.wallet.ui.motion.cardShadow
-import com.crguarin.wallet.ui.theme.TABULAR_FIGURES
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.theme.brush
 import com.crguarin.wallet.ui.theme.cardFace
@@ -116,8 +112,6 @@ private val ChipRadius = 8.dp
 private const val CHIP_ALPHA = 0.18f
 private val NameSize = 13.sp
 private val NameLineHeight = 16.sp
-private val BalanceSize = 14.sp
-private val BalanceLineHeight = 18.sp
 private const val LIFT_DP = -6f
 private const val LIFT_MILLIS = 300
 
@@ -128,7 +122,8 @@ private const val LIFT_MILLIS = 300
  * recomposition per frame).
  *
  * Flat mode, transfers, a single account and archived accounts are handled by the caller, which
- * keeps showing today's `SelectorField` for them.
+ * keeps showing today's `SelectorField` for them. Each card shows only its icon and name: the caller
+ * shows the amount under the carousel.
  *
  * [onInteraction] runs when the user taps a card or starts dragging the pager, so the caller can
  * move the focus out of the form's amount. A settled page that the selection sync scrolls to does
@@ -141,7 +136,6 @@ fun AccountCoverflow(
     onAccountSelected: (Long) -> Unit,
     onOpenAccountSheet: () -> Unit,
     modifier: Modifier = Modifier,
-    cardOverviews: Map<Long, CardOverview> = emptyMap(),
     onInteraction: () -> Unit = {},
     showHeader: Boolean = true,
 ) {
@@ -180,7 +174,6 @@ fun AccountCoverflow(
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     CoverflowCard(
                         item = item,
-                        overview = cardOverviews[item.account.id],
                         isSelected = isSelected,
                         offset = { pagerState.getOffsetDistanceInPages(page) },
                         onSelect = {
@@ -222,14 +215,13 @@ private fun CoverflowHeader(onOpenAccountSheet: () -> Unit) {
 }
 
 /**
- * One mini card: the account face with its icon chip, name and balance (or the available credit
- * for cards). The selected one sits in a surface + primary ring with a card shadow and hops up
- * 6 dp when chosen. Selectable, with name and balance merged into one node.
+ * One mini card: the account face with its icon chip and name. The selected one sits in a surface +
+ * primary ring with a card shadow and hops up 6 dp when chosen. Selectable, with the name merged
+ * into one node.
  */
 @Composable
 private fun CoverflowCard(
     item: AccountWithBalance,
-    overview: CardOverview?,
     isSelected: Boolean,
     offset: () -> Float,
     onSelect: () -> Unit,
@@ -283,7 +275,7 @@ private fun CoverflowCard(
                     ).clip(cardShape)
                     .padding(horizontal = 10.dp, vertical = 10.dp),
         ) {
-            CoverflowCardContent(item = item, overview = overview)
+            CoverflowCardContent(item = item)
         }
     } else {
         Box(
@@ -293,16 +285,14 @@ private fun CoverflowCard(
                     .clip(cardShape)
                     .padding(horizontal = 10.dp, vertical = 10.dp),
         ) {
-            CoverflowCardContent(item = item, overview = overview)
+            CoverflowCardContent(item = item)
         }
     }
 }
 
+/** The icon chip at the top and the account name at the bottom, in the face's content color. */
 @Composable
-private fun CoverflowCardContent(
-    item: AccountWithBalance,
-    overview: CardOverview?,
-) {
+private fun CoverflowCardContent(item: AccountWithBalance) {
     val face = remember(item.account.color) { cardFace(Color(item.account.color)) }
     Column(modifier = Modifier.fillMaxSize()) {
         Box(
@@ -319,43 +309,16 @@ private fun CoverflowCardContent(
                 modifier = Modifier.size(ChipIconSize),
             )
         }
+        Spacer(modifier = Modifier.weight(1f))
         Text(
             text = item.account.name,
             fontSize = NameSize,
             lineHeight = NameLineHeight,
             fontWeight = FontWeight.Bold,
             color = face.content,
-            maxLines = 1,
+            maxLines = 2,
             overflow = TextOverflow.Ellipsis,
-            modifier = Modifier.padding(top = 6.dp),
         )
-        if (item.account.type == AccountType.CREDIT_CARD && overview != null) {
-            Text(
-                text = cardAvailableText(overview),
-                style =
-                    TextStyle(
-                        fontSize = BalanceSize,
-                        lineHeight = BalanceLineHeight,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontFeatureSettings = TABULAR_FIGURES,
-                    ),
-                color = face.content,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        } else {
-            MoneyText(
-                amount = item.balance,
-                style =
-                    MaterialTheme.typography.bodyLarge.copy(
-                        fontSize = BalanceSize,
-                        lineHeight = BalanceLineHeight,
-                        fontWeight = FontWeight.ExtraBold,
-                        fontFeatureSettings = TABULAR_FIGURES,
-                    ),
-                color = face.content,
-            )
-        }
     }
 }
 
