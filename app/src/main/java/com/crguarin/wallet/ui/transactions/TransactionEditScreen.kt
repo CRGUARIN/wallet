@@ -1,5 +1,6 @@
 package com.crguarin.wallet.ui.transactions
 
+import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -47,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -276,6 +278,10 @@ fun TransactionEditScreen(
     }
     val imeVisible = WindowInsets.isImeVisible
     val showKeypad = showForm && (amountFocused || keypadFromStart == true) && !imeVisible
+    val focusManager = LocalFocusManager.current
+    // Back closes the in-app keypad first, as it used to close the system keyboard; the next Back
+    // leaves the form as usual.
+    BackHandler(enabled = showKeypad && amountFocused) { focusManager.clearFocus() }
 
     Scaffold(
         modifier = modifier.fillMaxSize().nestedScroll(scrollBehavior.nestedScrollConnection),

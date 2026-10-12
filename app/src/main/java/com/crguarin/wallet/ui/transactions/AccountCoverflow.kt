@@ -4,6 +4,7 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -126,6 +127,10 @@ private const val LIFT_MILLIS = 300
  *
  * Flat mode, transfers, a single account and archived accounts are handled by the caller, which
  * keeps showing today's `SelectorField` for them.
+ *
+ * [onInteraction] runs when the user taps a card or starts dragging the pager, so the caller can
+ * move the focus out of the form's amount. A settled page that the selection sync scrolls to does
+ * not count.
  */
 @Composable
 fun AccountCoverflow(
@@ -135,10 +140,12 @@ fun AccountCoverflow(
     onOpenAccountSheet: () -> Unit,
     modifier: Modifier = Modifier,
     cardOverviews: Map<Long, CardOverview> = emptyMap(),
+    onInteraction: () -> Unit = {},
 ) {
     val selectedIndex = accounts.indexOfFirst { it.account.id == selectedAccountId }.coerceAtLeast(0)
     val pagerState = rememberPagerState(initialPage = selectedIndex) { accounts.size }
     val scope = rememberCoroutineScope()
+    val dragged by pagerState.interactionSource.collectIsDraggedAsState()
 
     // A settled swipe selects its page; an external pick (the sheet) centers its card.
     LaunchedEffect(pagerState.settledPage) {
@@ -148,6 +155,9 @@ fun AccountCoverflow(
     LaunchedEffect(selectedAccountId, accounts.size) {
         val index = accounts.indexOfFirst { it.account.id == selectedAccountId }
         if (index >= 0 && pagerState.settledPage != index) pagerState.scrollToPage(index)
+    }
+    LaunchedEffect(dragged) {
+        if (dragged) onInteraction()
     }
 
     Column(modifier = modifier.selectableGroup()) {
@@ -172,6 +182,7 @@ fun AccountCoverflow(
                         onSelect = {
                             scope.launch { pagerState.animateScrollToPage(page) }
                             if (!isSelected) onAccountSelected(item.account.id)
+                            onInteraction()
                         },
                     )
                 }

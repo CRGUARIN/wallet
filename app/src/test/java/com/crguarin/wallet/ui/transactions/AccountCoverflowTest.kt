@@ -263,4 +263,24 @@ class AccountCoverflowTest {
 
         assertThat(sheets).isEqualTo(1)
     }
+
+    @Test
+    fun `tapping a side card reports the interaction once`() {
+        var interactions = 0
+        composeRule.setContent {
+            WalletTheme {
+                AccountCoverflow(
+                    accounts = listOf(cash, savings),
+                    selectedAccountId = 1L,
+                    onAccountSelected = {},
+                    onOpenAccountSheet = {},
+                    onInteraction = { interactions++ },
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Ahorros").performClick()
+
+        assertThat(interactions).isEqualTo(1)
+    }
 }

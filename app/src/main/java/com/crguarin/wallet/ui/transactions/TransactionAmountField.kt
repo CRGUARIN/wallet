@@ -1,18 +1,32 @@
 package com.crguarin.wallet.ui.transactions
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.InputTransformation
+import androidx.compose.foundation.text.input.OutputTransformation
+import androidx.compose.foundation.text.input.TextFieldDecorator
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.insert
+import androidx.compose.foundation.text.input.placeCursorAtEnd
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
@@ -21,6 +35,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.platform.LocalConfiguration
@@ -29,15 +44,17 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.relocation.BringIntoViewModifierNode
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.OffsetMapping
-import androidx.compose.ui.text.input.TransformedText
-import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import com.crguarin.wallet.R
 import com.crguarin.wallet.ui.components.AmountVisualTransformation
+import com.crguarin.wallet.ui.components.HERO_SYMBOL_RAISE
 import com.crguarin.wallet.ui.components.amountWithSmallSymbol
 import com.crguarin.wallet.ui.theme.WalletTheme
 import com.crguarin.wallet.ui.theme.walletSpacing
@@ -62,6 +79,9 @@ private val AmountVerticalPadding = 14.dp
  * form shows its own [AmountKeypad] instead. Tapping the already-focused field opens the system
  * keyboard for cents and pasting, and a long press still shows the native paste bar, because the
  * field stays a plain editable text field.
+ *
+ * The field is a [TextFieldState] so that text set from outside (the keypad) puts the caret at
+ * its end instead of keeping the old index. [value] stays the form's copy of the text.
  */
 @Composable
 internal fun TransactionAmountField(
@@ -81,13 +101,39 @@ internal fun TransactionAmountField(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val symbolColor = colors.onSurfaceVariant
-    val transformation =
-        remember(locale, symbolColor) { SymbolPrefixTransformation(AmountVisualTransformation(locale), symbolColor) }
+    val state = remember { TextFieldState(value, TextRange(value.length)) }
+    val currentValue by rememberUpdatedState(value)
+    val currentOnValueChange by rememberUpdatedState(onValueChange)
+    // Texts this field sent to the form that the form has not echoed back yet. The echo arrives a
+    // frame later, so without this a fast typist's newer text could be overwritten by an older one.
+    val pendingEchoes = remember { ArrayDeque<String>() }
+    // Form -> field (the keypad): a text the field did not send replaces it, caret at the end.
+    LaunchedEffect(value) {
+        val echo = pendingEchoes.indexOf(value)
+        if (echo >= 0) {
+            repeat(echo + 1) { pendingEchoes.removeFirst() }
+        } else {
+            pendingEchoes.clear()
+            if (state.text.toString() != value) state.setTextAndPlaceCursorAtEnd(value)
+        }
+    }
+    // Field -> form: the input transformation has already normalized what the field holds.
+    LaunchedEffect(state) {
+        snapshotFlow { state.text.toString() }.collect { text ->
+            if (text != currentValue) {
+                pendingEchoes.addLast(text)
+                currentOnValueChange(text)
+            }
+        }
+    }
+    val inputTransformation = remember(locale) { amountInputTransformation(locale) }
+    val outputTransformation = remember(locale, symbolColor) { amountOutputTransformation(locale, symbolColor) }
     val placeholder =
         remember(symbolColor) {
             amountWithSmallSymbol(SYMBOL_PREFIX + "0", FORM_SYMBOL_SCALE, symbolColor = symbolColor)
         }
     val isError = errorMessage != null
+    var focused by remember { mutableStateOf(false) }
 
     Column(
         modifier =
@@ -103,50 +149,59 @@ internal fun TransactionAmountField(
             style = MaterialTheme.typography.labelMedium,
             color = if (isError) colors.error else colors.onSurfaceVariant,
         )
-        BasicTextField(
-            value = value,
-            onValueChange = { input ->
-                val normalized = AmountVisualTransformation.normalizeDecimalSeparator(input, locale)
-                if (AmountVisualTransformation.isValidInput(normalized, locale)) {
-                    onValueChange(normalized)
-                }
-            },
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .focusRequester(focusRequester)
-                    .onFocusChanged { onFocusChanged(it.isFocused) },
-            textStyle = amountStyle.copy(color = if (isError) colors.error else colors.onSurface),
-            singleLine = true,
-            cursorBrush = SolidColor(colors.primary),
-            keyboardOptions =
-                KeyboardOptions(
-                    keyboardType = KeyboardType.Decimal,
-                    imeAction = ImeAction.Done,
-                    showKeyboardOnFocus = false,
-                ),
-            keyboardActions =
-                KeyboardActions(
-                    onDone = {
-                        keyboardController?.hide()
-                        focusManager.clearFocus()
-                        onDone()
+        Box(modifier = Modifier.fillMaxWidth()) {
+            BasicTextField(
+                state = state,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester)
+                        .onFocusChanged {
+                            focused = it.isFocused
+                            onFocusChanged(it.isFocused)
+                        },
+                inputTransformation = inputTransformation,
+                outputTransformation = outputTransformation,
+                textStyle = amountStyle.copy(color = if (isError) colors.error else colors.onSurface),
+                lineLimits = TextFieldLineLimits.SingleLine,
+                cursorBrush = SolidColor(colors.primary),
+                keyboardOptions =
+                    KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = ImeAction.Done,
+                        showKeyboardOnFocus = false,
+                    ),
+                onKeyboardAction = {
+                    keyboardController?.hide()
+                    focusManager.clearFocus()
+                    onDone()
+                },
+                decorator =
+                    TextFieldDecorator { innerTextField ->
+                        Box {
+                            if (state.text.isEmpty()) {
+                                Text(
+                                    text = placeholder,
+                                    style = amountStyle,
+                                    color = colors.onSurfaceVariant.copy(alpha = PLACEHOLDER_ALPHA),
+                                )
+                            }
+                            innerTextField()
+                        }
                     },
-                ),
-            visualTransformation = if (value.isEmpty()) VisualTransformation.None else transformation,
-            decorationBox = { innerTextField ->
-                Box {
-                    if (value.isEmpty()) {
-                        Text(
-                            text = placeholder,
-                            style = amountStyle,
-                            color = colors.onSurfaceVariant.copy(alpha = PLACEHOLDER_ALPHA),
-                        )
-                    }
-                    innerTextField()
-                }
-            },
-        )
+            )
+            // Programmatic focus does not open the system keyboard, so an unfocused tap only focuses
+            // the field here and the in-app keypad shows. Once focused this layer is gone: the next
+            // tap reaches the field, which then opens the system keyboard.
+            if (!focused) {
+                Box(
+                    modifier =
+                        Modifier.matchParentSize().pointerInput(Unit) {
+                            detectTapGestures { focusRequester.requestFocus() }
+                        },
+                )
+            }
+        }
         if (errorMessage != null) {
             Text(
                 text = errorMessage,
@@ -158,6 +213,68 @@ internal fun TransactionAmountField(
 }
 
 private const val PLACEHOLDER_ALPHA = 0.6f
+
+/**
+ * Keeps only what the amount accepts: digits and one decimal separator, the one of [locale], with
+ * at most two decimals. A dot and a comma both become that separator, because some keypads only
+ * offer one of them. Invalid edits are reverted; a swapped separator keeps the caret in place.
+ */
+private fun amountInputTransformation(locale: Locale): InputTransformation =
+    InputTransformation {
+        val raw = asCharSequence().toString()
+        val normalized = AmountVisualTransformation.normalizeDecimalSeparator(raw, locale)
+        if (!AmountVisualTransformation.isValidInput(normalized, locale)) {
+            revertAllChanges()
+        } else if (normalized != raw) {
+            if (normalized.length == raw.length) {
+                // Same length: replace only the characters that differ, so the caret does not move.
+                for (index in normalized.indices) {
+                    if (normalized[index] != raw[index]) replace(index, index + 1, normalized[index].toString())
+                }
+            } else {
+                replace(0, length, normalized)
+                placeCursorAtEnd()
+            }
+        }
+    }
+
+/**
+ * Shows the amount as the form always has: the digits grouped as [AmountVisualTransformation]
+ * groups them and a small dimmed "$ " in front. It only inserts characters, so the caret maps
+ * through the formatting. Empty text gets no output, so the placeholder shows.
+ */
+private fun amountOutputTransformation(
+    locale: Locale,
+    symbolColor: Color,
+): OutputTransformation {
+    val grouping = AmountVisualTransformation(locale)
+    return OutputTransformation {
+        val raw = asCharSequence().toString()
+        if (raw.isNotEmpty()) {
+            // Formatting only adds grouping separators, so each raw character is met in order.
+            val formatted = grouping.filter(AnnotatedString(raw)).text.text
+            var index = 0
+            for (ch in formatted) {
+                if (index < length && charAt(index) == ch) {
+                    index++
+                } else {
+                    insert(index, ch.toString())
+                    index++
+                }
+            }
+            insert(0, SYMBOL_PREFIX)
+            addStyle(
+                SpanStyle(
+                    color = symbolColor,
+                    fontSize = FORM_SYMBOL_SCALE.em,
+                    baselineShift = BaselineShift(HERO_SYMBOL_RAISE),
+                ),
+                start = 0,
+                end = SYMBOL_PREFIX.length,
+            )
+        }
+    }
+}
 
 /**
  * Swallows `bringIntoView` requests from the amount field while the form settles on its initial
@@ -184,35 +301,6 @@ private class SuppressBringIntoViewNode :
         boundsProvider: () -> Rect?,
     ) {
         // Drop the request on purpose; see [suppressBringIntoView].
-    }
-}
-
-/**
- * Puts a small "$ " before the digits that [inner] formats, keeping the cursor and selection
- * mapped: the two extra characters shift every offset.
- */
-private class SymbolPrefixTransformation(
-    private val inner: VisualTransformation,
-    private val symbolColor: Color,
-) : VisualTransformation {
-    override fun filter(text: AnnotatedString): TransformedText {
-        val formatted = inner.filter(text)
-        val shift = SYMBOL_PREFIX.length
-        val prefixed =
-            amountWithSmallSymbol(
-                text = SYMBOL_PREFIX + formatted.text.text,
-                symbolScale = FORM_SYMBOL_SCALE,
-                symbolColor = symbolColor,
-            )
-        return TransformedText(
-            prefixed,
-            object : OffsetMapping {
-                override fun originalToTransformed(offset: Int): Int = formatted.offsetMapping.originalToTransformed(offset) + shift
-
-                override fun transformedToOriginal(offset: Int): Int =
-                    formatted.offsetMapping.transformedToOriginal((offset - shift).coerceAtLeast(0))
-            },
-        )
     }
 }
 

@@ -308,6 +308,8 @@ internal fun TransactionEditForm(
                         onAccountSelected = onAccountSelected,
                         onOpenAccountSheet = openAccountSheet,
                         cardOverviews = uiState.cardOverviews,
+                        // Like the other selectors, touching a card moves the focus out of the amount.
+                        onInteraction = { focusManager.clearFocus() },
                     )
                 } else {
                     SelectorField(
