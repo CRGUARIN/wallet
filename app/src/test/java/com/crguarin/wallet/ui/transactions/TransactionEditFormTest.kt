@@ -175,12 +175,12 @@ class TransactionEditFormTest {
 
         fun top(text: String) =
             composeRule
-                .onNodeWithText(text)
+                .onNodeWithText(text, substring = text == "Desde ")
                 .fetchSemanticsNode()
                 .boundsInRoot.top
 
-        // Two accounts: the carousel sits right under the amount, the category row comes after it.
-        val order = listOf("Gasto", "¿Cuánto fue?", "Cuenta", "Categoría", "Fecha", "Nota (opcional)").map(::top)
+        // Two accounts: the carousel and its caption sit right under the amount, the category row after.
+        val order = listOf("Gasto", "¿Cuánto fue?", "Desde ", "Categoría", "Fecha", "Nota (opcional)").map(::top)
         assertThat(order).isInStrictOrder()
     }
 

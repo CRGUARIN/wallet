@@ -34,6 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Notes
 import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.Icon
@@ -258,24 +259,42 @@ internal fun TransactionEditForm(
                         cardOverviews = uiState.cardOverviews,
                         // Like the other selectors, touching a card moves the focus out of the amount.
                         onInteraction = { focusManager.clearFocus() },
+                        showHeader = false,
                     )
                     if (selectedAccount != null && selectedAccountBalance != null) {
-                        Text(
-                            text =
-                                stringResource(
-                                    if (isIncome) R.string.transaction_caption_to else R.string.transaction_caption_from,
-                                    selectedAccount.name,
-                                    MoneyFormatter.format(selectedAccountBalance),
-                                ),
-                            style =
-                                MaterialTheme.typography.labelLarge.copy(
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                ),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                        // The caption names the chosen account and opens the full list, as the
+                        // design has no "Cuenta" row over the cards.
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(min = 48.dp)
+                                    .clickable(role = Role.Button, onClick = openAccountSheet),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text =
+                                    stringResource(
+                                        if (isIncome) R.string.transaction_caption_to else R.string.transaction_caption_from,
+                                        selectedAccount.name,
+                                        MoneyFormatter.format(selectedAccountBalance),
+                                    ),
+                                style =
+                                    MaterialTheme.typography.labelLarge.copy(
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                    ),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                            )
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
                     }
                 }
             }
