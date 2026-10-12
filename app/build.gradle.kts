@@ -44,8 +44,8 @@ android {
         applicationId = "com.crguarin.wallet"
         minSdk = 26
         targetSdk = 37
-        versionCode = 11
-        versionName = "1.4.5"
+        versionCode = 12
+        versionName = "1.4.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
