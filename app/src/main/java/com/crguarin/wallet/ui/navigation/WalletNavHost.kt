@@ -127,6 +127,9 @@ fun WalletNavHost(
                             onOpenSettings = {
                                 navController.navigate(Settings)
                             },
+                            onViewAllAccounts = {
+                                navController.navigateToTopLevelDestination(Accounts)
+                            },
                         )
                     }
                 }

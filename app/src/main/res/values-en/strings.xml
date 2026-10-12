@@ -224,6 +224,11 @@
     <!-- Home -->
     <string name="home_recent_transactions">Recent transactions</string>
     <string name="home_view_all">View all</string>
+    <string name="home_accounts_view_all">See all</string>
+    <plurals name="home_deck_caption">
+        <item quantity="one">%1$d account · tap it to open it</item>
+        <item quantity="other">%1$d accounts · tap one to open it</item>
+    </plurals>
     <string name="home_view_reports">View reports</string>
     <string name="home_quick_actions">Quick actions</string>
     <string name="home_empty_title">No transactions yet</string>
